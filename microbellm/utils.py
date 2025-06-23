@@ -5,79 +5,96 @@ import json
 import re
 import os
 import time
-from openai import OpenAI
 from datetime import datetime
 from string import Template
+import requests
+from colorama import Fore, Style
+from microbellm import config
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+# --- LLM Provider Abstraction ---
 
-def query_openai_api(messages, model, temperature, verbose=False):
+class LLMProvider:
+    """Base class for LLM providers."""
+    def query(self, messages, model, temperature, verbose=False):
+        raise NotImplementedError("Subclasses must implement the query method.")
+
+class OpenRouterProvider(LLMProvider):
+    """LLM Provider for OpenRouter.ai."""
+    
+    API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+    def __init__(self, api_key=None):
+        self.api_key = api_key or config.OPENROUTER_API_KEY
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        reraise=True
+    )
+    def query(self, messages, model, temperature, verbose=False):
+        if not self.api_key:
+            raise ValueError("OpenRouter API key is not set.")
+
+        if verbose:
+            print("Raw query to OpenRouter API:")
+            print(json.dumps(messages, indent=2))
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature
+        }
+        
+        try:
+            response = requests.post(self.API_URL, headers=headers, json=data)
+            response.raise_for_status()
+            
+            completion = response.json()
+            
+            if verbose:
+                print("\nRaw response from OpenRouter API:")
+                print(json.dumps(completion, indent=2))
+            
+            result = completion['choices'][0]['message']['content']
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error querying OpenRouter API: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response content: {e.response.text}")
+            return None
+        except KeyError as e:
+            print(f"Error parsing OpenRouter API response: {e}")
+            print(f"Response: {completion}")
+            return None
+
+# --- Existing Utility Functions ---
+
+def read_template_from_file(template_path):
     """
-    Queries the OpenAI API with the given messages and model.
+    Reads a template from a file.
     
     Args:
-        messages (list): List of messages to send to the API.
-        model (str): Model to use for the API call.
-        temperature (float): Temperature to use for the API call.
-        verbose (bool): Whether to print verbose output.
+        template_path (str): Path to the template file.
     
     Returns:
-        str: The content of the API response.
+        str: The template content.
     """
-    if verbose:
-        print("Raw query to OpenAI API:")
-        print(json.dumps(messages, indent=2))
-
-    #print("Using OpenAI API")
-    client = OpenAI(
-        organization=os.getenv("OPENAI_ORG_ID"),
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
-
-    # Remove the "openai/" prefix from the model name
-    model_name = model.replace("openai/", "")
-
-    completion = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {
-                "role": message["role"],
-                "content": [
-                    {
-                        "type": "text",
-                        "text": message["content"]
-                    }
-                ]
-            }
-            for message in messages
-        ],
-        temperature=temperature,
-        max_tokens=1024,
-        top_p=0,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
-    
-    if verbose:
-        print("\nRaw response from OpenAI API:")
-        print(json.dumps(completion.dict(), indent=2))
-    
-    return completion.choices[0].message.content
-
-def read_template_from_file(file_path, substitutions={}):
-    """
-    Reads a template from a file and substitutes any placeholders.
-    
-    Args:
-        file_path (str): Path to the template file.
-        substitutions (dict): Dictionary of substitutions to make in the template.
-    
-    Returns:
-        str: The template with substitutions made.
-    """
-    with open(file_path, 'r', encoding='utf-8') as file:
-        template_string = file.read()
-        template = Template(template_string)
-        return template.substitute(substitutions)
+    try:
+        with open(template_path, 'r', encoding='utf-8') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        print(f"Error: Template file not found: {template_path}")
+        return None
+    except Exception as e:
+        print(f"Error reading template file {template_path}: {e}")
+        return None
 
 def read_csv(file_path, delimiter=';'):
     """
@@ -164,9 +181,15 @@ def write_prediction(output_file, prediction, model_used, template_path):
         # Write the prediction row to the CSV file
         writer.writerow(row)
 
+@retry(
+    stop=stop_after_attempt(3),  # Retry up to 3 times
+    wait=wait_exponential(multiplier=1, min=4, max=10),  # Wait 2^x * 1 seconds between retries
+    reraise=True  # Reraise the exception if all retries fail
+)
 def query_openrouter_api(messages, model, temperature, verbose=False):
     """
     Queries the OpenRouter API with the given messages and model.
+    Includes exponential backoff for retries.
     
     Args:
         messages (list): List of messages to send to the API.
@@ -177,36 +200,8 @@ def query_openrouter_api(messages, model, temperature, verbose=False):
     Returns:
         str: The content of the API response.
     """
-    if verbose:
-        print("Raw query to OpenRouter API:")
-        print(json.dumps(messages, indent=2))
-
-    #print("Using OpenRouter API")
-    try:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY")
-        )
-
-        completion = client.chat.completions.create(
-            extra_headers={
-                "HTTP-Referer": "microbe.cards", 
-                "X-Title": "microbe.cards",
-            },
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=2048,
-            top_p=0
-        )
-        result = completion.choices[0].message.content
-        if verbose:
-            print("\nRaw response from OpenRouter API:")
-            print(json.dumps(completion.dict(), indent=2))
-        return result
-    except Exception as e:
-        #print(f"Error during API call: {e}")
-        return None
+    provider = OpenRouterProvider()
+    return provider.query(messages, model, temperature, verbose)
 
 def summarize_predictions(predictions):
     """
@@ -275,31 +270,242 @@ def pretty_print_prediction(prediction, model):
                 print(f"{key}: {value}")
     print("=" * 40)
 
-def write_batch_jsonl(output_file, messages, model, custom_id):
+def write_batch_jsonl(data, file_path):
     """
-    Writes a single request to a .jsonl file for batch processing.
+    Writes a list of dictionaries to a JSONL file.
     
     Args:
-        output_file (str): Path to the output .jsonl file.
-        messages (list): List of message dictionaries.
-        model (str): Model to use for the API call.
-        custom_id (str): Unique identifier for the request.
+        data (list): List of dictionaries to write.
+        file_path (str): Path to the output file.
     """
-    request = {
-        "custom_id": custom_id,
-        "method": "POST",
-        "url": "/v1/chat/completions",
-        "body": {
-            "model": model,
-            "messages": messages,
-            "max_tokens": 1024,
-            "temperature": 0,
-            "top_p": 0,
-            "frequency_penalty": 0,
-            "presence_penalty": 0
-        }
+    try:
+        with open(file_path, 'w', encoding='utf-8') as file:
+            for item in data:
+                file.write(json.dumps(item) + '\n')
+        print(f"Data written to {file_path}")
+    except Exception as e:
+        print(f"Error writing to file {file_path}: {e}")
+
+def parse_response(response):
+    """
+    Parses the response from the LLM and extracts the relevant information.
+    
+    Args:
+        response (str): The response from the LLM.
+    
+    Returns:
+        dict: A dictionary containing the parsed information.
+    """
+    if not response:
+        return None
+    
+    # First try to extract JSON from the response
+    json_data = extract_and_validate_json(response)
+    if json_data:
+        # Clean the JSON data using our cleaning function
+        cleaned_data = {}
+        for key, value in json_data.items():
+            cleaned_key = key.strip().lower().replace(' ', '_').replace('-', '_')
+            cleaned_data[cleaned_key] = clean_phenotype_value(value)
+        return cleaned_data
+        
+    # Initialize the result dictionary with default values
+    result = {
+        'oxygen_requirements': '',
+        'gram_staining': '',
+        'spore_formation': '',
+        'motility': '',
+        'glucose_fermentation': '',
+        'catalase_positive': '',
+        'oxidase_positive': '',
+        'biosafety_level': '',
+        'health_association': '',
+        'animal_pathogenicity': '',
+        'plant_pathogenicity': '',
+        'phenotypic_category': '',
+        'hemolysis': '',
+        'cell_shape': '',
+        'biofilm_formation': '',
+        'extreme_environment_tolerance': '',
+        'host_association': ''
     }
     
-    with open(output_file, 'a', encoding='utf-8') as f:
-        json.dump(request, f)
-        f.write('\n')
+    # Split response into lines and process each line
+    lines = response.strip().split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = key.strip().lower().replace(' ', '_').replace('-', '_')
+            value = clean_phenotype_value(value)
+            
+            # Map response keys to our standard keys with broader matching
+            if 'oxygen' in key or 'aerobic' in key or 'aerophilic' in key:
+                result['oxygen_requirements'] = value
+            elif 'gram' in key:
+                result['gram_staining'] = value
+            elif 'spore' in key:
+                result['spore_formation'] = value
+            elif 'motil' in key:
+                result['motility'] = value
+            elif 'glucose' in key or 'ferment' in key:
+                result['glucose_fermentation'] = value
+            elif 'catalase' in key:
+                result['catalase_positive'] = value
+            elif 'oxidase' in key:
+                result['oxidase_positive'] = value
+            elif 'biosafety' in key or 'safety' in key:
+                result['biosafety_level'] = value
+            elif 'health' in key or ('human' in key and 'pathogen' in key):
+                result['health_association'] = value
+            elif 'animal' in key and 'pathogen' in key:
+                result['animal_pathogenicity'] = value
+            elif 'plant' in key and 'pathogen' in key:
+                result['plant_pathogenicity'] = value
+            elif 'phenotypic' in key or 'category' in key:
+                result['phenotypic_category'] = value
+            elif 'hemolytic' in key or 'hemolysis' in key:
+                result['hemolysis'] = value
+            elif 'shape' in key or 'morphology' in key:
+                result['cell_shape'] = value
+            elif 'biofilm' in key:
+                result['biofilm_formation'] = value
+            elif 'extreme' in key or 'environment' in key:
+                result['extreme_environment_tolerance'] = value
+            elif 'host' in key:
+                result['host_association'] = value
+    
+    return result
+
+def colorize_text(text, color):
+    """
+    Colorizes text using colorama.
+    
+    Args:
+        text (str): Text to colorize.
+        color (str): Color to use (from colorama.Fore).
+    
+    Returns:
+        str: Colorized text.
+    """
+    return f"{color}{text}{Style.RESET_ALL}"
+
+def clean_phenotype_value(value):
+    """
+    Clean and normalize a phenotype value from LLM response.
+    
+    Args:
+        value: Raw value from LLM response (could be string, list, dict, etc.)
+    
+    Returns:
+        str: Cleaned and normalized string value
+    """
+    if value is None:
+        return ''
+    
+    # Convert to string first
+    if isinstance(value, (list, tuple)):
+        # Handle lists like ['anaerobic'] -> 'anaerobic'
+        if len(value) == 1:
+            value = str(value[0])
+        elif len(value) > 1:
+            value = ', '.join(str(v) for v in value)
+        else:
+            value = ''
+    elif isinstance(value, dict):
+        # Handle dict responses by converting to string representation
+        value = str(value)
+    else:
+        value = str(value)
+    
+    # Remove surrounding quotes
+    value = value.strip().strip('"').strip("'")
+    
+    # Remove brackets if they exist
+    value = re.sub(r'^[\[\(](.+)[\]\)]$', r'\1', value)
+    
+    # Remove extra quotes inside the string
+    value = value.replace('"', '').replace("'", '')
+    
+    # Clean up whitespace
+    value = ' '.join(value.split())
+    
+    # Handle boolean-like values
+    if value.lower() in ['true', 'yes', '1']:
+        return 'TRUE'
+    elif value.lower() in ['false', 'no', '0']:
+        return 'FALSE'
+    
+    # Handle special cases and normalize common values
+    value_lower = value.lower()
+    
+    # Normalize gram staining
+    if 'gram' in value_lower:
+        if 'positive' in value_lower or 'gram+' in value_lower:
+            return 'gram stain positive'
+        elif 'negative' in value_lower or 'gram-' in value_lower:
+            return 'gram stain negative'
+        elif 'variable' in value_lower:
+            return 'gram stain variable'
+    
+    # Normalize motility
+    if value_lower in ['motile', 'mobile', 'yes', 'true']:
+        return 'TRUE'
+    elif value_lower in ['non-motile', 'nonmotile', 'immobile', 'no', 'false']:
+        return 'FALSE'
+    
+    # Normalize aerophilicity 
+    if value_lower in ['aerobic', 'obligate aerobic', 'strict aerobic']:
+        return 'aerobic'
+    elif value_lower in ['anaerobic', 'obligate anaerobic', 'strict anaerobic']:
+        return 'anaerobic'
+    elif value_lower in ['facultative', 'facultative anaerobic', 'facultatively anaerobic']:
+        return 'facultative'
+    elif value_lower in ['microaerophilic', 'microaerophile']:
+        return 'microaerophilic'
+    
+    # Normalize biosafety levels
+    if 'biosafety' in value_lower or 'bsl' in value_lower:
+        numbers = re.findall(r'\d+', value)
+        if numbers:
+            return f'biosafety level {numbers[0]}'
+    
+    # Normalize hemolysis
+    if 'hemolysis' in value_lower or 'hemolytic' in value_lower:
+        if 'alpha' in value_lower or 'α' in value_lower:
+            return 'alpha-hemolytic'
+        elif 'beta' in value_lower or 'β' in value_lower:
+            return 'beta-hemolytic'
+        elif 'gamma' in value_lower or 'γ' in value_lower or 'non' in value_lower:
+            return 'non-hemolytic'
+    
+    # Return cleaned value
+    return value.strip()
+
+def clean_csv_field(field):
+    """
+    Clean a CSV field to prevent CSV formatting issues.
+    
+    Args:
+        field (str): Field value to clean
+    
+    Returns:
+        str: Cleaned field value safe for CSV export
+    """
+    if field is None:
+        return ''
+    
+    field = str(field).strip()
+    
+    # Remove any existing quotes
+    field = field.strip('"').strip("'")
+    
+    # Clean up any problematic characters for CSV
+    field = field.replace('\n', ' ').replace('\r', ' ')
+    field = field.replace(';', ',')  # Replace semicolons with commas since we use ; as delimiter
+    
+    # Remove extra whitespace
+    field = ' '.join(field.split())
+    
+    return field

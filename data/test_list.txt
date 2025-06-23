@@ -1,0 +1,10 @@
+Escherichia coli
+Bacillus subtilis
+Staphylococcus aureus
+Pseudomonas aeruginosa
+Streptococcus pneumoniae
+Lactobacillus acidophilus
+Clostridium botulinum
+Mycobacterium tuberculosis
+Salmonella enterica
+Vibrio cholerae 

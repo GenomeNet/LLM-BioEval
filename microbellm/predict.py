@@ -5,90 +5,73 @@ import argparse
 import json
 import pandas as pd
 from colorama import Fore, Style
-from microbellm.utils import query_openrouter_api, query_openai_api, extract_and_validate_json, write_prediction, pretty_print_prediction, write_batch_jsonl
+from microbellm.utils import parse_response, OpenRouterProvider
 import sys
 from tqdm import tqdm
+from datetime import datetime
 
-def predict_binomial_name(binomial_name, model, system_message_template, user_message_template, output_file, system_template_path, temperature, gene_list=None, model_host='openrouter', pbar=None, by_name_mode=False, verbose=False, batch_output=False):
+def predict_binomial_name(binomial_name, system_template, user_template, model, temperature=0.0, verbose=False):
     """
-    Predicts the phenotype of a microbe given its binomial name using a specified model.
-
+    Predicts various characteristics of a bacterial species using an LLM.
+    
     Args:
-        binomial_name (str): The binomial name of the microbe.
+        binomial_name (str): The binomial name of the bacterial species.
+        system_template (str): The system message template.
+        user_template (str): The user message template.
         model (str): The model to use for prediction.
-        system_message_template (str): The system message template.
-        user_message_template (str): The user message template.
-        output_file (str): The file to write the prediction to.
-        system_template_path (str): The path to the system template.
-        temperature (float): The temperature for the prediction model.
-        gene_list (list, optional): List of genes to include in the query. Defaults to None.
-        model_host (str, optional): The model host to use for the query. Defaults to 'openrouter'.
-        pbar (tqdm, optional): Progress bar object for updating progress.
-        by_name_mode (bool): Whether the function is being called in by_name mode.
+        temperature (float): The temperature for the model.
         verbose (bool): Whether to print verbose output.
-        batch_output (bool): Whether to generate batch output for OpenAI processing.
-
+    
     Returns:
-        list: The prediction result.
+        dict: A dictionary containing the prediction results.
     """
-    name_parts = binomial_name.split()
-    if len(name_parts) != 2:
-        return None
-
-    system_message = system_message_template
-    user_message = user_message_template.replace('{binomial_name}', binomial_name)
-
-    if gene_list:
-        gene_list_str = ', '.join(gene_list)
-        user_message = user_message.replace('{gene_list}', gene_list_str)
-
+    
+    # Format the user message with the binomial name
+    user_message = user_template.replace("{binomial_name}", binomial_name)
+    
+    # Prepare messages for the API
     messages = [
-        {"role": "system", "content": system_message},
+        {"role": "system", "content": system_template},
         {"role": "user", "content": user_message}
     ]
-
-    if batch_output:
-        custom_id = f"request-{binomial_name.replace(' ', '_')}"
-        write_batch_jsonl(output_file, messages, model, custom_id)
-        if pbar:
-            pbar.update(1)
-        return [{'Binomial name': binomial_name, 'num_genes': len(gene_list) if gene_list else 0}]
-    else:
-        retry_count = 0
-        while retry_count < 4:
-            if model_host == 'openrouter':
-                response_json = query_openrouter_api(messages, model, temperature, verbose=verbose)
-            elif model_host == 'openai':
-                response_json = query_openai_api(messages, model, temperature, verbose=verbose)
-            else:
-                raise ValueError(f"Invalid model_host: {model_host}")
-
-            valid_json = extract_and_validate_json(response_json)
-
-            if valid_json is not None:
-                num_genes = len(gene_list) if gene_list else 0
-                prediction = {'Binomial name': binomial_name, 'num_genes': num_genes, **valid_json}
-                write_prediction(output_file, prediction, model, system_template_path)
-                
-                if by_name_mode:
-                    pretty_print_prediction(prediction, model)
-                
-                if verbose:
-                    print("\nExtracted and validated JSON:")
-                    print(json.dumps(valid_json, indent=2))
-                
-                if pbar:
-                    pbar.update(1)
-                
-                return [prediction]
-            else:
-                print(Fore.YELLOW + f"\nFailed to extract valid JSON for {binomial_name}. Retrying... (Attempt {retry_count + 1}/{4})" + Style.RESET_ALL)
-                retry_count += 1
-
-        print(Fore.RED + f"\nFailed to extract valid JSON for {binomial_name} after {4} attempts." + Style.RESET_ALL)
-        if pbar:
-            pbar.update(1)
+    
+    if verbose:
+        print(f"Predicting for: {binomial_name}")
+        print(f"Using model: {model}")
+    
+    # Query the API using the provider
+    provider = OpenRouterProvider()
+    response = provider.query(messages, model, temperature, verbose)
+    
+    if not response:
+        if verbose:
+            print(f"Failed to get response for {binomial_name}")
         return None
+    
+    # Parse the response
+    parsed_result = parse_response(response)
+    
+    if not parsed_result:
+        if verbose:
+            print(f"Failed to parse response for {binomial_name}")
+        return None
+    
+    # Add metadata to the result
+    result = {
+        'binomial_name': binomial_name,
+        'model': model,
+        'temperature': temperature,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'raw_response': response
+    }
+    
+    # Add parsed fields
+    result.update(parsed_result)
+    
+    if verbose:
+        print(f"Successfully processed {binomial_name}")
+    
+    return result
 
 def main():
     """
@@ -114,9 +97,7 @@ def main():
                 gene_list = args.gene_list
             else:
                 gene_list = None
-            predict_binomial_name(name, args.model[0], args.system_template, args.user_template, 
-                                  args.output, args.system_template, args.temperature, gene_list, 
-                                  args.model_host, batch_output=args.batchoutput)
+            predict_binomial_name(name, args.system_template, args.user_template, args.model[0], args.temperature, args.verbose)
 
 if __name__ == "__main__":
     main()

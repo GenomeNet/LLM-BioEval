@@ -9,6 +9,10 @@ import pandas as pd
 from tqdm import tqdm
 from microbellm.utils import read_template_from_file, write_batch_jsonl
 from microbellm.predict import predict_binomial_name
+from microbellm import config
+import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 def read_genes_from_file(file_path):
     """
@@ -23,146 +27,153 @@ def read_genes_from_file(file_path):
     with open(file_path, 'r') as file:
         return [line.strip() for line in file.readlines()]
 
-def check_environment_variables(model_host):
-    required_vars = ['OPENROUTER_API_KEY'] if model_host == 'openrouter' else ['OPENAI_API_KEY', 'OPENAI_ORG_ID']
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    if missing_vars:
-        print("Error: The following required environment variables are not set:")
-        for var in missing_vars:
-            print(f"- {var}")
-        print("Please set these variables before running the script.")
+def check_api_key():
+    """Check if the OpenRouter API key is available."""
+    if not config.OPENROUTER_API_KEY:
+        print("Error: OPENROUTER_API_KEY is not set.")
+        print("Please set it as an environment variable or in microbellm/config.py")
+        print("Example: export OPENROUTER_API_KEY='your-api-key'")
         return False
     return True
 
-def main():
+def batch_prediction(args):
     """
-    Main function to parse arguments and execute the prediction command.
+    Adds a batch prediction job to the database queue.
     """
+    if not check_api_key():
+        return
+
+    # Read species names from the input CSV
+    try:
+        df = pd.read_csv(args.input_csv)
+        if 'Binomial.name' not in df.columns:
+            print("Error: Input CSV must have a 'Binomial.name' column.")
+            return
+        # Ensure species file path is stored for the database
+        species_file_path = Path(args.input_csv).name
+    except Exception as e:
+        print(f"Error reading or processing CSV file: {e}")
+        return
+
+    # Prepare for database interaction
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    cursor = conn.cursor()
+
+    # Get template paths
+    system_template_path = args.system_template
+    user_template_path = args.user_template
     
-    parser = argparse.ArgumentParser(description="microbeLLM - Applying LLMs on microbe data")
-    subparsers = parser.add_subparsers(dest="command")
+    # Check if combination already exists
+    cursor.execute('''
+        SELECT id FROM combinations 
+        WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+    ''', (species_file_path, args.model, system_template_path, user_template_path))
 
-    # Subparser for the predict command
-    predict_parser = subparsers.add_parser("by_list", help="Performs prediction based on a input list containing binomial names (such as 'Escherichia coli')")
-    predict_parser.add_argument("--model", type=str, nargs='+', default=["openai/chatgpt-4o-latest"], help="List of models to use for prediction")
-    predict_parser.add_argument("--model_host", type=str, choices=['openrouter', 'openai'], default='openrouter', help="Select the model host (default: openrouter)")
-    predict_parser.add_argument("--system_template", type=str, nargs='+', required=True, help='Text files for system message templates')
-    predict_parser.add_argument("--user_template", type=str, nargs='+', required=True, help='Text files for user message templates')
-    predict_parser.add_argument("--input_file", type=str, required=True, help="Path to the input CSV file. Each row represents an instance for prediction, containing the binomial name and other relevant information.")
-    predict_parser.add_argument("--output", type=str, required=True, help="Output file path to save predictions")
-    predict_parser.add_argument("--column_name", type=str, default='Binomial.name', help="Name of the column in the input file containing binomial names")
-    predict_parser.add_argument("--threads", type=int, default=1, help='Number of parallel threads to use')
-    predict_parser.add_argument("--temperature", type=float, default=0, help='Temperature for the prediction model')
-    predict_parser.add_argument("--use_genes", action='store_true', default=False, help='Specify if gene names should be considered')
-    predict_parser.add_argument("--gene_column", type=str, default='Gene_file', help='Column name for gene file paths')
-    predict_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    predict_parser.add_argument("--batchoutput", action="store_true", help="Generate batch output file for OpenAI processing")
+    if cursor.fetchone():
+        print(f"Combination already exists for {species_file_path}, {args.model}, and specified templates. Skipping.")
+    else:
+        # Create new combination job
+        total_species = len(df['Binomial.name'].unique())
+        cursor.execute('''
+            INSERT INTO combinations 
+            (species_file, model, system_template, user_template, total_species, created_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (species_file_path, args.model, system_template_path, user_template_path, total_species, datetime.now(), 'pending'))
+        conn.commit()
+        print(f"Successfully added job for {species_file_path} with model {args.model}.")
+        print("You can start and monitor this job from the web interface.")
 
+    conn.close()
 
-    # Subparser for the by_name command
-    by_name_parser = subparsers.add_parser("by_name", help="Performs prediction based on a single binomial name")
-    by_name_parser.add_argument("--model", type=str, nargs='+', default=["openai/chatgpt-4o-latest"], help="List of models to use for prediction")
-    by_name_parser.add_argument("--model_host", type=str, choices=['openrouter', 'openai'], default='openrouter', help="Select the model host (default: openrouter)")
-    by_name_parser.add_argument("--system_template", type=str, required=True, help='Text file for system message template')
-    by_name_parser.add_argument("--user_template", type=str, required=True, help='Text file for user message template')
-    by_name_parser.add_argument("--output", type=str, required=True, help="Output file path to save predictions")
-    by_name_parser.add_argument("--binomial_name", type=str, required=True, help="Binomial name for prediction (e.g., 'Escherichia coli')")
-    by_name_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+def single_prediction(args):
+    """
+    Runs a single prediction on a binomial name.
+    """
+    if not check_api_key():
+        return
 
-    # Subparser for the web interface command
-    web_parser = subparsers.add_parser("web", help="Starts the web interface for MicrobeLLM")
-    web_parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to run the web interface on")
-    web_parser.add_argument("--port", type=int, default=5000, help="Port to run the web interface on")
+    # Read system and user templates
+    system_template = read_template_from_file(args.system_template)
+    user_template = read_template_from_file(args.user_template)
 
+    print(f"Processing: {args.binomial_name}")
+    print(f"Model: {args.model}")
+
+    # Run prediction
+    result = predict_binomial_name(
+        args.binomial_name,
+        system_template,
+        user_template,
+        args.model,
+        args.temperature,
+        args.verbose
+    )
+
+    if result:
+        # Save to CSV
+        df = pd.DataFrame([result])
+        df.to_csv(args.output_csv, index=False)
+        print(f"Result saved to: {args.output_csv}")
+        
+        # Also print to console
+        print("\nPrediction Result:")
+        for key, value in result.items():
+            print(f"  {key}: {value}")
+    else:
+        print("Failed to get prediction.")
+
+def main():
+    """Main function to handle command line arguments and run predictions."""
+    parser = argparse.ArgumentParser(description="MicrobeLLM: Evaluate LLMs on microbial phenotype prediction")
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Batch prediction command
+    batch_parser = subparsers.add_parser('batch', help='Run batch predictions on multiple species')
+    batch_parser.add_argument('--input_csv', type=str, required=True,
+                            help='Input CSV file with Binomial.name column')
+    batch_parser.add_argument('--output_csv', type=str, required=True,
+                            help='Output CSV file for results')
+    batch_parser.add_argument('--system_template', type=str, required=True,
+                            help='Path to system message template file')
+    batch_parser.add_argument('--user_template', type=str, required=True,
+                            help='Path to user message template file')
+    batch_parser.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
+                             help=f'Model to use for predictions (default: {config.POPULAR_MODELS[0]})')
+    batch_parser.add_argument('--temperature', type=float, default=0.0,
+                            help='Temperature for model predictions (default: 0.0)')
+    batch_parser.add_argument('--threads', type=int, default=4,
+                            help='Number of threads for parallel processing (default: 4)')
+    batch_parser.add_argument('--verbose', action='store_true',
+                            help='Enable verbose output')
+    
+    # Single prediction command
+    single_parser = subparsers.add_parser('single', help='Run prediction on a single species')
+    single_parser.add_argument('--binomial_name', type=str, required=True,
+                             help='Binomial name of the species to predict')
+    single_parser.add_argument('--output_csv', type=str, required=True,
+                             help='Output CSV file for the result')
+    single_parser.add_argument('--system_template', type=str, required=True,
+                             help='Path to system message template file')
+    single_parser.add_argument('--user_template', type=str, required=True,
+                             help='Path to user message template file')
+    single_parser.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
+                             help=f'Model to use for predictions (default: {config.POPULAR_MODELS[0]})')
+    single_parser.add_argument('--temperature', type=float, default=0.0,
+                             help='Temperature for model predictions (default: 0.0)')
+    single_parser.add_argument('--verbose', action='store_true',
+                             help='Enable verbose output')
+    
     args = parser.parse_args()
-
-    #if not check_environment_variables(args.model_host):
-    #    return
-
-    if args.command == "by_list":
-        # Validate template files
-        template_files = args.system_template + args.user_template
-        missing_files = [file for file in template_files if not os.path.exists(file)]
-        if missing_files:
-            print("Error: The following template files are missing:")
-            for file in missing_files:
-                print(f"- {file}")
-            print("Please ensure all specified template files exist before running the script.")
-            return
-
-        # Check if the output file already exists
-        if os.path.exists(args.output):
-            print(f"Warning: The output file '{args.output}' already exists.")
-            print("New predictions will be added to this file without overwriting existing content.")
-            input("Press Enter to continue or Ctrl+C to abort...")
-
-        # Read binomial names from the provided input file
-        data = pd.read_csv(args.input_file, delimiter=';')
-        binomial_names = data[args.column_name].dropna().unique()
-
-        # Calculate total number of tasks
-        total_tasks = len(binomial_names) * len(args.model) * len(args.system_template)
-
-        # Use ThreadPoolExecutor for parallel processing
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            futures = []
-            
-            # Create progress bar
-            with tqdm(total=total_tasks, desc="Processing ") as pbar:
-                for name in binomial_names:
-                    gene_list = []
-                    if args.use_genes and args.gene_column in data.columns:
-                        gene_file_path = data.loc[data[args.column_name] == name, args.gene_column].values[0]
-                        gene_list = read_genes_from_file(gene_file_path)
-
-                    for model in args.model:
-                        for system_template, user_template in zip(args.system_template, args.user_template):
-                            if args.use_genes:
-                                # Modify template names to include genes
-                                system_template = system_template.replace('.txt', '_with_genes.txt')
-                                user_template = user_template.replace('.txt', '_with_genes.txt')
-
-                            system_message = read_template_from_file(system_template)
-                            user_message = read_template_from_file(user_template)
-                            
-                            # Submit prediction task to the executor
-                            future = executor.submit(predict_binomial_name, name, model, system_message, user_message, args.output, system_template, args.temperature, gene_list if args.use_genes else None, args.model_host, pbar, verbose=args.verbose, batch_output=args.batchoutput)
-                            futures.append(future)
-                
-                # Wait for all futures to complete
-                for future in as_completed(futures):
-                    future.result()  # This will raise any exceptions that occurred during execution
-
-        if args.batchoutput:
-            print(f"Batch output file '{args.output}' has been generated for OpenAI processing.")
-
-    elif args.command == "by_name":
-        # Validate template files
-        template_files = [args.system_template, args.user_template]
-        missing_files = [file for file in template_files if not os.path.exists(file)]
-        if missing_files:
-            print("Error: The following template files are missing:")
-            for file in missing_files:
-                print(f"- {file}")
-            print("Please ensure all specified template files exist before running the script.")
-            return
-
-        # Check if the output file already exists
-        if os.path.exists(args.output):
-            print(f"Warning: The output file '{args.output}' already exists.")
-            print("New predictions will be added to this file without overwriting existing content.")
-            input("Press Enter to continue or Ctrl+C to abort...")
-
-        system_message = read_template_from_file(args.system_template)
-        user_message = read_template_from_file(args.user_template)
-
-        for model in args.model:
-            predict_binomial_name(args.binomial_name, model, system_message, user_message, args.output, args.system_template, 0, None, args.model_host, by_name_mode=True, verbose=args.verbose)
-
-    elif args.command == "web":
-        from microbellm.app import app
-        app.run(host=args.host, port=args.port)
+    
+    if not args.command:
+        parser.print_help()
+        return
+    
+    if args.command == 'batch':
+        batch_prediction(args)
+    elif args.command == 'single':
+        single_prediction(args)
 
 if __name__ == "__main__":
-    print("Welcome to microbeLLM!")
     main()

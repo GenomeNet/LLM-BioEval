@@ -1,0 +1,19 @@
+name: microbellm
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  - pip
+  - pip:
+    - pandas
+    - Flask
+    - flask-socketio
+    - requests
+    - colorama
+    - tqdm
+    - gunicorn
+    - eventlet
+    - tenacity 

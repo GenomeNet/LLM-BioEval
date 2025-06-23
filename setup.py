@@ -9,18 +9,30 @@ setup(
         "numpy>=1.24.0",
         "tqdm",
         "colorama",
-        "openai",
-        "flask"
+        "requests",
+        "flask>=2.0.0",
+        "flask-socketio>=5.0.0"
     ],
     entry_points={
         "console_scripts": [
-            "MicrobeLLM=microbellm.microbellm:main",
-            "microbeLLM=microbellm.microbellm:main",
             "microbellm=microbellm.microbellm:main",
+            "microbellm-web=microbellm.web_app:main",
         ],
     },
     package_data={
-        "microbellm": ["*.py", "*.txt", "templates/*.html"],  # Include all .py and .txt files
+        "microbellm": ["*.py", "*.txt"],
     },
     include_package_data=True,
+    python_requires=">=3.8",
+    description="Evaluate LLMs on microbial phenotype prediction tasks",
+    author="MicrobeLLM Team",
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Science/Research",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+    ],
 )

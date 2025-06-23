@@ -1,0 +1,1094 @@
+{% extends "base.html" %}
+
+{% block title %}MicrobeLLM Dashboard{% endblock %}
+
+{% block content %}
+<h1>MicrobeLLM Processing Dashboard</h1>
+
+<!-- API Key Status Indicator -->
+<div id="apiKeyStatus" class="api-key-status">
+    <div class="status-indicator">
+        <span class="status-icon">⏳</span>
+        <span class="status-text">Checking API key status...</span>
+    </div>
+</div>
+
+<!-- Settings Panel -->
+<div class="settings-panel">
+    <div class="settings-header">
+        <h4>Settings</h4>
+        <button onclick="toggleSettings()" class="settings-toggle">⚙️</button>
+    </div>
+    <div id="settingsContent" class="settings-content" style="display: none;">
+        <div class="setting-item">
+            <label for="rateLimitInput">Requests per second:</label>
+            <input type="number" id="rateLimitInput" min="0.1" max="10" step="0.1" value="2.0">
+            <button onclick="updateRateLimit()" class="btn btn-primary btn-small">Update</button>
+        </div>
+        <div class="setting-info">
+            <small>Queue length: <span id="queueLength">0</span> jobs waiting</small>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-controls">
+    <a href="/export" class="btn btn-success">
+        <i class="fas fa-download"></i> Export Results
+    </a>
+    <button onclick="refreshDashboard()" class="btn btn-secondary">
+        <i class="fas fa-sync"></i> Refresh
+    </button>
+</div>
+
+{% if dashboard_data.matrix %}
+    <!-- Template Navigation -->
+    <div class="template-tabs">
+        {% set templates = dashboard_data.template_combinations %}
+        {% for pair in templates %}
+            {% set sys_template = pair[0] %}
+            {% set user_template = pair[1] %}
+            {% set i = loop.index0 %}
+            {% set template_name = sys_template.split('/')[-1].replace('.txt', '') %}
+            <button class="template-tab {% if i == 0 %}active{% endif %}" 
+                    onclick="showTemplate({{ i }})" 
+                    id="tab-{{ i }}">
+                {{ template_name }}
+            </button>
+        {% endfor %}
+        <button class="template-tab add-template" onclick="addTemplate()" title="Add new template">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Template Sections -->
+    {% for pair in dashboard_data.template_combinations %}
+        {% set sys_template = pair[0] %}
+        {% set user_template = pair[1] %}
+        {% set i = loop.index0 %}
+        {% set template_name = sys_template.split('/')[-1].replace('.txt', '') %}
+        <div class="template-section {% if i == 0 %}active{% endif %}" id="template-{{ i }}">
+            <div class="template-header">
+                <h3>{{ template_name }} Template</h3>
+                <div class="template-info">
+                    <small>System: {{ sys_template.split('/')[-1] }} | User: {{ user_template.split('/')[-1] }}</small>
+                </div>
+            </div>
+
+            <div class="matrix-container">
+                <table class="processing-matrix">
+                    <thead>
+                        <tr>
+                            <th class="species-header">Species Files</th>
+                            {% for model in dashboard_data.models %}
+                            <th class="model-header">
+                                <div class="model-name">{{ model.split('/')[-1] }}</div>
+                                <button class="delete-model-btn" onclick="deleteModel('{{ model }}')" title="Remove model">×</button>
+                            </th>
+                            {% endfor %}
+                            <th class="add-column">
+                                <button class="add-btn" onclick="addModel()" title="Add new model">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for species_file in dashboard_data.species_files %}
+                            <tr>
+                                <td class="species-name">
+                                    <div>{{ species_file.split('/')[-1] }}</div>
+                                    <button class="delete-species-btn" onclick="deleteSpeciesFile('{{ species_file }}')" title="Remove species file">×</button>
+                                </td>
+                                {% for model in dashboard_data.models %}
+                                    {% set cell_key = species_file + '|' + sys_template + '|' + user_template %}
+                                    {% set cell_data = dashboard_data.matrix.get(cell_key, {}).get('models', {}).get(model) %}
+                                    <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
+                                        {% if cell_data %}
+                                            <div class="status-cell status-{{ cell_data.status }}" onclick="showCombinationDetails({{ cell_data.id }})" style="cursor: pointer;" title="Click to see detailed results">
+                                                <div class="progress-info">
+                                                    <div class="main-progress">
+                                                        {% if cell_data.status == 'completed' and cell_data.successful > 0 %}
+                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Done</span>
+                                                        {% elif cell_data.status == 'failed' and cell_data.successful == 0 %}
+                                                            <span class="completion-main">{{ cell_data.failed }}/{{ cell_data.total }} Failed</span>
+                                                        {% elif cell_data.status == 'running' %}
+                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Processing</span>
+                                                        {% elif cell_data.status == 'interrupted' %}
+                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Paused</span>
+                                                        {% else %}
+                                                            <span class="completion-main">{{ cell_data.total }} Ready</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    {% if cell_data.submitted > 0 or cell_data.status == 'running' %}
+                                                        <div class="detailed-progress">
+                                                            <div class="progress-line">
+                                                                <span class="progress-label">Sent:</span>
+                                                                <span class="progress-value">{{ cell_data.submitted }}</span>
+                                                            </div>
+                                                            {% if cell_data.received > 0 %}
+                                                                <div class="progress-line">
+                                                                    <span class="progress-label">Received:</span>
+                                                                    <span class="progress-value">{{ cell_data.received }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if cell_data.successful > 0 %}
+                                                                <div class="progress-line success">
+                                                                    <span class="progress-label">Success:</span>
+                                                                    <span class="progress-value">{{ cell_data.successful }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if cell_data.failed > 0 %}
+                                                                <div class="progress-line failed">
+                                                                    <span class="progress-label">Failed:</span>
+                                                                    <span class="progress-value">{{ cell_data.failed }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+                                                    
+                                                    {% if cell_data.total > 0 and (cell_data.successful > 0 or cell_data.status == 'running') %}
+                                                        <div class="progress-bar">
+                                                            <div class="progress-fill" style="width: {{ ((cell_data.successful / cell_data.total * 100)|round) }}%"></div>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                {% if cell_data.status == 'pending' %}
+                                                    <button onclick="startCombination({{ cell_data.id }})" class="action-btn start-btn">
+                                                        <i class="fas fa-play"></i> Start
+                                                    </button>
+                                                {% elif cell_data.status == 'running' %}
+                                                    <div class="status-badge running">
+                                                        <i class="fas fa-spinner rotating"></i> Running
+                                                    </div>
+                                                    <div class="job-controls">
+                                                        <button onclick="pauseCombination({{ cell_data.id }})" class="action-btn pause-btn" title="Pause job">
+                                                            <i class="fas fa-pause"></i>
+                                                        </button>
+                                                        <button onclick="stopCombination({{ cell_data.id }})" class="action-btn stop-btn" title="Stop job">
+                                                            <i class="fas fa-stop"></i>
+                                                        </button>
+                                                    </div>
+                                                {% elif cell_data.status == 'completed' and cell_data.successful > 0 %}
+                                                    <div class="status-badge completed">
+                                                        <i class="fas fa-check"></i> Completed
+                                                    </div>
+                                                {% elif cell_data.status == 'failed' or (cell_data.status == 'completed' and cell_data.successful == 0) %}
+                                                    <div class="status-badge failed">
+                                                        <i class="fas fa-exclamation-triangle"></i> Failed
+                                                    </div>
+                                                    <button onclick="restartCombination({{ cell_data.id }})" class="action-btn restart-btn">
+                                                        <i class="fas fa-redo"></i> Retry
+                                                    </button>
+                                                {% elif cell_data.status == 'interrupted' %}
+                                                    <div class="status-badge interrupted">
+                                                        <i class="fas fa-pause"></i> Paused
+                                                    </div>
+                                                    <button onclick="startCombination({{ cell_data.id }})" class="action-btn start-btn">
+                                                        <i class="fas fa-play"></i> Resume
+                                                    </button>
+                                                {% endif %}
+                                                <button onclick="deleteCombination({{ cell_data.id }})" class="delete-combination-btn" title="Delete this combination">×</button>
+                                            </div>
+                                        {% else %}
+                                            <div class="status-cell status-empty">
+                                                <button onclick="createAndStartCombination('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" 
+                                                        class="action-btn create-btn">
+                                                    <i class="fas fa-plus"></i> Create
+                                                </button>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="add-cell"></td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="add-row">
+                            <td>
+                                <button class="add-btn" onclick="addSpeciesFile()" title="Add new species file">
+                                    <i class="fas fa-plus"></i> Add Species File
+                                </button>
+                            </td>
+                            {% for model in dashboard_data.models %}
+                                <td></td>
+                            {% endfor %}
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endfor %}
+
+{% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-flask"></i>
+        </div>
+        <h3>No Processing Combinations Yet</h3>
+        <p>Start by adding a species file and selecting models to process</p>
+        <button onclick="addSpeciesFile()" class="btn btn-primary btn-large">
+            <i class="fas fa-plus"></i> Add First Species File
+        </button>
+    </div>
+{% endif %}
+
+<!-- Detailed Results Modal -->
+<div id="detailsModal" class="modal">
+    <div class="modal-content details-modal">
+        <div class="modal-header">
+            <h3 id="detailsTitle">Combination Details</h3>
+            <button onclick="closeModal('detailsModal')" class="modal-close">&times;</button>
+        </div>
+        
+        <div id="detailsContent" class="details-content">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div id="addModelModal" class="modal">
+    <div class="modal-content">
+        <h3>Add Model</h3>
+        
+        <!-- Input Method Tabs -->
+        <div class="input-method-tabs">
+            <button class="input-tab active" onclick="switchInputMethod('dropdown')" id="dropdownTab">
+                📋 Browse Models
+            </button>
+            <button class="input-tab" onclick="switchInputMethod('manual')" id="manualTab">
+                ✏️ Manual Entry
+            </button>
+        </div>
+        
+        <!-- Dropdown Method -->
+        <div id="dropdownMethod" class="input-method active">
+            <div class="form-group">
+                <label for="modelDropdown">Select Model:</label>
+                <div class="dropdown-container">
+                    <select id="modelDropdown" class="form-control">
+                        <option value="">Loading models...</option>
+                    </select>
+                    <button onclick="refreshModels()" class="refresh-btn" title="Refresh model list">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                </div>
+                <small class="form-help">
+                    <span id="modelCount">0</span> models available from OpenRouter
+                </small>
+                <div id="selectedModelInfo" class="model-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Manual Input Method -->
+        <div id="manualMethod" class="input-method">
+            <div class="form-group">
+                <label for="newModelInput">Model Name:</label>
+                <input type="text" id="newModelInput" class="form-control" 
+                       placeholder="e.g., anthropic/claude-3-haiku, openai/gpt-4o, google/gemini-pro">
+                <small class="form-help">
+                    Enter the full model name as listed on <a href="https://openrouter.ai/models" target="_blank">OpenRouter</a>
+                </small>
+                <div id="modelValidationStatus" class="validation-status" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="modal-buttons">
+            <button onclick="closeModal('addModelModal')" class="btn btn-secondary">Cancel</button>
+            <button id="addModelBtn" onclick="confirmAddModel()" class="btn btn-primary" disabled>Add Model</button>
+        </div>
+    </div>
+</div>
+
+<div id="addSpeciesModal" class="modal">
+    <div class="modal-content">
+        <h3>Add Species File</h3>
+        <div class="form-group">
+            <label>Species File:</label>
+            <select id="newSpeciesSelect" class="form-control">
+                <option value="">Select a species file...</option>
+                {% for file in dashboard_data.available_species_files %}
+                    <option value="{{ file }}">{{ file }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="closeModal('addSpeciesModal')" class="btn btn-secondary">Cancel</button>
+            <button onclick="confirmAddSpecies()" class="btn btn-primary">Add Species File</button>
+        </div>
+    </div>
+</div>
+
+<div id="addTemplateModal" class="modal">
+    <div class="modal-content">
+        <h3>Add Template Pair</h3>
+        <div class="form-group">
+            <label>Template Pair:</label>
+            <select id="newTemplateSelect" class="form-control">
+                <option value="">Select a template pair...</option>
+                {% for name, pair in dashboard_data.available_template_pairs.items() %}
+                    <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="closeModal('addTemplateModal')" class="btn btn-secondary">Cancel</button>
+            <button onclick="confirmAddTemplate()" class="btn btn-primary">Add Template</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize Socket.IO connection
+    const socket = io();
+    
+    socket.on('connect', function() {
+        console.log('Connected to server');
+    });
+    
+    socket.on('job_update', function(data) {
+        console.log('Job update received:', data);
+        setTimeout(refreshDashboard, 1000);
+    });
+
+    // Check API key status on page load
+    checkApiKeyStatus();
+
+    // Load settings on page load
+    loadSettings();
+
+    function loadSettings() {
+        fetch('/api/get_settings')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('rateLimitInput').value = data.rate_limit;
+                document.getElementById('queueLength').textContent = data.queue_length;
+            })
+            .catch(error => console.error('Error loading settings:', error));
+    }
+
+    function toggleSettings() {
+        const content = document.getElementById('settingsContent');
+        const isVisible = content.style.display !== 'none';
+        content.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            loadSettings(); // Refresh settings when opening
+        }
+    }
+
+    function updateRateLimit() {
+        const rateLimit = parseFloat(document.getElementById('rateLimitInput').value);
+        
+        fetch('/api/set_rate_limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({requests_per_second: rateLimit})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                console.log('Rate limit updated:', data.message);
+                // Show brief success indicator
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.backgroundColor = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = '';
+                }, 1000);
+            } else {
+                alert('Error updating rate limit: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating rate limit:', error);
+            alert('Error updating rate limit: ' + error.message);
+        });
+    }
+
+    function pauseCombination(combinationId) {
+        fetch('/api/pause_combination/' + combinationId, {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    console.log('Combination paused successfully');
+                    setTimeout(refreshDashboard, 1000);
+                } else {
+                    alert('Failed to pause combination: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error pausing combination:', error);
+                alert('Error pausing combination: ' + error.message);
+            });
+    }
+
+    function stopCombination(combinationId) {
+        if (confirm('Are you sure you want to stop this job? You can resume it later.')) {
+            fetch('/api/stop_combination/' + combinationId, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        console.log('Combination stopped successfully');
+                        setTimeout(refreshDashboard, 1000);
+                    } else {
+                        alert('Failed to stop combination: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping combination:', error);
+                    alert('Error stopping combination: ' + error.message);
+                });
+        }
+    }
+
+    function checkApiKeyStatus() {
+        fetch('/api/api_key_status')
+            .then(response => response.json())
+            .then(data => {
+                updateApiKeyStatus(data);
+            })
+            .catch(error => {
+                console.error('Error checking API key status:', error);
+                updateApiKeyStatus({
+                    status: 'error',
+                    message: 'Unable to check API key status',
+                    configured: false
+                });
+            });
+    }
+
+    function updateApiKeyStatus(data) {
+        const statusDiv = document.getElementById('apiKeyStatus');
+        const indicator = statusDiv.querySelector('.status-indicator');
+        const icon = statusDiv.querySelector('.status-icon');
+        const text = statusDiv.querySelector('.status-text');
+        
+        // Remove existing status classes
+        statusDiv.className = 'api-key-status';
+        
+        if (data.configured) {
+            statusDiv.classList.add('status-success');
+            icon.textContent = '✅';
+            text.textContent = data.message;
+        } else {
+            statusDiv.classList.add('status-error');
+            icon.textContent = '❌';
+            
+            let helpText = '';
+            if (data.status === 'missing') {
+                helpText = ' | Set with: export OPENROUTER_API_KEY=\'your-key\'';
+            } else if (data.status === 'empty') {
+                helpText = ' | Please provide a valid API key';
+            } else if (data.status === 'invalid') {
+                helpText = ' | Please check your API key format';
+            }
+            
+            text.innerHTML = data.message + helpText;
+        }
+    }
+
+    // Show detailed results for a combination
+    function showCombinationDetails(combinationId) {
+        console.log('Showing details for combination:', combinationId);
+        
+        // Prevent event bubbling when clicking delete button
+        if (event.target.classList.contains('delete-combination-btn')) {
+            event.stopPropagation();
+            return;
+        }
+        
+        fetch('/api/combination_details/' + combinationId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error loading details: ' + data.error);
+                    return;
+                }
+                
+                displayCombinationDetails(data);
+                document.getElementById('detailsModal').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error fetching combination details:', error);
+                alert('Error loading combination details: ' + error.message);
+            });
+    }
+
+    function displayCombinationDetails(data) {
+        const info = data.combination_info;
+        const results = data.species_results;
+        const unprocessed = data.unprocessed_species;
+        
+        document.getElementById('detailsTitle').textContent = 
+            `${info.model.split('/').pop()} - ${info.species_file} (${info.status})`;
+        
+        let html = `
+            <div class="combination-summary">
+                <h4>Summary</h4>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Species:</span>
+                        <span class="stat-value">${info.total_species}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Submitted:</span>
+                        <span class="stat-value">${info.submitted_species}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Received:</span>
+                        <span class="stat-value">${info.received_species}</span>
+                    </div>
+                    <div class="stat-item success">
+                        <span class="stat-label">Successful:</span>
+                        <span class="stat-value">${info.successful_species}</span>
+                    </div>
+                    <div class="stat-item failed">
+                        <span class="stat-label">Failed:</span>
+                        <span class="stat-value">${info.failed_species}</span>
+                    </div>
+                </div>
+                <div class="template-info">
+                    <strong>Templates:</strong> ${info.system_template} + ${info.user_template}
+                </div>
+            </div>
+            
+            <div class="species-results">
+                <h4>Species Results</h4>
+        `;
+        
+        if (results.length === 0) {
+            html += `<p class="no-results">No species have been processed yet.</p>`;
+        } else {
+            // Group results by status
+            const successful = results.filter(r => r.status === 'completed');
+            const failed = results.filter(r => r.status === 'failed');
+            
+            if (failed.length > 0) {
+                html += `
+                    <div class="results-section failed-section">
+                        <h5 class="section-title failed">Failed Species (${failed.length})</h5>
+                        <div class="species-list">
+                `;
+                
+                failed.forEach(result => {
+                    html += `
+                        <div class="species-item failed">
+                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
+                                <span class="species-name">${result.binomial_name}</span>
+                                <span class="species-status failed">Failed</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="species-details" style="display: none;">
+                                <div class="error-info">
+                                    <strong>Error:</strong>
+                                    <div class="error-message">${result.error || 'No specific error message'}</div>
+                                </div>
+                                ${result.result ? `
+                                    <div class="raw-response">
+                                        <strong>Raw Response:</strong>
+                                        <div class="response-text">${result.result.substring(0, 500)}${result.result.length > 500 ? '...' : ''}</div>
+                                    </div>
+                                ` : ''}
+                                <div class="timestamp">
+                                    <strong>Processed:</strong> ${new Date(result.timestamp).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (successful.length > 0) {
+                html += `
+                    <div class="results-section success-section">
+                        <h5 class="section-title success">Successful Species (${successful.length})</h5>
+                        <div class="species-list">
+                `;
+                
+                successful.forEach(result => {
+                    const phenotypes = Object.entries(result.phenotypes)
+                        .filter(([key, value]) => value)
+                        .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+                        .join(', ');
+                    
+                    html += `
+                        <div class="species-item success">
+                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
+                                <span class="species-name">${result.binomial_name}</span>
+                                <span class="species-status success">Success</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="species-details" style="display: none;">
+                                <div class="phenotypes">
+                                    <strong>Phenotypes:</strong>
+                                    <div class="phenotype-list">${phenotypes || 'No phenotypes extracted'}</div>
+                                </div>
+                                <div class="timestamp">
+                                    <strong>Processed:</strong> ${new Date(result.timestamp).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        if (unprocessed.length > 0) {
+            html += `
+                <div class="results-section unprocessed-section">
+                    <h5 class="section-title unprocessed">Unprocessed Species (${unprocessed.length})</h5>
+                    <div class="unprocessed-list">
+                        ${unprocessed.map(species => `<span class="unprocessed-species">${species}</span>`).join(', ')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `</div>`;
+        
+        document.getElementById('detailsContent').innerHTML = html;
+    }
+
+    function toggleSpeciesDetails(header) {
+        const details = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+        
+        if (details.style.display === 'none') {
+            details.style.display = 'block';
+            icon.textContent = '▲';
+        } else {
+            details.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    }
+
+    // Template switching
+    function showTemplate(templateIndex) {
+        // Hide all template sections
+        document.querySelectorAll('.template-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.querySelectorAll('.template-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Show selected template
+        document.getElementById('template-' + templateIndex).classList.add('active');
+        document.getElementById('tab-' + templateIndex).classList.add('active');
+    }
+
+    // Combination actions
+    function startCombination(combinationId) {
+        console.log('Starting combination:', combinationId);
+        
+        fetch('/api/start_combination/' + combinationId, {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    console.log('Combination started successfully');
+                    setTimeout(refreshDashboard, 1000);
+                } else {
+                    alert('Failed to start combination: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error starting combination:', error);
+                alert('Error starting combination: ' + error.message);
+            });
+    }
+
+    function restartCombination(combinationId) {
+        console.log('Restarting combination:', combinationId);
+        
+        fetch('/api/restart_combination/' + combinationId, {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    console.log('Combination restarted successfully');
+                    setTimeout(refreshDashboard, 1000);
+                } else {
+                    alert('Failed to restart combination: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error restarting combination:', error);
+                alert('Error restarting combination: ' + error.message);
+            });
+    }
+
+    function createAndStartCombination(speciesFile, model, systemTemplate, userTemplate) {
+        console.log('Creating and starting combination:', speciesFile, model, systemTemplate, userTemplate);
+        
+        fetch('/api/create_combination', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                species_file: speciesFile,
+                model: model,
+                system_template: systemTemplate,
+                user_template: userTemplate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Combination created and started successfully');
+                setTimeout(refreshDashboard, 1000);
+            } else {
+                alert('Failed to create combination: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating combination:', error);
+            alert('Error creating combination: ' + error.message);
+        });
+    }
+
+    function deleteCombination(combinationId) {
+        if (confirm('Are you sure you want to delete this combination and all its results?')) {
+            fetch('/api/delete_combination/' + combinationId, {method: 'DELETE'})
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Combination deleted');
+                    setTimeout(refreshDashboard, 1000);
+                })
+                .catch(error => {
+                    console.error('Error deleting combination:', error);
+                    alert('Error deleting combination: ' + error.message);
+                });
+        }
+    }
+
+    // Modal functions
+    function addModel() {
+        document.getElementById('addModelModal').style.display = 'block';
+        
+        // Reset both input methods
+        document.getElementById('newModelInput').value = '';
+        document.getElementById('modelDropdown').selectedIndex = 0;
+        document.getElementById('addModelBtn').disabled = true;
+        document.getElementById('modelValidationStatus').style.display = 'none';
+        document.getElementById('selectedModelInfo').style.display = 'none';
+        
+        // Switch to dropdown method by default
+        switchInputMethod('dropdown');
+        
+        // Load models for dropdown
+        loadOpenRouterModels();
+        
+        // Add event listeners
+        const manualInput = document.getElementById('newModelInput');
+        manualInput.removeEventListener('input', validateModelInput);
+        manualInput.addEventListener('input', validateModelInput);
+        
+        const dropdown = document.getElementById('modelDropdown');
+        dropdown.removeEventListener('change', onDropdownChange);
+        dropdown.addEventListener('change', onDropdownChange);
+    }
+
+    function switchInputMethod(method) {
+        // Update tab states
+        document.querySelectorAll('.input-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.input-method').forEach(method => method.classList.remove('active'));
+        
+        if (method === 'dropdown') {
+            document.getElementById('dropdownTab').classList.add('active');
+            document.getElementById('dropdownMethod').classList.add('active');
+        } else {
+            document.getElementById('manualTab').classList.add('active');
+            document.getElementById('manualMethod').classList.add('active');
+        }
+        
+        // Reset button state and validation
+        document.getElementById('addModelBtn').disabled = true;
+        document.getElementById('modelValidationStatus').style.display = 'none';
+        document.getElementById('selectedModelInfo').style.display = 'none';
+    }
+
+    function loadOpenRouterModels() {
+        const dropdown = document.getElementById('modelDropdown');
+        const countSpan = document.getElementById('modelCount');
+        
+        dropdown.innerHTML = '<option value="">Loading models...</option>';
+        dropdown.disabled = true;
+        
+        fetch('/api/get_openrouter_models')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    dropdown.innerHTML = '<option value="">Select a model...</option>';
+                    
+                    // Group models by provider for better organization
+                    const providers = {};
+                    data.models.forEach(model => {
+                        const provider = model.id.split('/')[0];
+                        if (!providers[provider]) providers[provider] = [];
+                        providers[provider].push(model);
+                    });
+                    
+                    // Add models grouped by provider
+                    Object.keys(providers).sort().forEach(provider => {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = provider;
+                        
+                        providers[provider].forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.id;
+                            option.textContent = `${model.name || model.id}`;
+                            option.dataset.description = model.description;
+                            option.dataset.contextLength = model.context_length;
+                            optgroup.appendChild(option);
+                        });
+                        
+                        dropdown.appendChild(optgroup);
+                    });
+                    
+                    countSpan.textContent = data.models.length;
+                    dropdown.disabled = false;
+                } else {
+                    dropdown.innerHTML = '<option value="">Error loading models</option>';
+                    countSpan.textContent = '0';
+                    console.error('Error loading models:', data.error);
+                }
+            })
+            .catch(error => {
+                dropdown.innerHTML = '<option value="">Error loading models</option>';
+                countSpan.textContent = '0';
+                console.error('Error loading models:', error);
+            });
+    }
+
+    function refreshModels() {
+        loadOpenRouterModels();
+    }
+
+    function onDropdownChange() {
+        const dropdown = document.getElementById('modelDropdown');
+        const selectedOption = dropdown.options[dropdown.selectedIndex];
+        const addBtn = document.getElementById('addModelBtn');
+        const modelInfo = document.getElementById('selectedModelInfo');
+        
+        if (dropdown.value) {
+            addBtn.disabled = false;
+            
+            // Show model information
+            let infoHtml = `<strong>${selectedOption.textContent}</strong><br>`;
+            if (selectedOption.dataset.description) {
+                infoHtml += `<small>${selectedOption.dataset.description}</small><br>`;
+            }
+            if (selectedOption.dataset.contextLength && selectedOption.dataset.contextLength !== '0') {
+                infoHtml += `<small>Context: ${parseInt(selectedOption.dataset.contextLength).toLocaleString()} tokens</small>`;
+            }
+            
+            modelInfo.innerHTML = infoHtml;
+            modelInfo.style.display = 'block';
+        } else {
+            addBtn.disabled = true;
+            modelInfo.style.display = 'none';
+        }
+    }
+
+    function getSelectedModel() {
+        const activeMethod = document.querySelector('.input-method.active');
+        
+        if (activeMethod.id === 'dropdownMethod') {
+            return document.getElementById('modelDropdown').value.trim();
+        } else {
+            return document.getElementById('newModelInput').value.trim();
+        }
+    }
+
+    function validateModelInput() {
+        const model = document.getElementById('newModelInput').value.trim();
+        const statusDiv = document.getElementById('modelValidationStatus');
+        const addBtn = document.getElementById('addModelBtn');
+        
+        if (!model) {
+            statusDiv.style.display = 'none';
+            addBtn.disabled = true;
+            return;
+        }
+        
+        // Show loading state
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'validation-status loading';
+        statusDiv.innerHTML = '⏳ Validating model with OpenRouter...';
+        addBtn.disabled = true;
+        
+        // Debounce the validation call
+        clearTimeout(window.modelValidationTimeout);
+        window.modelValidationTimeout = setTimeout(() => {
+            validateModelWithAPI(model);
+        }, 500);
+    }
+
+    function validateModelWithAPI(model) {
+        fetch('/api/validate_model', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model: model})
+        })
+        .then(response => response.json())
+        .then(data => {
+            const statusDiv = document.getElementById('modelValidationStatus');
+            const addBtn = document.getElementById('addModelBtn');
+            
+            if (data.valid) {
+                statusDiv.className = 'validation-status success';
+                statusDiv.innerHTML = '✅ ' + data.message;
+                addBtn.disabled = false;
+            } else {
+                statusDiv.className = 'validation-status error';
+                statusDiv.innerHTML = '❌ ' + data.error;
+                addBtn.disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Model validation error:', error);
+            const statusDiv = document.getElementById('modelValidationStatus');
+            const addBtn = document.getElementById('addModelBtn');
+            
+            statusDiv.className = 'validation-status error';
+            statusDiv.innerHTML = '❌ Validation failed: ' + error.message;
+            addBtn.disabled = true;
+        });
+    }
+
+    function confirmAddModel() {
+        const model = getSelectedModel();
+        if (model && !document.getElementById('addModelBtn').disabled) {
+            // Show loading state
+            const addBtn = document.getElementById('addModelBtn');
+            const originalText = addBtn.textContent;
+            addBtn.disabled = true;
+            addBtn.textContent = 'Adding...';
+            
+            fetch('/api/add_model', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({model: model})
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data.message);
+                closeModal('addModelModal');
+                setTimeout(refreshDashboard, 500);
+            })
+            .catch(error => {
+                console.error('Error adding model:', error);
+                alert('Error adding model: ' + error.message);
+            })
+            .finally(() => {
+                addBtn.disabled = false;
+                addBtn.textContent = originalText;
+            });
+        }
+    }
+
+    function addSpeciesFile() {
+        document.getElementById('addSpeciesModal').style.display = 'block';
+    }
+
+    function addTemplate() {
+        document.getElementById('addTemplateModal').style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    function confirmAddSpecies() {
+        const speciesFile = document.getElementById('newSpeciesSelect').value;
+        if (speciesFile) {
+            fetch('/api/add_species_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({species_file: speciesFile})
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data.message);
+                closeModal('addSpeciesModal');
+                setTimeout(refreshDashboard, 500);
+            });
+        }
+    }
+
+    function confirmAddTemplate() {
+        const template = document.getElementById('newTemplateSelect').value;
+        if (template) {
+            // Add template logic would go here
+            console.log('Adding template:', template);
+            closeModal('addTemplateModal');
+            setTimeout(refreshDashboard, 1000);
+        }
+    }
+
+    function deleteModel(model) {
+        if (confirm(`Are you sure you want to remove the model "${model}" from the dashboard view? This will not delete any existing results.`)) {
+            fetch('/api/delete_model', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({model: model})
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data.message);
+                setTimeout(refreshDashboard, 500);
+            });
+        }
+    }
+
+    function deleteSpeciesFile(speciesFile) {
+        if (confirm(`Are you sure you want to remove the species file "${speciesFile}" from the dashboard view? This will not delete any existing results.`)) {
+            fetch('/api/delete_species_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({species_file: speciesFile})
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data.message);
+                setTimeout(refreshDashboard, 500);
+            });
+        }
+    }
+
+    function refreshDashboard() {
+        location.reload();
+    }
+    
+    // Auto-refresh every 30 seconds and update settings
+    setInterval(() => {
+        refreshDashboard();
+        loadSettings();
+    }, 30000);
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %} 
