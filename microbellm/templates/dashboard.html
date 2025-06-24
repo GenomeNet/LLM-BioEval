@@ -65,9 +65,6 @@
                 {{ template_name }}
             </button>
         {% endfor %}
-        <button class="template-tab add-template" onclick="addTemplate()" title="Add new template">
-            <i class="fas fa-plus"></i>
-        </button>
     </div>
 
     <!-- Template Sections -->
@@ -331,24 +328,7 @@
     </div>
 </div>
 
-<div id="addTemplateModal" class="modal">
-    <div class="modal-content">
-        <h3>Add Template Pair</h3>
-        <div class="form-group">
-            <label>Template Pair:</label>
-            <select id="newTemplateSelect" class="form-control">
-                <option value="">Select a template pair...</option>
-                {% for name, pair in dashboard_data.available_template_pairs.items() %}
-                    <option value="{{ name }}">{{ name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="modal-buttons">
-            <button onclick="closeModal('addTemplateModal')" class="btn btn-secondary">Cancel</button>
-            <button onclick="confirmAddTemplate()" class="btn btn-primary">Add Template</button>
-        </div>
-    </div>
-</div>
+
 
 {% endblock %}
 
@@ -1082,9 +1062,7 @@
         document.getElementById('addSpeciesModal').style.display = 'block';
     }
 
-    function addTemplate() {
-        document.getElementById('addTemplateModal').style.display = 'block';
-    }
+
 
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
@@ -1107,15 +1085,7 @@
         }
     }
 
-    function confirmAddTemplate() {
-        const template = document.getElementById('newTemplateSelect').value;
-        if (template) {
-            // Add template logic would go here
-            console.log('Adding template:', template);
-            closeModal('addTemplateModal');
-            setTimeout(refreshDashboard, 1000);
-        }
-    }
+
 
     function deleteModel(model) {
         if (confirm(`Are you sure you want to remove the model "${model}" from the dashboard view? This will not delete any existing results.`)) {
