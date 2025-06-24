@@ -1338,6 +1338,36 @@ def compare_page():
     
     return render_template('compare.html', templates=templates, species_files=species_files)
 
+@app.route('/templates')
+def templates_page():
+    """Template viewing page to display user and system templates side by side"""
+    template_pairs = get_available_template_pairs()
+    
+    # Get template contents for each pair
+    template_data = {}
+    for template_name, paths in template_pairs.items():
+        try:
+            with open(paths['system'], 'r', encoding='utf-8') as f:
+                system_content = f.read()
+            with open(paths['user'], 'r', encoding='utf-8') as f:
+                user_content = f.read()
+            
+            template_data[template_name] = {
+                'system': {
+                    'path': paths['system'],
+                    'content': system_content
+                },
+                'user': {
+                    'path': paths['user'],
+                    'content': user_content
+                }
+            }
+        except Exception as e:
+            print(f"Error reading template {template_name}: {e}")
+            continue
+    
+    return render_template('view_template.html', template_data=template_data)
+
 @app.route('/api/comparison_data')
 def get_comparison_data():
     """Get comparison data for multiple models on same species"""
