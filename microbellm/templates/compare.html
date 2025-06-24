@@ -222,15 +222,26 @@
     
     .phenotype-comparison {
         margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
     }
     
     .phenotype-header {
         background-color: #e9ecef;
-        padding: 10px 15px;
-        border-radius: 6px;
-        margin-bottom: 15px;
+        padding: 15px 20px;
+        margin-bottom: 0;
         font-weight: 600;
         color: #495057;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .phenotype-comparison .comparison-table {
+        margin-top: 0;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
     }
     
     .species-comparison-row {
@@ -477,13 +488,13 @@
         }
         
         let html = '<div class="comparison-mode-tabs">';
-        html += '<button class="mode-tab active" onclick="showComparisonMode(\'overview\')">Overview</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'overview\')">Overview</button>';
         html += '<button class="mode-tab" onclick="showComparisonMode(\'detailed\')">Detailed</button>';
-        html += '<button class="mode-tab" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
+        html += '<button class="mode-tab active" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
         html += '</div>';
         
         html += '<div id="comparisonView">';
-        html += renderOverviewMode(data);
+        html += renderMatrixMode(data);
         html += '</div>';
         
         container.innerHTML = html;
@@ -494,18 +505,31 @@
         document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
         event.target.classList.add('active');
         
+        // Get current filtered data
+        const templateFilter = document.getElementById('templateFilter').value;
+        const speciesFileFilter = document.getElementById('speciesFileFilter').value;
+        const phenotypeFilter = document.getElementById('phenotypeFilter').value;
+        const agreementFilter = document.getElementById('agreementFilter').value;
+        
+        let filteredData = filterComparisonData(comparisonData, {
+            template: templateFilter,
+            speciesFile: speciesFileFilter,
+            phenotype: phenotypeFilter,
+            agreement: agreementFilter
+        });
+        
         // Render the selected mode
         const viewContainer = document.getElementById('comparisonView');
         
         switch(mode) {
             case 'overview':
-                viewContainer.innerHTML = renderOverviewMode(comparisonData);
+                viewContainer.innerHTML = renderOverviewMode(filteredData);
                 break;
             case 'detailed':
-                viewContainer.innerHTML = renderDetailedMode(comparisonData);
+                viewContainer.innerHTML = renderDetailedMode(filteredData);
                 break;
             case 'matrix':
-                viewContainer.innerHTML = renderMatrixMode(comparisonData);
+                viewContainer.innerHTML = renderMatrixMode(filteredData);
                 break;
         }
     }
@@ -578,67 +602,111 @@
     }
     
     function renderMatrixMode(data) {
-        // Create agreement matrix between models
+        // Get all models and phenotypes
         const models = [...new Set(data.comparisons.flatMap(c => c.models))];
-        const matrix = {};
+        const phenotypes = [...new Set(data.comparisons.flatMap(c => Object.keys(c.phenotypes)))];
         
-        // Initialize matrix
-        models.forEach(m1 => {
-            matrix[m1] = {};
-            models.forEach(m2 => {
-                matrix[m1][m2] = { agree: 0, disagree: 0, total: 0 };
-            });
-        });
+        let html = '<h3>Model Agreement Matrices by Phenotype</h3>';
         
-        // Calculate agreements
-        data.comparisons.forEach(comp => {
-            Object.values(comp.phenotypes).forEach(phenotype => {
-                comp.models.forEach(m1 => {
-                    comp.models.forEach(m2 => {
-                        if (m1 !== m2) {
-                            const v1 = phenotype.predictions[m1];
-                            const v2 = phenotype.predictions[m2];
-                            if (v1 !== null && v2 !== null) {
-                                matrix[m1][m2].total++;
-                                if (v1 === v2) {
-                                    matrix[m1][m2].agree++;
-                                } else {
-                                    matrix[m1][m2].disagree++;
-                                }
-                            }
-                        }
-                    });
+        // Create a matrix for each phenotype
+        phenotypes.forEach(phenotypeName => {
+            const matrix = {};
+            
+            // Initialize matrix for this phenotype
+            models.forEach(m1 => {
+                matrix[m1] = {};
+                models.forEach(m2 => {
+                    matrix[m1][m2] = { agree: 0, disagree: 0, total: 0 };
                 });
             });
-        });
-        
-        let html = '<h3>Model Agreement Matrix</h3>';
-        html += '<table class="comparison-table">';
-        html += '<thead><tr><th></th>';
-        models.forEach(model => {
-            html += `<th>${model}</th>`;
-        });
-        html += '</tr></thead><tbody>';
-        
-        models.forEach(m1 => {
-            html += `<tr><th>${m1}</th>`;
-            models.forEach(m2 => {
-                if (m1 === m2) {
-                    html += '<td style="background-color: #e9ecef;">-</td>';
-                } else {
-                    const stats = matrix[m1][m2];
-                    const agreementRate = stats.total > 0 ? (stats.agree / stats.total * 100).toFixed(1) : 0;
-                    const color = agreementRate > 80 ? '#d4edda' : agreementRate > 60 ? '#fff3cd' : '#f8d7da';
-                    html += `<td style="background-color: ${color}; text-align: center;">`;
-                    html += `<strong>${agreementRate}%</strong><br>`;
-                    html += `<small>${stats.agree}/${stats.total}</small>`;
-                    html += '</td>';
+            
+            // Calculate agreements for this phenotype only
+            data.comparisons.forEach(comp => {
+                const phenotype = comp.phenotypes[phenotypeName];
+                if (phenotype) {
+                    comp.models.forEach(m1 => {
+                        comp.models.forEach(m2 => {
+                            if (m1 !== m2) {
+                                const v1 = phenotype.predictions[m1];
+                                const v2 = phenotype.predictions[m2];
+                                if (v1 !== null && v2 !== null) {
+                                    matrix[m1][m2].total++;
+                                    if (v1 === v2) {
+                                        matrix[m1][m2].agree++;
+                                    } else {
+                                        matrix[m1][m2].disagree++;
+                                    }
+                                }
+                            }
+                        });
+                    });
                 }
             });
-            html += '</tr>';
+            
+            // Check if this phenotype has any data
+            const hasData = models.some(m1 => 
+                models.some(m2 => m1 !== m2 && matrix[m1][m2].total > 0)
+            );
+            
+            if (hasData) {
+                html += '<div class="phenotype-comparison">';
+                html += `<div class="phenotype-header">${phenotypeName.replace(/_/g, ' ').toUpperCase()}</div>`;
+                html += '<table class="comparison-table">';
+                html += '<thead><tr><th></th>';
+                models.forEach(model => {
+                    html += `<th>${model}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                
+                models.forEach(m1 => {
+                    html += `<tr><th>${m1}</th>`;
+                    models.forEach(m2 => {
+                        if (m1 === m2) {
+                            html += '<td style="background-color: #e9ecef; text-align: center;">-</td>';
+                        } else {
+                            const stats = matrix[m1][m2];
+                            const agreementRate = stats.total > 0 ? (stats.agree / stats.total * 100).toFixed(1) : 0;
+                            let color = '#f8f9fa'; // Default light gray for no data
+                            if (stats.total > 0) {
+                                color = agreementRate > 80 ? '#d4edda' : agreementRate > 60 ? '#fff3cd' : '#f8d7da';
+                            }
+                            html += `<td style="background-color: ${color}; text-align: center;">`;
+                            if (stats.total > 0) {
+                                html += `<strong>${agreementRate}%</strong><br>`;
+                                html += `<small>${stats.agree}/${stats.total}</small>`;
+                            } else {
+                                html += '<span style="color: #6c757d; font-style: italic;">No data</span>';
+                            }
+                            html += '</td>';
+                        }
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                html += '</div>';
+            }
         });
         
-        html += '</tbody></table>';
+        // If no phenotypes have data, show a message
+        if (!phenotypes.some(phenotypeName => {
+            return data.comparisons.some(comp => {
+                const phenotype = comp.phenotypes[phenotypeName];
+                return phenotype && comp.models.some(m1 => 
+                    comp.models.some(m2 => {
+                        const v1 = phenotype.predictions[m1];
+                        const v2 = phenotype.predictions[m2];
+                        return m1 !== m2 && v1 !== null && v2 !== null;
+                    })
+                );
+            });
+        })) {
+            html += '<div class="empty-state">';
+            html += '<h3>No comparison data available</h3>';
+            html += '<p>Need at least 2 models with predictions for the same phenotypes to show agreement matrices.</p>';
+            html += '</div>';
+        }
+        
         return html;
     }
     
