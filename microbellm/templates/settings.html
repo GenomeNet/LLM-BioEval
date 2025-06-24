@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - MicrobeLLM{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<!-- API Key Status Indicator - Top Right Corner -->
+<div id="apiKeyCornerStatus" class="api-key-corner-status">
+    <div class="api-corner-status-dot" id="apiStatusDot"></div>
+    <span class="api-corner-status-text" id="apiStatusText">Checking...</span>
+</div>
+
+<div class="dashboard-controls">
+    <a href="/" class="btn btn-primary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    <a href="/export" class="btn btn-success">
+        <i class="fas fa-download"></i> Export Results
+    </a>
+    <a href="/import" class="btn btn-warning">
+        <i class="fas fa-upload"></i> Import Results
+    </a>
+    <a href="/compare" class="btn btn-secondary">
+        <i class="fas fa-balance-scale"></i> Compare Results
+    </a>
+</div>
+
+<!-- Settings Content -->
+<div class="settings-content" style="display: block; padding: 0; border: none; background: none;">
+    <h2>API Configuration</h2>
+    <div class="setting-item api-key-setting">
+        <label for="apiKeyInput">OpenRouter API Key:</label>
+        <div class="api-key-input-row">
+            <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Enter your OpenRouter API key">
+            <button onclick="updateApiKey()" class="btn btn-primary btn-small">Update</button>
+            <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">👁️</button>
+        </div>
+        <div class="api-key-help">
+            Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. 
+            This is stored as an environment variable and requires a server restart to take effect.
+        </div>
+    </div>
+
+    <h2>Processing Configuration</h2>
+    <div class="setting-item">
+        <label for="rateLimitInput">Requests per second:</label>
+        <input type="number" id="rateLimitInput" min="0.1" max="10" step="0.1" value="2.0">
+        <button onclick="updateRateLimit()" class="btn btn-primary btn-small">Update</button>
+    </div>
+    <div class="setting-info">
+        <small>Queue length: <span id="queueLength">0</span> jobs waiting</small>
+    </div>
+
+    <h2>System Information</h2>
+    <div class="setting-info">
+        <p>MicrobeLLM Dashboard provides an interface for processing biological species data using Large Language Models.</p>
+        <p>Configure your API key above to start processing species data, adjust rate limiting to manage API usage, and monitor job queues.</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Check API key status on page load
+    checkApiKeyStatus();
+
+    // Load settings on page load
+    loadSettings();
+
+    function loadSettings() {
+        fetch('/api/get_settings')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('rateLimitInput').value = data.rate_limit;
+                document.getElementById('queueLength').textContent = data.queue_length;
+            })
+            .catch(error => console.error('Error loading settings:', error));
+    }
+
+    function updateRateLimit() {
+        const rateLimit = parseFloat(document.getElementById('rateLimitInput').value);
+        
+        fetch('/api/set_rate_limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({requests_per_second: rateLimit})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                console.log('Rate limit updated:', data.message);
+                // Show brief success indicator
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.backgroundColor = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = '';
+                }, 1000);
+            } else {
+                alert('Error updating rate limit: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating rate limit:', error);
+            alert('Error updating rate limit: ' + error.message);
+        });
+    }
+
+    function checkApiKeyStatus() {
+        fetch('/api/api_key_status')
+            .then(response => response.json())
+            .then(data => {
+                updateApiKeyStatus(data);
+            })
+            .catch(error => {
+                console.error('Error checking API key status:', error);
+                updateApiKeyStatus({
+                    status: 'error',
+                    message: 'Unable to check API key status',
+                    configured: false
+                });
+            });
+    }
+
+    function updateApiKeyStatus(data) {
+        const statusDiv = document.getElementById('apiKeyCornerStatus');
+        const dot = document.getElementById('apiStatusDot');
+        const text = document.getElementById('apiStatusText');
+        
+        // Remove existing status classes
+        statusDiv.className = 'api-key-corner-status';
+        
+        if (data.configured) {
+            statusDiv.classList.add('status-success');
+            dot.className = 'api-corner-status-dot success';
+            text.textContent = 'API key configured';
+        } else {
+            statusDiv.classList.add('status-error');
+            dot.className = 'api-corner-status-dot error';
+            text.textContent = 'API key not configured';
+        }
+    }
+
+    function toggleApiKeyVisibility() {
+        const input = document.getElementById('apiKeyInput');
+        const btn = document.getElementById('toggleApiKeyBtn');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            btn.textContent = '👁️';
+        }
+    }
+
+    function updateApiKey() {
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        
+        if (!apiKey) {
+            alert('Please enter an API key');
+            return;
+        }
+        
+        fetch('/api/set_api_key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({api_key: apiKey})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('API key updated successfully! ' + 
+                      (data.restart_required ? 'Please restart the server for changes to take effect.' : ''));
+                document.getElementById('apiKeyInput').value = '';
+                checkApiKeyStatus(); // Refresh status
+            } else {
+                alert('Error updating API key: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating API key:', error);
+            alert('Error updating API key: ' + error.message);
+        });
+    }
+
+    // Auto-refresh settings every 30 seconds
+    setInterval(() => {
+        loadSettings();
+        checkApiKeyStatus();
+    }, 30000);
+</script>
+{% endblock %}

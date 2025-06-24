@@ -5,10 +5,22 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1>Export Results</h1>
-                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
-            </div>
+<h1>Export Results</h1>
+
+<div class="dashboard-controls">
+    <a href="/" class="btn btn-primary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    <a href="/settings" class="btn btn-secondary">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+    <a href="/import" class="btn btn-warning">
+        <i class="fas fa-upload"></i> Import Results
+    </a>
+    <a href="/compare" class="btn btn-secondary">
+        <i class="fas fa-balance-scale"></i> Compare Results
+    </a>
+</div>
             
             <div class="card">
                 <div class="card-header">

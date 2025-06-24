@@ -1338,6 +1338,11 @@ def compare_page():
     
     return render_template('compare.html', templates=templates, species_files=species_files)
 
+@app.route('/settings')
+def settings_page():
+    """Settings page for API key and configuration management"""
+    return render_template('settings.html')
+
 @app.route('/api/comparison_data')
 def get_comparison_data():
     """Get comparison data for multiple models on same species"""
