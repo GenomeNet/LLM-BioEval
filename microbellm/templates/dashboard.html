@@ -65,6 +65,9 @@
                 {{ template_name }}
             </button>
         {% endfor %}
+        <button class="template-tab add-template" onclick="addTemplate()" title="Add existing template">
+            <i class="fas fa-plus"></i>
+        </button>
     </div>
 
     <!-- Template Sections -->
@@ -328,7 +331,27 @@
     </div>
 </div>
 
-
+<div id="addTemplateModal" class="modal">
+    <div class="modal-content">
+        <h3>Add Existing Template Pair</h3>
+        <div class="form-group">
+            <label>Available Template Pairs:</label>
+            <select id="newTemplateSelect" class="form-control">
+                <option value="">Select a template pair...</option>
+                {% for name, pair in dashboard_data.available_template_pairs.items() %}
+                    <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+            <small class="form-help">
+                Only template pairs with corresponding .txt files are shown
+            </small>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="closeModal('addTemplateModal')" class="btn btn-secondary">Cancel</button>
+            <button onclick="confirmAddTemplate()" class="btn btn-primary">Add Template</button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -1062,6 +1085,10 @@
         document.getElementById('addSpeciesModal').style.display = 'block';
     }
 
+    function addTemplate() {
+        document.getElementById('addTemplateModal').style.display = 'block';
+    }
+
 
 
     function closeModal(modalId) {
@@ -1082,6 +1109,17 @@
                 closeModal('addSpeciesModal');
                 setTimeout(refreshDashboard, 500);
             });
+        }
+    }
+
+    function confirmAddTemplate() {
+        const templateName = document.getElementById('newTemplateSelect').value;
+        if (templateName) {
+            console.log('Adding existing template pair:', templateName);
+            // Note: The template will be automatically available once the dashboard refreshes
+            // since it reads available templates from .txt files
+            closeModal('addTemplateModal');
+            setTimeout(refreshDashboard, 500);
         }
     }
 
