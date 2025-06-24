@@ -299,6 +299,33 @@
             color: #6c757d;
             font-size: 12px;
         }
+        
+        .template-link {
+            color: #007bff;
+            text-decoration: none;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background-color: rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+        
+        .template-link:hover {
+            color: #0056b3;
+            background-color: rgba(0, 123, 255, 0.15);
+            border-color: rgba(0, 123, 255, 0.3);
+            text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2);
+        }
+        
+        .template-link:active {
+            transform: translateY(0);
+            box-shadow: 0 0 2px rgba(0, 123, 255, 0.3);
+        }
 
         /* Processing Matrix */
         .matrix-container {

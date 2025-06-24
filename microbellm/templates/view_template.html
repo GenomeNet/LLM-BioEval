@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}View Template - {{ template_name }}{% endblock %}
+
+{% block content %}
+<div class="template-viewer">
+    <div class="template-header">
+        <h1>{{ template_type.title() }} Template: {{ template_name }}</h1>
+        <div class="template-actions">
+            <button onclick="window.history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button onclick="copyToClipboard()" class="btn btn-primary" id="copyBtn">
+                <i class="fas fa-copy"></i> Copy Content
+            </button>
+        </div>
+    </div>
+    
+    <div class="template-content-container">
+        <div class="template-info">
+            <span class="template-type-badge {{ template_type }}">{{ template_type.title() }}</span>
+            <span class="template-name">{{ template_name }}.txt</span>
+            <span class="template-size">{{ content|length }} characters</span>
+        </div>
+        
+        <div class="template-content" id="templateContent">{{ content }}</div>
+    </div>
+</div>
+
+<style>
+.template-viewer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.template-header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+.template-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.template-content-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.template-info {
+    background: #e9ecef;
+    padding: 12px 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 13px;
+}
+
+.template-type-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.template-type-badge.system {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.template-type-badge.user {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.template-name {
+    font-weight: 500;
+    color: #495057;
+}
+
+.template-size {
+    color: #6c757d;
+    margin-left: auto;
+}
+
+.template-content {
+    padding: 20px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #333;
+    background: white;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 600px;
+    overflow-y: auto;
+    border: none;
+    resize: none;
+    outline: none;
+}
+
+.template-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.template-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.template-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.template-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .template-viewer {
+        color: #f8f9fa;
+    }
+    
+    .template-header {
+        border-bottom-color: #495057;
+    }
+    
+    .template-header h1 {
+        color: #f8f9fa;
+    }
+    
+    .template-content-container {
+        background: #343a40;
+        border-color: #495057;
+    }
+    
+    .template-info {
+        background: #495057;
+        border-bottom-color: #6c757d;
+    }
+    
+    .template-content {
+        background: #212529;
+        color: #f8f9fa;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .template-viewer {
+        padding: 10px;
+    }
+    
+    .template-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .template-header h1 {
+        font-size: 20px;
+    }
+    
+    .template-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .template-info {
+        flex-wrap: wrap;
+        font-size: 12px;
+    }
+    
+    .template-content {
+        font-size: 11px;
+        padding: 15px;
+    }
+}
+</style>
+
+<script>
+function copyToClipboard() {
+    const content = document.getElementById('templateContent').textContent;
+    const copyBtn = document.getElementById('copyBtn');
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        // Use the Clipboard API when available and in a secure context
+        navigator.clipboard.writeText(content).then(() => {
+            showCopySuccess();
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            fallbackCopyTextToClipboard(content);
+        });
+    } else {
+        // Fallback method
+        fallbackCopyTextToClipboard(content);
+    }
+    
+    function showCopySuccess() {
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        copyBtn.style.backgroundColor = '#28a745';
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.style.backgroundColor = '';
+        }, 2000);
+    }
+    
+    function fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        
+        // Avoid scrolling to bottom
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopySuccess();
+            } else {
+                console.error('Fallback: Could not copy text');
+            }
+        } catch (err) {
+            console.error('Fallback: Could not copy text: ', err);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+}
+</script>
+{% endblock %}

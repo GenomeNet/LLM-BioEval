@@ -1931,6 +1931,34 @@ def validate_model_api():
     except Exception as e:
         return jsonify({'valid': False, 'error': f'Validation error: {str(e)}'})
 
+@app.route('/view_template/<template_type>/<template_name>')
+def view_template(template_type, template_name):
+    """View template content in a read-only format"""
+    try:
+        if template_type not in ['system', 'user']:
+            return "Invalid template type", 400
+        
+        if template_type == 'system':
+            template_dir = Path(config.SYSTEM_TEMPLATES_DIR)
+        else:
+            template_dir = Path(config.USER_TEMPLATES_DIR)
+        
+        template_file = template_dir / f"{template_name}.txt"
+        
+        if not template_file.exists():
+            return "Template not found", 404
+        
+        with open(template_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return render_template('view_template.html', 
+                               template_name=template_name,
+                               template_type=template_type,
+                               content=content)
+    
+    except Exception as e:
+        return f"Error reading template: {str(e)}", 500
+
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""

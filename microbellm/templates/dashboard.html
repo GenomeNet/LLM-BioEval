@@ -80,7 +80,10 @@
             <div class="template-header">
                 <h3>{{ template_name }} Template</h3>
                 <div class="template-info">
-                    <small>System: {{ sys_template.split('/')[-1] }} | User: {{ user_template.split('/')[-1] }}</small>
+                    <small>
+                        System: <a href="/view_template/system/{{ template_name }}" target="_blank" class="template-link" title="View system template">{{ sys_template.split('/')[-1] }}</a> | 
+                        User: <a href="/view_template/user/{{ template_name }}" target="_blank" class="template-link" title="View user template">{{ user_template.split('/')[-1] }}</a>
+                    </small>
                 </div>
             </div>
 
