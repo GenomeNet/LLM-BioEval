@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import pandas as pd
 from tqdm import tqdm
-from microbellm.utils import read_template_from_file, write_batch_jsonl
+from microbellm.utils import read_template_from_file, write_batch_jsonl, import_results_from_csv
 from microbellm.predict import predict_binomial_name
 from microbellm import config
 import sqlite3
@@ -123,49 +123,51 @@ def single_prediction(args):
         print("Failed to get prediction.")
 
 def main():
-    """Main function to handle command line arguments and run predictions."""
-    parser = argparse.ArgumentParser(description="MicrobeLLM: Evaluate LLMs on microbial phenotype prediction")
-    
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+    """Main function to parse command-line arguments and execute the tool."""
+    parser = argparse.ArgumentParser(description="MicrobeLLM: Evaluate LLMs on microbial phenotype prediction.")
+    subparsers = parser.add_subparsers(dest='command', required=True, help='Available commands')
+
     # Batch prediction command
-    batch_parser = subparsers.add_parser('batch', help='Run batch predictions on multiple species')
-    batch_parser.add_argument('--input_csv', type=str, required=True,
+    parser_batch = subparsers.add_parser('batch', help='Run batch predictions on multiple species')
+    parser_batch.add_argument('--input_csv', type=str, required=True,
                             help='Input CSV file with Binomial.name column')
-    batch_parser.add_argument('--output_csv', type=str, required=True,
+    parser_batch.add_argument('--output_csv', type=str, required=True,
                             help='Output CSV file for results')
-    batch_parser.add_argument('--system_template', type=str, required=True,
+    parser_batch.add_argument('--system_template', type=str, required=True,
                             help='Path to system message template file')
-    batch_parser.add_argument('--user_template', type=str, required=True,
+    parser_batch.add_argument('--user_template', type=str, required=True,
                             help='Path to user message template file')
-    batch_parser.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
+    parser_batch.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
                              help=f'Model to use for predictions (default: {config.POPULAR_MODELS[0]})')
-    batch_parser.add_argument('--temperature', type=float, default=0.0,
+    parser_batch.add_argument('--temperature', type=float, default=0.0,
                             help='Temperature for model predictions (default: 0.0)')
-    batch_parser.add_argument('--threads', type=int, default=4,
-                            help='Number of threads for parallel processing (default: 4)')
-    batch_parser.add_argument('--verbose', action='store_true',
-                            help='Enable verbose output')
+    parser_batch.add_argument('--threads', type=int, default=4, help='Number of threads for parallel processing.')
+    parser_batch.add_argument('--verbose', action='store_true', help='Enable verbose logging.')
     
     # Single prediction command
-    single_parser = subparsers.add_parser('single', help='Run prediction on a single species')
-    single_parser.add_argument('--binomial_name', type=str, required=True,
+    parser_single = subparsers.add_parser('single', help='Predict phenotype for a single bacterial species.')
+    parser_single.add_argument('--binomial_name', type=str, required=True,
                              help='Binomial name of the species to predict')
-    single_parser.add_argument('--output_csv', type=str, required=True,
+    parser_single.add_argument('--output_csv', type=str, required=True,
                              help='Output CSV file for the result')
-    single_parser.add_argument('--system_template', type=str, required=True,
+    parser_single.add_argument('--system_template', type=str, required=True,
                              help='Path to system message template file')
-    single_parser.add_argument('--user_template', type=str, required=True,
+    parser_single.add_argument('--user_template', type=str, required=True,
                              help='Path to user message template file')
-    single_parser.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
+    parser_single.add_argument('--model', type=str, default=config.POPULAR_MODELS[0],
                              help=f'Model to use for predictions (default: {config.POPULAR_MODELS[0]})')
-    single_parser.add_argument('--temperature', type=float, default=0.0,
+    parser_single.add_argument('--temperature', type=float, default=0.0,
                              help='Temperature for model predictions (default: 0.0)')
-    single_parser.add_argument('--verbose', action='store_true',
+    parser_single.add_argument('--verbose', action='store_true',
                              help='Enable verbose output')
     
+    # Import results command
+    parser_import = subparsers.add_parser('import', help='Import results from a CSV file into the database.')
+    parser_import.add_argument('--csv', required=True, help='Path to the CSV file to import.')
+    parser_import.add_argument('--verbose', action='store_true', help='Enable verbose logging.')
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return
@@ -174,6 +176,9 @@ def main():
         batch_prediction(args)
     elif args.command == 'single':
         single_prediction(args)
+    elif args.command == 'import':
+        from microbellm.importer import import_results_from_csv
+        import_results_from_csv(args.csv)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

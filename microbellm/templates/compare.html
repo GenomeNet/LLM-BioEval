@@ -1,0 +1,668 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Model Results - MicrobeLLM{% endblock %}
+
+{% block content %}
+<h1>Compare Model Results</h1>
+
+<div class="compare-filters">
+    <div class="filter-group">
+        <label for="templateFilter">Template:</label>
+        <select id="templateFilter" class="form-control" onchange="updateComparison()">
+            <option value="">All Templates</option>
+            {% for template in templates %}
+                <option value="{{ template }}">{{ template }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="speciesFileFilter">Species File:</label>
+        <select id="speciesFileFilter" class="form-control" onchange="updateComparison()">
+            <option value="">All Species Files</option>
+            {% for file in species_files %}
+                <option value="{{ file }}">{{ file }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="phenotypeFilter">Phenotype:</label>
+        <select id="phenotypeFilter" class="form-control" onchange="updateComparison()">
+            <option value="">All Phenotypes</option>
+            <option value="gram_staining">Gram Staining</option>
+            <option value="motility">Motility</option>
+            <option value="aerophilicity">Aerophilicity</option>
+            <option value="extreme_environment_tolerance">Extreme Environment Tolerance</option>
+            <option value="biofilm_formation">Biofilm Formation</option>
+            <option value="animal_pathogenicity">Animal Pathogenicity</option>
+            <option value="biosafety_level">Biosafety Level</option>
+            <option value="health_association">Health Association</option>
+            <option value="host_association">Host Association</option>
+            <option value="plant_pathogenicity">Plant Pathogenicity</option>
+            <option value="spore_formation">Spore Formation</option>
+            <option value="hemolysis">Hemolysis</option>
+            <option value="cell_shape">Cell Shape</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="agreementFilter">Agreement Level:</label>
+        <select id="agreementFilter" class="form-control" onchange="updateComparison()">
+            <option value="">All</option>
+            <option value="full">Full Agreement</option>
+            <option value="partial">Partial Agreement</option>
+            <option value="disagreement">Disagreement</option>
+        </select>
+    </div>
+</div>
+
+<div class="comparison-stats">
+    <div class="stat-card">
+        <div class="stat-number" id="totalSpecies">0</div>
+        <div class="stat-label">Total Species</div>
+    </div>
+    <div class="stat-card agreement">
+        <div class="stat-number" id="fullAgreement">0</div>
+        <div class="stat-label">Full Agreement</div>
+    </div>
+    <div class="stat-card partial">
+        <div class="stat-number" id="partialAgreement">0</div>
+        <div class="stat-label">Partial Agreement</div>
+    </div>
+    <div class="stat-card disagreement">
+        <div class="stat-number" id="totalDisagreement">0</div>
+        <div class="stat-label">Disagreement</div>
+    </div>
+</div>
+
+<div id="comparisonContent">
+    <div class="loading">Loading comparison data...</div>
+</div>
+
+<style>
+    .compare-filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+    }
+    
+    .comparison-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.agreement {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+    
+    .stat-card.partial {
+        border-color: #ffc107;
+        background-color: #fffef8;
+    }
+    
+    .stat-card.disagreement {
+        border-color: #dc3545;
+        background-color: #fff8f8;
+    }
+    
+    .stat-number {
+        font-size: 32px;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .comparison-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 20px;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .comparison-table th {
+        background-color: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .comparison-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .comparison-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .species-name-cell {
+        font-weight: 600;
+        font-style: italic;
+        color: #2c3e50;
+    }
+    
+    .model-result {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-block;
+        margin: 2px;
+    }
+    
+    .agreement-indicator {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    
+    .agreement-indicator.full {
+        background-color: #28a745;
+    }
+    
+    .agreement-indicator.partial {
+        background-color: #ffc107;
+    }
+    
+    .agreement-indicator.none {
+        background-color: #dc3545;
+    }
+    
+    .phenotype-comparison {
+        margin-bottom: 30px;
+    }
+    
+    .phenotype-header {
+        background-color: #e9ecef;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .species-comparison-row {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+    
+    .species-comparison-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .species-comparison-header:hover {
+        background-color: #e9ecef;
+    }
+    
+    .species-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .model-predictions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 15px;
+        background-color: white;
+    }
+    
+    .model-prediction {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px 12px;
+        min-width: 150px;
+    }
+    
+    .model-name {
+        font-weight: 600;
+        color: #495057;
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .prediction-value {
+        font-size: 14px;
+        color: #2c3e50;
+    }
+    
+    .prediction-value.missing {
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px;
+        color: #6c757d;
+    }
+    
+    .empty-state h3 {
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    
+    .comparison-mode-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .mode-tab {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6c757d;
+        transition: all 0.2s ease;
+    }
+    
+    .mode-tab:hover {
+        color: #495057;
+        background-color: #f8f9fa;
+    }
+    
+    .mode-tab.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let comparisonData = null;
+    
+    // Load comparison data on page load
+    loadComparisonData();
+    
+    function loadComparisonData() {
+        fetch('/api/comparison_data')
+            .then(response => response.json())
+            .then(data => {
+                comparisonData = data;
+                updateComparison();
+            })
+            .catch(error => {
+                console.error('Error loading comparison data:', error);
+                document.getElementById('comparisonContent').innerHTML = 
+                    '<div class="empty-state"><h3>Error loading data</h3><p>' + error.message + '</p></div>';
+            });
+    }
+    
+    function updateComparison() {
+        if (!comparisonData) return;
+        
+        const templateFilter = document.getElementById('templateFilter').value;
+        const speciesFileFilter = document.getElementById('speciesFileFilter').value;
+        const phenotypeFilter = document.getElementById('phenotypeFilter').value;
+        const agreementFilter = document.getElementById('agreementFilter').value;
+        
+        // Filter data based on selections
+        let filteredData = filterComparisonData(comparisonData, {
+            template: templateFilter,
+            speciesFile: speciesFileFilter,
+            phenotype: phenotypeFilter,
+            agreement: agreementFilter
+        });
+        
+        // Update statistics
+        updateStatistics(filteredData);
+        
+        // Render comparison view
+        renderComparison(filteredData);
+    }
+    
+    function filterComparisonData(data, filters) {
+        let filtered = { ...data };
+        
+        // Apply filters
+        if (filters.template) {
+            filtered.comparisons = filtered.comparisons.filter(c => c.template === filters.template);
+        }
+        
+        if (filters.speciesFile) {
+            filtered.comparisons = filtered.comparisons.filter(c => c.species_file === filters.speciesFile);
+        }
+        
+        if (filters.phenotype) {
+            // Filter to show only the selected phenotype
+            filtered.comparisons = filtered.comparisons.map(comp => ({
+                ...comp,
+                phenotypes: { [filters.phenotype]: comp.phenotypes[filters.phenotype] }
+            }));
+        }
+        
+        if (filters.agreement) {
+            filtered.comparisons = filtered.comparisons.filter(comp => {
+                const agreementLevel = calculateAgreementLevel(comp);
+                return agreementLevel === filters.agreement;
+            });
+        }
+        
+        return filtered;
+    }
+    
+    function calculateAgreementLevel(comparison) {
+        let fullAgreement = 0;
+        let partialAgreement = 0;
+        let disagreement = 0;
+        
+        Object.values(comparison.phenotypes).forEach(phenotype => {
+            const values = Object.values(phenotype.predictions).filter(v => v !== null);
+            const uniqueValues = [...new Set(values)];
+            
+            if (values.length > 1) {
+                if (uniqueValues.length === 1) {
+                    fullAgreement++;
+                } else if (uniqueValues.length === values.length) {
+                    disagreement++;
+                } else {
+                    partialAgreement++;
+                }
+            }
+        });
+        
+        if (disagreement > 0) return 'disagreement';
+        if (partialAgreement > 0) return 'partial';
+        if (fullAgreement > 0) return 'full';
+        return 'none';
+    }
+    
+    function updateStatistics(data) {
+        let totalSpecies = 0;
+        let fullAgreement = 0;
+        let partialAgreement = 0;
+        let disagreement = 0;
+        
+        if (data.comparisons) {
+            totalSpecies = data.comparisons.length;
+            
+            data.comparisons.forEach(comp => {
+                const level = calculateAgreementLevel(comp);
+                switch(level) {
+                    case 'full': fullAgreement++; break;
+                    case 'partial': partialAgreement++; break;
+                    case 'disagreement': disagreement++; break;
+                }
+            });
+        }
+        
+        document.getElementById('totalSpecies').textContent = totalSpecies;
+        document.getElementById('fullAgreement').textContent = fullAgreement;
+        document.getElementById('partialAgreement').textContent = partialAgreement;
+        document.getElementById('totalDisagreement').textContent = disagreement;
+    }
+    
+    function renderComparison(data) {
+        const container = document.getElementById('comparisonContent');
+        
+        if (!data.comparisons || data.comparisons.length === 0) {
+            container.innerHTML = '<div class="empty-state"><h3>No comparison data available</h3><p>Process some species with multiple models to see comparisons.</p></div>';
+            return;
+        }
+        
+        let html = '<div class="comparison-mode-tabs">';
+        html += '<button class="mode-tab active" onclick="showComparisonMode(\'overview\')">Overview</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'detailed\')">Detailed</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
+        html += '</div>';
+        
+        html += '<div id="comparisonView">';
+        html += renderOverviewMode(data);
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    function showComparisonMode(mode) {
+        // Update tab states
+        document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Render the selected mode
+        const viewContainer = document.getElementById('comparisonView');
+        
+        switch(mode) {
+            case 'overview':
+                viewContainer.innerHTML = renderOverviewMode(comparisonData);
+                break;
+            case 'detailed':
+                viewContainer.innerHTML = renderDetailedMode(comparisonData);
+                break;
+            case 'matrix':
+                viewContainer.innerHTML = renderMatrixMode(comparisonData);
+                break;
+        }
+    }
+    
+    function renderOverviewMode(data) {
+        let html = '<table class="comparison-table">';
+        html += '<thead><tr>';
+        html += '<th>Species</th>';
+        html += '<th>Agreement Level</th>';
+        html += '<th>Models Compared</th>';
+        html += '<th>Conflicting Phenotypes</th>';
+        html += '</tr></thead><tbody>';
+        
+        data.comparisons.forEach(comp => {
+            const agreementLevel = calculateAgreementLevel(comp);
+            const conflicts = getConflictingPhenotypes(comp);
+            
+            html += '<tr>';
+            html += `<td class="species-name-cell">${comp.species}</td>`;
+            html += `<td><span class="agreement-indicator ${agreementLevel}"></span>${agreementLevel.replace('_', ' ')}</td>`;
+            html += `<td>${comp.models.join(', ')}</td>`;
+            html += `<td>${conflicts.length > 0 ? conflicts.join(', ') : 'None'}</td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        return html;
+    }
+    
+    function renderDetailedMode(data) {
+        let html = '';
+        
+        // Group by phenotype
+        const phenotypes = [...new Set(data.comparisons.flatMap(c => Object.keys(c.phenotypes)))];
+        
+        phenotypes.forEach(phenotype => {
+            html += `<div class="phenotype-comparison">`;
+            html += `<div class="phenotype-header">${phenotype.replace(/_/g, ' ').toUpperCase()}</div>`;
+            
+            data.comparisons.forEach(comp => {
+                if (!comp.phenotypes[phenotype]) return;
+                
+                const phenotypeData = comp.phenotypes[phenotype];
+                const hasConflict = Object.keys(phenotypeData.conflicts).length > 0;
+                
+                html += `<div class="species-comparison-row">`;
+                html += `<div class="species-comparison-header" onclick="toggleDetails(this)">`;
+                html += `<div class="species-info">`;
+                html += `<span class="agreement-indicator ${hasConflict ? 'none' : 'full'}"></span>`;
+                html += `<span class="species-name-cell">${comp.species}</span>`;
+                html += `</div>`;
+                html += `<span class="toggle-icon">▼</span>`;
+                html += `</div>`;
+                
+                html += `<div class="model-predictions" style="display: none;">`;
+                Object.entries(phenotypeData.predictions).forEach(([model, value]) => {
+                    html += `<div class="model-prediction">`;
+                    html += `<div class="model-name">${model}</div>`;
+                    html += `<div class="prediction-value ${value ? '' : 'missing'}">${value || 'No data'}</div>`;
+                    html += `</div>`;
+                });
+                html += `</div>`;
+                html += `</div>`;
+            });
+            
+            html += `</div>`;
+        });
+        
+        return html;
+    }
+    
+    function renderMatrixMode(data) {
+        // Create agreement matrix between models
+        const models = [...new Set(data.comparisons.flatMap(c => c.models))];
+        const matrix = {};
+        
+        // Initialize matrix
+        models.forEach(m1 => {
+            matrix[m1] = {};
+            models.forEach(m2 => {
+                matrix[m1][m2] = { agree: 0, disagree: 0, total: 0 };
+            });
+        });
+        
+        // Calculate agreements
+        data.comparisons.forEach(comp => {
+            Object.values(comp.phenotypes).forEach(phenotype => {
+                comp.models.forEach(m1 => {
+                    comp.models.forEach(m2 => {
+                        if (m1 !== m2) {
+                            const v1 = phenotype.predictions[m1];
+                            const v2 = phenotype.predictions[m2];
+                            if (v1 !== null && v2 !== null) {
+                                matrix[m1][m2].total++;
+                                if (v1 === v2) {
+                                    matrix[m1][m2].agree++;
+                                } else {
+                                    matrix[m1][m2].disagree++;
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        });
+        
+        let html = '<h3>Model Agreement Matrix</h3>';
+        html += '<table class="comparison-table">';
+        html += '<thead><tr><th></th>';
+        models.forEach(model => {
+            html += `<th>${model}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        models.forEach(m1 => {
+            html += `<tr><th>${m1}</th>`;
+            models.forEach(m2 => {
+                if (m1 === m2) {
+                    html += '<td style="background-color: #e9ecef;">-</td>';
+                } else {
+                    const stats = matrix[m1][m2];
+                    const agreementRate = stats.total > 0 ? (stats.agree / stats.total * 100).toFixed(1) : 0;
+                    const color = agreementRate > 80 ? '#d4edda' : agreementRate > 60 ? '#fff3cd' : '#f8d7da';
+                    html += `<td style="background-color: ${color}; text-align: center;">`;
+                    html += `<strong>${agreementRate}%</strong><br>`;
+                    html += `<small>${stats.agree}/${stats.total}</small>`;
+                    html += '</td>';
+                }
+            });
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        return html;
+    }
+    
+    function getConflictingPhenotypes(comparison) {
+        const conflicts = [];
+        Object.entries(comparison.phenotypes).forEach(([phenotype, data]) => {
+            if (Object.keys(data.conflicts).length > 0) {
+                conflicts.push(phenotype.replace(/_/g, ' '));
+            }
+        });
+        return conflicts;
+    }
+    
+    function toggleDetails(header) {
+        const details = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+        
+        if (details.style.display === 'none') {
+            details.style.display = 'flex';
+            icon.textContent = '▲';
+        } else {
+            details.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    }
+</script>
+{% endblock %} 

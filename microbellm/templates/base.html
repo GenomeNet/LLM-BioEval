@@ -474,6 +474,11 @@
             color: #dc3545;
         }
         
+        .progress-line.imported .progress-value {
+            color: #17a2b8;
+            font-weight: 600;
+        }
+        
         .completion {
             font-weight: 600;
             font-size: 14px;
@@ -570,7 +575,26 @@
         }
         
         .status-badge.interrupted {
+            background-color: #e2e3e5;
             color: #6c757d;
+        }
+
+        .import-badge {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #17a2b8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .import-badge i {
+            font-size: 10px;
         }
 
         /* Animations */
@@ -963,6 +987,86 @@
             font-style: italic;
         }
         
+        /* LLM Response and Debug Info Styling */
+        .llm-response-details,
+        .debug-details {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
+        
+        .llm-response-details summary,
+        .debug-details summary {
+            cursor: pointer;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+            user-select: none;
+        }
+        
+        .llm-response-details summary:hover,
+        .debug-details summary:hover {
+            color: #007bff;
+        }
+        
+        .llm-response-details .response-text {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+        
+        .debug-info {
+            margin-top: 15px;
+        }
+        
+        .debug-content {
+            margin-top: 10px;
+        }
+        
+        .debug-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: white;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .debug-item strong {
+            color: #495057;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .phenotype-debug-list {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+            list-style-type: none;
+        }
+        
+        .phenotype-debug-list li {
+            padding: 4px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .phenotype-debug-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .phenotype-debug-list em {
+            color: #6c757d;
+            font-style: italic;
+        }
+        
         .modal-content h3 {
             margin-top: 0;
             margin-bottom: 20px;
@@ -1222,6 +1326,8 @@
         <div class="nav">
             <a href="/">Dashboard</a>
             <a href="/export">Export Results</a>
+            <a href="/import">Import Results</a>
+            <a href="/compare">Compare Results</a>
         </div>
         
         {% block content %}{% endblock %}

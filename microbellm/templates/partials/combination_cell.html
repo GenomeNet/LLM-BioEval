@@ -1,0 +1,80 @@
+{% if combo %}
+    <div class="status-cell status-{{ combo.status }} relative p-2 h-full flex flex-col justify-between items-center text-xs group"
+         onclick="showCombinationDetails({{ combo.id }})"
+         title="Click to see detailed results">
+
+        <!-- Main Progress Info -->
+        <div class="text-center w-full">
+            {% if combo.status == 'completed' and combo.successful > 0 %}
+                <span class="font-bold text-blue-800">{{ combo.successful }}/{{ combo.total }} Done</span>
+            {% elif combo.status == 'failed' and combo.successful == 0 and combo.failed > 0 %}
+                <span class="font-bold text-red-800">{{ combo.failed }}/{{ combo.total }} Failed</span>
+            {% elif combo.status == 'running' %}
+                <span class="font-bold text-green-800">{{ combo.submitted }}/{{ combo.total }}</span>
+            {% elif combo.status == 'interrupted' %}
+                <span class="font-bold text-gray-600">{{ combo.successful }}/{{ combo.total }} Paused</span>
+            {% elif combo.status == 'queued' %}
+                 <span class="font-bold text-yellow-600">Queued</span>
+            {% else %}
+                <span class="text-gray-500">{{ combo.total }} Ready</span>
+            {% endif %}
+            
+            <!-- Progress Bar -->
+            {% if combo.total > 0 and (combo.status == 'running' or combo.successful > 0) %}
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ (combo.successful / combo.total * 100)|round }}%"></div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Detailed Progress (shows on hover) -->
+        <div class="absolute inset-x-0 bottom-full mb-2 w-full p-2 bg-white border rounded-lg shadow-lg z-10 hidden group-hover:block text-left text-xs">
+            <div class="font-bold mb-1">Progress Details</div>
+            <div>Sent: <span class="font-semibold">{{ combo.submitted }}</span></div>
+            <div>Received: <span class="font-semibold">{{ combo.received }}</span></div>
+            <div class="text-green-600">Success: <span class="font-semibold">{{ combo.successful }}</span></div>
+            <div class="text-red-600">Failed: <span class="font-semibold">{{ combo.failed }}</span></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="w-full mt-2">
+            {% if combo.status == 'pending' %}
+                <button onclick="event.stopPropagation(); startCombination({{ combo.id }})" class="w-full action-btn bg-green-500 hover:bg-green-600 text-white rounded px-2 py-1 text-xs">
+                    <i class="fas fa-play"></i> Start
+                </button>
+            {% elif combo.status == 'running' %}
+                 <div class="flex items-center justify-center space-x-1">
+                    <span class="text-green-600 font-semibold"><i class="fas fa-spinner fa-spin"></i> Running</span>
+                    <button onclick="event.stopPropagation(); pauseCombination({{ combo.id }})" class="action-btn bg-yellow-500 hover:bg-yellow-600 text-white rounded p-1" title="Pause">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); stopCombination({{ combo.id }})" class="action-btn bg-red-500 hover:bg-red-600 text-white rounded p-1" title="Stop">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </div>
+            {% elif combo.status == 'completed' and combo.successful > 0 %}
+                <div class="text-blue-600 font-semibold"><i class="fas fa-check-circle"></i> Completed</div>
+            {% elif combo.status == 'failed' or (combo.status == 'completed' and combo.successful == 0) %}
+                <button onclick="event.stopPropagation(); restartCombination({{ combo.id }})" class="w-full action-btn bg-red-500 hover:bg-red-600 text-white rounded px-2 py-1 text-xs">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+            {% elif combo.status == 'interrupted' or combo.status == 'queued' %}
+                <button onclick="event.stopPropagation(); startCombination({{ combo.id }})" class="w-full action-btn bg-blue-500 hover:bg-blue-600 text-white rounded px-2 py-1 text-xs">
+                    <i class="fas fa-play"></i> Resume
+                </button>
+            {% endif %}
+        </div>
+        
+        <button onclick="event.stopPropagation(); deleteCombination({{ combo.id }})" class="absolute top-0 right-0 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete combination">
+            <i class="fas fa-times-circle text-xs"></i>
+        </button>
+    </div>
+{% else %}
+    <div class="h-full flex justify-center items-center">
+        <button onclick="createAndStartCombination('{{ row_data.species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" 
+                class="action-btn bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full w-8 h-8 flex items-center justify-center transition-transform transform hover:scale-110"
+                title="Create and start this combination">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+{% endif %} 

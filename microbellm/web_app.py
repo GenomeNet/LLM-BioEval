@@ -701,6 +701,9 @@ class ProcessingManager:
                                 and c['system_template'] == sys_template and c['user_template'] == user_template), None)
                     
                     if combo:
+                        # Check if this combination was imported (no submitted_species means it was imported)
+                        was_imported = combo['submitted_species'] == 0 and combo['successful_species'] > 0
+                        
                         matrix[row_key]['models'][model] = {
                             'id': combo['id'],
                             'completed': combo['completed_species'],
@@ -710,7 +713,8 @@ class ProcessingManager:
                             'received': combo['received_species'],
                             'successful': combo['successful_species'],
                             'failed': combo['failed_species'],
-                            'retried': combo['retried_species']
+                            'retried': combo['retried_species'],
+                            'imported': was_imported
                         }
                     else:
                         matrix[row_key]['models'][model] = None
@@ -816,6 +820,309 @@ class ProcessingManager:
             csv_lines.append(csv_line)
         
         return '\n'.join(csv_lines)
+
+    def import_results_from_csv(self, csv_content):
+        """Import results from CSV content"""
+        import csv
+        from io import StringIO
+        
+        # Initialize counters
+        results = {
+            'total_entries': 0,
+            'imported': 0,
+            'skipped': 0,
+            'overwritten_agreeing': 0,
+            'overwritten_conflicting': 0,
+            'errors': [],
+            'conflicts': []
+        }
+        
+        try:
+            # Parse CSV with semicolon delimiter
+            csv_file = StringIO(csv_content)
+            reader = csv.DictReader(csv_file, delimiter=';')
+            
+            # Validate header
+            expected_fields = [
+                'binomial_name', 'species_file', 'unknown', 'gram_staining', 'motility', 
+                'aerophilicity', 'extreme_environment_tolerance', 'biofilm_formation', 
+                'animal_pathogenicity', 'biosafety_level', 'health_association', 
+                'host_association', 'plant_pathogenicity', 'spore_formation', 
+                'hemolysis', 'cell_shape', 'model', 'system_template', 'inference_timestamp'
+            ]
+            
+            if not reader.fieldnames:
+                results['errors'].append("CSV file appears to be empty")
+                return results
+            
+            missing_fields = set(expected_fields) - set(reader.fieldnames)
+            if missing_fields:
+                results['errors'].append(f"Missing required fields: {', '.join(missing_fields)}")
+                return results
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            for row_num, row in enumerate(reader, start=2):  # Start at 2 to account for header
+                results['total_entries'] += 1
+                
+                try:
+                    # Extract data from row
+                    binomial_name = row['binomial_name'].strip()
+                    species_file = row['species_file'].strip()
+                    model = row['model'].strip()
+                    system_template = row['system_template'].strip()
+                    timestamp_str = row.get('inference_timestamp', '').strip()
+                    
+                    # Skip empty rows
+                    if not binomial_name or not model:
+                        continue
+                    
+                    # Parse timestamp
+                    timestamp = None
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        except:
+                            # Try other formats
+                            try:
+                                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                            except:
+                                timestamp = datetime.now()
+                    else:
+                        timestamp = datetime.now()
+                    
+                    # Extract phenotype data
+                    phenotype_data = {
+                        'gram_staining': row.get('gram_staining', '').strip() or None,
+                        'motility': row.get('motility', '').strip() or None,
+                        'aerophilicity': row.get('aerophilicity', '').strip() or None,
+                        'extreme_environment_tolerance': row.get('extreme_environment_tolerance', '').strip() or None,
+                        'biofilm_formation': row.get('biofilm_formation', '').strip() or None,
+                        'animal_pathogenicity': row.get('animal_pathogenicity', '').strip() or None,
+                        'biosafety_level': row.get('biosafety_level', '').strip() or None,
+                        'health_association': row.get('health_association', '').strip() or None,
+                        'host_association': row.get('host_association', '').strip() or None,
+                        'plant_pathogenicity': row.get('plant_pathogenicity', '').strip() or None,
+                        'spore_formation': row.get('spore_formation', '').strip() or None,
+                        'hemolysis': row.get('hemolysis', '').strip() or None,
+                        'cell_shape': row.get('cell_shape', '').strip() or None
+                    }
+                    
+                    # Derive user_template from system_template (assuming same filename pattern)
+                    user_template = system_template.replace('/system/', '/user/')
+                    
+                    # Check if entry already exists
+                    cursor.execute('''
+                        SELECT id, gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                               biofilm_formation, animal_pathogenicity, biosafety_level, health_association,
+                               host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape
+                        FROM results 
+                        WHERE binomial_name = ? AND species_file = ? AND model = ? 
+                        AND system_template = ? AND user_template = ?
+                    ''', (binomial_name, species_file, model, system_template, user_template))
+                    
+                    existing = cursor.fetchone()
+                    
+                    if existing:
+                        # Compare phenotype predictions
+                        existing_data = {
+                            'gram_staining': existing[1],
+                            'motility': existing[2],
+                            'aerophilicity': existing[3],
+                            'extreme_environment_tolerance': existing[4],
+                            'biofilm_formation': existing[5],
+                            'animal_pathogenicity': existing[6],
+                            'biosafety_level': existing[7],
+                            'health_association': existing[8],
+                            'host_association': existing[9],
+                            'plant_pathogenicity': existing[10],
+                            'spore_formation': existing[11],
+                            'hemolysis': existing[12],
+                            'cell_shape': existing[13]
+                        }
+                        
+                        # Check if predictions agree
+                        conflicts = []
+                        for field, new_value in phenotype_data.items():
+                            old_value = existing_data.get(field)
+                            if old_value != new_value and (old_value or new_value):  # Ignore if both are None/empty
+                                conflicts.append({
+                                    'field': field,
+                                    'old_value': old_value or 'None',
+                                    'new_value': new_value or 'None'
+                                })
+                        
+                        if conflicts:
+                            results['overwritten_conflicting'] += 1
+                            results['conflicts'].append({
+                                'species': binomial_name,
+                                'model': model,
+                                'conflicts': conflicts
+                            })
+                        else:
+                            results['overwritten_agreeing'] += 1
+                        
+                        # Update existing entry
+                        cursor.execute('''
+                            UPDATE results 
+                            SET gram_staining = ?, motility = ?, aerophilicity = ?, 
+                                extreme_environment_tolerance = ?, biofilm_formation = ?, 
+                                animal_pathogenicity = ?, biosafety_level = ?, health_association = ?,
+                                host_association = ?, plant_pathogenicity = ?, spore_formation = ?,
+                                hemolysis = ?, cell_shape = ?, timestamp = ?, status = "completed"
+                            WHERE id = ?
+                        ''', (
+                            phenotype_data['gram_staining'],
+                            phenotype_data['motility'],
+                            phenotype_data['aerophilicity'],
+                            phenotype_data['extreme_environment_tolerance'],
+                            phenotype_data['biofilm_formation'],
+                            phenotype_data['animal_pathogenicity'],
+                            phenotype_data['biosafety_level'],
+                            phenotype_data['health_association'],
+                            phenotype_data['host_association'],
+                            phenotype_data['plant_pathogenicity'],
+                            phenotype_data['spore_formation'],
+                            phenotype_data['hemolysis'],
+                            phenotype_data['cell_shape'],
+                            timestamp,
+                            existing[0]
+                        ))
+                        
+                    else:
+                        # Insert new entry
+                        cursor.execute('''
+                            INSERT INTO results (species_file, binomial_name, model, system_template, 
+                                               user_template, status, result, error, timestamp,
+                                               gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                                               biofilm_formation, animal_pathogenicity, biosafety_level, 
+                                               health_association, host_association, plant_pathogenicity, 
+                                               spore_formation, hemolysis, cell_shape)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            species_file, binomial_name, model, system_template, user_template,
+                            'completed', '', '', timestamp,
+                            phenotype_data['gram_staining'],
+                            phenotype_data['motility'],
+                            phenotype_data['aerophilicity'],
+                            phenotype_data['extreme_environment_tolerance'],
+                            phenotype_data['biofilm_formation'],
+                            phenotype_data['animal_pathogenicity'],
+                            phenotype_data['biosafety_level'],
+                            phenotype_data['health_association'],
+                            phenotype_data['host_association'],
+                            phenotype_data['plant_pathogenicity'],
+                            phenotype_data['spore_formation'],
+                            phenotype_data['hemolysis'],
+                            phenotype_data['cell_shape']
+                        ))
+                        results['imported'] += 1
+                    
+                    # Also ensure the combination exists
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO combinations 
+                        (species_file, model, system_template, user_template, status, created_at)
+                        VALUES (?, ?, ?, ?, 'imported', ?)
+                    ''', (species_file, model, system_template, user_template, datetime.now()))
+                    
+                except Exception as e:
+                    results['errors'].append(f"Row {row_num}: {str(e)}")
+                    results['skipped'] += 1
+            
+            conn.commit()
+            
+            # Update combination statistics after all imports
+            self._update_combination_statistics_after_import(cursor)
+            
+            # Add any new species files and models to managed lists
+            cursor.execute('SELECT DISTINCT species_file FROM results')
+            for (species_file,) in cursor.fetchall():
+                cursor.execute('INSERT OR IGNORE INTO managed_species_files (species_file) VALUES (?)', (species_file,))
+            
+            cursor.execute('SELECT DISTINCT model FROM results')
+            for (model,) in cursor.fetchall():
+                cursor.execute('INSERT OR IGNORE INTO managed_models (model) VALUES (?)', (model,))
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            results['errors'].append(f"CSV parsing error: {str(e)}")
+        
+        return results
+
+    def _update_combination_statistics_after_import(self, cursor):
+        """Update combination statistics based on imported results"""
+        # Get all combinations that need updating
+        cursor.execute('''
+            SELECT DISTINCT c.id, c.species_file, c.model, c.system_template, c.user_template
+            FROM combinations c
+            WHERE c.status = 'imported' OR c.completed_species IS NULL OR c.completed_species = 0
+        ''')
+        
+        combinations_to_update = cursor.fetchall()
+        
+        for combo in combinations_to_update:
+            combo_id, species_file, model, system_template, user_template = combo
+            
+            # Count successful results for this combination
+            cursor.execute('''
+                SELECT COUNT(DISTINCT binomial_name) 
+                FROM results 
+                WHERE species_file = ? AND model = ? AND system_template = ? 
+                AND user_template = ? AND status = 'completed'
+            ''', (species_file, model, system_template, user_template))
+            
+            successful_count = cursor.fetchone()[0]
+            
+            # Count failed results
+            cursor.execute('''
+                SELECT COUNT(DISTINCT binomial_name) 
+                FROM results 
+                WHERE species_file = ? AND model = ? AND system_template = ? 
+                AND user_template = ? AND status = 'failed'
+            ''', (species_file, model, system_template, user_template))
+            
+            failed_count = cursor.fetchone()[0]
+            
+            # Get total species count from file if possible
+            total_species = 0
+            try:
+                species_list = self._read_species_from_file(os.path.join(config.SPECIES_DIR, species_file))
+                total_species = len(species_list)
+            except:
+                # If file doesn't exist, use the count of distinct species we have
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT binomial_name) 
+                    FROM results 
+                    WHERE species_file = ? AND model = ? AND system_template = ? 
+                    AND user_template = ?
+                ''', (species_file, model, system_template, user_template))
+                total_species = cursor.fetchone()[0]
+            
+            # Update combination with proper counts
+            cursor.execute('''
+                UPDATE combinations 
+                SET total_species = ?, 
+                    completed_species = ?, 
+                    successful_species = ?,
+                    failed_species = ?,
+                    status = CASE 
+                        WHEN ? = ? THEN 'completed' 
+                        WHEN ? > 0 THEN 'interrupted'
+                        ELSE status 
+                    END
+                WHERE id = ?
+            ''', (
+                total_species, 
+                successful_count + failed_count,  # completed = successful + failed
+                successful_count,
+                failed_count,
+                successful_count + failed_count, total_species,  # for CASE: if all done, mark completed
+                successful_count + failed_count,  # for CASE: if some done, mark interrupted
+                combo_id
+            ))
 
     def set_rate_limit(self, requests_per_second):
         """Set the rate limit for API requests"""
@@ -1009,6 +1316,124 @@ def export_page():
     }
     return render_template('export.html', dashboard_data=dashboard_data)
 
+@app.route('/import')
+def import_page():
+    """Import page for uploading CSV files"""
+    return render_template('import.html')
+
+@app.route('/compare')
+def compare_page():
+    """Compare results page"""
+    # Get unique templates and species files for filters
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT DISTINCT system_template FROM results WHERE status = 'completed'")
+    templates = [row[0].split('/')[-1].replace('.txt', '') for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT DISTINCT species_file FROM results WHERE status = 'completed'")
+    species_files = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    return render_template('compare.html', templates=templates, species_files=species_files)
+
+@app.route('/api/comparison_data')
+def get_comparison_data():
+    """Get comparison data for multiple models on same species"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all species that have been processed by multiple models
+        cursor.execute("""
+            SELECT binomial_name, species_file, system_template, user_template, COUNT(DISTINCT model) as model_count
+            FROM results
+            WHERE status = 'completed'
+            GROUP BY binomial_name, species_file, system_template, user_template
+            HAVING model_count > 1
+        """)
+        
+        multi_model_species = cursor.fetchall()
+        
+        comparisons = []
+        
+        for species_name, species_file, system_template, user_template, model_count in multi_model_species:
+            # Get all results for this species across different models
+            cursor.execute("""
+                SELECT model, gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                       biofilm_formation, animal_pathogenicity, biosafety_level, health_association,
+                       host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape
+                FROM results
+                WHERE binomial_name = ? AND species_file = ? AND system_template = ? AND user_template = ?
+                AND status = 'completed'
+            """, (species_name, species_file, system_template, user_template))
+            
+            model_results = cursor.fetchall()
+            
+            # Build phenotype comparison data
+            phenotypes = {}
+            models = []
+            
+            phenotype_names = [
+                'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 'health_association',
+                'host_association', 'plant_pathogenicity', 'spore_formation', 'hemolysis', 'cell_shape'
+            ]
+            
+            # Initialize phenotype data structure
+            for phenotype in phenotype_names:
+                phenotypes[phenotype] = {
+                    'predictions': {},
+                    'conflicts': {}
+                }
+            
+            # Collect predictions from each model
+            for result in model_results:
+                model = result[0]
+                models.append(model)
+                
+                for i, phenotype in enumerate(phenotype_names):
+                    value = result[i + 1]  # +1 because model is at index 0
+                    phenotypes[phenotype]['predictions'][model] = value
+            
+            # Identify conflicts for each phenotype
+            for phenotype, data in phenotypes.items():
+                predictions = data['predictions']
+                unique_values = set(v for v in predictions.values() if v is not None)
+                
+                if len(unique_values) > 1:
+                    # There's a conflict
+                    for model, value in predictions.items():
+                        if value is not None:
+                            for other_model, other_value in predictions.items():
+                                if model != other_model and other_value is not None and value != other_value:
+                                    if model not in data['conflicts']:
+                                        data['conflicts'][model] = []
+                                    data['conflicts'][model].append({
+                                        'conflicting_model': other_model,
+                                        'this_value': value,
+                                        'other_value': other_value
+                                    })
+            
+            comparisons.append({
+                'species': species_name,
+                'species_file': species_file,
+                'template': system_template.split('/')[-1].replace('.txt', ''),
+                'models': sorted(models),
+                'phenotypes': phenotypes
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'comparisons': comparisons,
+            'total_comparisons': len(comparisons)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/export_csv')
 def export_csv_api():
     """Export results as CSV"""
@@ -1032,6 +1457,38 @@ def export_csv_api():
             mimetype='text/csv',
             headers={'Content-Disposition': f'attachment; filename={filename}'}
         )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/import_csv', methods=['POST'])
+def import_csv_api():
+    """Import results from CSV file"""
+    try:
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Check file extension
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'error': 'File must be a CSV file'}), 400
+        
+        # Read CSV content
+        content = file.read().decode('utf-8')
+        
+        # Process the import
+        import_results = processing_manager.import_results_from_csv(content)
+        
+        return jsonify({
+            'success': True,
+            'results': import_results
+        })
+        
+    except UnicodeDecodeError:
+        return jsonify({'error': 'File encoding error. Please ensure the file is UTF-8 encoded.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

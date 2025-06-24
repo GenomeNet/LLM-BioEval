@@ -11,6 +11,11 @@ import requests
 from colorama import Fore, Style
 from microbellm import config
 from tenacity import retry, stop_after_attempt, wait_exponential
+import sqlite3
+import pandas as pd
+import logging
+from tqdm import tqdm
+from pathlib import Path
 
 # --- LLM Provider Abstraction ---
 
@@ -505,7 +510,131 @@ def clean_csv_field(field):
     field = field.replace('\n', ' ').replace('\r', ' ')
     field = field.replace(';', ',')  # Replace semicolons with commas since we use ; as delimiter
     
-    # Remove extra whitespace
-    field = ' '.join(field.split())
-    
     return field
+
+def get_all_jobs_from_db():
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, species_file, model, system_template, user_template, status, total_species, completed_species, failed_species FROM combinations ORDER BY created_at DESC")
+    jobs = cursor.fetchall()
+    conn.close()
+    return jobs
+
+def import_results_from_csv(csv_path):
+    """
+    Imports results from a CSV file into the database.
+
+    Args:
+        csv_path (str): The path to the CSV file to import.
+    """
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info(f"Starting import from {csv_path}...")
+    
+    if not os.path.exists(csv_path):
+        logging.error(f"Error: CSV file not found at {csv_path}")
+        return
+
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as e:
+        logging.error(f"Error reading CSV file: {e}")
+        return
+
+    # Define expected columns
+    expected_columns = [
+        'species_file', 'binomial_name', 'model', 'system_template', 'user_template', 
+        'status', 'result', 'error', 'timestamp', 'gram_staining', 'motility', 'aerophilicity',
+        'extreme_environment_tolerance', 'biofilm_formation', 'animal_pathogenicity',
+        'biosafety_level', 'health_association', 'host_association', 'plant_pathogenicity',
+        'spore_formation', 'hemolysis', 'cell_shape'
+    ]
+
+    # Validate columns
+    missing_columns = [col for col in expected_columns if col not in df.columns]
+    if missing_columns:
+        logging.error(f"CSV file is missing required columns: {', '.join(missing_columns)}")
+        return
+
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    cursor = conn.cursor()
+
+    imported_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Importing Results"):
+        try:
+            # Sanitize data
+            row = row.where(pd.notnull(row), None)
+
+            # Find or create the combination ID
+            cursor.execute('''
+                SELECT id, total_species FROM combinations 
+                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+            ''', (row['species_file'], row['model'], row['system_template'], row['user_template']))
+            
+            combination = cursor.fetchone()
+            
+            if combination:
+                combination_id = combination[0]
+            else:
+                # Create a new combination if it doesn't exist
+                cursor.execute('''
+                    INSERT INTO combinations (species_file, model, system_template, user_template, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (row['species_file'], row['model'], row['system_template'], row['user_template'], 'completed', datetime.now()))
+                combination_id = cursor.lastrowid
+            
+            # Check if this specific result already exists
+            cursor.execute('''
+                SELECT id FROM results 
+                WHERE species_file = ? AND binomial_name = ? AND model = ? AND system_template = ? AND user_template = ?
+            ''', (row['species_file'], row['binomial_name'], row['model'], row['system_template'], row['user_template']))
+
+            if cursor.fetchone():
+                skipped_count += 1
+                continue
+
+            # Insert the new result
+            cursor.execute('''
+                INSERT INTO results (
+                    species_file, binomial_name, model, system_template, user_template, status, 
+                    result, error, timestamp, gram_staining, motility, aerophilicity, 
+                    extreme_environment_tolerance, biofilm_formation, animal_pathogenicity,
+                    biosafety_level, health_association, host_association, plant_pathogenicity,
+                    spore_formation, hemolysis, cell_shape
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                row['species_file'], row['binomial_name'], row['model'], row['system_template'], 
+                row['user_template'], row['status'], row['result'], row['error'], row['timestamp'],
+                row['gram_staining'], row['motility'], row['aerophilicity'], 
+                row['extreme_environment_tolerance'], row['biofilm_formation'], row['animal_pathogenicity'],
+                row['biosafety_level'], row['health_association'], row['host_association'], 
+                row['plant_pathogenicity'], row['spore_formation'], row['hemolysis'], row['cell_shape']
+            ))
+
+            # Update combination progress
+            if row['status'] == 'success':
+                cursor.execute("UPDATE combinations SET successful_species = successful_species + 1 WHERE id = ?", (combination_id,))
+            elif row['status'] == 'failed':
+                cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
+            
+            cursor.execute("UPDATE combinations SET received_species = received_species + 1, completed_species = received_species, submitted_species = received_species WHERE id = ?", (combination_id,))
+
+            imported_count += 1
+
+        except sqlite3.Error as e:
+            logging.warning(f"Skipping row {index + 1} due to database error: {e}")
+            error_count += 1
+        except Exception as e:
+            logging.warning(f"Skipping row {index + 1} due to unexpected error: {e}")
+            error_count += 1
+
+    conn.commit()
+    conn.close()
+
+    logging.info("--- Import Summary ---")
+    logging.info(f"Successfully imported: {imported_count} records")
+    logging.info(f"Skipped (already exist): {skipped_count} records")
+    logging.info(f"Failed (errors): {error_count} records")
+    logging.info("----------------------")
