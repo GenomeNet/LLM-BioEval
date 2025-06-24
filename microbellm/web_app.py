@@ -1278,6 +1278,51 @@ def api_key_status():
             'configured': True
         })
 
+@app.route('/api/set_api_key', methods=['POST'])
+def set_api_key():
+    """Set the OpenRouter API key"""
+    try:
+        data = request.get_json()
+        api_key = data.get('api_key', '').strip()
+        
+        if not api_key:
+            return jsonify({'success': False, 'error': 'API key is required'}), 400
+        
+        if len(api_key) < 10:
+            return jsonify({'success': False, 'error': 'API key appears to be too short'}), 400
+        
+        # For security and simplicity, we'll write the API key to a local .env file
+        # and provide instructions for the user to restart the server
+        env_file_path = os.path.join(os.getcwd(), '.env')
+        
+        # Read existing .env file if it exists
+        env_lines = []
+        if os.path.exists(env_file_path):
+            with open(env_file_path, 'r') as f:
+                env_lines = f.readlines()
+        
+        # Remove any existing OPENROUTER_API_KEY lines
+        env_lines = [line for line in env_lines if not line.strip().startswith('OPENROUTER_API_KEY=')]
+        
+        # Add the new API key
+        env_lines.append(f'OPENROUTER_API_KEY={api_key}\n')
+        
+        # Write back to .env file
+        with open(env_file_path, 'w') as f:
+            f.writelines(env_lines)
+        
+        # Also set it in the current environment (though this requires a restart to be permanent)
+        os.environ['OPENROUTER_API_KEY'] = api_key
+        
+        return jsonify({
+            'success': True, 
+            'message': 'API key updated successfully',
+            'restart_required': True
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/get_openrouter_models')
 def get_openrouter_models():
     """Fetch all available models from OpenRouter API"""
