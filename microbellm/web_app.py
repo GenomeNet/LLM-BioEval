@@ -595,21 +595,25 @@ class ProcessingManager:
         """Finalize combination status based on results"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT successful_species, total_species FROM combinations WHERE id = ?", (combination_id,))
-        final_counts = cursor.fetchone()
+        cursor.execute("SELECT successful_species, failed_species, total_species FROM combinations WHERE id = ?", (combination_id,))
+        result = cursor.fetchone()
+        successful_count = result[0] or 0
+        failed_count = result[1] or 0
+        total_count = result[2] or 0
+        total_processed = successful_count + failed_count
         
         if combination_id in self.paused_combinations:
             final_status = 'interrupted'
-            self._emit_log(combination_id, f"Job paused - processed {final_counts[0]} out of {final_counts[1]} species successfully")
+            self._emit_log(combination_id, f"Job paused - processed {total_processed} out of {total_count} species ({successful_count} successful, {failed_count} failed)")
         elif combination_id in self.stopped_combinations:
             final_status = 'interrupted'
-            self._emit_log(combination_id, f"Job stopped - processed {final_counts[0]} out of {final_counts[1]} species successfully")
-        elif final_counts[0] > 0:
+            self._emit_log(combination_id, f"Job stopped - processed {total_processed} out of {total_count} species ({successful_count} successful, {failed_count} failed)")
+        elif total_processed > 0:
             final_status = 'completed'
-            self._emit_log(combination_id, f"Job completed - processed {final_counts[0]} out of {final_counts[1]} species successfully")
+            self._emit_log(combination_id, f"Job completed - processed {total_processed} out of {total_count} species ({successful_count} successful, {failed_count} failed)")
         else:
             final_status = 'failed'
-            self._emit_log(combination_id, f"Job failed - no species were processed successfully out of {final_counts[1]} total")
+            self._emit_log(combination_id, f"Job failed - no species were processed out of {total_count} total")
         
         cursor.execute("UPDATE combinations SET status = ?, completed_at = ? WHERE id = ?", (final_status, datetime.now(), combination_id))
         conn.commit()

@@ -117,14 +117,14 @@
                                             <div class="status-cell status-{{ cell_data.status }}" onclick="showCombinationDetails({{ cell_data.id }})" style="cursor: pointer;" title="Click to see detailed results">
                                                 <div class="progress-info">
                                                     <div class="main-progress">
-                                                        {% if cell_data.status == 'completed' and cell_data.successful > 0 %}
-                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Done</span>
+                                                        {% if cell_data.status == 'completed' and (cell_data.successful > 0 or cell_data.failed > 0) %}
+                                                            <span class="completion-main">{{ cell_data.successful + cell_data.failed }}/{{ cell_data.total }} Done</span>
                                                         {% elif cell_data.status == 'failed' and cell_data.successful == 0 %}
                                                             <span class="completion-main">{{ cell_data.failed }}/{{ cell_data.total }} Failed</span>
                                                         {% elif cell_data.status == 'running' %}
                                                             <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Processing</span>
                                                         {% elif cell_data.status == 'interrupted' %}
-                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Paused</span>
+                                                            <span class="completion-main">{{ (cell_data.successful + cell_data.failed) }}/{{ cell_data.total }} Paused</span>
                                                         {% else %}
                                                             <span class="completion-main">{{ cell_data.total }} Ready</span>
                                                         {% endif %}
@@ -157,9 +157,9 @@
                                                         </div>
                                                     {% endif %}
                                                     
-                                                    {% if cell_data.total > 0 and (cell_data.successful > 0 or cell_data.status == 'running') %}
+                                                    {% if cell_data.total > 0 and ((cell_data.successful + cell_data.failed) > 0 or cell_data.status == 'running') %}
                                                         <div class="progress-bar">
-                                                            <div class="progress-fill" style="width: {{ ((cell_data.successful / cell_data.total * 100)|round) }}%"></div>
+                                                            <div class="progress-fill" style="width: {{ (((cell_data.successful + cell_data.failed) / cell_data.total * 100)|round) }}%"></div>
                                                         </div>
                                                     {% endif %}
                                                 </div>
