@@ -10,7 +10,7 @@ import sys
 from tqdm import tqdm
 from datetime import datetime
 
-def predict_binomial_name(binomial_name, system_template, user_template, model, temperature=0.0, verbose=False):
+def predict_binomial_name(binomial_name, system_template, user_template, model, temperature=0.0, verbose=False, user_template_path=None):
     """
     Predicts various characteristics of a bacterial species using an LLM.
     
@@ -21,6 +21,7 @@ def predict_binomial_name(binomial_name, system_template, user_template, model, 
         model (str): The model to use for prediction.
         temperature (float): The temperature for the model.
         verbose (bool): Whether to print verbose output.
+        user_template_path (str, optional): Path to user template file for validation.
     
     Returns:
         dict: A dictionary containing the prediction results.
@@ -48,8 +49,8 @@ def predict_binomial_name(binomial_name, system_template, user_template, model, 
             print(f"Failed to get response for {binomial_name}")
         return None
     
-    # Parse the response
-    parsed_result = parse_response(response)
+    # Parse the response using template validation if available
+    parsed_result = parse_response(response, user_template_path)
     
     if not parsed_result:
         if verbose:

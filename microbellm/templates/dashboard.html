@@ -32,11 +32,18 @@
         </div>
         <div class="setting-item">
             <label for="rateLimitInput">Requests per second:</label>
-            <input type="number" id="rateLimitInput" min="0.1" max="10" step="0.1" value="2.0">
-            <button onclick="updateRateLimit()" class="btn btn-primary btn-small">Update</button>
+            <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="1">
+            <button onclick="updateRateLimit()" class="btn btn-sm btn-primary">Update</button>
         </div>
-        <div class="setting-info">
-            <small>Queue length: <span id="queueLength">0</span> jobs waiting</small>
+        <div class="setting-item">
+            <label for="concurrentInput">Concurrent requests:</label>
+            <input type="number" id="concurrentInput" min="1" max="20" step="1" value="4">
+            <button onclick="updateConcurrency()" class="btn btn-sm btn-primary">Update</button>
+            <small class="form-help">Number of species to process in parallel</small>
+        </div>
+        <p class="settings-note">⚠️ Higher values may result in rate limiting from the API provider.</p>
+        <div class="queue-status">
+            <strong>Queue Length:</strong> <span id="queueLength">0</span> jobs waiting
         </div>
     </div>
 </div>
@@ -45,42 +52,67 @@
     <a href="/export" class="btn btn-success">
         <i class="fas fa-download"></i> Export Results
     </a>
+    <a href="/import" class="btn btn-primary">
+        <i class="fas fa-upload"></i> Import Results
+    </a>
     <button onclick="refreshDashboard()" class="btn btn-secondary">
-        <i class="fas fa-sync"></i> Refresh
+        <i class="fas fa-sync-alt"></i> Refresh
     </button>
 </div>
 
 {% if dashboard_data.matrix %}
     <!-- Template Navigation -->
     <div class="template-tabs">
-        {% set templates = dashboard_data.template_combinations %}
-        {% for pair in templates %}
-            {% set sys_template = pair[0] %}
-            {% set user_template = pair[1] %}
+        {% set templates = dashboard_data.template_display_info %}
+        {% for template_info in templates %}
             {% set i = loop.index0 %}
-            {% set template_name = sys_template.split('/')[-1].replace('.txt', '') %}
-            <button class="template-tab {% if i == 0 %}active{% endif %}" 
-                    onclick="showTemplate({{ i }})" 
-                    id="tab-{{ i }}">
-                {{ template_name }}
+                    <button class="template-tab template-type-{{ template_info.template_type }} {% if i == 0 %}active{% endif %}"
+                onclick="showTemplate({{ i }})"
+                    id="tab-{{ i }}"
+                    title="{{ template_info.description }} ({{ template_info.template_type }} template)">
+                {% if template_info.template_type == 'knowledge' %}
+                    <i class="fas fa-brain"></i>
+                {% else %}
+                    <i class="fas fa-dna"></i>
+                {% endif %}
+                {{ template_info.display_name }}
             </button>
         {% endfor %}
-        <button class="template-tab add-template" onclick="addTemplate()" title="Add new template">
-            <i class="fas fa-plus"></i>
+        <button class="template-tab template-manage-tab" 
+                onclick="openTemplateManager()" 
+                id="template-manage-btn"
+                title="Manage template names and descriptions">
+            <i class="fas fa-edit"></i>
         </button>
     </div>
 
     <!-- Template Sections -->
-    {% for pair in dashboard_data.template_combinations %}
-        {% set sys_template = pair[0] %}
-        {% set user_template = pair[1] %}
+    {% for template_info in dashboard_data.template_display_info %}
+        {% set sys_template = template_info.system_template %}
+        {% set user_template = template_info.user_template %}
         {% set i = loop.index0 %}
-        {% set template_name = sys_template.split('/')[-1].replace('.txt', '') %}
+        {% set file_template_name = sys_template.split('/')[-1].replace('.txt', '') %}
         <div class="template-section {% if i == 0 %}active{% endif %}" id="template-{{ i }}">
             <div class="template-header">
-                <h3>{{ template_name }} Template</h3>
+                <h3>
+                    {% if template_info.template_type == 'knowledge' %}
+                        <i class="fas fa-brain"></i>
+                    {% else %}
+                        <i class="fas fa-dna"></i>
+                    {% endif %}
+                    {{ template_info.display_name }}
+                    <span class="template-type-badge template-type-{{ template_info.template_type }}">
+                        {{ template_info.template_type|capitalize }} Template
+                    </span>
+                </h3>
+                <div class="template-description">
+                    <p>{{ template_info.description }}</p>
+                </div>
                 <div class="template-info">
-                    <small>System: {{ sys_template.split('/')[-1] }} | User: {{ user_template.split('/')[-1] }}</small>
+                    <small>
+                        System: <a href="/view_template/system/{{ file_template_name }}" target="_blank" class="template-link" title="View system template">{{ sys_template.split('/')[-1] }}</a> | 
+                        User: <a href="/view_template/user/{{ file_template_name }}" target="_blank" class="template-link" title="View user template">{{ user_template.split('/')[-1] }}</a>
+                    </small>
                 </div>
             </div>
 
@@ -155,6 +187,25 @@
                                                                 </div>
                                                             {% endif %}
                                                         </div>
+                                                    {% elif cell_data.imported %}
+                                                        <div class="detailed-progress">
+                                                            <div class="progress-line imported">
+                                                                <span class="progress-label">Source:</span>
+                                                                <span class="progress-value">Imported</span>
+                                                            </div>
+                                                            {% if cell_data.successful > 0 %}
+                                                                <div class="progress-line success">
+                                                                    <span class="progress-label">Success:</span>
+                                                                    <span class="progress-value">{{ cell_data.successful }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if cell_data.failed > 0 %}
+                                                                <div class="progress-line failed">
+                                                                    <span class="progress-label">Failed:</span>
+                                                                    <span class="progress-value">{{ cell_data.failed }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
                                                     
                                                     {% if cell_data.total > 0 and (cell_data.successful > 0 or cell_data.status == 'running') %}
@@ -184,6 +235,11 @@
                                                     <div class="status-badge completed">
                                                         <i class="fas fa-check"></i> Completed
                                                     </div>
+                                                    {% if cell_data.imported %}
+                                                        <div class="import-badge" title="This data was imported from CSV">
+                                                            <i class="fas fa-file-import"></i> Imported
+                                                        </div>
+                                                    {% endif %}
                                                 {% elif cell_data.status == 'failed' or (cell_data.status == 'completed' and cell_data.successful == 0) %}
                                                     <div class="status-badge failed">
                                                         <i class="fas fa-exclamation-triangle"></i> Failed
@@ -331,24 +387,7 @@
     </div>
 </div>
 
-<div id="addTemplateModal" class="modal">
-    <div class="modal-content">
-        <h3>Add Template Pair</h3>
-        <div class="form-group">
-            <label>Template Pair:</label>
-            <select id="newTemplateSelect" class="form-control">
-                <option value="">Select a template pair...</option>
-                {% for name, pair in dashboard_data.available_template_pairs.items() %}
-                    <option value="{{ name }}">{{ name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="modal-buttons">
-            <button onclick="closeModal('addTemplateModal')" class="btn btn-secondary">Cancel</button>
-            <button onclick="confirmAddTemplate()" class="btn btn-primary">Add Template</button>
-        </div>
-    </div>
-</div>
+
 
 {% endblock %}
 
@@ -356,6 +395,18 @@
 <script>
     // Initialize Socket.IO connection
     const socket = io();
+    
+    // Helper function to escape HTML for safe display
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
     
     socket.on('connect', function() {
         console.log('Connected to server');
@@ -372,11 +423,15 @@
     // Load settings on page load
     loadSettings();
 
+    // Initialize active tab from saved state
+    setTimeout(initializeActiveTab, 100); // Small delay to ensure DOM is ready
+
     function loadSettings() {
         fetch('/api/get_settings')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('rateLimitInput').value = data.rate_limit;
+                document.getElementById('concurrentInput').value = data.max_concurrent_requests;
                 document.getElementById('queueLength').textContent = data.queue_length;
             })
             .catch(error => console.error('Error loading settings:', error));
@@ -395,6 +450,9 @@
     function updateRateLimit() {
         const rateLimit = parseFloat(document.getElementById('rateLimitInput').value);
         
+        // Find the update button
+        const btn = document.querySelector('#settingsContent button[onclick="updateRateLimit()"]');
+        
         fetch('/api/set_rate_limit', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -405,14 +463,15 @@
             if (data.message) {
                 console.log('Rate limit updated:', data.message);
                 // Show brief success indicator
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓';
-                btn.style.backgroundColor = '#28a745';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
-                }, 1000);
+                if (btn) {
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓';
+                    btn.style.backgroundColor = '#28a745';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.backgroundColor = '';
+                    }, 1000);
+                }
             } else {
                 alert('Error updating rate limit: ' + data.error);
             }
@@ -420,6 +479,41 @@
         .catch(error => {
             console.error('Error updating rate limit:', error);
             alert('Error updating rate limit: ' + error.message);
+        });
+    }
+
+    function updateConcurrency() {
+        const concurrency = parseInt(document.getElementById('concurrentInput').value);
+        
+        // Find the update button
+        const btn = document.querySelector('#settingsContent button[onclick="updateConcurrency()"]');
+        
+        fetch('/api/set_rate_limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_concurrent_requests: concurrency})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                console.log('Concurrency updated:', data.message);
+                // Show brief success indicator
+                if (btn) {
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓';
+                    btn.style.backgroundColor = '#28a745';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.backgroundColor = '';
+                    }, 1000);
+                }
+            } else {
+                alert('Error updating concurrency: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating concurrency:', error);
+            alert('Error updating concurrency: ' + error.message);
         });
     }
 
@@ -515,8 +609,11 @@
             return;
         }
         
+        // Find the update button
+        const btn = document.querySelector('#settingsContent button[onclick="updateApiKey()"]');
+        if (!btn) return;
+        
         // Show loading state
-        const btn = event.target;
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Updating...';
@@ -599,6 +696,7 @@
         const info = data.combination_info;
         const results = data.species_results;
         const unprocessed = data.unprocessed_species;
+        const stats = data.prediction_stats;
         
         document.getElementById('detailsTitle').textContent = 
             `${info.model.split('/').pop()} - ${info.species_file} (${info.status})`;
@@ -628,11 +726,20 @@
                         <span class="stat-value">${info.failed_species}</span>
                     </div>
                 </div>
+                ${info.failed_species > 0 ? `
+                    <div class="rerun-all-container">
+                        <button onclick="rerunAllFailed(${info.id})" class="btn btn-warning">
+                            <i class="fas fa-redo"></i> Re-run All Failed (${info.failed_species})
+                        </button>
+                    </div>
+                ` : ''}
                 <div class="template-info">
                     <strong>Templates:</strong> ${info.system_template} + ${info.user_template}
                 </div>
             </div>
-            
+        `;
+        
+        html += `
             <div class="species-results">
                 <h4>Species Results</h4>
         `;
@@ -673,6 +780,11 @@
                                 <div class="timestamp">
                                     <strong>Processed:</strong> ${new Date(result.timestamp).toLocaleString()}
                                 </div>
+                                <div class="rerun-container">
+                                    <button onclick="rerunFailedSpecies(${info.id}, '${result.binomial_name}')" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-redo"></i> Re-run This Species
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -692,10 +804,54 @@
                 `;
                 
                 successful.forEach(result => {
-                    const phenotypes = Object.entries(result.phenotypes)
-                        .filter(([key, value]) => value)
-                        .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
-                        .join(', ');
+                    let mainContent = '';
+                    let debugContent = '';
+                    
+                    if (result.is_knowledge_template) {
+                        // For knowledge templates, show knowledge level
+                        const knowledgeLevel = result.knowledge_group || 'Not determined';
+                        const levelClass = knowledgeLevel.toLowerCase() === 'limited' ? 'knowledge-limited' :
+                                         knowledgeLevel.toLowerCase() === 'moderate' ? 'knowledge-moderate' :
+                                         knowledgeLevel.toLowerCase() === 'extensive' ? 'knowledge-extensive' :
+                                         knowledgeLevel.toLowerCase() === 'na' ? 'knowledge-na' : '';
+                        
+                        mainContent = `
+                            <div class="knowledge-level">
+                                <strong>Knowledge Level:</strong>
+                                <span class="knowledge-value ${levelClass}">${knowledgeLevel}</span>
+                            </div>
+                        `;
+                        
+                        debugContent = `
+                            <div class="debug-item">
+                                <strong>Knowledge Group:</strong> ${result.knowledge_group || '<em>null/empty</em>'}
+                            </div>
+                        `;
+                    } else {
+                        // For phenotype templates, show phenotypes
+                        const phenotypes = Object.entries(result.phenotypes || {})
+                            .filter(([key, value]) => value)
+                            .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+                            .join(', ');
+                        
+                        mainContent = `
+                            <div class="phenotypes">
+                                <strong>Phenotypes:</strong>
+                                <div class="phenotype-list">${phenotypes || 'No phenotypes extracted'}</div>
+                            </div>
+                        `;
+                        
+                        debugContent = `
+                            <div class="debug-item">
+                                <strong>All Phenotype Values:</strong>
+                                <ul class="phenotype-debug-list">
+                                    ${Object.entries(result.phenotypes || {})
+                                        .map(([key, value]) => `<li><strong>${key}:</strong> ${value || '<em>null/empty</em>'}</li>`)
+                                        .join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
                     
                     html += `
                         <div class="species-item success">
@@ -705,12 +861,32 @@
                                 <span class="toggle-icon">▼</span>
                             </div>
                             <div class="species-details" style="display: none;">
-                                <div class="phenotypes">
-                                    <strong>Phenotypes:</strong>
-                                    <div class="phenotype-list">${phenotypes || 'No phenotypes extracted'}</div>
-                                </div>
-                                <div class="timestamp">
-                                    <strong>Processed:</strong> ${new Date(result.timestamp).toLocaleString()}
+                                ${mainContent}
+                                ${result.result ? `
+                                    <div class="raw-response">
+                                        <strong>Raw LLM Response:</strong>
+                                        <details class="llm-response-details">
+                                            <summary>Click to expand raw output</summary>
+                                            <pre class="response-text">${escapeHtml(result.result)}</pre>
+                                        </details>
+                                    </div>
+                                ` : ''}
+                                <div class="debug-info">
+                                    <details class="debug-details">
+                                        <summary><strong>Debug Information</strong></summary>
+                                        <div class="debug-content">
+                                            <div class="debug-item">
+                                                <strong>Status:</strong> ${result.status}
+                                            </div>
+                                            <div class="debug-item">
+                                                <strong>Species Name:</strong> ${result.binomial_name}
+                                            </div>
+                                            <div class="debug-item">
+                                                <strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}
+                                            </div>
+                                            ${debugContent}
+                                        </div>
+                                    </details>
                                 </div>
                             </div>
                         </div>
@@ -766,6 +942,32 @@
         // Show selected template
         document.getElementById('template-' + templateIndex).classList.add('active');
         document.getElementById('tab-' + templateIndex).classList.add('active');
+        
+        // Save the active tab to localStorage for persistence across page reloads
+        localStorage.setItem('activeTemplateTab', templateIndex);
+    }
+
+    // Initialize active tab from localStorage or default to first tab
+    function initializeActiveTab() {
+        const savedTabIndex = localStorage.getItem('activeTemplateTab');
+        
+        // Check if saved tab index is valid (exists in DOM)
+        if (savedTabIndex !== null) {
+            const savedTab = document.getElementById('tab-' + savedTabIndex);
+            const savedSection = document.getElementById('template-' + savedTabIndex);
+            
+            if (savedTab && savedSection) {
+                // Restore the saved tab
+                showTemplate(parseInt(savedTabIndex));
+                return;
+            }
+        }
+        
+        // If no valid saved tab, ensure first tab is active (fallback)
+        const firstTab = document.getElementById('tab-0');
+        if (firstTab && !firstTab.classList.contains('active')) {
+            showTemplate(0);
+        }
     }
 
     // Combination actions
@@ -1082,9 +1284,7 @@
         document.getElementById('addSpeciesModal').style.display = 'block';
     }
 
-    function addTemplate() {
-        document.getElementById('addTemplateModal').style.display = 'block';
-    }
+
 
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
@@ -1107,15 +1307,7 @@
         }
     }
 
-    function confirmAddTemplate() {
-        const template = document.getElementById('newTemplateSelect').value;
-        if (template) {
-            // Add template logic would go here
-            console.log('Adding template:', template);
-            closeModal('addTemplateModal');
-            setTimeout(refreshDashboard, 1000);
-        }
-    }
+
 
     function deleteModel(model) {
         if (confirm(`Are you sure you want to remove the model "${model}" from the dashboard view? This will not delete any existing results.`)) {
@@ -1151,6 +1343,57 @@
         location.reload();
     }
     
+    function rerunFailedSpecies(combinationId, speciesName) {
+        if (confirm(`Re-run failed species: ${speciesName}?`)) {
+            fetch('/api/rerun_failed_species', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    combination_id: combinationId,
+                    species_name: speciesName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Close the modal and refresh
+                    closeModal('detailsModal');
+                    setTimeout(refreshDashboard, 1000);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error re-running species:', error);
+                alert('Error re-running species: ' + error.message);
+            });
+        }
+    }
+    
+    function rerunAllFailed(combinationId) {
+        if (confirm('Re-run all failed species for this combination?')) {
+            fetch(`/api/rerun_all_failed/${combinationId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Close the modal and refresh
+                    closeModal('detailsModal');
+                    setTimeout(refreshDashboard, 1000);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error re-running failed species:', error);
+                alert('Error re-running failed species: ' + error.message);
+            });
+        }
+    }
+    
     // Auto-refresh every 30 seconds and update settings
     setInterval(() => {
         refreshDashboard();
@@ -1163,5 +1406,368 @@
             event.target.style.display = 'none';
         }
     }
+
+    // Template management functions
+    function openTemplateManager() {
+        const modal = document.getElementById('templateManagerModal');
+        modal.style.display = 'block';
+        loadTemplateMetadata();
+    }
+
+    function loadTemplateMetadata() {
+        fetch('/api/template_metadata')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const container = document.getElementById('templateMetadataContainer');
+                container.innerHTML = '';
+                
+                data.metadata.forEach(template => {
+                    const templateItem = createTemplateItem(template);
+                    container.appendChild(templateItem);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading template metadata:', error));
+    }
+
+    function createTemplateItem(template) {
+        const div = document.createElement('div');
+        div.className = 'template-metadata-item template-type-' + template.template_type;
+        div.innerHTML = `
+            <div class="template-metadata-header">
+                <h4>
+                    ${template.template_type === 'knowledge' ? '<i class="fas fa-brain"></i>' : '<i class="fas fa-dna"></i>'}
+                    ${template.template_name} (Files)
+                    <span class="template-type-badge template-type-${template.template_type}">
+                        ${template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)} Template
+                    </span>
+                </h4>
+                <small>${template.system_template} | ${template.user_template}</small>
+            </div>
+            <div class="template-metadata-form">
+                <div class="form-group">
+                    <label>Display Name:</label>
+                    <input type="text" class="display-name-input" value="${template.display_name}" 
+                           data-system="${template.system_template}" data-user="${template.user_template}">
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea class="description-input" rows="2" 
+                              data-system="${template.system_template}" data-user="${template.user_template}">${template.description}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Template Type:</label>
+                    <select class="template-type-select" data-system="${template.system_template}" data-user="${template.user_template}">
+                        <option value="phenotype" ${template.template_type === 'phenotype' ? 'selected' : ''}>
+                            Phenotype Template (Species Properties)
+                        </option>
+                        <option value="knowledge" ${template.template_type === 'knowledge' ? 'selected' : ''}>
+                            Knowledge Template (Knowledge Assessment)
+                        </option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="saveTemplateMetadata('${template.system_template}', '${template.user_template}')">
+                    Save
+                </button>
+            </div>
+        `;
+        return div;
+    }
+
+    function saveTemplateMetadata(systemTemplate, userTemplate) {
+        const displayNameInput = document.querySelector(`input[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
+        const descriptionInput = document.querySelector(`textarea[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
+        const templateTypeSelect = document.querySelector(`select[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
+        
+        const displayName = displayNameInput.value.trim();
+        const description = descriptionInput.value.trim();
+        const templateType = templateTypeSelect.value;
+        
+        if (!displayName) {
+            alert('Display name is required');
+            return;
+        }
+        
+        fetch('/api/update_template_metadata', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                system_template: systemTemplate,
+                user_template: userTemplate,
+                display_name: displayName,
+                description: description,
+                template_type: templateType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Template metadata updated successfully!');
+                setTimeout(() => {
+                    closeModal('templateManagerModal');
+                    refreshDashboard();
+                }, 1000);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error saving template metadata:', error);
+            alert('Error saving template metadata');
+        });
+    }
 </script>
+
+<!-- Template Manager Modal -->
+<div id="templateManagerModal" class="modal">
+    <div class="modal-content template-manager-modal">
+        <div class="modal-header">
+            <h3>Manage Template Names & Descriptions</h3>
+            <span class="close" onclick="closeModal('templateManagerModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Customize the display names and descriptions for your template pairs:</p>
+            <div id="templateMetadataContainer" class="template-metadata-scrollable">
+                <!-- Template metadata items will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.template-manage-tab {
+    background: #f8f9fa !important;
+    border: 1px dashed #007bff !important;
+    color: #007bff !important;
+}
+
+.template-manage-tab:hover {
+    background: #e3f2fd !important;
+}
+
+.template-description {
+    margin: 10px 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.template-manager-modal {
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.template-manager-modal .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.template-metadata-scrollable {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.template-metadata-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: #f8f9fa;
+}
+
+.template-metadata-item.template-type-knowledge {
+    border-left: 4px solid #9b59b6;
+}
+
+.template-metadata-item.template-type-phenotype {
+    border-left: 4px solid #00796b;
+}
+
+.template-metadata-header h4 {
+    margin: 0 0 5px 0;
+    color: #495057;
+}
+
+.template-metadata-header small {
+    color: #6c757d;
+}
+
+.template-metadata-form {
+    margin-top: 15px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.display-name-input, .description-input, .template-type-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.display-name-input:focus, .description-input:focus, .template-type-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.template-type-badge {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    font-weight: normal;
+}
+
+.template-type-badge.template-type-knowledge {
+    background-color: #9b59b6;
+    color: white;
+}
+
+.template-type-badge.template-type-phenotype {
+    background-color: #00796b;
+    color: white;
+}
+
+.progress-line.na-entries {
+    color: #6c757d;
+}
+
+.progress-line.na-entries .progress-label {
+    color: #6c757d;
+}
+
+.progress-line.na-entries .progress-value {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Knowledge level styling */
+.knowledge-level {
+    margin: 10px 0;
+}
+
+.knowledge-value {
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.knowledge-value.knowledge-limited {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.knowledge-value.knowledge-moderate {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.knowledge-value.knowledge-extensive {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.knowledge-value.knowledge-na {
+    background-color: #e2e3e5;
+    color: #6c757d;
+    border: 1px solid #d6d8db;
+}
+
+.progress-line.na-entries {
+}
+
+.setting-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setting-item label {
+    min-width: 150px;
+    font-weight: 500;
+}
+
+.setting-item input {
+    width: 80px;
+    padding: 5px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.setting-item .form-help {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-left: 10px;
+}
+
+.settings-note {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 0.9rem;
+}
+
+.queue-status {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    color: #0c5460;
+}
+
+.rerun-all-container {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.rerun-container {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #dee2e6;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 0.2rem;
+}
+</style>
+
 {% endblock %} 

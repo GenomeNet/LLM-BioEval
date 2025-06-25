@@ -11,11 +11,6 @@ import requests
 from colorama import Fore, Style
 from microbellm import config
 from tenacity import retry, stop_after_attempt, wait_exponential
-import sqlite3
-import pandas as pd
-import logging
-from tqdm import tqdm
-from pathlib import Path
 
 # --- LLM Provider Abstraction ---
 
@@ -117,9 +112,37 @@ def read_csv(file_path, delimiter=';'):
         headers = next(reader)  # Skip the header row
         return headers, list(reader)
 
+def clean_malformed_json(json_str):
+    """
+    Clean malformed JSON that contains extra quotes around keys/values.
+    
+    Args:
+        json_str (str): Raw JSON string that may have extra quotes
+        
+    Returns:
+        str: Cleaned JSON string
+    """
+    if not json_str:
+        return json_str
+    
+    # Pattern to match keys with extra quotes: ""key"" or """key"""
+    # Replace with proper single quotes: "key"
+    json_str = re.sub(r'"{2,}([^"]+)"{2,}', r'"\1"', json_str)
+    
+    # Pattern to match values with extra quotes around strings
+    # This is more complex as we need to handle: "key": ""value""
+    json_str = re.sub(r'(\w+"):\s*"{2,}([^"]+)"{2,}', r'\1: "\2"', json_str)
+    json_str = re.sub(r'("[\w_]+"):\s*"{2,}([^"]+)"{2,}', r'\1: "\2"', json_str)
+    
+    # Handle standalone quoted values with extra quotes
+    json_str = re.sub(r':\s*"{3,}([^"]+)"{3,}', r': "\1"', json_str)
+    json_str = re.sub(r':\s*"{2}([^"]+)"{2}', r': "\1"', json_str)
+    
+    return json_str
+
 def extract_and_validate_json(data):
     """
-    Extracts and validates JSON data from a string.
+    Extracts and validates JSON data from a string with robust malformed JSON handling.
     
     Args:
         data (str): String containing JSON data.
@@ -129,12 +152,51 @@ def extract_and_validate_json(data):
     """
     if isinstance(data, dict):
         return data  # Already a dictionary, return as is.
+    
+    if not isinstance(data, str):
+        return None
+        
     try:
-        # Assuming data is a string that needs to be parsed
-        json_str = re.search(r'\{.*\}', data, re.DOTALL).group()
-        return json.loads(json_str)
-    except (re.error, AttributeError, json.JSONDecodeError) as e:
-        #print(f"Error extracting or decoding JSON: {e}")
+        # Extract JSON pattern from the response
+        json_match = re.search(r'\{.*\}', data, re.DOTALL)
+        if not json_match:
+            return None
+            
+        json_str = json_match.group()
+        
+        # First try parsing as-is
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+        
+        # Clean malformed JSON and try again
+        cleaned_json = clean_malformed_json(json_str)
+        try:
+            return json.loads(cleaned_json)
+        except json.JSONDecodeError:
+            pass
+        
+        # Additional cleaning attempts for common LLM errors
+        # Remove trailing commas
+        cleaned_json = re.sub(r',(\s*[}\]])', r'\1', cleaned_json)
+        
+        # Fix missing quotes around keys
+        cleaned_json = re.sub(r'(\w+):', r'"\1":', cleaned_json)
+        
+        # Fix single quotes to double quotes
+        cleaned_json = cleaned_json.replace("'", '"')
+        
+        try:
+            return json.loads(cleaned_json)
+        except json.JSONDecodeError as e:
+            print(f"Error extracting or decoding JSON after cleaning attempts: {e}")
+            print(f"Original JSON: {json_str[:200]}...")
+            print(f"Cleaned JSON: {cleaned_json[:200]}...")
+            return None
+            
+    except (re.error, AttributeError) as e:
+        print(f"Error in JSON extraction: {e}")
         return None
 
 def load_query_template(template_path, binomial_name):
@@ -291,9 +353,80 @@ def write_batch_jsonl(data, file_path):
     except Exception as e:
         print(f"Error writing to file {file_path}: {e}")
 
-def parse_response(response):
+def parse_response_with_template_config(response, user_template_path):
     """
-    Parses the response from the LLM and extracts the relevant information.
+    Parse LLM response using JSON-based template configuration system
+    
+    Args:
+        response (str): Raw response from LLM
+        user_template_path (str): Path to user template file
+        
+    Returns:
+        dict: Parsed and validated response data
+    """
+    try:
+        from microbellm.template_config import validate_template_response_from_file
+        
+        # Store raw response
+        result = {'raw_response': response}
+        
+        # Try to extract JSON from response
+        response_cleaned = response.strip()
+        
+        # Use improved JSON extraction with malformed JSON handling
+        response_data = extract_and_validate_json(response_cleaned)
+        if response_data:
+            try:
+                # Validate using JSON configuration file
+                validated_data, errors, validator = validate_template_response_from_file(user_template_path, response_data)
+                
+                if errors:
+                    print(f"Template validation errors: {errors}")
+                    # Still return the data but mark validation issues
+                    result['validation_errors'] = errors
+                
+                # Merge validated data into result
+                result.update(validated_data)
+                
+                return result
+                
+            except Exception as e:
+                print(f"Template validation error: {e}")
+                result['validation_error'] = str(e)
+        else:
+            print(f"Failed to extract JSON from response: {response_cleaned[:200]}...")
+            result['json_extraction_failed'] = True
+        
+        # If JSON parsing fails, try fallback parsing
+        fallback_result = parse_response_fallback(response)
+        result.update(fallback_result)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error in template-based parsing: {e}")
+        # Fallback to original parsing
+        return parse_response_fallback(response)
+
+def parse_response(response, user_template_path=None):
+    """
+    Parse LLM response using template configuration system when available.
+    
+    Args:
+        response (str): Raw response from LLM
+        user_template_path (str, optional): Path to user template file for validation
+        
+    Returns:
+        dict: Parsed and validated response data
+    """
+    if user_template_path:
+        return parse_response_with_template_config(response, user_template_path)
+    else:
+        return parse_response_fallback(response)
+
+def parse_response_fallback(response):
+    """
+    Fallback parsing method for LLM responses (original implementation).
     
     Args:
         response (str): The response from the LLM.
@@ -424,14 +557,21 @@ def clean_phenotype_value(value):
     else:
         value = str(value)
     
-    # Remove surrounding quotes
-    value = value.strip().strip('"').strip("'")
+    # Remove surrounding quotes (including multiple quotes)
+    value = value.strip()
+    # Handle multiple surrounding quotes like ""value"" or """value"""
+    value = re.sub(r'^"{2,}(.+?)"{2,}$', r'\1', value)
+    value = re.sub(r"^'{2,}(.+?)'{2,}$", r'\1', value)
+    # Handle single surrounding quotes
+    value = value.strip('"').strip("'")
     
     # Remove brackets if they exist
     value = re.sub(r'^[\[\(](.+)[\]\)]$', r'\1', value)
     
-    # Remove extra quotes inside the string
-    value = value.replace('"', '').replace("'", '')
+    # Remove extra quotes inside the string (but preserve intentional quotes)
+    # Only remove if there are clearly extra quotes
+    if value.count('"') > 2 or value.count("'") > 2:
+        value = value.replace('"', '').replace("'", '')
     
     # Clean up whitespace
     value = ' '.join(value.split())
@@ -488,6 +628,153 @@ def clean_phenotype_value(value):
     # Return cleaned value
     return value.strip()
 
+def detect_template_type(user_template_path):
+    """Detect if template is for phenotype or knowledge prediction"""
+    try:
+        # First try to detect from JSON config file
+        from microbellm.template_config import detect_template_type_from_config
+        template_type = detect_template_type_from_config(user_template_path)
+        
+        if template_type != 'unknown':
+            return template_type
+            
+    except Exception:
+        pass
+    
+    # Fallback to content-based detection
+    try:
+        with open(user_template_path, 'r', encoding='utf-8') as f:
+            content = f.read().lower()
+        
+        knowledge_indicators = [
+            'knowledge_group',
+            'knowledge_level', 
+            'knowledge level',
+            '<limited|moderate|extensive',
+            '"limited"',
+            '"moderate"', 
+            '"extensive"'
+        ]
+        
+        phenotype_indicators = [
+            'gram_staining',
+            'motility',
+            'biosafety_level',
+            'pathogenicity',
+            'aerophilicity',
+            'biofilm_formation'
+        ]
+        
+        # Check for knowledge indicators
+        if any(indicator in content for indicator in knowledge_indicators):
+            return 'knowledge'
+        
+        # Check for phenotype indicators
+        if any(indicator in content for indicator in phenotype_indicators):
+            return 'phenotype'
+        
+        # Default to phenotype for backward compatibility
+        return 'phenotype'
+    except:
+        return 'phenotype'
+
+def normalize_knowledge_level(knowledge_level):
+    """Normalize knowledge level values to standard categories"""
+    if not knowledge_level:
+        return None
+    
+    knowledge_str = str(knowledge_level).lower().strip()
+    
+    if knowledge_str in ['limited', 'minimal', 'basic', 'low']:
+        return 'limited'
+    elif knowledge_str in ['moderate', 'medium', 'intermediate']:
+        return 'moderate'  
+    elif knowledge_str in ['extensive', 'comprehensive', 'detailed', 'high', 'full']:
+        return 'extensive'
+    elif knowledge_str in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
+        return 'NA'
+    else:
+        return None  # Changed: Don't default to 'limited', return None for unrecognized values
+
+def is_header_line(line):
+    """
+    Detect if a line appears to be a CSV header rather than a species name.
+    
+    Args:
+        line (str): The line to check
+    
+    Returns:
+        bool: True if the line appears to be a header, False otherwise
+    """
+    if not line or not line.strip():
+        return False
+    
+    line_lower = line.strip().lower()
+    
+    # Common header patterns
+    header_indicators = [
+        'binomial name',
+        'binomial_name', 
+        'species name',
+        'species_name',
+        'taxon name',
+        'taxon_name',
+        'organism',
+        'name,type',
+        'name,species',
+        'binomial,type'
+    ]
+    
+    # Check for exact matches or if line starts with these patterns
+    for indicator in header_indicators:
+        if line_lower == indicator or line_lower.startswith(indicator + ','):
+            return True
+    
+    # Check for patterns that suggest this is a header row
+    # Headers often contain comma-separated field names
+    if ',' in line_lower and any(keyword in line_lower for keyword in ['name', 'type', 'species', 'binomial', 'taxon']):
+        return True
+    
+    return False
+
+def filter_species_list(lines):
+    """
+    Filter a list of lines to remove headers and return only valid species names.
+    
+    Args:
+        lines (list): List of lines from a species file
+    
+    Returns:
+        list: Filtered list containing only species names (no headers)
+    """
+    if not lines:
+        return []
+    
+    filtered_lines = []
+    
+    for line in lines:
+        stripped_line = line.strip()
+        
+        # Skip empty lines
+        if not stripped_line:
+            continue
+            
+        # Skip header lines
+        if is_header_line(stripped_line):
+            continue
+            
+        # For CSV format, extract just the first column (binomial name)
+        if ',' in stripped_line:
+            # Split by comma and take the first part as the binomial name
+            binomial_name = stripped_line.split(',')[0].strip()
+            if binomial_name and not is_header_line(binomial_name):
+                filtered_lines.append(binomial_name)
+        else:
+            # Plain text format - add the line as is
+            filtered_lines.append(stripped_line)
+    
+    return filtered_lines
+
 def clean_csv_field(field):
     """
     Clean a CSV field to prevent CSV formatting issues.
@@ -510,131 +797,7 @@ def clean_csv_field(field):
     field = field.replace('\n', ' ').replace('\r', ' ')
     field = field.replace(';', ',')  # Replace semicolons with commas since we use ; as delimiter
     
-    return field
-
-def get_all_jobs_from_db():
-    conn = sqlite3.connect(config.DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, species_file, model, system_template, user_template, status, total_species, completed_species, failed_species FROM combinations ORDER BY created_at DESC")
-    jobs = cursor.fetchall()
-    conn.close()
-    return jobs
-
-def import_results_from_csv(csv_path):
-    """
-    Imports results from a CSV file into the database.
-
-    Args:
-        csv_path (str): The path to the CSV file to import.
-    """
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    logging.info(f"Starting import from {csv_path}...")
+    # Remove extra whitespace
+    field = ' '.join(field.split())
     
-    if not os.path.exists(csv_path):
-        logging.error(f"Error: CSV file not found at {csv_path}")
-        return
-
-    try:
-        df = pd.read_csv(csv_path)
-    except Exception as e:
-        logging.error(f"Error reading CSV file: {e}")
-        return
-
-    # Define expected columns
-    expected_columns = [
-        'species_file', 'binomial_name', 'model', 'system_template', 'user_template', 
-        'status', 'result', 'error', 'timestamp', 'gram_staining', 'motility', 'aerophilicity',
-        'extreme_environment_tolerance', 'biofilm_formation', 'animal_pathogenicity',
-        'biosafety_level', 'health_association', 'host_association', 'plant_pathogenicity',
-        'spore_formation', 'hemolysis', 'cell_shape'
-    ]
-
-    # Validate columns
-    missing_columns = [col for col in expected_columns if col not in df.columns]
-    if missing_columns:
-        logging.error(f"CSV file is missing required columns: {', '.join(missing_columns)}")
-        return
-
-    conn = sqlite3.connect(config.DATABASE_PATH)
-    cursor = conn.cursor()
-
-    imported_count = 0
-    skipped_count = 0
-    error_count = 0
-
-    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Importing Results"):
-        try:
-            # Sanitize data
-            row = row.where(pd.notnull(row), None)
-
-            # Find or create the combination ID
-            cursor.execute('''
-                SELECT id, total_species FROM combinations 
-                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-            ''', (row['species_file'], row['model'], row['system_template'], row['user_template']))
-            
-            combination = cursor.fetchone()
-            
-            if combination:
-                combination_id = combination[0]
-            else:
-                # Create a new combination if it doesn't exist
-                cursor.execute('''
-                    INSERT INTO combinations (species_file, model, system_template, user_template, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (row['species_file'], row['model'], row['system_template'], row['user_template'], 'completed', datetime.now()))
-                combination_id = cursor.lastrowid
-            
-            # Check if this specific result already exists
-            cursor.execute('''
-                SELECT id FROM results 
-                WHERE species_file = ? AND binomial_name = ? AND model = ? AND system_template = ? AND user_template = ?
-            ''', (row['species_file'], row['binomial_name'], row['model'], row['system_template'], row['user_template']))
-
-            if cursor.fetchone():
-                skipped_count += 1
-                continue
-
-            # Insert the new result
-            cursor.execute('''
-                INSERT INTO results (
-                    species_file, binomial_name, model, system_template, user_template, status, 
-                    result, error, timestamp, gram_staining, motility, aerophilicity, 
-                    extreme_environment_tolerance, biofilm_formation, animal_pathogenicity,
-                    biosafety_level, health_association, host_association, plant_pathogenicity,
-                    spore_formation, hemolysis, cell_shape
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                row['species_file'], row['binomial_name'], row['model'], row['system_template'], 
-                row['user_template'], row['status'], row['result'], row['error'], row['timestamp'],
-                row['gram_staining'], row['motility'], row['aerophilicity'], 
-                row['extreme_environment_tolerance'], row['biofilm_formation'], row['animal_pathogenicity'],
-                row['biosafety_level'], row['health_association'], row['host_association'], 
-                row['plant_pathogenicity'], row['spore_formation'], row['hemolysis'], row['cell_shape']
-            ))
-
-            # Update combination progress
-            if row['status'] == 'success':
-                cursor.execute("UPDATE combinations SET successful_species = successful_species + 1 WHERE id = ?", (combination_id,))
-            elif row['status'] == 'failed':
-                cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
-            
-            cursor.execute("UPDATE combinations SET received_species = received_species + 1, completed_species = received_species, submitted_species = received_species WHERE id = ?", (combination_id,))
-
-            imported_count += 1
-
-        except sqlite3.Error as e:
-            logging.warning(f"Skipping row {index + 1} due to database error: {e}")
-            error_count += 1
-        except Exception as e:
-            logging.warning(f"Skipping row {index + 1} due to unexpected error: {e}")
-            error_count += 1
-
-    conn.commit()
-    conn.close()
-
-    logging.info("--- Import Summary ---")
-    logging.info(f"Successfully imported: {imported_count} records")
-    logging.info(f"Skipped (already exist): {skipped_count} records")
-    logging.info(f"Failed (errors): {error_count} records")
-    logging.info("----------------------")
+    return field

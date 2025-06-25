@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Template Viewer - MicrobeLLM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Template Viewer</h1>
+    <p class="lead">View system and user templates side by side</p>
+</div>
+
+{% if template_data %}
+    <!-- Template Navigation -->
+    <div class="template-tabs">
+        {% for template_name in template_data.keys() %}
+            <button class="template-tab {% if loop.first %}active{% endif %}" 
+                    onclick="showTemplateView('{{ template_name }}')" 
+                    id="tab-{{ template_name }}">
+                {{ template_name }}
+            </button>
+        {% endfor %}
+    </div>
+
+    <!-- Template Content Sections -->
+    {% for template_name, data in template_data.items() %}
+        <div class="template-view-section {% if loop.first %}active{% endif %}" id="template-view-{{ template_name }}">
+            <div class="template-view-header">
+                <h3>{{ template_name }} Templates</h3>
+                <div class="template-paths">
+                    <small>
+                        <strong>System:</strong> {{ data.system.path.split('/')[-1] }} |
+                        <strong>User:</strong> {{ data.user.path.split('/')[-1] }}
+                    </small>
+                </div>
+            </div>
+
+            <div class="template-comparison">
+                <div class="template-column">
+                    <div class="template-column-header">
+                        <h4><i class="fas fa-cog"></i> System Template</h4>
+                        <small class="template-description">Defines the assistant's role and instructions</small>
+                    </div>
+                    <div class="template-content">
+                        <pre><code>{{ data.system.content }}</code></pre>
+                    </div>
+                </div>
+
+                <div class="template-divider"></div>
+
+                <div class="template-column">
+                    <div class="template-column-header">
+                        <h4><i class="fas fa-user"></i> User Template</h4>
+                        <small class="template-description">Defines the user's query format with placeholders</small>
+                    </div>
+                    <div class="template-content">
+                        <pre><code>{{ data.user.content }}</code></pre>
+                    </div>
+                </div>
+
+                <div class="template-divider"></div>
+
+                <div class="template-column">
+                    <div class="template-column-header">
+                        <h4><i class="fas fa-check-circle"></i> Validation Config</h4>
+                        <small class="template-description">Defines expected response structure and validation rules</small>
+                    </div>
+                    <div class="template-content">
+                        {% if data.validation %}
+                            <pre><code>{{ data.validation.content }}</code></pre>
+                        {% else %}
+                            <div class="no-validation-config">
+                                <div class="no-config-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="no-config-message">
+                                    <strong>No validation config found</strong>
+                                    <p>Create <code>templates/validation/{{ template_name }}.json</code> to enable response validation.</p>
+                                    <details class="config-example">
+                                        <summary>Show example config</summary>
+                                        <pre><code>{
+  "template_info": {
+    "name": "{{ template_name }}",
+    "type": "knowledge|phenotype",
+    "description": "Template description"
+  },
+  "field_definitions": {
+    "field_name": {
+      "type": "string",
+      "required": true,
+      "allowed_values": ["value1", "value2"]
+    }
+  }
+}</code></pre>
+                                    </details>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="template-info">
+                <div class="info-section">
+                    <h5>Template Information</h5>
+                    <ul>
+                        <li><strong>System template file:</strong> <code>{{ data.system.path }}</code></li>
+                        <li><strong>User template file:</strong> <code>{{ data.user.path }}</code></li>
+                        {% if data.validation %}
+                            <li><strong>Validation config file:</strong> <code>{{ data.validation.path }}</code></li>
+                            <li><strong>Template type:</strong> <span class="template-type-badge template-type-{{ data.validation.info.type }}">{{ data.validation.info.type|title }}</span></li>
+                        {% else %}
+                            <li><strong>Validation config:</strong> <span class="text-muted">Not configured</span></li>
+                        {% endif %}
+                        <li><strong>Character count:</strong> System: {{ data.system.content|length }}, User: {{ data.user.content|length }}{% if data.validation %}, Validation: {{ data.validation.content|length }}{% endif %}</li>
+                    </ul>
+                </div>
+                
+                <div class="info-section">
+                    <h5>Usage Notes</h5>
+                    <ul>
+                        <li>The <strong>system template</strong> sets the context and instructions for the AI model</li>
+                        <li>The <strong>user template</strong> contains placeholders like <code>{binomial_name}</code> that get replaced with actual values</li>
+                        {% if data.validation %}
+                            <li>The <strong>validation config</strong> defines expected response structure and automatically normalizes LLM outputs</li>
+                            <li>All three files work together to ensure consistent, validated results from the language model</li>
+                        {% else %}
+                            <li>Consider adding a <strong>validation config</strong> to enable automatic response validation and normalization</li>
+                            <li>Without validation, responses are parsed using fallback methods which may be less reliable</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                {% if data.validation and data.validation.info %}
+                    <div class="info-section">
+                        <h5>Validation Details</h5>
+                        <ul>
+                            {% if data.validation.info.description %}
+                                <li><strong>Description:</strong> {{ data.validation.info.description }}</li>
+                            {% endif %}
+                            {% if data.validation.info.required_fields %}
+                                <li><strong>Required fields:</strong> 
+                                    {% for field in data.validation.info.required_fields %}
+                                        <code>{{ field }}</code>{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </li>
+                            {% endif %}
+                            {% if data.validation.info.optional_fields %}
+                                <li><strong>Optional fields:</strong> 
+                                    {% for field in data.validation.info.optional_fields %}
+                                        <code>{{ field }}</code>{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-warning">
+        <h4>No Template Pairs Found</h4>
+        <p>No matching system and user template pairs were found. Make sure you have:</p>
+        <ul>
+            <li>Template files in both <code>templates/system/</code> and <code>templates/user/</code> directories</li>
+            <li>Matching filenames (e.g., <code>template1.txt</code> in both directories)</li>
+            <li>Files with <code>.txt</code> extension</li>
+        </ul>
+    </div>
+{% endif %}
+
+<style>
+.page-header {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.page-header .lead {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+.template-tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 20px;
+    gap: 0;
+}
+
+.template-tab {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: #495057;
+    transition: all 0.3s ease;
+    border-radius: 8px 8px 0 0;
+    margin-right: 2px;
+}
+
+.template-tab:hover {
+    background: #e9ecef;
+}
+
+.template-tab.active {
+    background: white;
+    color: #007bff;
+    border-color: #007bff;
+    border-bottom: 1px solid white;
+    margin-bottom: -1px;
+}
+
+.template-view-section {
+    display: none;
+    padding: 20px 0;
+}
+
+.template-view-section.active {
+    display: block;
+}
+
+.template-view-header {
+    margin-bottom: 25px;
+}
+
+.template-view-header h3 {
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.template-paths {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.template-comparison {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    align-items: stretch;
+}
+
+.template-column {
+    flex: 1;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 300px;
+}
+
+.template-column-header {
+    background: #e9ecef;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.template-column-header h4 {
+    margin: 0 0 5px 0;
+    color: #495057;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.template-description {
+    color: #6c757d;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.template-content {
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.template-content pre {
+    margin: 0;
+    padding: 20px;
+    background: white;
+    border: none;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.template-content code {
+    color: #2c3e50;
+    background: transparent;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.template-divider {
+    width: 2px;
+    background: linear-gradient(to bottom, #007bff, #6c757d, #007bff);
+    border-radius: 1px;
+    margin: 20px 0;
+}
+
+.template-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.info-section h5 {
+    color: #495057;
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.info-section ul {
+    margin-bottom: 0;
+    padding-left: 20px;
+}
+
+.info-section li {
+    margin-bottom: 5px;
+    color: #6c757d;
+}
+
+.info-section code {
+    background: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #495057;
+}
+
+.alert {
+    padding: 20px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.alert h4 {
+    color: #856404;
+    margin-bottom: 10px;
+}
+
+/* Validation Config Styles */
+.no-validation-config {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.no-config-icon {
+    font-size: 2rem;
+    color: #ffc107;
+    margin-bottom: 15px;
+}
+
+.no-config-message strong {
+    color: #495057;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.no-config-message p {
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.config-example {
+    text-align: left;
+    margin-top: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.config-example summary {
+    background: #e9ecef;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.config-example summary:hover {
+    background: #dee2e6;
+}
+
+.config-example pre {
+    margin: 0;
+    padding: 15px;
+    background: #f8f9fa;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.template-type-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.template-type-badge.template-type-knowledge {
+    background-color: #9b59b6;
+    color: white;
+}
+
+.template-type-badge.template-type-phenotype {
+    background-color: #00796b;
+    color: white;
+}
+
+.text-muted {
+    color: #6c757d !important;
+    font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .template-comparison {
+        flex-direction: column;
+    }
+    
+    .template-column {
+        min-width: auto;
+    }
+    
+    .template-divider {
+        width: 100%;
+        height: 2px;
+        margin: 10px 0;
+    }
+    
+    .template-content {
+        max-height: 350px;
+    }
+}
+
+@media (max-width: 768px) {
+    .template-content {
+        max-height: 300px;
+    }
+    
+    .template-column-header h4 {
+        font-size: 1rem;
+    }
+    
+    .template-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .template-tab {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+<script>
+    function showTemplateView(templateName) {
+        // Hide all template sections
+        document.querySelectorAll('.template-view-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Show selected template section
+        document.getElementById('template-view-' + templateName).classList.add('active');
+        
+        // Update tab states
+        document.querySelectorAll('.template-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.getElementById('tab-' + templateName).classList.add('active');
+    }
+</script>
+{% endblock %}

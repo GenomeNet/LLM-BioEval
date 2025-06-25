@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Import Results{% endblock %}
+
+{% block content %}
+<h1>Import Results</h1>
+
+<div class="dashboard-controls">
+    <a href="/" class="btn btn-primary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    <a href="/settings" class="btn btn-secondary">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+    <a href="/export" class="btn btn-success">
+        <i class="fas fa-download"></i> Export Results
+    </a>
+    <a href="/compare" class="btn btn-secondary">
+        <i class="fas fa-balance-scale"></i> Compare Results
+    </a>
+</div>
+
+<div class="import-section">
+    <h3>Upload CSV File</h3>
+    <p>Import results from a previously exported CSV file or from external sources.</p>
+    
+    <form id="importForm" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="csvFile">Choose CSV File:</label>
+            <input type="file" id="csvFile" name="file" accept=".csv" class="form-control" required>
+            <small class="form-help">
+                File should be in the same format as exported CSV files with proper columns.
+            </small>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Import CSV
+        </button>
+    </form>
+    
+    <div id="importStatus" class="import-status" style="display: none;">
+        <div class="status-content"></div>
+    </div>
+</div>
+
+<div class="import-info">
+    <h3>Import Information</h3>
+    <div class="info-content">
+        <ul>
+            <li><strong>Format:</strong> CSV files with semicolon separation</li>
+            <li><strong>Required Columns:</strong> binomial_name and at least one phenotype column</li>
+            <li><strong>Supported Phenotypes:</strong> gram_staining, motility, aerophilicity, biofilm_formation, etc.</li>
+            <li><strong>Behavior:</strong> Existing data for the same species/model/template combination will be updated</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+    .import-section {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .form-help {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+    
+    .import-status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .import-status.success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .import-status.error {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    
+    .import-status.loading {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+    
+    .import-info {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .import-info h3 {
+        margin-top: 0;
+        color: #2c3e50;
+    }
+    
+    .info-content ul {
+        padding-left: 20px;
+        line-height: 1.6;
+    }
+    
+    .info-content li {
+        margin-bottom: 8px;
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Please select a CSV file to import.');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Show loading status
+        showImportStatus('loading', 'Uploading and processing file...');
+        
+        fetch('/api/import_csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let message = 'Import completed successfully!';
+                if (data.results) {
+                    message += `\n- Imported: ${data.results.imported_count || 0} records`;
+                    message += `\n- Updated: ${data.results.updated_count || 0} records`;
+                    message += `\n- Skipped: ${data.results.skipped_count || 0} records`;
+                }
+                showImportStatus('success', message);
+                
+                // Clear the form
+                fileInput.value = '';
+                
+                // Optionally redirect to dashboard after a delay
+                setTimeout(() => {
+                    if (confirm('Import completed! Would you like to go back to the dashboard?')) {
+                        window.location.href = '/';
+                    }
+                }, 2000);
+            } else {
+                showImportStatus('error', 'Import failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Import error:', error);
+            showImportStatus('error', 'Import failed: ' + error.message);
+        });
+    });
+    
+    function showImportStatus(type, message) {
+        const statusDiv = document.getElementById('importStatus');
+        const contentDiv = statusDiv.querySelector('.status-content');
+        
+        statusDiv.className = 'import-status ' + type;
+        statusDiv.style.display = 'block';
+        contentDiv.textContent = message;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{
+  "template_info": {
+    "name": "template1_phenotype",
+    "type": "phenotype",
+    "description": "Comprehensive phenotype prediction template",
+    "version": "1.0"
+  },
+  "expected_response": {
+    "format": "json",
+    "required_fields": [],
+    "optional_fields": [
+      "gram_staining", "motility", "aerophilicity", "extreme_environment_tolerance",
+      "biofilm_formation", "animal_pathogenicity", "biosafety_level", 
+      "health_association", "host_association", "plant_pathogenicity",
+      "spore_formation", "hemolysis", "cell_shape"
+    ]
+  },
+  "field_definitions": {
+    "gram_staining": {
+      "type": "string",
+      "required": false,
+      "description": "Gram staining result",
+      "allowed_values": ["gram stain negative", "gram stain positive", "gram stain variable"],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "gram stain positive": ["gram stain positive", "gram positive", "gram+", "positive"],
+          "gram stain negative": ["gram stain negative", "gram negative", "gram-", "negative"],
+          "gram stain variable": ["gram stain variable", "variable"]
+        }
+      }
+    },
+    "motility": {
+      "type": "string",
+      "required": false,
+      "description": "Motility capability",
+      "allowed_values": ["TRUE", "FALSE"],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "TRUE": ["true", "yes", "motile", "positive", "1"],
+          "FALSE": ["false", "no", "non-motile", "nonmotile", "immobile", "negative", "0"]
+        }
+      }
+    },
+    "biosafety_level": {
+      "type": "string",
+      "required": false,
+      "description": "Biosafety classification level",
+      "allowed_values": ["biosafety level 1", "biosafety level 2", "biosafety level 3"],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "biosafety level 1": ["biosafety level 1", "bsl-1", "bsl1", "level 1"],
+          "biosafety level 2": ["biosafety level 2", "bsl-2", "bsl2", "level 2"],
+          "biosafety level 3": ["biosafety level 3", "bsl-3", "bsl3", "level 3"]
+        }
+      }
+    },
+    "hemolysis": {
+      "type": "string",
+      "required": false,
+      "description": "Hemolytic activity",
+      "allowed_values": ["alpha", "beta", "gamma", "non-hemolytic"],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "alpha": ["alpha", "α", "alpha-hemolytic"],
+          "beta": ["beta", "β", "beta-hemolytic"],
+          "gamma": ["gamma", "γ", "gamma-hemolytic"],
+          "non-hemolytic": ["non-hemolytic", "non", "none", "no hemolysis"]
+        }
+      }
+    }
+  },
+  "parsing_instructions": {
+    "json_extraction": {
+      "method": "regex",
+      "pattern": "\\{.*\\}",
+      "flags": ["DOTALL"]
+    },
+    "fallback_parsing": {
+      "enabled": true,
+      "method": "line_based",
+      "keywords": ["gram_staining", "motility", "biosafety_level", "hemolysis"]
+    }
+  },
+  "success_criteria": {
+    "minimum_required_fields": 0,
+    "require_all_mandatory": false,
+    "allow_extra_fields": true
+  },
+  "error_handling": {
+    "on_parse_failure": "return_null",
+    "on_validation_failure": "return_partial",
+    "on_missing_required": "return_errors"
+  }
+} 

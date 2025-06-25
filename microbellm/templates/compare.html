@@ -5,6 +5,21 @@
 {% block content %}
 <h1>Compare Model Results</h1>
 
+<div class="dashboard-controls">
+    <a href="/" class="btn btn-primary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    <a href="/settings" class="btn btn-secondary">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+    <a href="/export" class="btn btn-success">
+        <i class="fas fa-download"></i> Export Results
+    </a>
+    <a href="/import" class="btn btn-warning">
+        <i class="fas fa-upload"></i> Import Results
+    </a>
+</div>
+
 <div class="compare-filters">
     <div class="filter-group">
         <label for="templateFilter">Template:</label>
@@ -74,11 +89,17 @@
         <div class="stat-number" id="totalDisagreement">0</div>
         <div class="stat-label">Disagreement</div>
     </div>
+    <div class="stat-card na-stats">
+        <div class="stat-number" id="averageNAFraction">0%</div>
+        <div class="stat-label">Avg NA Fraction</div>
+    </div>
 </div>
 
 <div id="comparisonContent">
     <div class="loading">Loading comparison data...</div>
 </div>
+
+
 
 <style>
     .compare-filters {
@@ -138,6 +159,11 @@
     .stat-card.disagreement {
         border-color: #dc3545;
         background-color: #fff8f8;
+    }
+    
+    .stat-card.na-stats {
+        border-color: #6c757d;
+        background-color: #f8f9fa;
     }
     
     .stat-number {
@@ -222,15 +248,26 @@
     
     .phenotype-comparison {
         margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
     }
     
     .phenotype-header {
         background-color: #e9ecef;
-        padding: 10px 15px;
-        border-radius: 6px;
-        margin-bottom: 15px;
+        padding: 15px 20px;
+        margin-bottom: 0;
         font-weight: 600;
         color: #495057;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .phenotype-comparison .comparison-table {
+        margin-top: 0;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
     }
     
     .species-comparison-row {
@@ -340,6 +377,640 @@
         color: #007bff;
         border-bottom-color: #007bff;
     }
+    
+    .clickable-cell {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .clickable-cell:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        z-index: 1;
+        position: relative;
+    }
+    
+    .type-section {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .type-header {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 10px;
+    }
+    
+    .type-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .type-stat {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .type-stat.agreement {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+    
+    .type-stat.disagreement {
+        border-color: #dc3545;
+        background-color: #fff8f8;
+    }
+    
+    .type-stat .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .type-stat .stat-label {
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .type-disagreements {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .type-disagreements h5 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        color: #856404;
+    }
+    
+    .type-disagreements ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .type-disagreements li {
+        margin-bottom: 5px;
+        color: #856404;
+    }
+    
+    .type-species-toggle {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        transition: background-color 0.2s ease;
+    }
+    
+    .type-species-toggle:hover {
+        background-color: #e9ecef;
+    }
+    
+    .type-species-toggle .toggle-icon {
+        display: inline-block;
+        width: 20px;
+        transition: transform 0.2s ease;
+    }
+    
+    .type-species-list {
+        margin-top: 10px;
+    }
+    
+    /* Knowledge Analysis Chart Styles - Compact Layout */
+    .knowledge-analysis-container {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .knowledge-analysis-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 12px;
+    }
+    
+    .knowledge-analysis-table th {
+        background-color: #f8f9fa;
+        padding: 8px 12px;
+        text-align: center;
+        font-weight: 600;
+        color: #495057;
+        border: 1px solid #dee2e6;
+        border-bottom: 2px solid #007bff;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    
+    .knowledge-analysis-table td {
+        padding: 4px 8px;
+        border: 1px solid #e9ecef;
+        vertical-align: middle;
+        text-align: center;
+    }
+    
+    .model-name-cell {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        text-align: right;
+        padding-right: 10px;
+        font-size: 11px;
+        white-space: nowrap;
+        min-width: 120px;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .chart-cell {
+        width: 150px;
+        padding: 2px;
+    }
+    
+    .knowledge-type-header {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: #2c3e50;
+        border-bottom: 2px solid #9b59b6;
+        padding-bottom: 10px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .knowledge-type-header::before {
+        content: "";
+        margin-right: 0px;
+        font-size: 0px;
+    }
+    
+    .knowledge-template-section {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .knowledge-template-header {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+    
+    .knowledge-template-header::before {
+        content: "";
+        margin-right: 0px;
+    }
+    
+    .knowledge-bar-chart {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+    }
+    
+    .chart-header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .chart-legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: #495057;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        margin-right: 6px;
+        display: inline-block;
+    }
+    
+    .legend-color.knowledge-limited {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .legend-color.knowledge-moderate {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+    }
+    
+    .legend-color.knowledge-extensive {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .legend-color.knowledge-na {
+        background-color: #e2e3e5;
+        border: 1px solid #d6d8db;
+    }
+    
+    .legend-color.knowledge-no-result {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .legend-color.knowledge-inference-failed {
+        background-color: #dc3545;
+        border: 1px solid #c82333;
+    }
+    
+    .chart-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .chart-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 32px;
+    }
+    
+    .chart-y-label {
+        width: 200px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #495057;
+        text-align: right;
+        padding-right: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .chart-bar-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .stacked-bar {
+        flex: 1;
+        height: 24px;
+        display: flex;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
+    
+    .bar-segment {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        cursor: help;
+        transition: opacity 0.2s ease;
+        position: relative;
+        min-width: 16px; /* Minimum width to show at least the number */
+    }
+    
+    .bar-segment:hover {
+        opacity: 0.8;
+    }
+    
+    .bar-number {
+        font-size: 11px;
+        font-weight: 700;
+        text-shadow: 0 0 2px rgba(255,255,255,0.8);
+        z-index: 1;
+        pointer-events: none;
+    }
+    
+    .bar-segment.knowledge-limited {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .bar-segment.knowledge-moderate {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .bar-segment.knowledge-extensive {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .bar-segment.knowledge-na {
+        background-color: #e2e3e5;
+        color: #6c757d;
+    }
+    
+    .bar-segment.knowledge-no-result {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .bar-segment.knowledge-inference-failed {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .chart-total {
+        width: 50px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: #495057;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 4px 8px;
+    }
+    
+    .single-bar-chart {
+        width: 100%;
+        height: 16px;
+    }
+    
+    .single-stacked-bar {
+        width: 100%;
+        height: 16px;
+        display: flex;
+        border: 1px solid #dee2e6;
+        border-radius: 2px;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
+    
+
+    
+    .no-data {
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        font-size: 11px;
+        padding: 8px;
+    }
+    
+    /* Knowledge Tooltip Styles */
+    .knowledge-tooltip {
+        position: absolute;
+        background: #2c3e50;
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        font-size: 12px;
+        max-width: 400px;
+        z-index: 10000;
+        display: none;
+        border: 1px solid #34495e;
+    }
+    
+    .tooltip-header {
+        font-weight: bold;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #ecf0f1;
+        border-bottom: 1px solid #34495e;
+        padding-bottom: 6px;
+    }
+    
+    .tooltip-samples {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .tooltip-sample {
+        margin: 8px 0;
+        padding: 8px;
+        background: rgba(52, 73, 94, 0.5);
+        border-radius: 4px;
+        border-left: 3px solid #3498db;
+    }
+    
+    .tooltip-sample:last-child {
+        margin-bottom: 0;
+    }
+    
+    .sample-species {
+        color: #3498db;
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+    
+    .sample-parsed {
+        color: #2ecc71;
+        font-size: 11px;
+        margin-bottom: 4px;
+        font-family: monospace;
+    }
+    
+    .sample-raw {
+        color: #ecf0f1;
+        font-size: 11px;
+        line-height: 1.3;
+        font-family: monospace;
+        background: rgba(0,0,0,0.2);
+        padding: 4px 6px;
+        border-radius: 3px;
+        word-break: break-word;
+    }
+    
+    .tooltip-more {
+        margin-top: 8px;
+        font-style: italic;
+        color: #bdc3c7;
+        text-align: center;
+        font-size: 11px;
+    }
+    
+    /* Enhance bar segment hover effect */
+    .bar-segment {
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+    }
+    
+    .bar-segment:hover {
+        opacity: 0.8;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3);
+    }
+    
+    /* Knowledge Modal Styles */
+    .knowledge-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .knowledge-modal-content {
+        background: white;
+        border-radius: 12px;
+        max-width: 90%;
+        max-height: 85%;
+        width: 800px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .knowledge-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8f9fa;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .knowledge-modal-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 18px;
+    }
+    
+    .knowledge-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6c757d;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+    
+    .knowledge-modal-close:hover {
+        background: #e9ecef;
+        color: #495057;
+    }
+    
+    .knowledge-modal-body {
+        padding: 20px 24px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .samples-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .sample-item {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .sample-header {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .sample-number {
+        background: #007bff;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 24px;
+        text-align: center;
+    }
+    
+    .sample-species {
+        font-weight: 600;
+        color: #2c3e50;
+        flex: 1;
+    }
+    
+    .sample-parsed-badge {
+        background: #28a745;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    
+    .sample-response {
+        padding: 16px;
+    }
+    
+    .sample-response strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #495057;
+        font-size: 13px;
+    }
+    
+    .sample-raw-full {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #2c3e50;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+
 </style>
 {% endblock %}
 
@@ -448,6 +1119,7 @@
         let fullAgreement = 0;
         let partialAgreement = 0;
         let disagreement = 0;
+        let averageNAFraction = 0;
         
         if (data.comparisons) {
             totalSpecies = data.comparisons.length;
@@ -460,12 +1132,21 @@
                     case 'disagreement': disagreement++; break;
                 }
             });
+            
+            // Calculate average NA fraction
+            if (totalSpecies > 0) {
+                const naStats = calculateNAStatistics(data);
+                if (naStats.overall.totalPredictions > 0) {
+                    averageNAFraction = (naStats.overall.naCount / naStats.overall.totalPredictions * 100).toFixed(1);
+                }
+            }
         }
         
         document.getElementById('totalSpecies').textContent = totalSpecies;
         document.getElementById('fullAgreement').textContent = fullAgreement;
         document.getElementById('partialAgreement').textContent = partialAgreement;
         document.getElementById('totalDisagreement').textContent = disagreement;
+        document.getElementById('averageNAFraction').textContent = averageNAFraction + '%';
     }
     
     function renderComparison(data) {
@@ -477,13 +1158,22 @@
         }
         
         let html = '<div class="comparison-mode-tabs">';
-        html += '<button class="mode-tab active" onclick="showComparisonMode(\'overview\')">Overview</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'overview\')">Overview</button>';
         html += '<button class="mode-tab" onclick="showComparisonMode(\'detailed\')">Detailed</button>';
-        html += '<button class="mode-tab" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
+        html += '<button class="mode-tab active" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'na_analysis\')">NA Analysis</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'knowledge_analysis\')">Knowledge Analysis</button>';
+        
+        // Check if we have type data
+        const hasTypes = data.comparisons.some(c => c.type && c.type !== 'unclassified');
+        if (hasTypes) {
+            html += '<button class="mode-tab" onclick="showComparisonMode(\'by_type\')">By Type</button>';
+        }
+        
         html += '</div>';
         
         html += '<div id="comparisonView">';
-        html += renderOverviewMode(data);
+        html += renderMatrixMode(data);
         html += '</div>';
         
         container.innerHTML = html;
@@ -494,18 +1184,40 @@
         document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
         event.target.classList.add('active');
         
+        // Get current filtered data
+        const templateFilter = document.getElementById('templateFilter').value;
+        const speciesFileFilter = document.getElementById('speciesFileFilter').value;
+        const phenotypeFilter = document.getElementById('phenotypeFilter').value;
+        const agreementFilter = document.getElementById('agreementFilter').value;
+        
+        let filteredData = filterComparisonData(comparisonData, {
+            template: templateFilter,
+            speciesFile: speciesFileFilter,
+            phenotype: phenotypeFilter,
+            agreement: agreementFilter
+        });
+        
         // Render the selected mode
         const viewContainer = document.getElementById('comparisonView');
         
         switch(mode) {
             case 'overview':
-                viewContainer.innerHTML = renderOverviewMode(comparisonData);
+                viewContainer.innerHTML = renderOverviewMode(filteredData);
                 break;
             case 'detailed':
-                viewContainer.innerHTML = renderDetailedMode(comparisonData);
+                viewContainer.innerHTML = renderDetailedMode(filteredData);
                 break;
             case 'matrix':
-                viewContainer.innerHTML = renderMatrixMode(comparisonData);
+                viewContainer.innerHTML = renderMatrixMode(filteredData);
+                break;
+            case 'na_analysis':
+                viewContainer.innerHTML = renderNAAnalysisMode(filteredData);
+                break;
+            case 'knowledge_analysis':
+                renderKnowledgeAnalysisMode();
+                break;
+            case 'by_type':
+                viewContainer.innerHTML = renderByTypeMode(filteredData);
                 break;
         }
     }
@@ -578,67 +1290,115 @@
     }
     
     function renderMatrixMode(data) {
-        // Create agreement matrix between models
+        // Get all models and phenotypes
         const models = [...new Set(data.comparisons.flatMap(c => c.models))];
-        const matrix = {};
+        const phenotypes = [...new Set(data.comparisons.flatMap(c => Object.keys(c.phenotypes)))];
         
-        // Initialize matrix
-        models.forEach(m1 => {
-            matrix[m1] = {};
-            models.forEach(m2 => {
-                matrix[m1][m2] = { agree: 0, disagree: 0, total: 0 };
-            });
-        });
+        let html = '<h3>Model Agreement Matrices by Phenotype</h3>';
+        html += '<p style="color: #6c757d; font-style: italic; margin-bottom: 20px;">Click on any cell with data to see detailed predictions for each species.</p>';
         
-        // Calculate agreements
-        data.comparisons.forEach(comp => {
-            Object.values(comp.phenotypes).forEach(phenotype => {
-                comp.models.forEach(m1 => {
-                    comp.models.forEach(m2 => {
-                        if (m1 !== m2) {
-                            const v1 = phenotype.predictions[m1];
-                            const v2 = phenotype.predictions[m2];
-                            if (v1 !== null && v2 !== null) {
-                                matrix[m1][m2].total++;
-                                if (v1 === v2) {
-                                    matrix[m1][m2].agree++;
-                                } else {
-                                    matrix[m1][m2].disagree++;
-                                }
-                            }
-                        }
-                    });
+        // Create a matrix for each phenotype
+        phenotypes.forEach(phenotypeName => {
+            const matrix = {};
+            
+            // Initialize matrix for this phenotype
+            models.forEach(m1 => {
+                matrix[m1] = {};
+                models.forEach(m2 => {
+                    matrix[m1][m2] = { agree: 0, disagree: 0, total: 0 };
                 });
             });
-        });
-        
-        let html = '<h3>Model Agreement Matrix</h3>';
-        html += '<table class="comparison-table">';
-        html += '<thead><tr><th></th>';
-        models.forEach(model => {
-            html += `<th>${model}</th>`;
-        });
-        html += '</tr></thead><tbody>';
-        
-        models.forEach(m1 => {
-            html += `<tr><th>${m1}</th>`;
-            models.forEach(m2 => {
-                if (m1 === m2) {
-                    html += '<td style="background-color: #e9ecef;">-</td>';
-                } else {
-                    const stats = matrix[m1][m2];
-                    const agreementRate = stats.total > 0 ? (stats.agree / stats.total * 100).toFixed(1) : 0;
-                    const color = agreementRate > 80 ? '#d4edda' : agreementRate > 60 ? '#fff3cd' : '#f8d7da';
-                    html += `<td style="background-color: ${color}; text-align: center;">`;
-                    html += `<strong>${agreementRate}%</strong><br>`;
-                    html += `<small>${stats.agree}/${stats.total}</small>`;
-                    html += '</td>';
+            
+            // Calculate agreements for this phenotype only
+            data.comparisons.forEach(comp => {
+                const phenotype = comp.phenotypes[phenotypeName];
+                if (phenotype) {
+                    comp.models.forEach(m1 => {
+                        comp.models.forEach(m2 => {
+                            if (m1 !== m2) {
+                                const v1 = phenotype.predictions[m1];
+                                const v2 = phenotype.predictions[m2];
+                                if (v1 !== null && v2 !== null) {
+                                    matrix[m1][m2].total++;
+                                    if (v1 === v2) {
+                                        matrix[m1][m2].agree++;
+                                    } else {
+                                        matrix[m1][m2].disagree++;
+                                    }
+                                }
+                            }
+                        });
+                    });
                 }
             });
-            html += '</tr>';
+            
+            // Check if this phenotype has any data
+            const hasData = models.some(m1 => 
+                models.some(m2 => m1 !== m2 && matrix[m1][m2].total > 0)
+            );
+            
+            if (hasData) {
+                html += '<div class="phenotype-comparison">';
+                html += `<div class="phenotype-header">${phenotypeName.replace(/_/g, ' ').toUpperCase()}</div>`;
+                html += '<table class="comparison-table">';
+                html += '<thead><tr><th></th>';
+                models.forEach(model => {
+                    html += `<th>${model}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                
+                models.forEach(m1 => {
+                    html += `<tr><th>${m1}</th>`;
+                    models.forEach(m2 => {
+                        if (m1 === m2) {
+                            html += '<td style="background-color: #e9ecef; text-align: center;">-</td>';
+                        } else {
+                            const stats = matrix[m1][m2];
+                            const agreementRate = stats.total > 0 ? (stats.agree / stats.total * 100).toFixed(1) : 0;
+                            let color = '#f8f9fa'; // Default light gray for no data
+                            if (stats.total > 0) {
+                                color = agreementRate > 80 ? '#d4edda' : agreementRate > 60 ? '#fff3cd' : '#f8d7da';
+                            }
+                            if (stats.total > 0) {
+                                html += `<td class="clickable-cell" style="background-color: ${color}; text-align: center;" 
+                                         onclick="showPredictionDetails('${m1}', '${m2}', '${phenotypeName}', '${encodeURIComponent(JSON.stringify(data))}')"
+                                         title="Click to see detailed predictions">`;
+                                html += `<strong>${agreementRate}%</strong><br>`;
+                                html += `<small>${stats.agree}/${stats.total}</small>`;
+                            } else {
+                                html += `<td style="background-color: ${color}; text-align: center;">`;
+                                html += '<span style="color: #6c757d; font-style: italic;">No data</span>';
+                            }
+                            html += '</td>';
+                        }
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                html += '</div>';
+            }
         });
         
-        html += '</tbody></table>';
+        // If no phenotypes have data, show a message
+        if (!phenotypes.some(phenotypeName => {
+            return data.comparisons.some(comp => {
+                const phenotype = comp.phenotypes[phenotypeName];
+                return phenotype && comp.models.some(m1 => 
+                    comp.models.some(m2 => {
+                        const v1 = phenotype.predictions[m1];
+                        const v2 = phenotype.predictions[m2];
+                        return m1 !== m2 && v1 !== null && v2 !== null;
+                    })
+                );
+            });
+        })) {
+            html += '<div class="empty-state">';
+            html += '<h3>No comparison data available</h3>';
+            html += '<p>Need at least 2 models with predictions for the same phenotypes to show agreement matrices.</p>';
+            html += '</div>';
+        }
+        
         return html;
     }
     
@@ -664,5 +1424,756 @@
             icon.textContent = '▼';
         }
     }
+    
+    function renderNAAnalysisMode(data) {
+        let html = '<h3>NA (Missing Data) Analysis</h3>';
+        
+        if (!data.comparisons || data.comparisons.length === 0) {
+            html += '<div class="empty-state">';
+            html += '<h3>No data available for NA analysis</h3>';
+            html += '<p>Process some species to see NA statistics.</p>';
+            html += '</div>';
+            return html;
+        }
+        
+        // Calculate NA statistics by model and phenotype
+        const naStats = calculateNAStatistics(data);
+        
+        // Render NA statistics by model
+        html += '<div class="phenotype-comparison">';
+        html += '<div class="phenotype-header">NA Statistics by Model</div>';
+        html += '<table class="comparison-table">';
+        html += '<thead><tr>';
+        html += '<th>Model</th>';
+        html += '<th>Total Predictions</th>';
+        html += '<th>NA Count</th>';
+        html += '<th>NA Fraction</th>';
+        html += '</tr></thead><tbody>';
+        
+        Object.entries(naStats.byModel).forEach(([model, stats]) => {
+            const naFraction = (stats.naCount / stats.totalPredictions * 100).toFixed(1);
+            html += '<tr>';
+            html += `<td class="species-name-cell">${model}</td>`;
+            html += `<td>${stats.totalPredictions}</td>`;
+            html += `<td>${stats.naCount}</td>`;
+            html += `<td><strong>${naFraction}%</strong></td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        // Render NA statistics by phenotype
+        html += '<div class="phenotype-comparison">';
+        html += '<div class="phenotype-header">NA Statistics by Phenotype</div>';
+        html += '<table class="comparison-table">';
+        html += '<thead><tr>';
+        html += '<th>Phenotype</th>';
+        html += '<th>Total Predictions</th>';
+        html += '<th>NA Count</th>';
+        html += '<th>NA Fraction</th>';
+        html += '</tr></thead><tbody>';
+        
+        Object.entries(naStats.byPhenotype).forEach(([phenotype, stats]) => {
+            const naFraction = (stats.naCount / stats.totalPredictions * 100).toFixed(1);
+            const phenotypeName = phenotype.replace(/_/g, ' ').toUpperCase();
+            html += '<tr>';
+            html += `<td class="species-name-cell">${phenotypeName}</td>`;
+            html += `<td>${stats.totalPredictions}</td>`;
+            html += `<td>${stats.naCount}</td>`;
+            html += `<td><strong>${naFraction}%</strong></td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    function calculateNAStatistics(data) {
+        const stats = {
+            byModel: {},
+            byPhenotype: {},
+            overall: { totalPredictions: 0, naCount: 0 }
+        };
+        
+        data.comparisons.forEach(comp => {
+            Object.entries(comp.phenotypes).forEach(([phenotype, phenotypeData]) => {
+                Object.entries(phenotypeData.predictions).forEach(([model, value]) => {
+                    // Initialize model stats
+                    if (!stats.byModel[model]) {
+                        stats.byModel[model] = { totalPredictions: 0, naCount: 0 };
+                    }
+                    
+                    // Initialize phenotype stats
+                    if (!stats.byPhenotype[phenotype]) {
+                        stats.byPhenotype[phenotype] = { totalPredictions: 0, naCount: 0 };
+                    }
+                    
+                    // Count total predictions
+                    stats.byModel[model].totalPredictions++;
+                    stats.byPhenotype[phenotype].totalPredictions++;
+                    stats.overall.totalPredictions++;
+                    
+                    // Count NA values (null, empty, or common NA patterns)
+                    if (value === null || value === '' || isNAValue(value)) {
+                        stats.byModel[model].naCount++;
+                        stats.byPhenotype[phenotype].naCount++;
+                        stats.overall.naCount++;
+                    }
+                });
+            });
+        });
+        
+        return stats;
+    }
+    
+    function isNAValue(value) {
+        if (!value) return true;
+        const valueStr = String(value).toLowerCase().trim();
+        const naPatterns = ['na', 'n/a', 'n.a.', 'null', 'none', 'unknown', 'not available', 'not applicable', 'missing', 'no data', 'unavailable', '-', '?', 'nd', 'n.d.', 'not determined', 'not specified', 'unspecified'];
+        return naPatterns.includes(valueStr);
+    }
+    
+    function showPredictionDetails(model1, model2, phenotypeName, encodedData) {
+        // Navigate to the new detailed comparison page
+        const url = `/compare_details?model1=${encodeURIComponent(model1)}&model2=${encodeURIComponent(model2)}&phenotype=${encodeURIComponent(phenotypeName)}`;
+        window.location.href = url;
+    }
+    
+    function renderByTypeMode(data) {
+        let html = '<h3>Comparison Results by Type</h3>';
+        
+        if (!data.comparisons || data.comparisons.length === 0) {
+            html += '<div class="empty-state">';
+            html += '<h3>No type data available</h3>';
+            html += '<p>Add a "type" column to your species CSV file to see results grouped by type.</p>';
+            html += '</div>';
+            return html;
+        }
+        
+        // Group comparisons by type
+        const byType = {};
+        data.comparisons.forEach(comp => {
+            const type = comp.type || 'unclassified';
+            if (!byType[type]) {
+                byType[type] = [];
+            }
+            byType[type].push(comp);
+        });
+        
+        // Sort types alphabetically (but put 'unclassified' last)
+        const sortedTypes = Object.keys(byType).sort((a, b) => {
+            if (a === 'unclassified') return 1;
+            if (b === 'unclassified') return -1;
+            return a.localeCompare(b);
+        });
+        
+        // Render each type group
+        sortedTypes.forEach(type => {
+            const typeComparisons = byType[type];
+            
+            html += '<div class="type-section">';
+            html += `<h4 class="type-header">${type} (${typeComparisons.length} species)</h4>`;
+            
+            // Calculate statistics for this type
+            const typeStats = calculateTypeStatistics(typeComparisons);
+            
+            html += '<div class="type-stats">';
+            html += `<div class="type-stat">`;
+            html += `<div class="stat-value">${typeStats.totalPhenotypes}</div>`;
+            html += `<div class="stat-label">Total Comparisons</div>`;
+            html += `</div>`;
+            html += `<div class="type-stat agreement">`;
+            html += `<div class="stat-value">${typeStats.agreementRate.toFixed(1)}%</div>`;
+            html += `<div class="stat-label">Agreement Rate</div>`;
+            html += `</div>`;
+            html += `<div class="type-stat disagreement">`;
+            html += `<div class="stat-value">${typeStats.conflicts}</div>`;
+            html += `<div class="stat-label">Conflicts</div>`;
+            html += `</div>`;
+            html += '</div>';
+            
+            // Show top disagreements for this type
+            if (typeStats.topDisagreements.length > 0) {
+                html += '<div class="type-disagreements">';
+                html += '<h5>Top Disagreements:</h5>';
+                html += '<ul>';
+                typeStats.topDisagreements.forEach(([phenotype, count]) => {
+                    html += `<li><strong>${phenotype.replace(/_/g, ' ')}:</strong> ${count} species</li>`;
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            // Expandable species list
+            html += `<div class="type-species-toggle" onclick="toggleTypeSpecies('${type}')">`;
+            html += `<span class="toggle-icon">▶</span> View species in this type`;
+            html += '</div>';
+            html += `<div id="type-species-${type}" class="type-species-list" style="display: none;">`;
+            html += '<table class="comparison-table">';
+            html += '<thead><tr>';
+            html += '<th>Species</th>';
+            html += '<th>Models Compared</th>';
+            html += '<th>Agreement Level</th>';
+            html += '<th>Conflicts</th>';
+            html += '</tr></thead><tbody>';
+            
+            typeComparisons.forEach(comp => {
+                const agreementLevel = calculateAgreementLevel(comp);
+                const conflicts = getConflictingPhenotypes(comp);
+                
+                html += '<tr>';
+                html += `<td class="species-name-cell">${comp.species}</td>`;
+                html += `<td>${comp.models.join(' vs ')}</td>`;
+                html += `<td><span class="agreement-indicator ${agreementLevel}"></span>${agreementLevel}</td>`;
+                html += `<td>${conflicts.length > 0 ? conflicts.join(', ') : 'None'}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            html += '</div>';
+            html += '</div>';
+        });
+        
+        return html;
+    }
+    
+    function calculateTypeStatistics(typeComparisons) {
+        let totalPhenotypes = 0;
+        let agreements = 0;
+        let conflicts = 0;
+        const disagreementCounts = {};
+        
+        typeComparisons.forEach(comp => {
+            Object.entries(comp.phenotypes).forEach(([phenotype, data]) => {
+                const values = Object.values(data.predictions).filter(v => v !== null);
+                if (values.length > 1) {
+                    totalPhenotypes++;
+                    const uniqueValues = [...new Set(values)];
+                    if (uniqueValues.length === 1) {
+                        agreements++;
+                    } else {
+                        conflicts++;
+                        disagreementCounts[phenotype] = (disagreementCounts[phenotype] || 0) + 1;
+                    }
+                }
+            });
+        });
+        
+        const agreementRate = totalPhenotypes > 0 ? (agreements / totalPhenotypes * 100) : 0;
+        
+        // Get top 5 disagreements
+        const topDisagreements = Object.entries(disagreementCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+        
+        return {
+            totalPhenotypes,
+            agreements,
+            conflicts,
+            agreementRate,
+            topDisagreements
+        };
+    }
+    
+    function toggleTypeSpecies(type) {
+        const listDiv = document.getElementById(`type-species-${type}`);
+        const icon = event.target.querySelector('.toggle-icon');
+        
+        if (listDiv.style.display === 'none') {
+            listDiv.style.display = 'block';
+            icon.textContent = '▼';
+        } else {
+            listDiv.style.display = 'none';
+            icon.textContent = '▶';
+        }
+    }
+    
+    function calculateAgreementLevel(comparison) {
+        let total = 0;
+        let agreements = 0;
+        
+        Object.values(comparison.phenotypes).forEach(phenotypeData => {
+            const predictions = Object.values(phenotypeData.predictions).filter(v => v !== null);
+            if (predictions.length > 1) {
+                total++;
+                const uniqueValues = [...new Set(predictions)];
+                if (uniqueValues.length === 1) {
+                    agreements++;
+                }
+            }
+        });
+        
+        if (total === 0) return 'No data';
+        
+        const agreementRate = agreements / total;
+        if (agreementRate === 1) return 'Full Agreement';
+        if (agreementRate >= 0.8) return 'High Agreement';
+        if (agreementRate >= 0.5) return 'Moderate Agreement';
+        return 'Low Agreement';
+    }
+    
+    function getConflictingPhenotypes(comparison) {
+        const conflicts = [];
+        
+        Object.entries(comparison.phenotypes).forEach(([phenotype, data]) => {
+            const predictions = Object.values(data.predictions).filter(v => v !== null);
+            if (predictions.length > 1) {
+                const uniqueValues = [...new Set(predictions)];
+                if (uniqueValues.length > 1) {
+                    conflicts.push(phenotype.replace(/_/g, ' '));
+                }
+            }
+        });
+        
+        return conflicts;
+    }
+    
+    function renderKnowledgeAnalysisMode() {
+        const viewContainer = document.getElementById('comparisonView');
+        viewContainer.innerHTML = '<div class="loading">Loading knowledge analysis data...</div>';
+        
+        // Fetch knowledge analysis data
+        fetch('/api/knowledge_analysis_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    viewContainer.innerHTML = `<div class="empty-state"><h3>Error loading knowledge analysis</h3><p>${data.error}</p></div>`;
+                    return;
+                }
+                
+                const knowledgeData = data.knowledge_analysis;
+                
+                if (Object.keys(knowledgeData).length === 0) {
+                    viewContainer.innerHTML = '<div class="empty-state"><h3>No knowledge level data available</h3><p>Process some species with knowledge templates to see the analysis.</p></div>';
+                    return;
+                }
+                
+                let html = '<h3>Knowledge Level Analysis by Model</h3>';
+                html += '<p style="color: #6c757d; margin-bottom: 20px;">Knowledge level distribution across input types for each model. NA = model returned "NA", No Result = parsing failed, Inference Failed = request failed.</p>';
+                
+                // Reorganize data by model and input type
+                const modelData = {};
+                const inputTypes = new Set();
+                const templates = new Set();
+                
+                Object.entries(knowledgeData).forEach(([inputType, templateData]) => {
+                    inputTypes.add(inputType);
+                    Object.entries(templateData).forEach(([templateName, models]) => {
+                        templates.add(templateName);
+                        Object.entries(models).forEach(([modelName, stats]) => {
+                            if (!modelData[modelName]) {
+                                modelData[modelName] = {};
+                            }
+                            if (!modelData[modelName][templateName]) {
+                                modelData[modelName][templateName] = {};
+                            }
+                            modelData[modelName][templateName][inputType] = stats;
+                        });
+                    });
+                });
+                
+                const inputTypeArray = Array.from(inputTypes).sort();
+                const templateArray = Array.from(templates).sort();
+                
+                // Create compact table layout for each template
+                templateArray.forEach(templateName => {
+                    html += `<div class="knowledge-analysis-container">`;
+                    html += `<h4 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">${templateName}</h4>`;
+                    
+                    html += `<table class="knowledge-analysis-table">`;
+                    
+                    // Header row
+                    html += `<thead><tr>`;
+                    html += `<th style="text-align: right; background-color: #e9ecef;">Model</th>`;
+                    inputTypeArray.forEach(inputType => {
+                        html += `<th>${inputType.replace(/_/g, ' ')}</th>`;
+                    });
+                    html += `</tr></thead>`;
+                    
+                    // Data rows - sort models by highest limited + NA counts
+                    html += `<tbody>`;
+                    
+                    // Calculate problematic scores for sorting
+                    const modelScores = Object.entries(modelData)
+                        .filter(([modelName, templates]) => templates[templateName])
+                        .map(([modelName, templates]) => {
+                            let totalProblematic = 0;
+                            let totalSamples = 0;
+                            
+                            inputTypeArray.forEach(inputType => {
+                                const data = templates[templateName][inputType];
+                                if (data) {
+                                    totalProblematic += (data.limited || 0) + (data.NA || 0);
+                                    totalSamples += data.total || 0;
+                                }
+                            });
+                            
+                            return {
+                                modelName,
+                                templates: templates[templateName],
+                                problematicCount: totalProblematic,
+                                totalSamples,
+                                problematicRatio: totalSamples > 0 ? totalProblematic / totalSamples : 0
+                            };
+                        })
+                        .sort((a, b) => {
+                            // Primary sort: by problematic ratio (highest first)
+                            if (b.problematicRatio !== a.problematicRatio) {
+                                return b.problematicRatio - a.problematicRatio;
+                            }
+                            // Secondary sort: by absolute count (highest first)
+                            if (b.problematicCount !== a.problematicCount) {
+                                return b.problematicCount - a.problematicCount;
+                            }
+                            // Tertiary sort: by model name alphabetically
+                            return a.modelName.localeCompare(b.modelName);
+                        });
+                    
+                    modelScores.forEach(({modelName, templates}) => {
+                        html += `<tr>`;
+                        html += `<td class="model-name-cell" title="${modelName}">${modelName.split('/').pop()}</td>`;
+                        
+                        inputTypeArray.forEach(inputType => {
+                            html += `<td class="chart-cell">`;
+                            if (templates[inputType]) {
+                                html += createKnowledgeBarChartSingle(templates[inputType], inputType);
+                            } else {
+                                html += '<div class="no-data">No data</div>';
+                            }
+                            html += `</td>`;
+                        });
+                        
+                        html += `</tr>`;
+                    });
+                    html += `</tbody></table>`;
+                    html += `</div>`;
+                });
+                
+                viewContainer.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading knowledge analysis:', error);
+                viewContainer.innerHTML = `<div class="empty-state"><h3>Error loading knowledge analysis</h3><p>${error.message}</p></div>`;
+            });
+    }
+    
+    function createKnowledgeBarChart(models, inputType, templateName) {
+        // Get all models and calculate max total for scaling
+        const modelNames = Object.keys(models);
+        let maxTotal = 0;
+        
+        modelNames.forEach(model => {
+            maxTotal = Math.max(maxTotal, models[model].total);
+        });
+        
+        let html = '<div class="knowledge-bar-chart">';
+        
+        // Chart header with legend
+        html += '<div class="chart-header">';
+        html += '<div class="chart-legend">';
+        html += '<span class="legend-item"><span class="legend-color knowledge-limited"></span>Limited</span>';
+        html += '<span class="legend-item"><span class="legend-color knowledge-moderate"></span>Moderate</span>';
+        html += '<span class="legend-item"><span class="legend-color knowledge-extensive"></span>Extensive</span>';
+        html += '<span class="legend-item"><span class="legend-color knowledge-na"></span>NA</span>';
+        html += '<span class="legend-item"><span class="legend-color knowledge-no-result"></span>No Result</span>';
+        html += '<span class="legend-item"><span class="legend-color knowledge-inference-failed"></span>Inference Failed</span>';
+        html += '</div>';
+        html += '</div>';
+        
+        // Chart container
+        html += '<div class="chart-container">';
+        
+        // Y-axis (models) and bars
+        modelNames.forEach(model => {
+            const modelData = models[model];
+            const total = modelData.total;
+            
+            if (total === 0) return; // Skip models with no data
+            
+            html += '<div class="chart-row">';
+            html += `<div class="chart-y-label">${model.split('/').pop()}</div>`;
+            html += '<div class="chart-bar-container">';
+            
+            // Calculate percentages
+            const limitedPct = (modelData.limited / total * 100);
+            const moderatePct = (modelData.moderate / total * 100);
+            const extensivePct = (modelData.extensive / total * 100);
+            const naPct = (modelData.NA / total * 100);
+            const noResultPct = (modelData.no_result / total * 100);
+            
+            // Create stacked bar with proper proportional scaling
+            html += '<div class="stacked-bar">';
+            
+            // Calculate minimum visible width (in pixels equivalent %)
+            const minVisiblePct = 2; // Minimum 2% for very small segments
+            const segments = [
+                { type: 'limited', count: modelData.limited, pct: limitedPct, class: 'knowledge-limited' },
+                { type: 'moderate', count: modelData.moderate, pct: moderatePct, class: 'knowledge-moderate' },
+                { type: 'extensive', count: modelData.extensive, pct: extensivePct, class: 'knowledge-extensive' },
+                { type: 'na', count: modelData.NA, pct: naPct, class: 'knowledge-na' },
+                { type: 'no_result', count: modelData.no_result, pct: noResultPct, class: 'knowledge-no-result' }
+            ].filter(seg => seg.count > 0);
+            
+                         // Calculate adjusted widths to maintain proportions while ensuring visibility
+             let totalAdjustedPct = 0;
+             const adjustedSegments = segments.map(seg => {
+                 // Give extra minimum width to NA and No Result for visibility
+                 const isImportantCategory = seg.type === 'na' || seg.type === 'no_result';
+                 const minWidth = isImportantCategory && seg.count > 0 ? Math.max(minVisiblePct, 3) : minVisiblePct;
+                 const adjustedPct = seg.pct < minWidth && seg.count > 0 ? minWidth : seg.pct;
+                 totalAdjustedPct += adjustedPct;
+                 return { ...seg, adjustedPct };
+             });
+            
+            // Scale down if total exceeds 100%
+            const scaleFactor = totalAdjustedPct > 100 ? 100 / totalAdjustedPct : 1;
+            
+            adjustedSegments.forEach(seg => {
+                const finalWidth = seg.adjustedPct * scaleFactor;
+                const label = seg.type.charAt(0).toUpperCase() + seg.type.slice(1).replace('_', ' ');
+                
+                                 html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%" title="${label}: ${seg.count} (${seg.pct.toFixed(1)}%)">`;
+                 
+                 // Show number if segment is wide enough, has significant count, or is NA/No Result (always show these)
+                 const isImportantCategory = seg.type === 'na' || seg.type === 'no_result';
+                 if (finalWidth > 4 || seg.count >= 10 || isImportantCategory) {
+                     html += `<span class="bar-number">${seg.count}</span>`;
+                 }
+                 
+                 html += `</div>`;
+            });
+            
+            html += '</div>';
+            
+            html += '</div>';
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    function createKnowledgeBarChartSingle(modelData, inputType) {
+        const total = modelData.total;
+        
+        if (total === 0) {
+            return '<div class="no-data">No data</div>';
+        }
+        
+        // Calculate percentages
+        const limitedPct = (modelData.limited / total * 100);
+        const moderatePct = (modelData.moderate / total * 100);
+        const extensivePct = (modelData.extensive / total * 100);
+        const naPct = (modelData.NA / total * 100);
+        const noResultPct = (modelData.no_result / total * 100);
+        const inferenceFailedPct = (modelData.inference_failed / total * 100);
+        
+        // Calculate minimum visible width
+        const minVisiblePct = 2;
+        const segments = [
+            { type: 'limited', count: modelData.limited, pct: limitedPct, class: 'knowledge-limited', samples: modelData.samples?.limited || [] },
+            { type: 'moderate', count: modelData.moderate, pct: moderatePct, class: 'knowledge-moderate', samples: modelData.samples?.moderate || [] },
+            { type: 'extensive', count: modelData.extensive, pct: extensivePct, class: 'knowledge-extensive', samples: modelData.samples?.extensive || [] },
+            { type: 'na', count: modelData.NA, pct: naPct, class: 'knowledge-na', samples: modelData.samples?.NA || [] },
+            { type: 'no_result', count: modelData.no_result, pct: noResultPct, class: 'knowledge-no-result', samples: modelData.samples?.no_result || [] },
+            { type: 'inference_failed', count: modelData.inference_failed, pct: inferenceFailedPct, class: 'knowledge-inference-failed', samples: modelData.samples?.inference_failed || [] }
+        ].filter(seg => seg.count > 0);
+        
+        // Calculate adjusted widths
+        let totalAdjustedPct = 0;
+        const adjustedSegments = segments.map(seg => {
+            const isImportantCategory = ['na', 'no_result', 'inference_failed'].includes(seg.type);
+            const minWidth = isImportantCategory && seg.count > 0 ? Math.max(minVisiblePct, 3) : minVisiblePct;
+            const adjustedPct = seg.pct < minWidth && seg.count > 0 ? minWidth : seg.pct;
+            totalAdjustedPct += adjustedPct;
+            return { ...seg, adjustedPct };
+        });
+        
+        // Scale down if total exceeds 100%
+        const scaleFactor = totalAdjustedPct > 100 ? 100 / totalAdjustedPct : 1;
+        
+        // Generate unique ID for this chart
+        const chartId = 'chart_' + Math.random().toString(36).substr(2, 9);
+        
+        let html = '<div class="single-bar-chart">';
+        html += '<div class="single-stacked-bar">';
+        
+        adjustedSegments.forEach((seg, index) => {
+            const finalWidth = seg.adjustedPct * scaleFactor;
+            const label = seg.type.charAt(0).toUpperCase() + seg.type.slice(1).replace('_', ' ');
+            const segmentId = `${chartId}_${index}`;
+            
+            // Create tooltip content with raw responses
+            let tooltipContent = `<div class="tooltip-header">${label}: ${seg.count} samples</div>`;
+            if (seg.samples.length > 0) {
+                tooltipContent += `<div class="tooltip-samples">`;
+                const maxSamples = 5; // Show up to 5 samples in tooltip
+                const samplesToShow = seg.samples.slice(0, maxSamples);
+                
+                samplesToShow.forEach((sample, idx) => {
+                    tooltipContent += `<div class="tooltip-sample">`;
+                    tooltipContent += `<div class="sample-species"><strong>${sample.species}</strong></div>`;
+                    if (sample.knowledge_group) {
+                        tooltipContent += `<div class="sample-parsed">Parsed: ${sample.knowledge_group}</div>`;
+                    }
+                    tooltipContent += `<div class="sample-raw">Raw: ${sample.raw_response.substring(0, 200)}${sample.raw_response.length > 200 ? '...' : ''}</div>`;
+                    tooltipContent += `</div>`;
+                });
+                
+                if (seg.samples.length > maxSamples) {
+                    tooltipContent += `<div class="tooltip-more">... and ${seg.samples.length - maxSamples} more samples</div>`;
+                }
+                tooltipContent += `</div>`;
+            }
+            
+            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%" 
+                          data-tooltip-content="${encodeURIComponent(tooltipContent)}"
+                          data-samples="${encodeURIComponent(JSON.stringify(seg.samples))}"
+                          data-category="${seg.type}"
+                          data-count="${seg.count}"
+                          onmouseover="showKnowledgeTooltip(event, this)" 
+                          onmouseout="hideKnowledgeTooltip()"
+                          onclick="showFullSamplesList(this)">`;
+            
+            // Show number for important categories or larger segments
+            const isImportantCategory = ['na', 'no_result', 'inference_failed'].includes(seg.type);
+            if (finalWidth > 4 || seg.count >= 10 || isImportantCategory) {
+                html += `<span class="bar-number">${seg.count}</span>`;
+            }
+            
+            html += `</div>`;
+        });
+        
+        html += '</div>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    // Knowledge tooltip functions
+    function showKnowledgeTooltip(event, element) {
+        const tooltipContent = decodeURIComponent(element.getAttribute('data-tooltip-content'));
+        
+        // Remove existing tooltip
+        hideKnowledgeTooltip();
+        
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.id = 'knowledge-tooltip';
+        tooltip.className = 'knowledge-tooltip';
+        tooltip.innerHTML = tooltipContent;
+        
+        // Add to document
+        document.body.appendChild(tooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 10;
+        
+        // Adjust if tooltip goes off screen
+        if (left < 5) left = 5;
+        if (left + tooltipRect.width > window.innerWidth - 5) {
+            left = window.innerWidth - tooltipRect.width - 5;
+        }
+        if (top < 5) {
+            top = rect.bottom + 10;
+        }
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.style.display = 'block';
+    }
+    
+    function hideKnowledgeTooltip() {
+        const existingTooltip = document.getElementById('knowledge-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+    }
+    
+    function showFullSamplesList(element) {
+        // Hide tooltip first
+        hideKnowledgeTooltip();
+        
+        const samples = JSON.parse(decodeURIComponent(element.getAttribute('data-samples')));
+        const category = element.getAttribute('data-category');
+        const count = element.getAttribute('data-count');
+        
+        const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'knowledge-modal';
+        modal.innerHTML = `
+            <div class="knowledge-modal-content">
+                <div class="knowledge-modal-header">
+                    <h3>${categoryLabel} Samples (${count} total)</h3>
+                    <button class="knowledge-modal-close" onclick="closeKnowledgeModal()">&times;</button>
+                </div>
+                <div class="knowledge-modal-body">
+                    ${samples.length === 0 ? '<p>No samples available</p>' : generateSamplesHTML(samples)}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeKnowledgeModal();
+            }
+        });
+        
+        // Close modal with ESC key
+        const escapeHandler = function(e) {
+            if (e.key === 'Escape') {
+                closeKnowledgeModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+    
+    function generateSamplesHTML(samples) {
+        let html = '<div class="samples-list">';
+        
+        samples.forEach((sample, index) => {
+            html += `<div class="sample-item">`;
+            html += `<div class="sample-header">`;
+            html += `<span class="sample-number">#${index + 1}</span>`;
+            html += `<span class="sample-species">${sample.species}</span>`;
+            if (sample.knowledge_group) {
+                html += `<span class="sample-parsed-badge">${sample.knowledge_group}</span>`;
+            }
+            html += `</div>`;
+            html += `<div class="sample-response">`;
+            html += `<strong>Raw LLM Response:</strong>`;
+            html += `<pre class="sample-raw-full">${sample.raw_response || 'No response received'}</pre>`;
+            html += `</div>`;
+            html += `</div>`;
+        });
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function closeKnowledgeModal() {
+        const modal = document.querySelector('.knowledge-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+    
+
 </script>
 {% endblock %} 

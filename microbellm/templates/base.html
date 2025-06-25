@@ -21,7 +21,7 @@
         
         /* API Key Status Indicator - Top Right Corner */
         .api-key-corner-status {
-            position: fixed;
+            position: absolute;
             top: 20px;
             right: 20px;
             display: flex;
@@ -88,6 +88,7 @@
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            position: relative;
         }
         
         h1 {
@@ -276,10 +277,7 @@
             background-color: white;
         }
         
-        .template-tab.add-template {
-            color: #28a745;
-            margin-left: 10px;
-        }
+
 
         /* Template Sections */
         .template-section {
@@ -298,6 +296,33 @@
         .template-info {
             color: #6c757d;
             font-size: 12px;
+        }
+        
+        .template-link {
+            color: #007bff;
+            text-decoration: none;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background-color: rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+        
+        .template-link:hover {
+            color: #0056b3;
+            background-color: rgba(0, 123, 255, 0.15);
+            border-color: rgba(0, 123, 255, 0.3);
+            text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2);
+        }
+        
+        .template-link:active {
+            transform: translateY(0);
+            box-shadow: 0 0 2px rgba(0, 123, 255, 0.3);
         }
 
         /* Processing Matrix */
@@ -1325,6 +1350,7 @@
     <div class="container">
         <div class="nav">
             <a href="/">Dashboard</a>
+            <a href="/templates">Templates</a>
             <a href="/export">Export Results</a>
             <a href="/import">Import Results</a>
             <a href="/compare">Compare Results</a>

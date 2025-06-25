@@ -1,0 +1,5 @@
+"Classify the knowledge level for the binomial strain name:
+
+- limited: Minimal to basic information available, challenging to make accurate predictions
+- moderate: Moderate information available, including some phenotypic, morphological, genetic, or physiological haracteristics
+- extensive: Wealth of comprehensive information available, enabling highly accurate predictions and assessment"

@@ -1,0 +1,65 @@
+{
+  "template_info": {
+    "name": "template3_knowledge",
+    "type": "knowledge",
+    "description": "Knowledge level assessment template with NA support",
+    "version": "1.0"
+  },
+  "expected_response": {
+    "format": "json",
+    "required_fields": [
+      "knowledge_group"
+    ],
+    "optional_fields": []
+  },
+  "field_definitions": {
+    "knowledge_group": {
+      "type": "string",
+      "required": true,
+      "description": "Knowledge level category for the organism",
+      "allowed_values": [
+        "limited",
+        "moderate", 
+        "extensive",
+        "NA"
+      ],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "limited": ["limited", "minimal", "basic", "low", "little", "poor"],
+          "moderate": ["moderate", "medium", "intermediate", "fair", "some"],
+          "extensive": ["extensive", "comprehensive", "detailed", "high", "full", "complete", "thorough"],
+          "NA": ["na", "n/a", "n.a.", "not available", "not applicable", "unknown", "unavailable", "none", "null", "no data", "no information"]
+        }
+      },
+      "validation_error_messages": {
+        "missing": "Required field 'knowledge_group' is missing from response",
+        "invalid_value": "Invalid knowledge level. Expected one of: limited, moderate, extensive, NA",
+        "wrong_type": "Field 'knowledge_group' must be a string"
+      }
+    }
+  },
+  "parsing_instructions": {
+    "json_extraction": {
+      "method": "regex",
+      "pattern": "\\{.*\\}",
+      "flags": ["DOTALL"]
+    },
+    "fallback_parsing": {
+      "enabled": true,
+      "method": "keyword_search",
+      "keywords": ["knowledge_group", "knowledge level", "level"]
+    }
+  },
+  "success_criteria": {
+    "minimum_required_fields": 1,
+    "require_all_mandatory": true,
+    "allow_extra_fields": false
+  },
+  "error_handling": {
+    "on_parse_failure": "return_null",
+    "on_validation_failure": "return_errors",
+    "on_missing_required": "return_errors"
+  }
+} 

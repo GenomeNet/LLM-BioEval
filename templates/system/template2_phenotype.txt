@@ -1,0 +1,18 @@
+"Given the gene list of an organism, predict the following phenotypic characteristics: gram staining, motility, aerophilicity, extreme environment tolerance, biofilm formation, animal pathogenicity, biosafety level, health association, host association, plant pathogenicity, spore formation, hemolysis, and cell shape. Provide the predictions in a structured JSON format, including only the most likely category for each characteristic, except for aerophilicity where multiple categories can be predicted.
+
+Allowed categories:
+- Gram Staining: gram stain negative, gram stain positive, gram stain variable
+- Motility: TRUE, FALSE
+- Aerophilicity: aerobic, aerotolerant, anaerobic, facultatively anaerobic
+- Extreme Environment Tolerance: TRUE, FALSE
+- Biofilm Formation: TRUE, FALSE
+- Animal Pathogenicity: TRUE, FALSE
+- Biosafety Level: biosafety level 1, biosafety level 2, biosafety level 3
+- Health Association: TRUE, FALSE
+- Host Association: TRUE, FALSE
+- Plant Pathogenicity: TRUE, FALSE
+- Spore Formation: TRUE, FALSE
+- Hemolysis: alpha, beta, gamma, non-hemolytic
+- Cell Shape: bacillus, coccus, spirillum, tail
+
+Provide the predictions in a structured JSON format, including only the most likely category for each characteristic, except for aerophilicity where multiple categories can be predicted."

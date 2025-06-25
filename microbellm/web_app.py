@@ -15,6 +15,7 @@ from microbellm.predict import predict_binomial_name
 import sqlite3
 from pathlib import Path
 from microbellm import config
+from microbellm.utils import detect_template_type
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
@@ -44,15 +45,28 @@ def reset_running_jobs_on_startup():
 class ProcessingManager:
     def __init__(self):
         self.running_combinations = {}
-        self.executor = None
-        self.futures = {}
-        self.paused_combinations = set()  # Track paused jobs
-        self.stopped_combinations = set()  # Track stopped jobs
-        self.job_queue = []  # Queue for jobs waiting to start
-        self.max_concurrent_jobs = 1  # Default: only one job at a time
-        self.requests_per_second = 2  # Default rate limit: 2 requests/second
-        self.last_request_time = {}  # Track last request time per combination
+        self.job_queue = []
+        self.paused_combinations = set()
+        self.stopped_combinations = set()
+        self.requests_per_second = 1.0  # Default rate limit
+        self.last_request_time = {}
+        self.max_concurrent_requests = 4  # Default concurrent requests
+        self.executor = None  # Thread pool executor
         self.init_database()
+    
+    def set_max_concurrent_requests(self, max_concurrent):
+        """Set the maximum number of concurrent API requests"""
+        self.max_concurrent_requests = max(1, max_concurrent)
+        # Restart executor with new thread count if it exists
+        if self.executor:
+            self.executor.shutdown(wait=False)
+            self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_requests)
+    
+    def _get_or_create_executor(self):
+        """Get or create the thread pool executor"""
+        if not self.executor:
+            self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_requests)
+        return self.executor
     
     def init_database(self):
         """Initialize SQLite database for tracking species x model combinations"""
@@ -107,7 +121,8 @@ class ProcessingManager:
                 plant_pathogenicity TEXT,
                 spore_formation TEXT,
                 hemolysis TEXT,
-                cell_shape TEXT
+                cell_shape TEXT,
+                knowledge_group TEXT
             )
         ''')
         
@@ -123,6 +138,28 @@ class ProcessingManager:
                 species_file TEXT PRIMARY KEY
             )
         ''')
+        
+        # Create table for template metadata
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS template_metadata (
+                system_template TEXT,
+                user_template TEXT,
+                display_name TEXT,
+                description TEXT,
+                template_type TEXT DEFAULT 'phenotype',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (system_template, user_template)
+            )
+        ''')
+        
+        # Add template_type column to template_metadata table if it doesn't exist
+        cursor.execute("PRAGMA table_info(template_metadata)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'template_type' not in columns:
+            cursor.execute("ALTER TABLE template_metadata ADD COLUMN template_type TEXT DEFAULT 'phenotype'")
+            print("Added column template_type to template_metadata table")
 
         # Migration: Add phenotype columns if they don't exist
         cursor.execute("PRAGMA table_info(results)")
@@ -141,7 +178,8 @@ class ProcessingManager:
             ('plant_pathogenicity', 'TEXT'),
             ('spore_formation', 'TEXT'),
             ('hemolysis', 'TEXT'),
-            ('cell_shape', 'TEXT')
+            ('cell_shape', 'TEXT'),
+            ('knowledge_group', 'TEXT')
         ]
         
         for column_name, column_type in phenotype_columns:
@@ -213,10 +251,13 @@ class ProcessingManager:
         return created_combinations
     
     def _read_species_from_file(self, file_path):
-        """Read species list from a file"""
+        """Read species list from a file, filtering out headers"""
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                species = [line.strip() for line in file.readlines() if line.strip()]
+                lines = file.readlines()
+                # Import the header filtering function
+                from microbellm.utils import filter_species_list
+                species = filter_species_list(lines)
                 return species
         except Exception as e:
             print(f"Error reading species file {file_path}: {e}")
@@ -328,7 +369,7 @@ class ProcessingManager:
         self.last_request_time[combination_id] = time.time()
 
     def _process_combination(self, combination_id, species_file, model, system_template, user_template):
-        """The actual processing logic for a combination with smart resume and rate limiting."""
+        """The actual processing logic for a combination with parallel processing."""
         
         try:
             species_list = self._read_species_from_file(os.path.join(config.SPECIES_DIR, species_file))
@@ -347,52 +388,75 @@ class ProcessingManager:
                 return
             
             self._emit_log(combination_id, f"Smart resume: {len(already_processed)} already done, processing {len(remaining_species)} remaining species...")
+            self._emit_log(combination_id, f"Using {self.max_concurrent_requests} parallel workers...")
 
             system_template_content = read_template_from_file(system_template)
             user_template_content = read_template_from_file(user_template)
 
-            for i, species_name in enumerate(remaining_species):
-                # Check if job was paused or stopped
+            # Create executor for parallel processing
+            executor = self._get_or_create_executor()
+            futures = {}
+            
+            # Submit initial batch of species
+            for i, species_name in enumerate(remaining_species[:self.max_concurrent_requests]):
+                if combination_id in self.paused_combinations or combination_id in self.stopped_combinations:
+                    break
+                    
+                future = executor.submit(
+                    self._process_single_species,
+                    combination_id, species_file, species_name, 
+                    model, system_template, user_template,
+                    system_template_content, user_template_content,
+                    len(already_processed) + i + 1, len(species_list)
+                )
+                futures[future] = species_name
+            
+            # Process remaining species as workers complete
+            next_species_idx = len(futures)
+            
+            while futures and combination_id not in self.stopped_combinations:
+                # Check for paused state
                 if combination_id in self.paused_combinations:
                     self._emit_log(combination_id, "Job paused.")
+                    # Cancel pending futures
+                    for future in futures:
+                        future.cancel()
                     break
                 
-                if combination_id in self.stopped_combinations:
-                    self._emit_log(combination_id, "Job stopped.")
-                    break
+                # Wait for any future to complete with timeout
+                import concurrent.futures
+                done, pending = concurrent.futures.wait(futures.keys(), timeout=1.0, return_when=concurrent.futures.FIRST_COMPLETED)
                 
-                self._emit_log(combination_id, f"Processing species {len(already_processed) + i + 1}/{len(species_list)}: {species_name}")
-
-                # Apply rate limiting
-                self._wait_for_rate_limit(combination_id)
-
-                # Track that we're submitting this species to the LLM
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                cursor.execute("UPDATE combinations SET submitted_species = submitted_species + 1 WHERE id = ?", (combination_id,))
-                conn.commit()
-                conn.close()
-
-                try:
-                    result = predict_binomial_name(
-                        species_name,
-                        system_template_content,
-                        user_template_content,
-                        model,
-                        temperature=0.0,
-                        verbose=False
-                    )
-
-                    self._process_species_result(combination_id, species_file, species_name, model, 
-                                               system_template, user_template, result)
-
-                except Exception as e:
-                    self._process_species_error(combination_id, species_file, species_name, model, 
-                                              system_template, user_template, str(e))
-
-                # Emit detailed progress update
+                for future in done:
+                    species_name = futures.pop(future)
+                    try:
+                        # Get result (this will raise exception if processing failed)
+                        future.result()
+                    except Exception as e:
+                        self._emit_log(combination_id, f"Error processing {species_name}: {str(e)}")
+                    
+                    # Submit next species if available
+                    if next_species_idx < len(remaining_species) and combination_id not in self.paused_combinations:
+                        next_species_name = remaining_species[next_species_idx]
+                        new_future = executor.submit(
+                            self._process_single_species,
+                            combination_id, species_file, next_species_name,
+                            model, system_template, user_template,
+                            system_template_content, user_template_content,
+                            len(already_processed) + next_species_idx + 1, len(species_list)
+                        )
+                        futures[new_future] = next_species_name
+                        next_species_idx += 1
+                
+                # Emit progress update
                 self._emit_progress_update(combination_id)
-                time.sleep(0.1)
+
+            # Wait for remaining futures to complete
+            for future in futures:
+                try:
+                    future.result()
+                except:
+                    pass
 
             # Final status update
             self._finalize_combination(combination_id)
@@ -403,6 +467,42 @@ class ProcessingManager:
         finally:
             # Clean up and start next job in queue
             self._cleanup_completed_job(combination_id)
+
+    def _process_single_species(self, combination_id, species_file, species_name, 
+                               model, system_template, user_template,
+                               system_template_content, user_template_content,
+                               current_idx, total_species):
+        """Process a single species (called by thread pool)"""
+        try:
+            self._emit_log(combination_id, f"Processing species {current_idx}/{total_species}: {species_name}")
+            
+            # Apply rate limiting (shared across threads)
+            self._wait_for_rate_limit(combination_id)
+            
+            # Track submission
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE combinations SET submitted_species = submitted_species + 1 WHERE id = ?", (combination_id,))
+            conn.commit()
+            conn.close()
+            
+            # Make prediction
+            result = predict_binomial_name(
+                species_name,
+                system_template_content,
+                user_template_content,
+                model,
+                temperature=0.0,
+                verbose=False
+            )
+            
+            # Process result
+            self._process_species_result(combination_id, species_file, species_name, model, 
+                                       system_template, user_template, result)
+                                       
+        except Exception as e:
+            self._process_species_error(combination_id, species_file, species_name, model, 
+                                      system_template, user_template, str(e))
 
     def _mark_combination_failed(self, combination_id):
         """Mark combination as failed"""
@@ -437,6 +537,16 @@ class ProcessingManager:
             next_job_id = self.job_queue.pop(0)
             self._emit_log(next_job_id, "Starting from queue...")
             threading.Thread(target=lambda: self.start_combination(next_job_id), daemon=True).start()
+    
+    def can_start_new_job(self):
+        """Check if we can start a new job - for now, allow multiple jobs"""
+        return True  # Allow multiple jobs to run concurrently
+    
+    def shutdown(self):
+        """Shutdown the executor cleanly"""
+        if self.executor:
+            self.executor.shutdown(wait=True)
+            self.executor = None
 
     def restart_combination(self, combination_id):
         """Restart a failed or interrupted combination."""
@@ -484,31 +594,44 @@ class ProcessingManager:
             # We received a response from the LLM
             cursor.execute("UPDATE combinations SET received_species = received_species + 1 WHERE id = ?", (combination_id,))
             
-            # Check if the result contains valid phenotype data
-            has_phenotype_data = any([
-                result.get('gram_staining'),
-                result.get('motility'),
-                result.get('aerophilicity'),
-                result.get('extreme_environment_tolerance'),
-                result.get('biofilm_formation'),
-                result.get('animal_pathogenicity'),
-                result.get('biosafety_level'),
-                result.get('health_association'),
-                result.get('host_association'),
-                result.get('plant_pathogenicity'),
-                result.get('spore_formation'),
-                result.get('hemolysis'),
-                result.get('cell_shape')
-            ])
+            # Detect if this is a knowledge level prediction
+            is_knowledge_prediction = detect_template_type(user_template) == 'knowledge'
+            
+            # Check if the result contains valid data based on template type
+            if is_knowledge_prediction:
+                # For knowledge predictions, check for knowledge_group
+                has_valid_data = result.get('knowledge_group') is not None
+            else:
+                # For phenotype predictions, check for phenotype data
+                has_valid_data = any([
+                    result.get('gram_staining'),
+                    result.get('motility'),
+                    result.get('aerophilicity'),
+                    result.get('extreme_environment_tolerance'),
+                    result.get('biofilm_formation'),
+                    result.get('animal_pathogenicity'),
+                    result.get('biosafety_level'),
+                    result.get('health_association'),
+                    result.get('host_association'),
+                    result.get('plant_pathogenicity'),
+                    result.get('spore_formation'),
+                    result.get('hemolysis'),
+                    result.get('cell_shape')
+                ])
 
-            if has_phenotype_data:
-                # Successfully parsed result with actual phenotype data
-                self._emit_log(combination_id, f"✓ Successfully processed {species_name} with phenotype data")
+            if has_valid_data:
+                # Successfully parsed result with valid data
+                if is_knowledge_prediction:
+                    knowledge_level = result.get('knowledge_group', 'unknown')
+                    self._emit_log(combination_id, f"✓ Knowledge level for {species_name}: {knowledge_level}")
+                else:
+                    self._emit_log(combination_id, f"✓ Successfully processed {species_name} with phenotype data")
                 cursor.execute("UPDATE combinations SET successful_species = successful_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
                 result_status = 'completed'
             else:
-                # Got a response but no valid phenotype data
-                self._emit_log(combination_id, f"⚠ Received response for {species_name} but no valid phenotype data extracted")
+                # Got a response but no valid data extracted
+                data_type = "knowledge level" if is_knowledge_prediction else "phenotype data"
+                self._emit_log(combination_id, f"⚠ Received response for {species_name} but no valid {data_type} extracted")
                 cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
                 result_status = 'failed'
             
@@ -522,25 +645,40 @@ class ProcessingManager:
                 'status': result_status,
                 'result': result.get('raw_response', ''),
                 'error': '',
-                'timestamp': datetime.now(),
-                'gram_staining': result.get('gram_staining'),
-                'motility': result.get('motility'),
-                'aerophilicity': result.get('aerophilicity'),
-                'extreme_environment_tolerance': result.get('extreme_environment_tolerance'),
-                'biofilm_formation': result.get('biofilm_formation'),
-                'animal_pathogenicity': result.get('animal_pathogenicity'),
-                'biosafety_level': result.get('biosafety_level'),
-                'health_association': result.get('health_association'),
-                'host_association': result.get('host_association'),
-                'plant_pathogenicity': result.get('plant_pathogenicity'),
-                'spore_formation': result.get('spore_formation'),
-                'hemolysis': result.get('hemolysis'),
-                'cell_shape': result.get('cell_shape')
+                'timestamp': datetime.now()
             }
             
+            # Add data based on template type
+            if is_knowledge_prediction:
+                # For knowledge predictions, store normalized knowledge_group
+                from microbellm.utils import normalize_knowledge_level
+                raw_knowledge = result.get('knowledge_group')
+                result_data['knowledge_group'] = normalize_knowledge_level(raw_knowledge)
+                # Set all phenotype fields to NULL
+                for field in ['gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                             'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 'health_association',
+                             'host_association', 'plant_pathogenicity', 'spore_formation', 'hemolysis', 'cell_shape']:
+                    result_data[field] = None
+            else:
+                # For phenotype predictions, store phenotype data
+                result_data['knowledge_group'] = None
+                result_data['gram_staining'] = result.get('gram_staining')
+                result_data['motility'] = result.get('motility')
+                result_data['aerophilicity'] = result.get('aerophilicity')
+                result_data['extreme_environment_tolerance'] = result.get('extreme_environment_tolerance')
+                result_data['biofilm_formation'] = result.get('biofilm_formation')
+                result_data['animal_pathogenicity'] = result.get('animal_pathogenicity')
+                result_data['biosafety_level'] = result.get('biosafety_level')
+                result_data['health_association'] = result.get('health_association')
+                result_data['host_association'] = result.get('host_association')
+                result_data['plant_pathogenicity'] = result.get('plant_pathogenicity')
+                result_data['spore_formation'] = result.get('spore_formation')
+                result_data['hemolysis'] = result.get('hemolysis')
+                result_data['cell_shape'] = result.get('cell_shape')
+            
             cursor.execute('''
-                INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, result, error, timestamp, gram_staining, motility, aerophilicity, extreme_environment_tolerance, biofilm_formation, animal_pathogenicity, biosafety_level, health_association, host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape)
-                VALUES (:species_file, :binomial_name, :model, :system_template, :user_template, :status, :result, :error, :timestamp, :gram_staining, :motility, :aerophilicity, :extreme_environment_tolerance, :biofilm_formation, :animal_pathogenicity, :biosafety_level, :health_association, :host_association, :plant_pathogenicity, :spore_formation, :hemolysis, :cell_shape)
+                INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, result, error, timestamp, gram_staining, motility, aerophilicity, extreme_environment_tolerance, biofilm_formation, animal_pathogenicity, biosafety_level, health_association, host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape, knowledge_group)
+                VALUES (:species_file, :binomial_name, :model, :system_template, :user_template, :status, :result, :error, :timestamp, :gram_staining, :motility, :aerophilicity, :extreme_environment_tolerance, :biofilm_formation, :animal_pathogenicity, :biosafety_level, :health_association, :host_association, :plant_pathogenicity, :spore_formation, :hemolysis, :cell_shape, :knowledge_group)
             ''', result_data)
 
         else:
@@ -662,7 +800,10 @@ class ProcessingManager:
         
         conn.close()
 
-        if not combinations and not managed_models and not managed_species:
+        # Get ALL available template pairs from filesystem
+        available_template_pairs = get_available_template_pairs()
+        
+        if not combinations and not managed_models and not managed_species and not available_template_pairs:
             return {
                 'matrix': {},
                 'species_files': [],
@@ -677,8 +818,24 @@ class ProcessingManager:
         models_from_combinations = set([c['model'] for c in combinations])
         all_models = sorted(list(models_from_combinations.union(managed_models)))
         
-        # Get unique template combinations
-        template_combinations = list(set([(c['system_template'], c['user_template']) for c in combinations]))
+        # Get unique template combinations from database
+        db_template_combinations = list(set([(c['system_template'], c['user_template']) for c in combinations]))
+        
+        # Combine filesystem and database template pairs
+        all_template_combinations = []
+        
+        # Add filesystem template pairs
+        for template_name, paths in available_template_pairs.items():
+            template_pair = (paths['system'], paths['user'])
+            all_template_combinations.append(template_pair)
+        
+        # Add any database template pairs that might not be in filesystem
+        for db_pair in db_template_combinations:
+            if db_pair not in all_template_combinations:
+                all_template_combinations.append(db_pair)
+        
+        # Use the comprehensive list
+        template_combinations = all_template_combinations
         
         # Create matrix organized by template combinations
         matrix = {}
@@ -719,11 +876,30 @@ class ProcessingManager:
                     else:
                         matrix[row_key]['models'][model] = None
         
+        # Get template metadata for display
+        template_metadata = get_template_metadata()
+        template_display_info = []
+        
+        for sys_template, user_template in sorted(template_combinations):
+            key = (sys_template, user_template)
+            if key in template_metadata:
+                display_info = template_metadata[key]
+            else:
+                display_info = get_template_display_info(sys_template, user_template)
+            
+            template_display_info.append({
+                'system_template': sys_template,
+                'user_template': user_template,
+                'display_name': display_info['display_name'],
+                'description': display_info['description']
+            })
+
         return {
             'matrix': matrix,
             'species_files': all_species_files,
             'models': all_models,
-            'template_combinations': sorted(template_combinations)
+            'template_combinations': sorted(template_combinations),
+            'template_display_info': template_display_info
         }
     
     def export_results_to_csv(self, species_file=None, model=None):
@@ -906,7 +1082,8 @@ class ProcessingManager:
                         'plant_pathogenicity': row.get('plant_pathogenicity', '').strip() or None,
                         'spore_formation': row.get('spore_formation', '').strip() or None,
                         'hemolysis': row.get('hemolysis', '').strip() or None,
-                        'cell_shape': row.get('cell_shape', '').strip() or None
+                        'cell_shape': row.get('cell_shape', '').strip() or None,
+                        'knowledge_group': row.get('knowledge_group', '').strip() or None
                     }
                     
                     # Derive user_template from system_template (assuming same filename pattern)
@@ -916,7 +1093,8 @@ class ProcessingManager:
                     cursor.execute('''
                         SELECT id, gram_staining, motility, aerophilicity, extreme_environment_tolerance,
                                biofilm_formation, animal_pathogenicity, biosafety_level, health_association,
-                               host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape
+                               host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape,
+                               knowledge_group
                         FROM results 
                         WHERE binomial_name = ? AND species_file = ? AND model = ? 
                         AND system_template = ? AND user_template = ?
@@ -939,7 +1117,8 @@ class ProcessingManager:
                             'plant_pathogenicity': existing[10],
                             'spore_formation': existing[11],
                             'hemolysis': existing[12],
-                            'cell_shape': existing[13]
+                            'cell_shape': existing[13],
+                            'knowledge_group': existing[14]
                         }
                         
                         # Check if predictions agree
@@ -970,7 +1149,7 @@ class ProcessingManager:
                                 extreme_environment_tolerance = ?, biofilm_formation = ?, 
                                 animal_pathogenicity = ?, biosafety_level = ?, health_association = ?,
                                 host_association = ?, plant_pathogenicity = ?, spore_formation = ?,
-                                hemolysis = ?, cell_shape = ?, timestamp = ?, status = "completed"
+                                hemolysis = ?, cell_shape = ?, knowledge_group = ?, timestamp = ?, status = "completed"
                             WHERE id = ?
                         ''', (
                             phenotype_data['gram_staining'],
@@ -986,6 +1165,7 @@ class ProcessingManager:
                             phenotype_data['spore_formation'],
                             phenotype_data['hemolysis'],
                             phenotype_data['cell_shape'],
+                            phenotype_data['knowledge_group'],
                             timestamp,
                             existing[0]
                         ))
@@ -998,8 +1178,8 @@ class ProcessingManager:
                                                gram_staining, motility, aerophilicity, extreme_environment_tolerance,
                                                biofilm_formation, animal_pathogenicity, biosafety_level, 
                                                health_association, host_association, plant_pathogenicity, 
-                                               spore_formation, hemolysis, cell_shape)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                               spore_formation, hemolysis, cell_shape, knowledge_group)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             species_file, binomial_name, model, system_template, user_template,
                             'completed', '', '', timestamp,
@@ -1015,7 +1195,8 @@ class ProcessingManager:
                             phenotype_data['plant_pathogenicity'],
                             phenotype_data['spore_formation'],
                             phenotype_data['hemolysis'],
-                            phenotype_data['cell_shape']
+                            phenotype_data['cell_shape'],
+                            phenotype_data['knowledge_group']
                         ))
                         results['imported'] += 1
                     
@@ -1129,10 +1310,6 @@ class ProcessingManager:
         self.requests_per_second = max(0.1, min(10.0, requests_per_second))  # Clamp between 0.1 and 10 RPS
         print(f"Rate limit set to {self.requests_per_second} requests per second")
     
-    def can_start_new_job(self):
-        """Check if we can start a new job based on concurrent job limit"""
-        return len(self.running_combinations) < self.max_concurrent_jobs
-    
     def get_already_processed_species(self, species_file, model, system_template, user_template):
         """Get list of species already successfully processed for this combination"""
         conn = sqlite3.connect(db_path)
@@ -1147,6 +1324,102 @@ class ProcessingManager:
         already_processed = set([row[0] for row in cursor.fetchall()])
         conn.close()
         return already_processed
+
+    def _rerun_single_species(self, combination_id, species_file, species_name, model, system_template, user_template, system_template_content, user_template_content):
+        """Re-run a single failed species"""
+        try:
+            self._emit_log(combination_id, f"Re-running failed species: {species_name}")
+            
+            # Track submission
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE combinations SET submitted_species = submitted_species + 1 WHERE id = ?", (combination_id,))
+            conn.commit()
+            conn.close()
+            
+            # Make prediction
+            result = predict_binomial_name(
+                species_name,
+                system_template_content,
+                user_template_content,
+                model,
+                temperature=0.0,
+                verbose=False
+            )
+            
+            # Process result
+            self._process_species_result(combination_id, species_file, species_name, model, 
+                                       system_template, user_template, result)
+            
+            # Update combination statistics
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE combinations SET successful_species = successful_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
+            conn.commit()
+            conn.close()
+            
+            return True
+        
+        except Exception as e:
+            self._emit_log(combination_id, f"Error re-running failed species: {str(e)}")
+            return False
+
+    def _rerun_failed_species(self, combination_id, failed_species):
+        """Re-run all failed species for a combination"""
+        try:
+            self._emit_log(combination_id, f"Re-running {len(failed_species)} failed species")
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            for species_name in failed_species:
+                # Get combination details
+                cursor.execute("""
+                    SELECT species_file, model, system_template, user_template
+                    FROM combinations WHERE id = ?
+                """, (combination_id,))
+                
+                combo_info = cursor.fetchone()
+                if not combo_info:
+                    continue
+                
+                species_file, model, system_template, user_template = combo_info
+                
+                # Get the failed result
+                cursor.execute("""
+                    SELECT id, result, error, timestamp
+                    FROM results 
+                    WHERE species_file = ? AND binomial_name = ? AND model = ? 
+                    AND system_template = ? AND user_template = ? AND status = 'failed'
+                """, (species_file, species_name, model, system_template, user_template))
+                
+                result = cursor.fetchone()
+                if not result:
+                    continue
+                
+                id, result_data, error, timestamp = result
+                
+                # Re-run the failed species
+                system_template_content = read_template_from_file(system_template)
+                user_template_content = read_template_from_file(user_template)
+                
+                # Run in a separate thread
+                thread = threading.Thread(
+                    target=self._rerun_single_species,
+                    args=(combination_id, species_file, species_name, model, 
+                          system_template, user_template, system_template_content, user_template_content)
+                )
+                thread.daemon = True
+                thread.start()
+            
+            conn.commit()
+            conn.close()
+            
+            return True
+        
+        except Exception as e:
+            self._emit_log(combination_id, f"Error re-running failed species: {str(e)}")
+            return False
 
 # Initialize processing manager
 processing_manager = ProcessingManager()
@@ -1194,6 +1467,59 @@ def get_available_template_pairs():
             }
             
     return template_pairs
+
+def get_template_metadata():
+    """Get template metadata with custom names and descriptions."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT system_template, user_template, display_name, description 
+        FROM template_metadata
+    ''')
+    
+    metadata = {}
+    for row in cursor.fetchall():
+        system_template, user_template, display_name, description = row
+        key = (system_template, user_template)
+        metadata[key] = {
+            'display_name': display_name,
+            'description': description
+        }
+    
+    conn.close()
+    return metadata
+
+def get_template_display_info(system_template, user_template):
+    """Get display name and description for template pair from metadata table"""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT display_name, description, template_type 
+        FROM template_metadata 
+        WHERE system_template = ? AND user_template = ?
+    ''', (system_template, user_template))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        return {
+            'display_name': result[0],
+            'description': result[1],
+            'template_type': result[2] if result[2] else 'phenotype'
+        }
+    else:
+        # Return default values based on filename
+        template_name = Path(system_template).stem
+        # Detect template type
+        template_type = detect_template_type(user_template)
+        return {
+            'display_name': template_name,
+            'description': f'Template pair: {template_name}',
+            'template_type': template_type
+        }
 
 def get_popular_models():
     """Get a list of popular models from config."""
@@ -1253,19 +1579,26 @@ def stop_combination_api(combination_id):
 
 @app.route('/api/set_rate_limit', methods=['POST'])
 def set_rate_limit_api():
-    try:
-        data = request.get_json()
-        rate_limit = float(data.get('requests_per_second', 2.0))
-        processing_manager.set_rate_limit(rate_limit)
-        return jsonify({'message': f'Rate limit set to {processing_manager.requests_per_second} requests per second'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    data = request.get_json()
+    requests_per_second = data.get('requests_per_second', 1.0)
+    max_concurrent_requests = data.get('max_concurrent_requests')
+    
+    processing_manager.set_rate_limit(requests_per_second)
+    
+    if max_concurrent_requests is not None:
+        processing_manager.set_max_concurrent_requests(max_concurrent_requests)
+    
+    return jsonify({
+        'message': f'Settings updated successfully',
+        'rate_limit': processing_manager.requests_per_second,
+        'max_concurrent_requests': processing_manager.max_concurrent_requests
+    })
 
 @app.route('/api/get_settings')
 def get_settings_api():
     return jsonify({
         'rate_limit': processing_manager.requests_per_second,
-        'max_concurrent_jobs': processing_manager.max_concurrent_jobs,
+        'max_concurrent_requests': processing_manager.max_concurrent_requests,
         'queue_length': len(processing_manager.job_queue)
     })
 
@@ -1337,6 +1670,135 @@ def compare_page():
     conn.close()
     
     return render_template('compare.html', templates=templates, species_files=species_files)
+
+@app.route('/settings')
+def settings_page():
+    """Settings page for API key and configuration management"""
+    return render_template('settings.html')
+
+@app.route('/templates')
+def templates_page():
+    """Templates page showing all template pairs side by side"""
+    try:
+        template_pairs = get_available_template_pairs()
+        
+        # Create template data for the view
+        template_data = {}
+        for template_name, paths in template_pairs.items():
+            # Read system template
+            with open(paths['system'], 'r', encoding='utf-8') as f:
+                system_content = f.read()
+            
+            # Read user template  
+            with open(paths['user'], 'r', encoding='utf-8') as f:
+                user_content = f.read()
+            
+            # Try to read validation config
+            validation_data = None
+            try:
+                from microbellm.template_config import find_validation_config_for_template, TemplateValidator
+                config_path = find_validation_config_for_template(paths['user'])
+                if config_path:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        validation_content = f.read()
+                    
+                    # Parse validation config to get template info
+                    validator = TemplateValidator(config_path)
+                    template_info = validator.get_template_info()
+                    
+                    # Get expected response info
+                    expected_response = validator.config.get('expected_response', {}) if validator.config else {}
+                    
+                    validation_data = {
+                        'path': config_path,
+                        'content': validation_content,
+                        'info': {
+                            'type': template_info.get('type', 'unknown'),
+                            'description': template_info.get('description', ''),
+                            'required_fields': expected_response.get('required_fields', []),
+                            'optional_fields': expected_response.get('optional_fields', [])
+                        }
+                    }
+            except Exception as e:
+                print(f"Could not load validation config for {template_name}: {e}")
+            
+            # Get display info
+            display_info = get_template_display_info(paths['system'], paths['user'])
+            
+            template_data[template_name] = {
+                'system': {
+                    'path': paths['system'],
+                    'content': system_content
+                },
+                'user': {
+                    'path': paths['user'],
+                    'content': user_content
+                },
+                'validation': validation_data,
+                'display_name': display_info['display_name'],
+                'description': display_info['description']
+            }
+        
+        return render_template('view_template.html', template_data=template_data)
+    
+    except Exception as e:
+        return f"Error loading templates: {str(e)}", 500
+
+@app.route('/api/template_metadata')
+def get_template_metadata_api():
+    """API endpoint to get all template metadata"""
+    try:
+        template_pairs = get_available_template_pairs()
+        metadata = []
+        
+        for template_name, paths in template_pairs.items():
+            display_info = get_template_display_info(paths['system'], paths['user'])
+            # Detect template type
+            template_type = detect_template_type(paths['user'])
+            
+            metadata.append({
+                'template_name': template_name,
+                'system_template': paths['system'],
+                'user_template': paths['user'],
+                'display_name': display_info['display_name'],
+                'description': display_info['description'],
+                'template_type': display_info.get('template_type', template_type)
+            })
+        
+        return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_template_metadata', methods=['POST'])
+def update_template_metadata_api():
+    """API endpoint to update template metadata"""
+    try:
+        data = request.get_json()
+        system_template = data.get('system_template')
+        user_template = data.get('user_template')
+        display_name = data.get('display_name')
+        description = data.get('description')
+        template_type = data.get('template_type', 'phenotype')
+        
+        if not all([system_template, user_template, display_name]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Insert or update template metadata
+        cursor.execute('''
+            INSERT OR REPLACE INTO template_metadata 
+            (system_template, user_template, display_name, description, template_type, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (system_template, user_template, display_name, description or '', template_type))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Template metadata updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/comparison_data')
 def get_comparison_data():
@@ -1429,6 +1891,179 @@ def get_comparison_data():
         return jsonify({
             'comparisons': comparisons,
             'total_comparisons': len(comparisons)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge_analysis_data')
+def get_knowledge_analysis_data():
+    """Get knowledge level analysis data stratified by input type"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all knowledge level results with template information (including failed ones)
+        cursor.execute("""
+            SELECT r.binomial_name, r.species_file, r.model, r.knowledge_group, 
+                   r.system_template, r.user_template, r.status, r.result
+            FROM results r
+            WHERE (r.knowledge_group IS NOT NULL AND r.status = 'completed') 
+               OR r.status = 'failed'
+            ORDER BY r.species_file, r.binomial_name, r.model
+        """)
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        # Process data to extract type information from CSV files and organize by type and model
+        type_model_data = {}
+        
+        # Helper to get type from species file
+        def get_species_type_mapping(species_file):
+            type_mapping = {}
+            try:
+                species_file_path = os.path.join(config.SPECIES_DIR, species_file)
+                
+                with open(species_file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                
+                # Check if this is a CSV file with type information
+                if len(lines) > 0:
+                    header_line = lines[0].strip().lower()
+                    if ',' in header_line and ('type' in header_line or 'category' in header_line):
+                        # This is a CSV with type information
+                        header_parts = [h.strip() for h in header_line.split(',')]
+                        
+                        # Find type column index
+                        type_col_idx = None
+                        for i, col in enumerate(header_parts):
+                            if 'type' in col or 'category' in col:
+                                type_col_idx = i
+                                break
+                        
+                        if type_col_idx is not None:
+                            # Process data lines
+                            for line in lines[1:]:  # Skip header
+                                line = line.strip()
+                                if line and ',' in line:
+                                    parts = [p.strip() for p in line.split(',')]
+                                    if len(parts) > max(0, type_col_idx):
+                                        species_name = parts[0]
+                                        species_type = parts[type_col_idx] if type_col_idx < len(parts) else 'unclassified'
+                                        type_mapping[species_name] = species_type
+                
+                # If no type mapping found, assign all to 'unclassified'
+                if not type_mapping:
+                    from microbellm.utils import filter_species_list
+                    species_list = filter_species_list(lines)
+                    for species in species_list:
+                        type_mapping[species] = 'unclassified'
+                        
+            except Exception as e:
+                print(f"Error reading species file {species_file}: {e}")
+                # Default to unclassified
+                pass
+            
+            return type_mapping
+        
+        # Cache for species type mappings
+        species_type_cache = {}
+        
+        for binomial_name, species_file, model, knowledge_group, system_template, user_template, status, raw_result in results:
+            # Get type mapping for this species file
+            if species_file not in species_type_cache:
+                species_type_cache[species_file] = get_species_type_mapping(species_file)
+            
+            species_type = species_type_cache[species_file].get(binomial_name, 'unclassified')
+            
+            # Get template info for categorization
+            template_key = f"{system_template}|{user_template}"
+            
+            # Initialize nested structure
+            if species_type not in type_model_data:
+                type_model_data[species_type] = {}
+            
+            if template_key not in type_model_data[species_type]:
+                type_model_data[species_type][template_key] = {}
+                
+            if model not in type_model_data[species_type][template_key]:
+                type_model_data[species_type][template_key][model] = {
+                    'limited': 0,
+                    'moderate': 0, 
+                    'extensive': 0,
+                    'NA': 0,
+                    'no_result': 0,
+                    'inference_failed': 0,
+                    'total': 0,
+                    'samples': {
+                        'limited': [],
+                        'moderate': [],
+                        'extensive': [],
+                        'NA': [],
+                        'no_result': [],
+                        'inference_failed': []
+                    }
+                }
+            
+            # Create sample data for tooltip
+            sample_data = {
+                'species': binomial_name,
+                'raw_response': raw_result or 'No response received',
+                'knowledge_group': knowledge_group
+            }
+            
+            # Handle failed inference
+            if status == 'failed':
+                type_model_data[species_type][template_key][model]['inference_failed'] += 1
+                type_model_data[species_type][template_key][model]['samples']['inference_failed'].append(sample_data)
+            elif knowledge_group:
+                # Normalize knowledge group value for completed inferences
+                normalized_knowledge = knowledge_group.lower().strip()
+                if normalized_knowledge in ['limited', 'minimal', 'basic', 'low']:
+                    type_model_data[species_type][template_key][model]['limited'] += 1
+                    type_model_data[species_type][template_key][model]['samples']['limited'].append(sample_data)
+                elif normalized_knowledge in ['moderate', 'medium', 'intermediate']:
+                    type_model_data[species_type][template_key][model]['moderate'] += 1
+                    type_model_data[species_type][template_key][model]['samples']['moderate'].append(sample_data)
+                elif normalized_knowledge in ['extensive', 'comprehensive', 'detailed', 'high', 'full']:
+                    type_model_data[species_type][template_key][model]['extensive'] += 1
+                    type_model_data[species_type][template_key][model]['samples']['extensive'].append(sample_data)
+                elif normalized_knowledge in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
+                    type_model_data[species_type][template_key][model]['NA'] += 1
+                    type_model_data[species_type][template_key][model]['samples']['NA'].append(sample_data)
+                else:
+                    # Unrecognized response - treat as no result
+                    type_model_data[species_type][template_key][model]['no_result'] += 1
+                    type_model_data[species_type][template_key][model]['samples']['no_result'].append(sample_data)
+            else:
+                # Null/empty knowledge_group for completed status - treat as no result (parsing failure)
+                type_model_data[species_type][template_key][model]['no_result'] += 1
+                type_model_data[species_type][template_key][model]['samples']['no_result'].append(sample_data)
+            
+            type_model_data[species_type][template_key][model]['total'] += 1
+        
+        # Format the data for the frontend with template display names
+        formatted_data = {}
+        
+        for species_type, templates in type_model_data.items():
+            formatted_data[species_type] = {}
+            
+            for template_key, models in templates.items():
+                system_template, user_template = template_key.split('|')
+                
+                # Get template display info
+                template_display = get_template_display_info(system_template, user_template)
+                display_name = template_display['display_name']
+                template_type = template_display['template_type']
+                
+                # Only include knowledge templates
+                if template_type == 'knowledge':
+                    formatted_data[species_type][display_name] = models
+        
+        return jsonify({
+            'knowledge_analysis': formatted_data,
+            'total_types': len(formatted_data)
         })
         
     except Exception as e:
@@ -1636,21 +2271,33 @@ def get_combination_details(combination_id):
             SELECT binomial_name, status, result, error, timestamp,
                    gram_staining, motility, aerophilicity, extreme_environment_tolerance,
                    biofilm_formation, animal_pathogenicity, biosafety_level, health_association,
-                   host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape
+                   host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape,
+                   knowledge_group
             FROM results 
             WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
             ORDER BY timestamp
         """, (combo_info[0], combo_info[1], combo_info[2], combo_info[3]))
         
+        # Detect if this is a knowledge template
+        is_knowledge_template = detect_template_type(combo_info[3]) == 'knowledge'
+        
         species_results = []
         for row in cursor.fetchall():
-            species_results.append({
+            result_data = {
                 'binomial_name': row[0],
                 'status': row[1],
                 'result': row[2],
                 'error': row[3],
                 'timestamp': row[4],
-                'phenotypes': {
+                'is_knowledge_template': is_knowledge_template
+            }
+            
+            if is_knowledge_template:
+                # For knowledge templates, include knowledge_group
+                result_data['knowledge_group'] = row[18]  # knowledge_group is the last column
+            else:
+                # For phenotype templates, include phenotypes
+                result_data['phenotypes'] = {
                     'gram_staining': row[5],
                     'motility': row[6],
                     'aerophilicity': row[7],
@@ -1665,13 +2312,17 @@ def get_combination_details(combination_id):
                     'hemolysis': row[16],
                     'cell_shape': row[17]
                 }
-            })
+            
+            species_results.append(result_data)
         
         # Get list of all species that should have been processed
         species_file_path = os.path.join(config.SPECIES_DIR, combo_info[0])
         try:
             with open(species_file_path, 'r', encoding='utf-8') as file:
-                all_species = [line.strip() for line in file.readlines() if line.strip()]
+                lines = file.readlines()
+                # Import the header filtering function
+                from microbellm.utils import filter_species_list
+                all_species = filter_species_list(lines)
         except:
             all_species = []
         
@@ -1931,6 +2582,34 @@ def validate_model_api():
     except Exception as e:
         return jsonify({'valid': False, 'error': f'Validation error: {str(e)}'})
 
+@app.route('/view_template/<template_type>/<template_name>')
+def view_template(template_type, template_name):
+    """View template content in a read-only format"""
+    try:
+        if template_type not in ['system', 'user']:
+            return "Invalid template type", 400
+        
+        if template_type == 'system':
+            template_dir = Path(config.SYSTEM_TEMPLATES_DIR)
+        else:
+            template_dir = Path(config.USER_TEMPLATES_DIR)
+        
+        template_file = template_dir / f"{template_name}.txt"
+        
+        if not template_file.exists():
+            return "Template not found", 404
+        
+        with open(template_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return render_template('view_template.html', 
+                               template_name=template_name,
+                               template_type=template_type,
+                               content=content)
+    
+    except Exception as e:
+        return f"Error reading template: {str(e)}", 500
+
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
@@ -1965,3 +2644,132 @@ if __name__ == '__main__':
 # Reset job statuses on startup
 reset_running_jobs_on_startup()
 job_manager = ProcessingManager() 
+
+@app.route('/api/rerun_failed_species', methods=['POST'])
+def rerun_failed_species_api():
+    """Re-run a single failed species"""
+    try:
+        data = request.get_json()
+        combination_id = data.get('combination_id')
+        species_name = data.get('species_name')
+        
+        if not all([combination_id, species_name]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+        
+        # Get combination details
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT species_file, model, system_template, user_template
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
+        
+        combo_info = cursor.fetchone()
+        if not combo_info:
+            conn.close()
+            return jsonify({'error': 'Combination not found'}), 404
+        
+        species_file, model, system_template, user_template = combo_info
+        
+        # Check if this species has a failed result
+        cursor.execute("""
+            SELECT id FROM results 
+            WHERE species_file = ? AND binomial_name = ? AND model = ? 
+            AND system_template = ? AND user_template = ? AND status = 'failed'
+        """, (species_file, species_name, model, system_template, user_template))
+        
+        failed_result = cursor.fetchone()
+        if not failed_result:
+            conn.close()
+            return jsonify({'error': 'No failed result found for this species'}), 404
+        
+        # Delete the failed result
+        cursor.execute("""
+            DELETE FROM results 
+            WHERE species_file = ? AND binomial_name = ? AND model = ? 
+            AND system_template = ? AND user_template = ? AND status = 'failed'
+        """, (species_file, species_name, model, system_template, user_template))
+        
+        conn.commit()
+        conn.close()
+        
+        # Process this single species
+        system_template_content = read_template_from_file(system_template)
+        user_template_content = read_template_from_file(user_template)
+        
+        # Run in a separate thread
+        thread = threading.Thread(
+            target=processing_manager._rerun_single_species,
+            args=(combination_id, species_file, species_name, model, 
+                  system_template, user_template, system_template_content, user_template_content)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({'success': True, 'message': f'Re-running failed species: {species_name}'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/rerun_all_failed/<int:combination_id>', methods=['POST'])
+def rerun_all_failed_api(combination_id):
+    """Re-run all failed species for a combination"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get combination details
+        cursor.execute("""
+            SELECT species_file, model, system_template, user_template, status
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
+        
+        combo_info = cursor.fetchone()
+        if not combo_info:
+            conn.close()
+            return jsonify({'error': 'Combination not found'}), 404
+        
+        species_file, model, system_template, user_template, status = combo_info
+        
+        # Get all failed species
+        cursor.execute("""
+            SELECT binomial_name FROM results 
+            WHERE species_file = ? AND model = ? AND system_template = ? 
+            AND user_template = ? AND status = 'failed'
+        """, (species_file, model, system_template, user_template))
+        
+        failed_species = [row[0] for row in cursor.fetchall()]
+        
+        if not failed_species:
+            conn.close()
+            return jsonify({'message': 'No failed species to re-run'}), 200
+        
+        # Delete all failed results
+        cursor.execute("""
+            DELETE FROM results 
+            WHERE species_file = ? AND model = ? AND system_template = ? 
+            AND user_template = ? AND status = 'failed'
+        """, (species_file, model, system_template, user_template))
+        
+        # Update combination statistics
+        cursor.execute("""
+            UPDATE combinations 
+            SET failed_species = 0, status = 'pending'
+            WHERE id = ?
+        """, (combination_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        # Process the failed species
+        processing_manager._rerun_failed_species(combination_id, failed_species)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Re-running {len(failed_species)} failed species',
+            'failed_count': len(failed_species)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
