@@ -645,8 +645,29 @@
     }
     
     .legend-color.knowledge-inference-failed {
-        background-color: #dc3545;
-        border: 1px solid #c82333;
+        background-color: #495057;
+        border: 1px solid #343a40;
+    }
+    
+    /* Correlation analysis styles */
+    .strong-positive {
+        color: #28a745 !important;
+    }
+    
+    .moderate-positive {
+        color: #17a2b8 !important;
+    }
+    
+    .weak {
+        color: #6c757d !important;
+    }
+    
+    .moderate-negative {
+        color: #fd7e14 !important;
+    }
+    
+    .strong-negative {
+        color: #dc3545 !important;
     }
     
     .chart-container {
@@ -742,7 +763,7 @@
     }
     
     .bar-segment.knowledge-inference-failed {
-        background-color: #dc3545;
+        background-color: #495057;
         color: white;
     }
     
@@ -1163,6 +1184,7 @@
         html += '<button class="mode-tab active" onclick="showComparisonMode(\'matrix\')">Agreement Matrix</button>';
         html += '<button class="mode-tab" onclick="showComparisonMode(\'na_analysis\')">NA Analysis</button>';
         html += '<button class="mode-tab" onclick="showComparisonMode(\'knowledge_analysis\')">Knowledge Analysis</button>';
+        html += '<button class="mode-tab" onclick="showComparisonMode(\'search_correlation\')">Search Count Correlation</button>';
         
         // Check if we have type data
         const hasTypes = data.comparisons.some(c => c.type && c.type !== 'unclassified');
@@ -1182,7 +1204,14 @@
     function showComparisonMode(mode) {
         // Update tab states
         document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
-        event.target.classList.add('active');
+        
+        // Find and activate the correct tab
+        const tabs = document.querySelectorAll('.mode-tab');
+        tabs.forEach(tab => {
+            if (tab.textContent.includes(getTabDisplayName(mode))) {
+                tab.classList.add('active');
+            }
+        });
         
         // Get current filtered data
         const templateFilter = document.getElementById('templateFilter').value;
@@ -1216,10 +1245,26 @@
             case 'knowledge_analysis':
                 renderKnowledgeAnalysisMode();
                 break;
+            case 'search_correlation':
+                renderSearchCorrelationMode();
+                break;
             case 'by_type':
                 viewContainer.innerHTML = renderByTypeMode(filteredData);
                 break;
         }
+    }
+    
+    function getTabDisplayName(mode) {
+        const modeNames = {
+            'overview': 'Overview',
+            'detailed': 'Detailed',
+            'matrix': 'Agreement Matrix',
+            'na_analysis': 'NA Analysis',
+            'knowledge_analysis': 'Knowledge Analysis',
+            'search_correlation': 'Search Count Correlation',
+            'by_type': 'By Type'
+        };
+        return modeNames[mode] || mode;
     }
     
     function renderOverviewMode(data) {
@@ -1751,113 +1796,337 @@
                     return;
                 }
                 
-                let html = '<h3>Knowledge Level Analysis by Model</h3>';
-                html += '<p style="color: #6c757d; margin-bottom: 20px;">Knowledge level distribution across input types for each model. NA = model returned "NA", No Result = parsing failed, Inference Failed = request failed.</p>';
+                // Store data globally for dataset switching
+                window.knowledgeAnalysisData = data;
                 
-                // Reorganize data by model and input type
-                const modelData = {};
-                const inputTypes = new Set();
-                const templates = new Set();
-                
-                Object.entries(knowledgeData).forEach(([inputType, templateData]) => {
-                    inputTypes.add(inputType);
-                    Object.entries(templateData).forEach(([templateName, models]) => {
-                        templates.add(templateName);
-                        Object.entries(models).forEach(([modelName, stats]) => {
-                            if (!modelData[modelName]) {
-                                modelData[modelName] = {};
-                            }
-                            if (!modelData[modelName][templateName]) {
-                                modelData[modelName][templateName] = {};
-                            }
-                            modelData[modelName][templateName][inputType] = stats;
-                        });
-                    });
-                });
-                
-                const inputTypeArray = Array.from(inputTypes).sort();
-                const templateArray = Array.from(templates).sort();
-                
-                // Create compact table layout for each template
-                templateArray.forEach(templateName => {
-                    html += `<div class="knowledge-analysis-container">`;
-                    html += `<h4 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">${templateName}</h4>`;
-                    
-                    html += `<table class="knowledge-analysis-table">`;
-                    
-                    // Header row
-                    html += `<thead><tr>`;
-                    html += `<th style="text-align: right; background-color: #e9ecef;">Model</th>`;
-                    inputTypeArray.forEach(inputType => {
-                        html += `<th>${inputType.replace(/_/g, ' ')}</th>`;
-                    });
-                    html += `</tr></thead>`;
-                    
-                    // Data rows - sort models by highest limited + NA counts
-                    html += `<tbody>`;
-                    
-                    // Calculate problematic scores for sorting
-                    const modelScores = Object.entries(modelData)
-                        .filter(([modelName, templates]) => templates[templateName])
-                        .map(([modelName, templates]) => {
-                            let totalProblematic = 0;
-                            let totalSamples = 0;
-                            
-                            inputTypeArray.forEach(inputType => {
-                                const data = templates[templateName][inputType];
-                                if (data) {
-                                    totalProblematic += (data.limited || 0) + (data.NA || 0);
-                                    totalSamples += data.total || 0;
-                                }
-                            });
-                            
-                            return {
-                                modelName,
-                                templates: templates[templateName],
-                                problematicCount: totalProblematic,
-                                totalSamples,
-                                problematicRatio: totalSamples > 0 ? totalProblematic / totalSamples : 0
-                            };
-                        })
-                        .sort((a, b) => {
-                            // Primary sort: by problematic ratio (highest first)
-                            if (b.problematicRatio !== a.problematicRatio) {
-                                return b.problematicRatio - a.problematicRatio;
-                            }
-                            // Secondary sort: by absolute count (highest first)
-                            if (b.problematicCount !== a.problematicCount) {
-                                return b.problematicCount - a.problematicCount;
-                            }
-                            // Tertiary sort: by model name alphabetically
-                            return a.modelName.localeCompare(b.modelName);
-                        });
-                    
-                    modelScores.forEach(({modelName, templates}) => {
-                        html += `<tr>`;
-                        html += `<td class="model-name-cell" title="${modelName}">${modelName.split('/').pop()}</td>`;
-                        
-                        inputTypeArray.forEach(inputType => {
-                            html += `<td class="chart-cell">`;
-                            if (templates[inputType]) {
-                                html += createKnowledgeBarChartSingle(templates[inputType], inputType);
-                            } else {
-                                html += '<div class="no-data">No data</div>';
-                            }
-                            html += `</td>`;
-                        });
-                        
-                        html += `</tr>`;
-                    });
-                    html += `</tbody></table>`;
-                    html += `</div>`;
-                });
-                
-                viewContainer.innerHTML = html;
+                // Render the interface with dataset selector
+                renderKnowledgeAnalysisInterface(data);
             })
             .catch(error => {
                 console.error('Error loading knowledge analysis:', error);
                 viewContainer.innerHTML = `<div class="empty-state"><h3>Error loading knowledge analysis</h3><p>${error.message}</p></div>`;
             });
+    }
+    
+    function renderKnowledgeAnalysisInterface(data) {
+        const viewContainer = document.getElementById('comparisonView');
+        const knowledgeData = data.knowledge_analysis;
+        const fileList = data.file_list || Object.keys(knowledgeData);
+        
+        let html = '<h3>Knowledge Level Analysis by Model</h3>';
+        
+        // Dataset and sorting selectors
+        html += '<div class="knowledge-controls" style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">';
+        
+        // Dataset selector - always show if multiple datasets available
+        if (fileList.length > 1) {
+            html += '<div class="filter-group" style="min-width: 300px; flex: 1;">';
+            html += '<label for="knowledgeDatasetSelector" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">Select Dataset:</label>';
+            html += '<select id="knowledgeDatasetSelector" class="form-control" onchange="switchKnowledgeDataset()">';
+            fileList.forEach(filename => {
+                const displayName = filename.replace(/\.(txt|csv)$/i, '');
+                html += `<option value="${filename}">${displayName}</option>`;
+            });
+            html += '</select>';
+            html += '</div>';
+        } else if (fileList.length === 1) {
+            // Show current dataset name even if only one
+            html += '<div class="filter-group" style="min-width: 300px; flex: 1;">';
+            html += '<label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">Dataset:</label>';
+            const displayName = fileList[0].replace(/\.(txt|csv)$/i, '');
+            html += `<div style="padding: 8px 12px; background: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; color: #495057; font-weight: 500;">${displayName}</div>`;
+            html += '</div>';
+        }
+        
+        // Sorting method selector
+        html += '<div class="filter-group" style="min-width: 250px;">';
+        html += '<label for="sortingMethodSelector" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">Sort Models By:</label>';
+        html += '<select id="sortingMethodSelector" class="form-control" onchange="changeSortingMethod()">';
+        html += '<option value="quality_score">Quality Score (Higher = Better)</option>';
+        html += '<option value="extensive_count">Extensive Predictions (Higher = More Overconfident)</option>';
+        html += '<option value="na_count">NA/Failed Predictions (Higher = More Cautious)</option>';
+        html += '<option value="alphabetical">Model Name (Alphabetical)</option>';
+        html += '</select>';
+        html += '</div>';
+        
+        html += '</div>';
+        
+        // Figure description
+        html += '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 25px;">';
+        html += '<h4 style="margin-top: 0; color: #495057;">Figure: Model Performance on Artificial Knowledge Assessment</h4>';
+        html += '<p style="margin-bottom: 15px; line-height: 1.5;"><strong>Description:</strong> This analysis evaluates large language model performance when presented with artificial biological knowledge queries. Each model was tested across different input types using knowledge-based templates that request confidence assessments of biological information. The data presented to models consisted of artificially generated, non-factual biological content designed to test model calibration and tendency toward overconfidence.</p>';
+        html += '<p style="margin-bottom: 15px; line-height: 1.5;"><strong>Methodology:</strong> Models are ranked by quality score (higher = better performance on artificial data). Scoring system: NA/Failed responses = 3 points (optimal - correctly identified unreliable information), Limited confidence = 2 points (appropriately cautious), Moderate confidence = 1 point (overconfident), Extensive confidence = 0 points (severely overconfident on artificial data). Models demonstrating higher rates of NA responses or inference failures when presented with artificial data are considered to have better calibration.</p>';
+        html += '<p style="margin-bottom: 0; line-height: 1.5;"><strong>Legend:</strong> <em>NA</em> = model returned "not available/applicable" or similar responses; <em>No Result</em> = parsing of model response failed; <em>Inference Failed</em> = API request failed. Bar segments are proportional to response category frequencies. Quality scores show average points per prediction with breakdown (total points/total samples).</p>';
+        html += '</div>';
+        
+        // Content container for the selected dataset
+        html += '<div id="knowledgeAnalysisContent">';
+        html += '</div>';
+        
+        viewContainer.innerHTML = html;
+        
+        // Render the first dataset by default
+        if (fileList.length > 0) {
+            renderDatasetAnalysis(fileList[0], knowledgeData);
+        }
+    }
+    
+    function switchKnowledgeDataset() {
+        const selector = document.getElementById('knowledgeDatasetSelector');
+        const selectedFile = selector.value;
+        const knowledgeData = window.knowledgeAnalysisData.knowledge_analysis;
+        
+        renderDatasetAnalysis(selectedFile, knowledgeData);
+    }
+    
+    function changeSortingMethod() {
+        // Re-render the current dataset with new sorting method
+        const datasetSelector = document.getElementById('knowledgeDatasetSelector');
+        const selectedFile = datasetSelector ? datasetSelector.value : Object.keys(window.knowledgeAnalysisData.knowledge_analysis)[0];
+        const knowledgeData = window.knowledgeAnalysisData.knowledge_analysis;
+        
+        renderDatasetAnalysis(selectedFile, knowledgeData);
+    }
+    
+    function renderDatasetAnalysis(selectedFile, knowledgeData) {
+        const contentContainer = document.getElementById('knowledgeAnalysisContent');
+        const fileData = knowledgeData[selectedFile];
+        
+        if (!fileData || !fileData.types) {
+            contentContainer.innerHTML = '<div class="empty-state"><h3>No data available for selected dataset</h3></div>';
+            return;
+        }
+        
+        const displayName = selectedFile.replace(/\.(txt|csv)$/i, '');
+        let html = `<h4 style="color: #2c3e50; margin-bottom: 20px;">Dataset: ${displayName}</h4>`;
+        
+        // Check if this file has type columns or not
+        if (fileData.has_type_column) {
+            // File has type columns - show analysis by types
+            const inputTypes = Object.keys(fileData.types);
+            html += `<p style="color: #6c757d; margin-bottom: 20px;">Analysis by species type (${inputTypes.length} types found)</p>`;
+            
+            // Reorganize data by model and input type
+            const modelData = {};
+            const inputTypeSet = new Set();
+            const templates = new Set();
+            
+            Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+                inputTypeSet.add(inputType);
+                Object.entries(templateData).forEach(([templateName, models]) => {
+                    templates.add(templateName);
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        modelData[modelName][templateName][inputType] = stats;
+                    });
+                });
+            });
+            
+            const inputTypeArray = Array.from(inputTypeSet).sort();
+            const templateArray = Array.from(templates).sort();
+            
+            html += renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData);
+        } else {
+            // File has no type columns - show single analysis
+            const inputTypes = Object.keys(fileData.types);
+            if (inputTypes.length === 1) {
+                const singleType = inputTypes[0];
+                const typeData = fileData.types[singleType];
+                
+                html += `<p style="color: #6c757d; margin-bottom: 20px;">Analysis for all species in dataset</p>`;
+                
+                // Reorganize data by model and template (no input types)
+                const modelData = {};
+                const templates = new Set();
+                
+                Object.entries(typeData).forEach(([templateName, models]) => {
+                    templates.add(templateName);
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        modelData[modelName][templateName][singleType] = stats;
+                    });
+                });
+                
+                const templateArray = Array.from(templates).sort();
+                html += renderTemplateAnalysisTables(templateArray, [singleType], modelData);
+            }
+        }
+        
+        contentContainer.innerHTML = html;
+    }
+    
+    function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) {
+        let html = '';
+        
+        // Get sorting method once at the beginning
+        const sortingSelector = document.getElementById('sortingMethodSelector');
+        const sortingMethod = sortingSelector ? sortingSelector.value : 'quality_score';
+        
+        // Create compact table layout for each template
+        templateArray.forEach(templateName => {
+            html += `<div class="knowledge-analysis-container">`;
+            html += `<h4 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">${templateName}</h4>`;
+            
+            html += `<table class="knowledge-analysis-table">`;
+            
+            // Header row
+            html += `<thead><tr>`;
+            html += `<th style="text-align: right; background-color: #e9ecef;">Model</th>`;
+            inputTypeArray.forEach(inputType => {
+                const displayType = inputType.replace(/_/g, ' ');
+                html += `<th>${displayType}</th>`;
+            });
+            // Dynamic header based on sorting method
+            let scoreHeader = 'Quality Score';
+            switch(sortingMethod) {
+                case 'extensive_count':
+                    scoreHeader = 'Extensive Count';
+                    break;
+                case 'na_count':
+                    scoreHeader = 'NA/Failed Count';
+                    break;
+                case 'alphabetical':
+                    scoreHeader = 'Model Name';
+                    break;
+                default:
+                    scoreHeader = 'Quality Score';
+            }
+            html += `<th style="text-align: center; background-color: #e9ecef; width: 100px; min-width: 100px;">${scoreHeader}</th>`;
+            html += `</tr></thead>`;
+            
+            // Data rows
+            html += `<tbody>`;
+            
+            // Calculate metrics for sorting
+            const modelScores = Object.entries(modelData)
+                .filter(([modelName, templates]) => templates[templateName])
+                .map(([modelName, templates]) => {
+                    let totalQualityScore = 0;
+                    let totalSamples = 0;
+                    let totalExtensive = 0;
+                    let totalNAFailed = 0;
+                    
+                    inputTypeArray.forEach(inputType => {
+                        const data = templates[templateName][inputType];
+                        if (data) {
+                            // Calculate various metrics
+                            const naFailedCount = (data.NA || 0) + (data.no_result || 0) + (data.inference_failed || 0);
+                            const limitedCount = data.limited || 0;
+                            const moderateCount = data.moderate || 0;
+                            const extensiveCount = data.extensive || 0;
+                            
+                            totalQualityScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                            totalSamples += data.total || 0;
+                            totalExtensive += extensiveCount;
+                            totalNAFailed += naFailedCount;
+                        }
+                    });
+                    
+                    return {
+                        modelName,
+                        templates: templates[templateName],
+                        qualityScore: totalQualityScore,
+                        totalSamples,
+                        averageQualityScore: totalSamples > 0 ? totalQualityScore / totalSamples : 0,
+                        totalExtensive,
+                        totalNAFailed,
+                        extensiveRate: totalSamples > 0 ? totalExtensive / totalSamples : 0,
+                        naFailedRate: totalSamples > 0 ? totalNAFailed / totalSamples : 0
+                    };
+                })
+                .sort((a, b) => {
+                    switch(sortingMethod) {
+                        case 'extensive_count':
+                            // Sort by total extensive predictions (higher first = more overconfident)
+                            if (b.totalExtensive !== a.totalExtensive) {
+                                return b.totalExtensive - a.totalExtensive;
+                            }
+                            // Secondary: by extensive rate
+                            if (b.extensiveRate !== a.extensiveRate) {
+                                return b.extensiveRate - a.extensiveRate;
+                            }
+                            break;
+                        case 'na_count':
+                            // Sort by total NA/Failed predictions (higher first = more cautious)
+                            if (b.totalNAFailed !== a.totalNAFailed) {
+                                return b.totalNAFailed - a.totalNAFailed;
+                            }
+                            // Secondary: by NA/Failed rate
+                            if (b.naFailedRate !== a.naFailedRate) {
+                                return b.naFailedRate - a.naFailedRate;
+                            }
+                            break;
+                        case 'alphabetical':
+                            // Sort alphabetically by model name
+                            return a.modelName.localeCompare(b.modelName);
+                        case 'quality_score':
+                        default:
+                            // Sort by quality score (higher is better)
+                            if (b.averageQualityScore !== a.averageQualityScore) {
+                                return b.averageQualityScore - a.averageQualityScore;
+                            }
+                            // Secondary: by total quality score
+                            if (b.qualityScore !== a.qualityScore) {
+                                return b.qualityScore - a.qualityScore;
+                            }
+                            break;
+                    }
+                    // Final fallback: alphabetical by model name
+                    return a.modelName.localeCompare(b.modelName);
+                });
+            
+            modelScores.forEach(({modelName, templates, averageQualityScore, qualityScore, totalSamples, totalExtensive, totalNAFailed, extensiveRate, naFailedRate}) => {
+                html += `<tr>`;
+                html += `<td class="model-name-cell" title="${modelName}">${modelName.split('/').pop()}</td>`;
+                
+                inputTypeArray.forEach(inputType => {
+                    html += `<td class="chart-cell">`;
+                    if (templates[inputType]) {
+                        html += createKnowledgeBarChartSingle(templates[inputType], inputType);
+                    } else {
+                        html += '<div class="no-data">No data</div>';
+                    }
+                    html += `</td>`;
+                });
+                
+                // Add score column based on sorting method
+                html += `<td style="text-align: center; font-size: 11px; color: #495057; font-weight: 600; width: 100px; padding: 4px;">`;
+                if (totalSamples > 0) {
+                    switch(sortingMethod) {
+                        case 'extensive_count':
+                            html += `${totalExtensive}<br><span style="font-size: 9px; color: #6c757d;">(${(extensiveRate * 100).toFixed(1)}%)</span>`;
+                            break;
+                        case 'na_count':
+                            html += `${totalNAFailed}<br><span style="font-size: 9px; color: #6c757d;">(${(naFailedRate * 100).toFixed(1)}%)</span>`;
+                            break;
+                        case 'alphabetical':
+                            html += `<span style="font-size: 10px; font-weight: 500;">${modelName.split('/').pop()}</span>`;
+                            break;
+                        default: // quality_score
+                            html += `${averageQualityScore.toFixed(2)}<br><span style="font-size: 9px; color: #6c757d;">(${qualityScore}/${totalSamples})</span>`;
+                    }
+                } else {
+                    html += '<span style="color: #6c757d; font-style: italic; font-size: 9px;">No data</span>';
+                }
+                html += `</td>`;
+                
+                html += `</tr>`;
+            });
+            html += `</tbody></table>`;
+            html += `</div>`;
+        });
+        
+        return html;
     }
     
     function createKnowledgeBarChart(models, inputType, templateName) {
@@ -2174,6 +2443,615 @@
         }
     }
     
+    // Search Count Correlation Functions
+    function switchCorrelationDataset() {
+        const selectedDataset = document.getElementById('correlationDatasetSelector').value;
+        
+        if (!selectedDataset || !window.correlationAnalysisData) {
+            showCorrelationOverview();
+            return;
+        }
+        
+        const fileData = window.correlationAnalysisData.correlation_data[selectedDataset];
+        
+        // Populate template selector
+        const templateSelector = document.getElementById('correlationTemplateSelector');
+        templateSelector.innerHTML = '<option value="">All Templates</option>';
+        
+        const templates = Object.keys(fileData);
+        templates.forEach(templateName => {
+            const option = document.createElement('option');
+            option.value = templateName;
+            option.textContent = templateName;
+            templateSelector.appendChild(option);
+        });
+        
+        updateCorrelationView();
+    }
+    
+    function updateCorrelationView() {
+        const selectedDataset = document.getElementById('correlationDatasetSelector').value;
+        const selectedTemplate = document.getElementById('correlationTemplateSelector').value;
+        const sortingMethod = document.getElementById('correlationSortingMethod').value;
+        
+        if (!selectedDataset || !window.correlationAnalysisData) {
+            return;
+        }
+        
+        const fileData = window.correlationAnalysisData.correlation_data[selectedDataset];
+        const content = document.getElementById('correlationAnalysisContent');
+        
+        let html = '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 20px;">';
+        html += '<h4 style="margin-top: 0; color: #495057;">Dataset: ' + selectedDataset.replace(/\.(txt|csv)$/i, '') + '</h4>';
+        html += '<p>Correlation between log-transformed search counts and knowledge levels (Limited=1, Moderate=2, Extensive=3).</p>';
+        html += '</div>';
+        
+        // Collect and sort model data
+        let modelResults = [];
+        
+        Object.entries(fileData).forEach(([templateName, models]) => {
+            if (selectedTemplate && templateName !== selectedTemplate) return;
+            
+            Object.entries(models).forEach(([modelName, data]) => {
+                if (data.species_count < 2) return; // Skip models with insufficient data
+                
+                modelResults.push({
+                    modelName,
+                    templateName,
+                    correlation: data.correlation_coefficient,
+                    speciesCount: data.species_count,
+                    knowledgeDist: data.knowledge_distribution,
+                    dataPoints: data.data_points
+                });
+            });
+        });
+        
+        // Sort models based on selected method
+        modelResults.sort((a, b) => {
+            switch(sortingMethod) {
+                case 'correlation':
+                    return b.correlation - a.correlation;
+                case 'correlation_abs':
+                    return Math.abs(b.correlation) - Math.abs(a.correlation);
+                case 'species_count':
+                    return b.speciesCount - a.speciesCount;
+                case 'alphabetical':
+                    return a.modelName.localeCompare(b.modelName);
+                default:
+                    return b.correlation - a.correlation;
+            }
+        });
+        
+        if (modelResults.length === 0) {
+            html += '<div class="empty-state"><h3>No correlation data available</h3><p>No models have sufficient data points for correlation analysis.</p></div>';
+            content.innerHTML = html;
+            return;
+        }
+        
+        // Statistics
+        const avgCorrelation = modelResults.reduce((sum, m) => sum + m.correlation, 0) / modelResults.length;
+        const maxCorrelation = Math.max(...modelResults.map(m => m.correlation));
+        const minCorrelation = Math.min(...modelResults.map(m => m.correlation));
+        
+        html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">';
+        html += `<div style="background: white; border: 2px solid ${avgCorrelation > 0.3 ? '#28a745' : avgCorrelation < -0.3 ? '#dc3545' : '#6c757d'}; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${avgCorrelation.toFixed(3)}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Average Correlation</div>`;
+        html += `</div>`;
+        
+        html += `<div style="background: white; border: 2px solid ${maxCorrelation > 0.5 ? '#28a745' : '#6c757d'}; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${maxCorrelation.toFixed(3)}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Highest Correlation</div>`;
+        html += `</div>`;
+        
+        html += `<div style="background: white; border: 2px solid ${minCorrelation < -0.3 ? '#dc3545' : '#6c757d'}; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${minCorrelation.toFixed(3)}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Lowest Correlation</div>`;
+        html += `</div>`;
+        
+        html += `<div style="background: white; border: 2px solid #6c757d; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${modelResults.length}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Models Analyzed</div>`;
+        html += `</div>`;
+        html += '</div>';
+        
+        // Correlation legend
+        html += '<div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; font-size: 12px;">';
+        html += '<span><strong>Correlation Strength:</strong></span>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 3px; background-color: #28a745;"></span>Strong Positive (≥0.7)</div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 3px; background-color: #17a2b8;"></span>Moderate Positive (0.3-0.7)</div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 3px; background-color: #6c757d;"></span>Weak (-0.3-0.3)</div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 3px; background-color: #fd7e14;"></span>Moderate Negative (-0.7--0.3)</div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 3px; background-color: #dc3545;"></span>Strong Negative (≤-0.7)</div>';
+        html += '</div>';
+        
+        // Add detailed correlation plot showing individual species
+        html += '<div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px;">';
+        html += '<h4 style="margin-top: 0; color: #495057;">Species-Level Knowledge vs Search Count Analysis</h4>';
+        html += '<div id="correlationPlot" style="width: 100%; height: 500px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; overflow-x: auto;">';
+        html += '<svg width="1200" height="500" viewBox="0 0 1200 500" style="min-width: 1200px;">';
+        
+        // Collect all individual data points from all models
+        let allDataPoints = [];
+        const modelColors = {};
+        const colorPalette = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3'];
+        let colorIndex = 0;
+        
+        Object.entries(fileData).forEach(([templateName, models]) => {
+            if (selectedTemplate && templateName !== selectedTemplate) return;
+            
+            Object.entries(models).forEach(([modelName, data]) => {
+                if (!modelColors[modelName]) {
+                    modelColors[modelName] = colorPalette[colorIndex % colorPalette.length];
+                    colorIndex++;
+                }
+                
+                // Add all data points for this model
+                data.data_points.forEach(point => {
+                    allDataPoints.push({
+                        ...point,
+                        model: modelName,
+                        modelColor: modelColors[modelName],
+                        templateName: templateName
+                    });
+                });
+            });
+        });
+        
+        if (allDataPoints.length === 0) {
+            html += '<text x="600" y="250" text-anchor="middle" font-size="16" fill="#666">No data points available for visualization</text>';
+        } else {
+            // Calculate scales
+            const margin = {top: 50, right: 200, bottom: 80, left: 100};
+            const plotWidth = 1200 - margin.left - margin.right;
+            const plotHeight = 500 - margin.top - margin.bottom;
+            
+            const searchCounts = allDataPoints.map(d => d.search_count);
+            const minSearchCount = Math.min(...searchCounts);
+            const maxSearchCount = Math.max(...searchCounts);
+            
+            // Use log scale for x-axis (search counts)
+            const logMin = Math.log10(Math.max(1, minSearchCount));
+            const logMax = Math.log10(maxSearchCount);
+            
+                         // Y-axis: Knowledge levels - map all possible variations
+             const knowledgeLevels = {
+                 // NA variations
+                 'NA': 0, 'na': 0, 'N/A': 0, 'n/a': 0, 'not available': 0, 'not applicable': 0, 'unknown': 0,
+                 // Limited variations
+                 'Limited': 1, 'limited': 1, 'minimal': 1, 'basic': 1, 'low': 1,
+                 // Moderate variations  
+                 'Moderate': 2, 'moderate': 2, 'medium': 2, 'intermediate': 2,
+                 // Extensive variations
+                 'Extensive': 3, 'extensive': 3, 'comprehensive': 3, 'detailed': 3, 'high': 3, 'full': 3
+             };
+             const levelNames = ['NA', 'Limited', 'Moderate', 'Extensive'];
+             
+             // Debug: Log actual knowledge groups found in data
+             const actualKnowledgeGroups = [...new Set(allDataPoints.map(d => d.knowledge_group))];
+             console.log('Actual knowledge groups in data:', actualKnowledgeGroups);
+            
+            // The table-style plot background and axes are created in the new table layout below
+            
+            // Plot title
+            html += `<text x="${margin.left + plotWidth/2}" y="${margin.top - 20}" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Model Performance: Mean Search Count ± SD by Knowledge Level</text>`;
+            
+            // Calculate mean and standard deviation for each model by knowledge level
+            const modelStats = {};
+            
+            // Group data by model and knowledge level
+            allDataPoints.forEach(point => {
+                // Get knowledge level with fallback
+                let knowledgeLevel = knowledgeLevels[point.knowledge_group];
+                if (knowledgeLevel === undefined) {
+                    // Try to categorize unknown values
+                    const kg = (point.knowledge_group || '').toLowerCase().trim();
+                    if (kg.includes('limited') || kg.includes('minimal') || kg.includes('basic') || kg.includes('low')) {
+                        knowledgeLevel = 1;
+                    } else if (kg.includes('moderate') || kg.includes('medium') || kg.includes('intermediate')) {
+                        knowledgeLevel = 2;
+                    } else if (kg.includes('extensive') || kg.includes('comprehensive') || kg.includes('detailed') || kg.includes('high') || kg.includes('full')) {
+                        knowledgeLevel = 3;
+                    } else {
+                        knowledgeLevel = 0; // Default to NA for unrecognized values
+                    }
+                }
+                
+                const modelKey = point.model;
+                const levelKey = knowledgeLevel;
+                
+                if (!modelStats[modelKey]) {
+                    modelStats[modelKey] = {};
+                }
+                if (!modelStats[modelKey][levelKey]) {
+                    modelStats[modelKey][levelKey] = {
+                        searchCounts: [],
+                        color: point.modelColor
+                    };
+                }
+                
+                modelStats[modelKey][levelKey].searchCounts.push(point.search_count);
+            });
+            
+            // Create table-like rows for each model-knowledge combination
+            const rows = [];
+            Object.entries(modelStats).forEach(([modelName, levelData]) => {
+                Object.entries(levelData).forEach(([level, data]) => {
+                    if (data.searchCounts && data.searchCounts.length > 0) {
+                        const levelInt = parseInt(level);
+                        rows.push({
+                            modelName: modelName.split('/').pop(),
+                            fullModelName: modelName,
+                            levelName: levelNames[levelInt],
+                            level: levelInt,
+                            data: data,
+                            color: data.color
+                        });
+                    }
+                });
+            });
+            
+            // Sort rows: first by model name, then by knowledge level (extensive -> limited -> NA)
+            rows.sort((a, b) => {
+                if (a.modelName !== b.modelName) {
+                    return a.modelName.localeCompare(b.modelName);
+                }
+                // Sort knowledge levels: Extensive (3) -> Moderate (2) -> Limited (1) -> NA (0)
+                return b.level - a.level;
+            });
+            
+            // Calculate layout
+            const rowHeight = 30;
+            const totalRows = rows.length;
+            const tableHeight = totalRows * rowHeight;
+            const actualPlotHeight = Math.max(tableHeight + 40, 300);
+            
+            // Update margins for table layout
+            const tableMargin = {top: 50, right: 200, bottom: 80, left: 200};
+            const tableWidth = 1200 - tableMargin.left - tableMargin.right;
+            
+            // Remove old plotting elements and create new table-style plot
+            html = html.replace('<svg width="1200" height="500" viewBox="0 0 1200 500" style="min-width: 1200px;">', `<svg width="1200" height="${actualPlotHeight + 100}" viewBox="0 0 1200 ${actualPlotHeight + 100}" style="min-width: 1200px;">`);
+            
+            // Plot background
+            html += `<rect x="${tableMargin.left}" y="${tableMargin.top}" width="${tableWidth}" height="${actualPlotHeight}" fill="white" stroke="#dee2e6"/>`;
+            
+            // X-axis (bottom)
+            html += `<line x1="${tableMargin.left}" y1="${tableMargin.top + actualPlotHeight}" x2="${tableMargin.left + tableWidth}" y2="${tableMargin.top + actualPlotHeight}" stroke="#333" stroke-width="2"/>`;
+            
+            // Y-axis (left) 
+            html += `<line x1="${tableMargin.left}" y1="${tableMargin.top}" x2="${tableMargin.left}" y2="${tableMargin.top + actualPlotHeight}" stroke="#333" stroke-width="2"/>`;
+            
+            // X-axis labels (log scale)
+            const logTicks = [];
+            for (let log = Math.floor(logMin); log <= Math.ceil(logMax); log++) {
+                logTicks.push(Math.pow(10, log));
+            }
+            
+            logTicks.forEach(tick => {
+                if (tick >= minSearchCount && tick <= maxSearchCount) {
+                    const x = tableMargin.left + ((Math.log10(tick) - logMin) / (logMax - logMin)) * tableWidth;
+                    html += `<line x1="${x}" y1="${tableMargin.top + actualPlotHeight}" x2="${x}" y2="${tableMargin.top + actualPlotHeight + 5}" stroke="#333" stroke-width="1"/>`;
+                    html += `<text x="${x}" y="${tableMargin.top + actualPlotHeight + 20}" text-anchor="middle" font-size="12" fill="#666">${tick >= 1000000 ? (tick/1000000).toFixed(0) + 'M' : tick >= 1000 ? (tick/1000).toFixed(0) + 'K' : tick}</text>`;
+                }
+            });
+            
+            // X-axis title
+            html += `<text x="${tableMargin.left + tableWidth/2}" y="${tableMargin.top + actualPlotHeight + 50}" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Google Search Count (Log Scale)</text>`;
+            
+            // Draw horizontal grid lines and row backgrounds
+            rows.forEach((row, index) => {
+                const y = tableMargin.top + 20 + (index * rowHeight);
+                
+                // Alternating row background
+                if (index % 2 === 0) {
+                    html += `<rect x="${tableMargin.left}" y="${y - rowHeight/2}" width="${tableWidth}" height="${rowHeight}" fill="#f8f9fa" opacity="0.3"/>`;
+                }
+                
+                // Light grid line
+                html += `<line x1="${tableMargin.left}" y1="${y}" x2="${tableMargin.left + tableWidth}" y2="${y}" stroke="#e9ecef" stroke-width="1"/>`;
+            });
+            
+            // Plot data for each row
+            rows.forEach((row, index) => {
+                const y = tableMargin.top + 20 + (index * rowHeight);
+                
+                // Calculate statistics
+                const logSearchCounts = row.data.searchCounts.map(count => Math.log10(Math.max(1, count)));
+                const mean = logSearchCounts.reduce((sum, val) => sum + val, 0) / logSearchCounts.length;
+                const variance = logSearchCounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / logSearchCounts.length;
+                const stdDev = Math.sqrt(variance);
+                
+                // Convert to plot coordinates
+                const meanX = tableMargin.left + ((mean - logMin) / (logMax - logMin)) * tableWidth;
+                const lowerBoundLog = Math.max(logMin, mean - stdDev);
+                const upperBoundLog = Math.min(logMax, mean + stdDev);
+                const lowerX = tableMargin.left + ((lowerBoundLog - logMin) / (logMax - logMin)) * tableWidth;
+                const upperX = tableMargin.left + ((upperBoundLog - logMin) / (logMax - logMin)) * tableWidth;
+                
+                // Draw error bar (horizontal line showing ± SD)
+                html += `<line x1="${lowerX}" y1="${y}" x2="${upperX}" y2="${y}" stroke="#000" stroke-width="4" opacity="0.8"/>`;
+                
+                // Draw caps on error bars
+                const capHeight = 12;
+                html += `<line x1="${lowerX}" y1="${y - capHeight/2}" x2="${lowerX}" y2="${y + capHeight/2}" stroke="#000" stroke-width="3" opacity="0.8"/>`;
+                html += `<line x1="${upperX}" y1="${y - capHeight/2}" x2="${upperX}" y2="${y + capHeight/2}" stroke="#000" stroke-width="3" opacity="0.8"/>`;
+                
+                // Draw mean point
+                const meanLinear = Math.pow(10, mean);
+                const sdLinear = Math.pow(10, stdDev);
+                
+                html += `<circle cx="${meanX}" cy="${y}" r="6" fill="#000" stroke="white" stroke-width="2" opacity="0.9" style="cursor: pointer;">`;
+                html += `<title>${row.modelName} - ${row.levelName}
+Sample Size: ${row.data.searchCounts.length} species
+Mean Search Count: ${meanLinear.toLocaleString()} (log: ${mean.toFixed(2)})
+Std Dev: ±${sdLinear.toLocaleString()} (log: ±${stdDev.toFixed(2)})
+Range: ${Math.pow(10, lowerBoundLog).toLocaleString()} - ${Math.pow(10, upperBoundLog).toLocaleString()}</title>`;
+                html += `</circle>`;
+                
+                // Add row labels on the left
+                html += `<text x="${tableMargin.left - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#333" font-weight="600">${row.modelName}</text>`;
+                html += `<text x="${tableMargin.left - 160}" y="${y + 4}" text-anchor="end" font-size="10" fill="#666" font-style="italic">${row.levelName}</text>`;
+            });
+            
+            // Legend for models
+            html += `<text x="${margin.left + plotWidth + 20}" y="${margin.top + 20}" font-size="14" font-weight="bold" fill="#333">Models</text>`;
+            Object.entries(modelColors).forEach(([modelName, color], index) => {
+                const legendY = margin.top + 45 + (index * 20);
+                const modelShortName = modelName.split('/').pop();
+                html += `<circle cx="${margin.left + plotWidth + 30}" cy="${legendY}" r="6" fill="${color}" stroke="white" stroke-width="1"/>`;
+                html += `<text x="${margin.left + plotWidth + 45}" y="${legendY + 4}" font-size="12" fill="#333">${modelShortName}</text>`;
+            });
+        }
+        
+        html += '</svg>';
+        html += '</div>';
+        
+        // Add debug information about knowledge groups
+        if (allDataPoints.length > 0) {
+            const knowledgeGroupCounts = {};
+            allDataPoints.forEach(point => {
+                const kg = point.knowledge_group || 'null/undefined';
+                knowledgeGroupCounts[kg] = (knowledgeGroupCounts[kg] || 0) + 1;
+            });
+            
+            html += '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; margin-top: 10px; font-size: 11px;">';
+            html += '<strong>Debug - Knowledge Groups Found:</strong> ';
+            html += Object.entries(knowledgeGroupCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([kg, count]) => `${kg} (${count})`)
+                .join(', ');
+            html += '</div>';
+        }
+        
+        html += '<p style="color: #6c757d; font-size: 12px; margin-top: 10px;">Each row shows one model-knowledge level combination. Horizontal bars represent mean search count ± 1 standard deviation. Models are grouped by name with knowledge levels sorted from extensive to limited to NA. Hover circles for detailed statistics. X-axis uses log scale.</p>';
+        html += '</div>';
+
+        // Add legend for knowledge distribution
+        html += '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 20px;">';
+        html += '<h5 style="margin-top: 0; margin-bottom: 10px; color: #495057;">Knowledge Distribution Legend</h5>';
+        html += '<div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><div style="width: 16px; height: 16px; background-color: #ffc107; border-radius: 3px;"></div><span style="font-size: 12px;">Limited Confidence</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><div style="width: 16px; height: 16px; background-color: #17a2b8; border-radius: 3px;"></div><span style="font-size: 12px;">Moderate Confidence</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><div style="width: 16px; height: 16px; background-color: #28a745; border-radius: 3px;"></div><span style="font-size: 12px;">Extensive Confidence</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 8px;"><div style="width: 16px; height: 16px; background-color: #6c757d; border-radius: 3px;"></div><span style="font-size: 12px;">NA/Failed</span></div>';
+        html += '</div>';
+        html += '<p style="margin-bottom: 0; margin-top: 10px; font-size: 11px; color: #6c757d;">Bar width is proportional to count. Numbers shown when space permits. Hover for exact percentages.</p>';
+        html += '</div>';
+
+        // Create table
+        html += '<table class="comparison-table">';
+        html += '<thead><tr>';
+        html += '<th>Model</th>';
+        html += '<th style="text-align: center;">Correlation</th>';
+        html += '<th style="text-align: center; width: 450px;">Knowledge Distribution</th>';
+        html += '<th style="text-align: center;">Search Popularity Alignment</th>';
+        html += '</tr></thead><tbody>';
+        
+        modelResults.forEach(result => {
+            const correlationClass = getCorrelationClass(result.correlation);
+            const interpretation = getCorrelationInterpretation(result.correlation);
+            
+            html += '<tr>';
+            html += `<td class="model-name-cell" title="${result.modelName}">${result.modelName.split('/').pop()}</td>`;
+            html += `<td style="text-align: center; font-weight: 600; font-size: 16px;" class="${correlationClass}">${result.correlation.toFixed(3)}</td>`;
+            html += `<td style="text-align: center;">${renderKnowledgeDistribution(result.knowledgeDist, result.speciesCount)}</td>`;
+            html += `<td style="text-align: center; font-size: 12px; color: #495057;">${interpretation}</td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        
+        content.innerHTML = html;
+    }
+    
+    function showCorrelationOverview() {
+        const content = document.getElementById('correlationAnalysisContent');
+        
+        let html = '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 20px;">';
+        html += '<h4 style="margin-top: 0; color: #495057;">Overview</h4>';
+        html += '<p>Select a dataset above to view detailed correlation analysis between search counts and knowledge predictions.</p>';
+        html += '</div>';
+        
+        let totalDatasets = window.correlationAnalysisData.files_with_search_counts.length;
+        let totalModels = 0;
+        let avgCorrelation = 0;
+        let correlationCount = 0;
+        
+        // Calculate overview statistics
+        window.correlationAnalysisData.files_with_search_counts.forEach(filename => {
+            const fileData = window.correlationAnalysisData.correlation_data[filename];
+            Object.values(fileData).forEach(templateData => {
+                Object.values(templateData).forEach(modelData => {
+                    totalModels++;
+                    avgCorrelation += modelData.correlation_coefficient;
+                    correlationCount++;
+                });
+            });
+        });
+        
+        avgCorrelation = correlationCount > 0 ? avgCorrelation / correlationCount : 0;
+        
+        html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">';
+        html += `<div style="background: white; border: 2px solid #6c757d; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${totalDatasets}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Datasets with Search Counts</div>`;
+        html += `</div>`;
+        
+        html += `<div style="background: white; border: 2px solid #6c757d; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${totalModels}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Total Model Analyses</div>`;
+        html += `</div>`;
+        
+        const correlationClass = avgCorrelation > 0.3 ? '#28a745' : avgCorrelation < -0.3 ? '#dc3545' : '#6c757d';
+        html += `<div style="background: white; border: 2px solid ${correlationClass}; border-radius: 8px; padding: 20px; text-align: center;">`;
+        html += `<div style="font-size: 28px; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${avgCorrelation.toFixed(3)}</div>`;
+        html += `<div style="font-size: 14px; color: #6c757d; font-weight: 500;">Average Correlation</div>`;
+        html += `</div>`;
+        
+        html += '</div>';
+        
+        content.innerHTML = html;
+    }
+    
+    function getCorrelationClass(correlation) {
+        if (correlation >= 0.7) return 'strong-positive';
+        if (correlation >= 0.3) return 'moderate-positive';
+        if (correlation <= -0.7) return 'strong-negative';
+        if (correlation <= -0.3) return 'moderate-negative';
+        return 'weak';
+    }
+    
+    function getCorrelationColor(correlation) {
+        if (correlation >= 0.7) return '#28a745';
+        if (correlation >= 0.3) return '#17a2b8';
+        if (correlation <= -0.7) return '#dc3545';
+        if (correlation <= -0.3) return '#fd7e14';
+        return '#6c757d';
+    }
+    
+    function getCorrelationInterpretation(correlation) {
+        if (correlation >= 0.7) return 'Excellent alignment';
+        if (correlation >= 0.5) return 'Good alignment';
+        if (correlation >= 0.3) return 'Moderate alignment';
+        if (correlation >= 0.1) return 'Weak positive';
+        if (correlation >= -0.1) return 'No relationship';
+        if (correlation >= -0.3) return 'Weak negative';
+        if (correlation >= -0.5) return 'Moderate contrarian';
+        return 'Strong contrarian';
+    }
+    
+    function renderKnowledgeDistribution(dist, total) {
+        const maxWidth = 400; // Made much wider to accommodate large numbers
+        let html = '<div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">';
+        
+        // Bar chart with numbers
+        html += '<div style="display: flex; gap: 2px; justify-content: center; align-items: center; width: ' + maxWidth + 'px; position: relative;">';
+        
+        const categories = ['limited', 'moderate', 'extensive', 'NA'];
+        const colors = ['#ffc107', '#17a2b8', '#28a745', '#6c757d']; // More distinct colors
+        const labels = ['Limited', 'Moderate', 'Extensive', 'NA'];
+        
+        categories.forEach((category, index) => {
+            const count = dist[category] || 0;
+            const percentage = total > 0 ? (count / total) * 100 : 0;
+            const width = total > 0 ? Math.max(8, (count / total) * maxWidth) : 0; // Increased minimum width
+            
+            if (count > 0) {
+                html += `<div style="height: 28px; border-radius: 4px; cursor: help; background-color: ${colors[index]}; border: 1px solid #fff; width: ${width}px; display: flex; align-items: center; justify-content: center; color: ${index === 0 ? '#333' : '#fff'}; font-size: 11px; font-weight: 600; position: relative; min-width: 40px;" title="${labels[index]}: ${count} species (${percentage.toFixed(1)}%)">`;
+                
+                // Show number if there's enough space or if it's a significant count
+                if (width > 30 || count >= 5) {
+                    html += `${count}`;
+                }
+                
+                html += `</div>`;
+            }
+        });
+        
+        html += '</div>';
+        
+        // Summary text below the bar
+        html += '<div style="font-size: 10px; color: #6c757d; text-align: center; line-height: 1.2;">';
+        const summary = [];
+        categories.forEach((category, index) => {
+            const count = dist[category] || 0;
+            if (count > 0) {
+                summary.push(`${labels[index]}: ${count}`);
+            }
+        });
+        html += summary.join(' | ');
+        html += '</div>';
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function renderSearchCorrelationMode() {
+        // Fetch correlation data and render
+        fetch('/api/search_count_correlation')
+            .then(response => response.json())
+            .then(data => {
+                window.correlationAnalysisData = data;
+                const viewContainer = document.getElementById('comparisonView');
+                
+                let html = '<div style="margin-bottom: 20px;">';
+                html += '<h3>Search Count Correlation Analysis</h3>';
+                html += '<p style="color: #6c757d; margin-bottom: 20px;">Analyze the correlation between Google search result counts and LLM knowledge predictions.</p>';
+                
+                // Check if we have search count data
+                if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                    html += '<div class="empty-state">';
+                    html += '<h3>No search count data available</h3>';
+                    html += '<p>No CSV/TSV files with search count columns were found in the data directory.</p>';
+                    html += '</div>';
+                    viewContainer.innerHTML = html;
+                    return;
+                }
+                
+                // Dataset selector
+                html += '<div style="display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; flex-wrap: wrap;">';
+                html += '<div style="flex: 1; min-width: 200px;">';
+                html += '<label for="correlationDatasetSelector" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">Dataset:</label>';
+                html += '<select id="correlationDatasetSelector" class="form-control" onchange="switchCorrelationDataset()">';
+                html += '<option value="">Select a dataset...</option>';
+                data.files_with_search_counts.forEach(filename => {
+                    html += `<option value="${filename}">${filename.replace(/\.(txt|csv)$/i, '')}</option>`;
+                });
+                html += '</select>';
+                html += '</div>';
+                
+                html += '<div style="flex: 1; min-width: 200px;">';
+                html += '<label for="correlationTemplateSelector" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">Template:</label>';
+                html += '<select id="correlationTemplateSelector" class="form-control" onchange="updateCorrelationView()">';
+                html += '<option value="">All Templates</option>';
+                html += '</select>';
+                html += '</div>';
+                
+                html += '<div style="flex: 1; min-width: 200px;">';
+                html += '<label for="correlationSortingMethod" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">Sort by:</label>';
+                html += '<select id="correlationSortingMethod" class="form-control" onchange="updateCorrelationView()">';
+                html += '<option value="correlation">Correlation (highest first)</option>';
+                html += '<option value="correlation_abs">Absolute correlation</option>';
+                html += '<option value="species_count">Species count</option>';
+                html += '<option value="alphabetical">Model name (A-Z)</option>';
+                html += '</select>';
+                html += '</div>';
+                html += '</div>';
+                
+                html += '<div id="correlationAnalysisContent">';
+                html += '</div>';
+                html += '</div>';
+                
+                viewContainer.innerHTML = html;
+                showCorrelationOverview();
+            })
+            .catch(error => {
+                console.error('Error fetching correlation data:', error);
+                const viewContainer = document.getElementById('comparisonView');
+                viewContainer.innerHTML = '<div class="empty-state"><h3>Error loading correlation data</h3><p>Failed to fetch search count correlation data. Please try again.</p></div>';
+            });
+    }
 
 </script>
 {% endblock %} 

@@ -89,6 +89,7 @@ class ProcessingManager:
                 received_species INTEGER DEFAULT 0,
                 successful_species INTEGER DEFAULT 0,
                 retried_species INTEGER DEFAULT 0,
+                timeout_species INTEGER DEFAULT 0,
                 created_at TIMESTAMP,
                 started_at TIMESTAMP,
                 completed_at TIMESTAMP,
@@ -195,7 +196,8 @@ class ProcessingManager:
             ('submitted_species', 'INTEGER DEFAULT 0'),
             ('received_species', 'INTEGER DEFAULT 0'),
             ('successful_species', 'INTEGER DEFAULT 0'),
-            ('retried_species', 'INTEGER DEFAULT 0')
+            ('retried_species', 'INTEGER DEFAULT 0'),
+            ('timeout_species', 'INTEGER DEFAULT 0')
         ]
         
         for column_name, column_type in progress_columns:
@@ -500,6 +502,9 @@ class ProcessingManager:
             self._process_species_result(combination_id, species_file, species_name, model, 
                                        system_template, user_template, result)
                                        
+        except TimeoutError as e:
+            self._process_species_timeout(combination_id, species_file, species_name, model, 
+                                        system_template, user_template, str(e))
         except Exception as e:
             self._process_species_error(combination_id, species_file, species_name, model, 
                                       system_template, user_template, str(e))
@@ -706,12 +711,25 @@ class ProcessingManager:
         conn.commit()
         conn.close()
 
+    def _process_species_timeout(self, combination_id, species_file, species_name, model, system_template, user_template, error_message):
+        """Process a timeout during species prediction"""
+        self._emit_log(combination_id, f"⏱️ Timeout processing {species_name}: {error_message}")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, error, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (species_file, species_name, model, system_template, user_template, 'timeout', error_message, datetime.now()))
+        cursor.execute("UPDATE combinations SET timeout_species = timeout_species + 1 WHERE id = ?", (combination_id,))
+        conn.commit()
+        conn.close()
+
     def _emit_progress_update(self, combination_id):
         """Emit detailed progress update"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT total_species, submitted_species, received_species, successful_species, failed_species, completed_species 
+            SELECT total_species, submitted_species, received_species, successful_species, failed_species, completed_species, timeout_species 
             FROM combinations WHERE id = ?
         """, (combination_id,))
         progress = cursor.fetchone()
@@ -726,7 +744,8 @@ class ProcessingManager:
                 'received': progress[2],
                 'successful': progress[3],
                 'failed': progress[4],
-                'completed': progress[5]
+                'completed': progress[5],
+                'timeouts': progress[6]
             })
 
     def _finalize_combination(self, combination_id):
@@ -764,7 +783,7 @@ class ProcessingManager:
         cursor.execute('''
             SELECT id, species_file, model, system_template, user_template, 
                    status, total_species, completed_species, failed_species,
-                   submitted_species, received_species, successful_species, retried_species
+                   submitted_species, received_species, successful_species, retried_species, timeout_species
             FROM combinations
         ''')
         
@@ -783,7 +802,8 @@ class ProcessingManager:
                 'submitted_species': row[9] or 0,
                 'received_species': row[10] or 0,
                 'successful_species': row[11] or 0,
-                'retried_species': row[12] or 0
+                'retried_species': row[12] or 0,
+                'timeout_species': row[13] or 0
             })
         
         conn.close()
@@ -871,6 +891,7 @@ class ProcessingManager:
                             'successful': combo['successful_species'],
                             'failed': combo['failed_species'],
                             'retried': combo['retried_species'],
+                            'timeouts': combo['timeout_species'],
                             'imported': was_imported
                         }
                     else:
@@ -1328,14 +1349,7 @@ class ProcessingManager:
     def _rerun_single_species(self, combination_id, species_file, species_name, model, system_template, user_template, system_template_content, user_template_content):
         """Re-run a single failed species"""
         try:
-            self._emit_log(combination_id, f"Re-running failed species: {species_name}")
-            
-            # Track submission
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("UPDATE combinations SET submitted_species = submitted_species + 1 WHERE id = ?", (combination_id,))
-            conn.commit()
-            conn.close()
+            self._emit_log(combination_id, f"Re-running species: {species_name}")
             
             # Make prediction
             result = predict_binomial_name(
@@ -1351,17 +1365,58 @@ class ProcessingManager:
             self._process_species_result(combination_id, species_file, species_name, model, 
                                        system_template, user_template, result)
             
-            # Update combination statistics
+            # Update combination statistics - don't increment counters since species was already counted
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            cursor.execute("UPDATE combinations SET successful_species = successful_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
+            
+            # Get current counts to recalculate properly
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_results,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful_count,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+                    SUM(CASE WHEN status = 'timeout' THEN 1 ELSE 0 END) as timeout_count
+                FROM results 
+                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+            """, (species_file, model, system_template, user_template))
+            
+            counts = cursor.fetchone()
+            if counts:
+                total_results, successful_count, failed_count, timeout_count = counts
+                completed_count = successful_count + failed_count + timeout_count
+                
+                # Determine the combination status based on current results
+                cursor.execute("SELECT total_species FROM combinations WHERE id = ?", (combination_id,))
+                total_species_result = cursor.fetchone()
+                total_species = total_species_result[0] if total_species_result else 0
+                
+                if completed_count >= total_species:
+                    new_status = 'completed'
+                elif completed_count > 0:
+                    new_status = 'completed'  # Partially completed is still considered completed
+                else:
+                    new_status = 'pending'
+                
+                cursor.execute("""
+                    UPDATE combinations 
+                    SET successful_species = ?, failed_species = ?, timeout_species = ?, 
+                        completed_species = ?, received_species = ?, status = ?
+                    WHERE id = ?
+                """, (successful_count, failed_count, timeout_count, completed_count, total_results, new_status, combination_id))
+            
             conn.commit()
             conn.close()
+            
+            # Emit progress update to refresh the dashboard
+            self._emit_progress_update(combination_id)
+            
+            # Log the updated statistics for debugging
+            self._emit_log(combination_id, f"Updated statistics - Success: {successful_count}, Failed: {failed_count}, Timeouts: {timeout_count}, Status: {new_status}")
             
             return True
         
         except Exception as e:
-            self._emit_log(combination_id, f"Error re-running failed species: {str(e)}")
+            self._emit_log(combination_id, f"Error re-running species: {str(e)}")
             return False
 
     def _rerun_failed_species(self, combination_id, failed_species):
@@ -1671,6 +1726,11 @@ def compare_page():
     
     return render_template('compare.html', templates=templates, species_files=species_files)
 
+@app.route('/correlation')
+def correlation_page():
+    """Search count correlation analysis page"""
+    return render_template('correlation.html')
+
 @app.route('/settings')
 def settings_page():
     """Settings page for API key and configuration management"""
@@ -1896,6 +1956,201 @@ def get_comparison_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/search_count_correlation')
+def get_search_count_correlation():
+    """Get correlation analysis between Google search counts and knowledge level predictions"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all knowledge level results with template information
+        cursor.execute("""
+            SELECT r.binomial_name, r.species_file, r.model, r.knowledge_group, 
+                   r.system_template, r.user_template, r.status
+            FROM results r
+            WHERE r.knowledge_group IS NOT NULL AND r.status = 'completed'
+            ORDER BY r.species_file, r.binomial_name, r.model
+        """)
+        
+        knowledge_results = cursor.fetchall()
+        conn.close()
+        
+        # Process data to extract search count information and organize correlations
+        correlation_data = {}
+        
+        # Helper to get search count from species file
+        def get_search_count_mapping(species_file):
+            search_count_mapping = {}
+            try:
+                species_file_path = os.path.join(config.SPECIES_DIR, species_file)
+                
+                with open(species_file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                
+                # Check if this is a file with search count information (CSV or TSV)
+                if len(lines) > 0:
+                    header_line = lines[0].strip().lower()
+                    # Check for both comma and tab separated formats
+                    delimiter = None
+                    if ',' in header_line and ('search count' in header_line or 'search_count' in header_line):
+                        delimiter = ','
+                    elif '\t' in header_line and ('search count' in header_line or 'search_count' in header_line):
+                        delimiter = '\t'
+                    
+                    if delimiter:
+                        # This is a file with search count information
+                        header_parts = [h.strip() for h in header_line.split(delimiter)]
+                        
+                        # Find search count column index
+                        search_count_col_idx = None
+                        for i, col in enumerate(header_parts):
+                            if 'search count' in col or 'search_count' in col:
+                                search_count_col_idx = i
+                                break
+                        
+                        if search_count_col_idx is not None:
+                            # Process data lines
+                            for line in lines[1:]:  # Skip header
+                                line = line.strip()
+                                if line and delimiter in line:
+                                    parts = [p.strip() for p in line.split(delimiter)]
+                                    if len(parts) > search_count_col_idx:
+                                        species_name = parts[0]
+                                        try:
+                                            search_count = int(parts[search_count_col_idx])
+                                            search_count_mapping[species_name] = search_count
+                                        except (ValueError, IndexError):
+                                            # Skip invalid search counts
+                                            pass
+                        
+            except Exception as e:
+                print(f"Error reading species file {species_file}: {e}")
+            
+            return search_count_mapping
+        
+        # Process knowledge results and match with search counts
+        for binomial_name, species_file, model, knowledge_group, system_template, user_template, status in knowledge_results:
+            # Get search count mapping for this species file
+            search_count_mapping = get_search_count_mapping(species_file)
+            
+            # Skip files without search count data
+            if not search_count_mapping:
+                continue
+                
+            # Get search count for this species
+            search_count = search_count_mapping.get(binomial_name)
+            if search_count is None:
+                # Fallback for old data where the full line might be the species name
+                cleaned_name = binomial_name.split('\t')[0].strip()
+                search_count = search_count_mapping.get(cleaned_name)
+
+            if search_count is None:
+                continue
+            
+            # Get template display info
+            template_display = get_template_display_info(system_template, user_template)
+            display_name = template_display['display_name']
+            template_type = template_display['template_type']
+            
+            # Only include knowledge templates
+            if template_type != 'knowledge':
+                continue
+            
+            # Initialize data structure
+            if species_file not in correlation_data:
+                correlation_data[species_file] = {}
+            
+            if display_name not in correlation_data[species_file]:
+                correlation_data[species_file][display_name] = {}
+            
+            if model not in correlation_data[species_file][display_name]:
+                correlation_data[species_file][display_name][model] = {
+                    'data_points': [],
+                    'species_count': 0,
+                    'correlation_coefficient': 0,
+                    'knowledge_distribution': {'limited': 0, 'moderate': 0, 'extensive': 0, 'NA': 0}
+                }
+            
+            # Convert knowledge level to numerical score for correlation
+            knowledge_score = 0
+            normalized_knowledge = knowledge_group.lower().strip()
+            if normalized_knowledge in ['limited', 'minimal', 'basic', 'low']:
+                knowledge_score = 1
+                correlation_data[species_file][display_name][model]['knowledge_distribution']['limited'] += 1
+            elif normalized_knowledge in ['moderate', 'medium', 'intermediate']:
+                knowledge_score = 2
+                correlation_data[species_file][display_name][model]['knowledge_distribution']['moderate'] += 1
+            elif normalized_knowledge in ['extensive', 'comprehensive', 'detailed', 'high', 'full']:
+                knowledge_score = 3
+                correlation_data[species_file][display_name][model]['knowledge_distribution']['extensive'] += 1
+            elif normalized_knowledge in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
+                knowledge_score = 0  # Exclude NA from correlation
+                correlation_data[species_file][display_name][model]['knowledge_distribution']['NA'] += 1
+                continue  # Skip NA values for correlation calculation
+            
+            # Add data point
+            correlation_data[species_file][display_name][model]['data_points'].append({
+                'species': binomial_name,
+                'search_count': search_count,
+                'knowledge_score': knowledge_score,
+                'knowledge_group': knowledge_group
+            })
+        
+        # Calculate correlations for each model
+        import math
+        
+        def calculate_correlation(data_points):
+            """Calculate Pearson correlation coefficient"""
+            if len(data_points) < 2:
+                return 0, 0  # correlation, p_value placeholder
+            
+            n = len(data_points)
+            x_values = [point['search_count'] for point in data_points]
+            y_values = [point['knowledge_score'] for point in data_points]
+            
+            # Use log transformation for search counts to handle wide range
+            x_log = [math.log10(x) if x > 0 else 0 for x in x_values]
+            
+            # Calculate means
+            x_mean = sum(x_log) / n
+            y_mean = sum(y_values) / n
+            
+            # Calculate correlation coefficient
+            numerator = sum((x_log[i] - x_mean) * (y_values[i] - y_mean) for i in range(n))
+            x_variance = sum((x_log[i] - x_mean) ** 2 for i in range(n))
+            y_variance = sum((y_values[i] - y_mean) ** 2 for i in range(n))
+            
+            if x_variance == 0 or y_variance == 0:
+                return 0, 0
+            
+            correlation = numerator / (math.sqrt(x_variance) * math.sqrt(y_variance))
+            
+            # Simple p-value approximation (for display purposes)
+            # Real p-value calculation would require proper statistical library
+            t_stat = correlation * math.sqrt((n - 2) / (1 - correlation ** 2)) if abs(correlation) < 1 else 0
+            p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
+            
+            return correlation, p_value
+        
+        # Calculate correlations and update data
+        for species_file in correlation_data:
+            for template_name in correlation_data[species_file]:
+                for model in correlation_data[species_file][template_name]:
+                    model_data = correlation_data[species_file][template_name][model]
+                    correlation, p_value = calculate_correlation(model_data['data_points'])
+                    model_data['correlation_coefficient'] = correlation
+                    model_data['p_value'] = p_value
+                    model_data['species_count'] = len(model_data['data_points'])
+        
+        return jsonify({
+            'correlation_data': correlation_data,
+            'files_with_search_counts': list(correlation_data.keys()),
+            'total_files': len(correlation_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/knowledge_analysis_data')
 def get_knowledge_analysis_data():
     """Get knowledge level analysis data stratified by input type"""
@@ -1916,12 +2171,13 @@ def get_knowledge_analysis_data():
         results = cursor.fetchall()
         conn.close()
         
-        # Process data to extract type information from CSV files and organize by type and model
-        type_model_data = {}
+        # Process data to organize by species file and then by type within each file
+        file_data = {}
         
         # Helper to get type from species file
         def get_species_type_mapping(species_file):
             type_mapping = {}
+            has_type_column = False
             try:
                 species_file_path = os.path.join(config.SPECIES_DIR, species_file)
                 
@@ -1943,6 +2199,7 @@ def get_knowledge_analysis_data():
                                 break
                         
                         if type_col_idx is not None:
+                            has_type_column = True
                             # Process data lines
                             for line in lines[1:]:  # Skip header
                                 line = line.strip()
@@ -1953,42 +2210,50 @@ def get_knowledge_analysis_data():
                                         species_type = parts[type_col_idx] if type_col_idx < len(parts) else 'unclassified'
                                         type_mapping[species_name] = species_type
                 
-                # If no type mapping found, assign all to 'unclassified'
+                # If no type mapping found, assign all to the filename (without extension)
                 if not type_mapping:
                     from microbellm.utils import filter_species_list
                     species_list = filter_species_list(lines)
+                    file_label = os.path.splitext(species_file)[0]  # Use filename without extension
                     for species in species_list:
-                        type_mapping[species] = 'unclassified'
+                        type_mapping[species] = file_label
                         
             except Exception as e:
                 print(f"Error reading species file {species_file}: {e}")
-                # Default to unclassified
+                # Default to filename
                 pass
             
-            return type_mapping
+            return type_mapping, has_type_column
         
         # Cache for species type mappings
         species_type_cache = {}
+        file_has_types = {}
         
         for binomial_name, species_file, model, knowledge_group, system_template, user_template, status, raw_result in results:
             # Get type mapping for this species file
             if species_file not in species_type_cache:
-                species_type_cache[species_file] = get_species_type_mapping(species_file)
+                species_type_cache[species_file], file_has_types[species_file] = get_species_type_mapping(species_file)
             
             species_type = species_type_cache[species_file].get(binomial_name, 'unclassified')
             
             # Get template info for categorization
             template_key = f"{system_template}|{user_template}"
             
-            # Initialize nested structure
-            if species_type not in type_model_data:
-                type_model_data[species_type] = {}
+            # Initialize nested structure: file -> type -> template -> model
+            if species_file not in file_data:
+                file_data[species_file] = {
+                    'has_type_column': file_has_types[species_file],
+                    'types': {}
+                }
             
-            if template_key not in type_model_data[species_type]:
-                type_model_data[species_type][template_key] = {}
+            if species_type not in file_data[species_file]['types']:
+                file_data[species_file]['types'][species_type] = {}
+            
+            if template_key not in file_data[species_file]['types'][species_type]:
+                file_data[species_file]['types'][species_type][template_key] = {}
                 
-            if model not in type_model_data[species_type][template_key]:
-                type_model_data[species_type][template_key][model] = {
+            if model not in file_data[species_file]['types'][species_type][template_key]:
+                file_data[species_file]['types'][species_type][template_key][model] = {
                     'limited': 0,
                     'moderate': 0, 
                     'extensive': 0,
@@ -2015,55 +2280,62 @@ def get_knowledge_analysis_data():
             
             # Handle failed inference
             if status == 'failed':
-                type_model_data[species_type][template_key][model]['inference_failed'] += 1
-                type_model_data[species_type][template_key][model]['samples']['inference_failed'].append(sample_data)
+                file_data[species_file]['types'][species_type][template_key][model]['inference_failed'] += 1
+                file_data[species_file]['types'][species_type][template_key][model]['samples']['inference_failed'].append(sample_data)
             elif knowledge_group:
                 # Normalize knowledge group value for completed inferences
                 normalized_knowledge = knowledge_group.lower().strip()
                 if normalized_knowledge in ['limited', 'minimal', 'basic', 'low']:
-                    type_model_data[species_type][template_key][model]['limited'] += 1
-                    type_model_data[species_type][template_key][model]['samples']['limited'].append(sample_data)
+                    file_data[species_file]['types'][species_type][template_key][model]['limited'] += 1
+                    file_data[species_file]['types'][species_type][template_key][model]['samples']['limited'].append(sample_data)
                 elif normalized_knowledge in ['moderate', 'medium', 'intermediate']:
-                    type_model_data[species_type][template_key][model]['moderate'] += 1
-                    type_model_data[species_type][template_key][model]['samples']['moderate'].append(sample_data)
+                    file_data[species_file]['types'][species_type][template_key][model]['moderate'] += 1
+                    file_data[species_file]['types'][species_type][template_key][model]['samples']['moderate'].append(sample_data)
                 elif normalized_knowledge in ['extensive', 'comprehensive', 'detailed', 'high', 'full']:
-                    type_model_data[species_type][template_key][model]['extensive'] += 1
-                    type_model_data[species_type][template_key][model]['samples']['extensive'].append(sample_data)
+                    file_data[species_file]['types'][species_type][template_key][model]['extensive'] += 1
+                    file_data[species_file]['types'][species_type][template_key][model]['samples']['extensive'].append(sample_data)
                 elif normalized_knowledge in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
-                    type_model_data[species_type][template_key][model]['NA'] += 1
-                    type_model_data[species_type][template_key][model]['samples']['NA'].append(sample_data)
+                    file_data[species_file]['types'][species_type][template_key][model]['NA'] += 1
+                    file_data[species_file]['types'][species_type][template_key][model]['samples']['NA'].append(sample_data)
                 else:
                     # Unrecognized response - treat as no result
-                    type_model_data[species_type][template_key][model]['no_result'] += 1
-                    type_model_data[species_type][template_key][model]['samples']['no_result'].append(sample_data)
+                    file_data[species_file]['types'][species_type][template_key][model]['no_result'] += 1
+                    file_data[species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
             else:
                 # Null/empty knowledge_group for completed status - treat as no result (parsing failure)
-                type_model_data[species_type][template_key][model]['no_result'] += 1
-                type_model_data[species_type][template_key][model]['samples']['no_result'].append(sample_data)
+                file_data[species_file]['types'][species_type][template_key][model]['no_result'] += 1
+                file_data[species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
             
-            type_model_data[species_type][template_key][model]['total'] += 1
+            file_data[species_file]['types'][species_type][template_key][model]['total'] += 1
         
         # Format the data for the frontend with template display names
         formatted_data = {}
         
-        for species_type, templates in type_model_data.items():
-            formatted_data[species_type] = {}
+        for species_file, file_info in file_data.items():
+            formatted_data[species_file] = {
+                'has_type_column': file_info['has_type_column'],
+                'types': {}
+            }
             
-            for template_key, models in templates.items():
-                system_template, user_template = template_key.split('|')
+            for species_type, templates in file_info['types'].items():
+                formatted_data[species_file]['types'][species_type] = {}
                 
-                # Get template display info
-                template_display = get_template_display_info(system_template, user_template)
-                display_name = template_display['display_name']
-                template_type = template_display['template_type']
-                
-                # Only include knowledge templates
-                if template_type == 'knowledge':
-                    formatted_data[species_type][display_name] = models
+                for template_key, models in templates.items():
+                    system_template, user_template = template_key.split('|')
+                    
+                    # Get template display info
+                    template_display = get_template_display_info(system_template, user_template)
+                    display_name = template_display['display_name']
+                    template_type = template_display['template_type']
+                    
+                    # Only include knowledge templates
+                    if template_type == 'knowledge':
+                        formatted_data[species_file]['types'][species_type][display_name] = models
         
         return jsonify({
             'knowledge_analysis': formatted_data,
-            'total_types': len(formatted_data)
+            'total_files': len(formatted_data),
+            'file_list': list(formatted_data.keys())
         })
         
     except Exception as e:
@@ -2255,17 +2527,33 @@ def get_combination_details(combination_id):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Get combination info
-        cursor.execute("""
+        # Get combination info with progress
+        cursor.execute('''
             SELECT species_file, model, system_template, user_template, status, 
-                   total_species, submitted_species, received_species, successful_species, failed_species
+                   total_species, submitted_species, received_species, successful_species, failed_species, timeout_species
             FROM combinations WHERE id = ?
-        """, (combination_id,))
+        ''', (combination_id,))
         
         combo_info = cursor.fetchone()
         if not combo_info:
+            conn.close()
             return jsonify({'error': 'Combination not found'}), 404
-            
+        
+        combination_data = {
+            'id': combination_id,
+            'species_file': combo_info[0],
+            'model': combo_info[1],
+            'system_template': combo_info[2].split('/')[-1],
+            'user_template': combo_info[3].split('/')[-1],
+            'status': combo_info[4],
+            'total_species': combo_info[5],
+            'submitted_species': combo_info[6] or 0,
+            'received_species': combo_info[7] or 0,
+            'successful_species': combo_info[8] or 0,
+            'failed_species': combo_info[9] or 0,
+            'timeout_species': combo_info[10] or 0
+        }
+        
         # Get detailed results for each species
         cursor.execute("""
             SELECT binomial_name, status, result, error, timestamp,
@@ -2333,19 +2621,7 @@ def get_combination_details(combination_id):
         conn.close()
         
         return jsonify({
-            'combination_info': {
-                'id': combination_id,
-                'species_file': combo_info[0],
-                'model': combo_info[1],
-                'system_template': combo_info[2].split('/')[-1],
-                'user_template': combo_info[3].split('/')[-1],
-                'status': combo_info[4],
-                'total_species': combo_info[5],
-                'submitted_species': combo_info[6] or 0,
-                'received_species': combo_info[7] or 0,
-                'successful_species': combo_info[8] or 0,
-                'failed_species': combo_info[9] or 0
-            },
+            'combination_info': combination_data,
             'species_results': species_results,
             'unprocessed_species': unprocessed_species,
             'total_species_in_file': len(all_species)
@@ -2707,7 +2983,7 @@ def rerun_failed_species_api():
         thread.daemon = True
         thread.start()
         
-        return jsonify({'success': True, 'message': f'Re-running failed species: {species_name}'})
+        return jsonify({'success': True, 'message': f'Re-running {species_name}...'})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2767,7 +3043,7 @@ def rerun_all_failed_api(combination_id):
         
         return jsonify({
             'success': True, 
-            'message': f'Re-running {len(failed_species)} failed species',
+            'message': f'Re-running {len(failed_species)} species...',
             'failed_count': len(failed_species)
         })
         

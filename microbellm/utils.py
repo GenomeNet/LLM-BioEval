@@ -52,7 +52,7 @@ class OpenRouterProvider(LLMProvider):
         }
         
         try:
-            response = requests.post(self.API_URL, headers=headers, json=data)
+            response = requests.post(self.API_URL, headers=headers, json=data, timeout=30)
             response.raise_for_status()
             
             completion = response.json()
@@ -64,6 +64,9 @@ class OpenRouterProvider(LLMProvider):
             result = completion['choices'][0]['message']['content']
             return result
             
+        except requests.exceptions.Timeout:
+            print(f"Timeout querying OpenRouter API for model {model}")
+            raise TimeoutError(f"OpenRouter API timeout after 30 seconds for model {model}")
         except requests.exceptions.RequestException as e:
             print(f"Error querying OpenRouter API: {e}")
             if hasattr(e, 'response') and e.response is not None:
@@ -762,11 +765,17 @@ def filter_species_list(lines):
         # Skip header lines
         if is_header_line(stripped_line):
             continue
+
+        delimiter = None
+        if '\t' in stripped_line:
+            delimiter = '\t'
+        elif ',' in stripped_line:
+            delimiter = ','
             
-        # For CSV format, extract just the first column (binomial name)
-        if ',' in stripped_line:
-            # Split by comma and take the first part as the binomial name
-            binomial_name = stripped_line.split(',')[0].strip()
+        # For CSV/TSV format, extract just the first column (binomial name)
+        if delimiter:
+            # Split by delimiter and take the first part as the binomial name
+            binomial_name = stripped_line.split(delimiter)[0].strip()
             if binomial_name and not is_header_line(binomial_name):
                 filtered_lines.append(binomial_name)
         else:

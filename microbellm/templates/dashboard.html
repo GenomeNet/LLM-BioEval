@@ -150,13 +150,13 @@
                                                 <div class="progress-info">
                                                     <div class="main-progress">
                                                         {% if cell_data.status == 'completed' and cell_data.successful > 0 %}
-                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Done</span>
+                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Done</span>
                                                         {% elif cell_data.status == 'failed' and cell_data.successful == 0 %}
-                                                            <span class="completion-main">{{ cell_data.failed }}/{{ cell_data.total }} Failed</span>
+                                                            <span class="completion-main">{{ cell_data.failed + cell_data.timeouts }}/{{ cell_data.total }} Failed</span>
                                                         {% elif cell_data.status == 'running' %}
                                                             <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Processing</span>
                                                         {% elif cell_data.status == 'interrupted' %}
-                                                            <span class="completion-main">{{ cell_data.successful }}/{{ cell_data.total }} Paused</span>
+                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Paused</span>
                                                         {% else %}
                                                             <span class="completion-main">{{ cell_data.total }} Ready</span>
                                                         {% endif %}
@@ -180,6 +180,12 @@
                                                                     <span class="progress-value">{{ cell_data.successful }}</span>
                                                                 </div>
                                                             {% endif %}
+                                                            {% if cell_data.timeouts > 0 %}
+                                                                <div class="progress-line timeout">
+                                                                    <span class="progress-label">Timeouts:</span>
+                                                                    <span class="progress-value">{{ cell_data.timeouts }}</span>
+                                                                </div>
+                                                            {% endif %}
                                                             {% if cell_data.failed > 0 %}
                                                                 <div class="progress-line failed">
                                                                     <span class="progress-label">Failed:</span>
@@ -197,6 +203,12 @@
                                                                 <div class="progress-line success">
                                                                     <span class="progress-label">Success:</span>
                                                                     <span class="progress-value">{{ cell_data.successful }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if cell_data.timeouts > 0 %}
+                                                                <div class="progress-line timeout">
+                                                                    <span class="progress-label">Timeouts:</span>
+                                                                    <span class="progress-value">{{ cell_data.timeouts }}</span>
                                                                 </div>
                                                             {% endif %}
                                                             {% if cell_data.failed > 0 %}
@@ -414,7 +426,8 @@
     
     socket.on('job_update', function(data) {
         console.log('Job update received:', data);
-        setTimeout(refreshDashboard, 1000);
+        // Refresh immediately for job updates
+        setTimeout(refreshDashboard, 100);
     });
 
     // Check API key status on page load
@@ -718,8 +731,12 @@
                         <span class="stat-value">${info.received_species}</span>
                     </div>
                     <div class="stat-item success">
-                        <span class="stat-label">Successful:</span>
+                        <span class="stat-label">Success:</span>
                         <span class="stat-value">${info.successful_species}</span>
+                    </div>
+                    <div class="stat-item timeout">
+                        <span class="stat-label">Timeouts:</span>
+                        <span class="stat-value">${info.timeout_species || 0}</span>
                     </div>
                     <div class="stat-item failed">
                         <span class="stat-label">Failed:</span>
@@ -1343,55 +1360,113 @@
         location.reload();
     }
     
-    function rerunFailedSpecies(combinationId, speciesName) {
-        if (confirm(`Re-run failed species: ${speciesName}?`)) {
-            fetch('/api/rerun_failed_species', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    combination_id: combinationId,
-                    species_name: speciesName
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    // Close the modal and refresh
-                    closeModal('detailsModal');
-                    setTimeout(refreshDashboard, 1000);
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error re-running species:', error);
-                alert('Error re-running species: ' + error.message);
-            });
+    function showToast(message, type = 'info') {
+        // Create toast element if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
         }
+        
+        // Create toast
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
+            color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
+            border: 1px solid ${type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#bee5eb'};
+            padding: 12px 20px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            max-width: 300px;
+            word-wrap: break-word;
+        `;
+        toast.textContent = message;
+        
+        toastContainer.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+    
+    function rerunFailedSpecies(combinationId, speciesName) {
+        fetch('/api/rerun_failed_species', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                combination_id: combinationId,
+                species_name: speciesName
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show a brief success message
+                showToast(data.message, 'success');
+                // Close the modal and refresh
+                closeModal('detailsModal');
+                // Refresh immediately and then again after processing
+                setTimeout(refreshDashboard, 500);
+                setTimeout(refreshDashboard, 3000);
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error re-running species:', error);
+            alert('Error re-running species: ' + error.message);
+        });
     }
     
     function rerunAllFailed(combinationId) {
-        if (confirm('Re-run all failed species for this combination?')) {
-            fetch(`/api/rerun_all_failed/${combinationId}`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    // Close the modal and refresh
-                    closeModal('detailsModal');
-                    setTimeout(refreshDashboard, 1000);
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error re-running failed species:', error);
-                alert('Error re-running failed species: ' + error.message);
-            });
-        }
+        fetch(`/api/rerun_all_failed/${combinationId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show a brief success message
+                showToast(data.message, 'success');
+                // Close the modal and refresh
+                closeModal('detailsModal');
+                // Refresh immediately and then periodically to catch updates
+                setTimeout(refreshDashboard, 500);
+                setTimeout(refreshDashboard, 3000);
+                setTimeout(refreshDashboard, 6000);
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error re-running failed species:', error);
+            alert('Error re-running failed species: ' + error.message);
+        });
     }
     
     // Auto-refresh every 30 seconds and update settings

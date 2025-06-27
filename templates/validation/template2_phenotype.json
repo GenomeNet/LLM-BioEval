@@ -1,8 +1,8 @@
 {
   "template_info": {
-    "name": "template1_phenotype",
+    "name": "template2_phenotype",
     "type": "phenotype",
-    "description": "Comprehensive phenotype prediction template",
+    "description": "Gene-based phenotype prediction template",
     "version": "1.0"
   },
   "expected_response": {
