@@ -414,7 +414,7 @@
     
     socket.on('job_update', function(data) {
         console.log('Job update received:', data);
-        setTimeout(refreshDashboard, 1000);
+        setTimeout(refreshDashboard, 10000);
     });
 
     // Check API key status on page load
@@ -523,7 +523,7 @@
             .then(data => {
                 if (data.message) {
                     console.log('Combination paused successfully');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 } else {
                     alert('Failed to pause combination: ' + (data.error || 'Unknown error'));
                 }
@@ -541,7 +541,7 @@
                 .then(data => {
                     if (data.message) {
                         console.log('Combination stopped successfully');
-                        setTimeout(refreshDashboard, 1000);
+                        setTimeout(refreshDashboard, 10000);
                     } else {
                         alert('Failed to stop combination: ' + (data.error || 'Unknown error'));
                     }
@@ -979,7 +979,7 @@
             .then(data => {
                 if (data.message) {
                     console.log('Combination started successfully');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 } else {
                     alert('Failed to start combination: ' + (data.error || 'Unknown error'));
                 }
@@ -998,7 +998,7 @@
             .then(data => {
                 if (data.message) {
                     console.log('Combination restarted successfully');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 } else {
                     alert('Failed to restart combination: ' + (data.error || 'Unknown error'));
                 }
@@ -1028,7 +1028,7 @@
         .then(data => {
             if (data.success) {
                 console.log('Combination created and started successfully');
-                setTimeout(refreshDashboard, 1000);
+                setTimeout(refreshDashboard, 10000);
             } else {
                 alert('Failed to create combination: ' + (data.error || 'Unknown error'));
             }
@@ -1045,7 +1045,7 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Combination deleted');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 })
                 .catch(error => {
                     console.error('Error deleting combination:', error);
@@ -1359,7 +1359,7 @@
                     alert(data.message);
                     // Close the modal and refresh
                     closeModal('detailsModal');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 } else {
                     alert('Error: ' + (data.error || 'Unknown error'));
                 }
@@ -1382,7 +1382,7 @@
                     alert(data.message);
                     // Close the modal and refresh
                     closeModal('detailsModal');
-                    setTimeout(refreshDashboard, 1000);
+                    setTimeout(refreshDashboard, 10000);
                 } else {
                     alert('Error: ' + (data.error || 'Unknown error'));
                 }
@@ -1507,7 +1507,7 @@
                 setTimeout(() => {
                     closeModal('templateManagerModal');
                     refreshDashboard();
-                }, 1000);
+                }, 10000);
             } else {
                 alert('Error: ' + data.error);
             }
