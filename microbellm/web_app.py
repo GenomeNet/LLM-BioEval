@@ -48,9 +48,9 @@ class ProcessingManager:
         self.job_queue = []
         self.paused_combinations = set()
         self.stopped_combinations = set()
-        self.requests_per_second = 1.0  # Default rate limit
+        self.requests_per_second = 30.0  # Default rate limit
         self.last_request_time = {}
-        self.max_concurrent_requests = 4  # Default concurrent requests
+        self.max_concurrent_requests = 30  # Default concurrent requests
         self.executor = None  # Thread pool executor
         self.init_database()
     
@@ -1328,7 +1328,7 @@ class ProcessingManager:
 
     def set_rate_limit(self, requests_per_second):
         """Set the rate limit for API requests"""
-        self.requests_per_second = max(0.1, min(10.0, requests_per_second))  # Clamp between 0.1 and 10 RPS
+        self.requests_per_second = max(0.1, min(100.0, requests_per_second))  # Clamp between 0.1 and 100 RPS
         print(f"Rate limit set to {self.requests_per_second} requests per second")
     
     def get_already_processed_species(self, species_file, model, system_template, user_template):
@@ -1635,7 +1635,7 @@ def stop_combination_api(combination_id):
 @app.route('/api/set_rate_limit', methods=['POST'])
 def set_rate_limit_api():
     data = request.get_json()
-    requests_per_second = data.get('requests_per_second', 1.0)
+    requests_per_second = data.get('requests_per_second', 30.0)
     max_concurrent_requests = data.get('max_concurrent_requests')
     
     processing_manager.set_rate_limit(requests_per_second)
