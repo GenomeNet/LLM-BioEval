@@ -32,12 +32,12 @@
         </div>
         <div class="setting-item">
             <label for="rateLimitInput">Requests per second:</label>
-            <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="1">
+            <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="30">
             <button onclick="updateRateLimit()" class="btn btn-sm btn-primary">Update</button>
         </div>
         <div class="setting-item">
             <label for="concurrentInput">Concurrent requests:</label>
-            <input type="number" id="concurrentInput" min="1" max="20" step="1" value="4">
+            <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
             <button onclick="updateConcurrency()" class="btn btn-sm btn-primary">Update</button>
             <small class="form-help">Number of species to process in parallel</small>
         </div>
