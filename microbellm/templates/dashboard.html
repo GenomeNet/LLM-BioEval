@@ -15,7 +15,7 @@
 <div class="settings-panel">
     <div class="settings-header">
         <h4>Settings</h4>
-        <button onclick="toggleSettings()" class="settings-toggle">⚙️</button>
+        <button onclick="toggleSettings()" class="settings-toggle">Settings</button>
     </div>
     <div id="settingsContent" class="settings-content" style="display: none;">
         <div class="setting-item api-key-setting">
@@ -23,7 +23,7 @@
             <div class="api-key-input-row">
                 <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Enter your OpenRouter API key">
                 <button onclick="updateApiKey()" class="btn btn-primary btn-small">Update</button>
-                <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">👁️</button>
+                <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">Show</button>
             </div>
             <div class="api-key-help">
                 Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. 
@@ -41,7 +41,7 @@
             <button onclick="updateConcurrency()" class="btn btn-sm btn-primary">Update</button>
             <small class="form-help">Number of species to process in parallel</small>
         </div>
-        <p class="settings-note">⚠️ Higher values may result in rate limiting from the API provider.</p>
+        <p class="settings-note">Warning: Higher values may result in rate limiting from the API provider.</p>
         <div class="queue-status">
             <strong>Queue Length:</strong> <span id="queueLength">0</span> jobs waiting
         </div>
@@ -334,10 +334,10 @@
         <!-- Input Method Tabs -->
         <div class="input-method-tabs">
             <button class="input-tab active" onclick="switchInputMethod('dropdown')" id="dropdownTab">
-                📋 Browse Models
+                Browse Models
             </button>
             <button class="input-tab" onclick="switchInputMethod('manual')" id="manualTab">
-                ✏️ Manual Entry
+                Manual Entry
             </button>
         </div>
         
@@ -478,7 +478,7 @@
                 // Show brief success indicator
                 if (btn) {
                     const originalText = btn.textContent;
-                    btn.textContent = '✓';
+                    btn.textContent = 'Saved';
                     btn.style.backgroundColor = '#28a745';
                     setTimeout(() => {
                         btn.textContent = originalText;
@@ -513,7 +513,7 @@
                 // Show brief success indicator
                 if (btn) {
                     const originalText = btn.textContent;
-                    btn.textContent = '✓';
+                    btn.textContent = 'Saved';
                     btn.style.backgroundColor = '#28a745';
                     setTimeout(() => {
                         btn.textContent = originalText;
@@ -607,10 +607,10 @@
         
         if (input.type === 'password') {
             input.type = 'text';
-            btn.textContent = '🙈';
+            btn.textContent = 'Hide';
         } else {
             input.type = 'password';
-            btn.textContent = '👁️';
+            btn.textContent = 'Show';
         }
     }
 
@@ -643,7 +643,7 @@
                 document.getElementById('apiKeyInput').value = '';
                 
                 // Show success feedback
-                btn.textContent = '✓ Updated';
+                btn.textContent = 'Updated';
                 btn.style.backgroundColor = '#28a745';
                 
                 // Update the status indicator
@@ -781,7 +781,7 @@
                             <div class="species-header" onclick="toggleSpeciesDetails(this)">
                                 <span class="species-name">${result.binomial_name}</span>
                                 <span class="species-status failed">Failed</span>
-                                <span class="toggle-icon">▼</span>
+                                <span class="toggle-icon">[+]</span>
                             </div>
                             <div class="species-details" style="display: none;">
                                 <div class="error-info">
@@ -875,7 +875,7 @@
                             <div class="species-header" onclick="toggleSpeciesDetails(this)">
                                 <span class="species-name">${result.binomial_name}</span>
                                 <span class="species-status success">Success</span>
-                                <span class="toggle-icon">▼</span>
+                                <span class="toggle-icon">[+]</span>
                             </div>
                             <div class="species-details" style="display: none;">
                                 ${mainContent}
@@ -939,10 +939,10 @@
         
         if (details.style.display === 'none') {
             details.style.display = 'block';
-            icon.textContent = '▲';
+            icon.textContent = '[-]';
         } else {
             details.style.display = 'none';
-            icon.textContent = '▼';
+            icon.textContent = '[+]';
         }
     }
 
@@ -1224,7 +1224,7 @@
         // Show loading state
         statusDiv.style.display = 'block';
         statusDiv.className = 'validation-status loading';
-        statusDiv.innerHTML = '⏳ Validating model with OpenRouter...';
+        statusDiv.innerHTML = 'Validating model with OpenRouter...';
         addBtn.disabled = true;
         
         // Debounce the validation call
@@ -1247,11 +1247,11 @@
             
             if (data.valid) {
                 statusDiv.className = 'validation-status success';
-                statusDiv.innerHTML = '✅ ' + data.message;
+                statusDiv.innerHTML = 'Valid: ' + data.message;
                 addBtn.disabled = false;
             } else {
                 statusDiv.className = 'validation-status error';
-                statusDiv.innerHTML = '❌ ' + data.error;
+                statusDiv.innerHTML = 'Error: ' + data.error;
                 addBtn.disabled = true;
             }
         })
@@ -1261,7 +1261,7 @@
             const addBtn = document.getElementById('addModelBtn');
             
             statusDiv.className = 'validation-status error';
-            statusDiv.innerHTML = '❌ Validation failed: ' + error.message;
+            statusDiv.innerHTML = 'Validation failed: ' + error.message;
             addBtn.disabled = true;
         });
     }

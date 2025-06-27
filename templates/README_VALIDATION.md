@@ -68,24 +68,24 @@ For each template, you now have **3 files** instead of 2:
 
 ## Benefits
 
-### 🐛 **Bug Fix: NA Handling**
+### **Bug Fix: NA Handling**
 The original bug where `{"knowledge_group": "NA"}` was incorrectly parsed as `"limited"` is now fixed:
-- ✅ `"NA"` → `"NA"` (correct)
-- ❌ `"NA"` → `"limited"` (old behavior)
+- **Correct**: `"NA"` → `"NA"` 
+- **Old behavior**: `"NA"` → `"limited"`
 
-### 🔧 **Flexible Validation**
+### **Flexible Validation**
 Each template can define its own validation rules:
 - **Required vs optional fields**
 - **Allowed values** (e.g., template1 doesn't allow "NA", template3 does)
 - **Normalization mappings** (e.g., "comprehensive" → "extensive")
 - **Custom error messages**
 
-### 📊 **Better Data Quality**
+### **Better Data Quality**
 - Automatic normalization of common variants
 - Clear error reporting for invalid responses
 - Consistent data formats across different models
 
-### 🛠️ **Easy Maintenance**
+### **Easy Maintenance**
 - No need to modify Python code to add new validation rules
 - JSON configuration is human-readable and version-controlled
 - Template-specific validation without code changes
