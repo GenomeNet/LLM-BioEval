@@ -623,15 +623,15 @@ class ProcessingManager:
                 # Successfully parsed result with valid data
                 if is_knowledge_prediction:
                     knowledge_level = result.get('knowledge_group', 'unknown')
-                    self._emit_log(combination_id, f"✓ Knowledge level for {species_name}: {knowledge_level}")
+                    self._emit_log(combination_id, f"Success: Knowledge level for {species_name}: {knowledge_level}")
                 else:
-                    self._emit_log(combination_id, f"✓ Successfully processed {species_name} with phenotype data")
+                    self._emit_log(combination_id, f"Success: Successfully processed {species_name} with phenotype data")
                 cursor.execute("UPDATE combinations SET successful_species = successful_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
                 result_status = 'completed'
             else:
                 # Got a response but no valid data extracted
                 data_type = "knowledge level" if is_knowledge_prediction else "phenotype data"
-                self._emit_log(combination_id, f"⚠ Received response for {species_name} but no valid {data_type} extracted")
+                self._emit_log(combination_id, f"Warning: Received response for {species_name} but no valid {data_type} extracted")
                 cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
                 result_status = 'failed'
             
@@ -683,7 +683,7 @@ class ProcessingManager:
 
         else:
             # No response from API at all
-            self._emit_log(combination_id, f"✗ Failed to get any response for {species_name}")
+            self._emit_log(combination_id, f"Error: Failed to get any response for {species_name}")
             cursor.execute('''
                 INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, error, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -695,7 +695,7 @@ class ProcessingManager:
 
     def _process_species_error(self, combination_id, species_file, species_name, model, system_template, user_template, error_message):
         """Process an error during species prediction"""
-        self._emit_log(combination_id, f"✗ Exception processing {species_name}: {error_message}")
+        self._emit_log(combination_id, f"Error: Exception processing {species_name}: {error_message}")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute('''

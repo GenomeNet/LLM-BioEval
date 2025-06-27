@@ -1269,7 +1269,7 @@
                 html += `<span class="agreement-indicator ${hasConflict ? 'none' : 'full'}"></span>`;
                 html += `<span class="species-name-cell">${comp.species}</span>`;
                 html += `</div>`;
-                html += `<span class="toggle-icon">▼</span>`;
+                html += `<span class="toggle-icon">[+]</span>`;
                 html += `</div>`;
                 
                 html += `<div class="model-predictions" style="display: none;">`;
@@ -1418,10 +1418,10 @@
         
         if (details.style.display === 'none') {
             details.style.display = 'flex';
-            icon.textContent = '▲';
+            icon.textContent = '[-]';
         } else {
             details.style.display = 'none';
-            icon.textContent = '▼';
+            icon.textContent = '[+]';
         }
     }
     
@@ -1609,7 +1609,7 @@
             
             // Expandable species list
             html += `<div class="type-species-toggle" onclick="toggleTypeSpecies('${type}')">`;
-            html += `<span class="toggle-icon">▶</span> View species in this type`;
+            html += `<span class="toggle-icon">[+]</span> View species in this type`;
             html += '</div>';
             html += `<div id="type-species-${type}" class="type-species-list" style="display: none;">`;
             html += '<table class="comparison-table">';
@@ -1684,10 +1684,10 @@
         
         if (listDiv.style.display === 'none') {
             listDiv.style.display = 'block';
-            icon.textContent = '▼';
+            icon.textContent = '[-]';
         } else {
             listDiv.style.display = 'none';
-            icon.textContent = '▶';
+            icon.textContent = '[+]';
         }
     }
     

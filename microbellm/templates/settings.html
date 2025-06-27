@@ -34,7 +34,7 @@
         <div class="api-key-input-row">
             <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Enter your OpenRouter API key">
             <button onclick="updateApiKey()" class="btn btn-primary btn-small">Update</button>
-            <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">👁️</button>
+            <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">Show</button>
         </div>
         <div class="api-key-help">
             Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. 
@@ -94,7 +94,7 @@
                 // Show brief success indicator
                 const btn = event.target;
                 const originalText = btn.textContent;
-                btn.textContent = '✓';
+                btn.textContent = 'Saved';
                 btn.style.backgroundColor = '#28a745';
                 setTimeout(() => {
                     btn.textContent = originalText;
@@ -151,10 +151,10 @@
         
         if (input.type === 'password') {
             input.type = 'text';
-            btn.textContent = '🙈';
+            btn.textContent = 'Hide';
         } else {
             input.type = 'password';
-            btn.textContent = '👁️';
+            btn.textContent = 'Show';
         }
     }
 
