@@ -1215,11 +1215,16 @@
                 </div>
                 ${info.user_template && info.user_template.includes('phenotype') ? `
                     <div style="margin-top: 16px; text-align: center;">
-                        <button onclick="reparsePhenotypeData(${info.id})" class="btn btn-primary">
+                        <button onclick="reparsePhenotypeData(${info.id})" class="btn btn-primary" style="margin-right: 8px;">
                             <i class="fas fa-sync"></i> Re-parse Phenotype Data
                         </button>
+                        ${info.failed_species && info.failed_species > 0 ? `
+                            <button onclick="rerunAllFailed(${info.id})" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i> Re-run Failed Samples
+                            </button>
+                        ` : ''}
                         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
-                            Use this if phenotype predictions show raw JSON but no parsed data
+                            Re-parse: Extract phenotype fields from existing responses | Re-run: Process failed samples with LLM again
                         </div>
                     </div>
                 ` : ''}
@@ -1443,6 +1448,31 @@
                 .catch(error => {
                     console.error('Error re-parsing phenotype data:', error);
                     showNotification('Failed to re-parse phenotype data', 'error');
+                });
+        }
+    }
+    
+    function rerunAllFailed(combinationId) {
+        if (confirm('This will re-run all failed samples for this combination using the LLM. This may take time and consume API credits. Continue?')) {
+            showNotification('Re-running failed samples...', 'info');
+            
+            fetch(`/api/rerun_all_failed/${combinationId}`, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(`Re-running ${data.failed_count} failed samples...`, 'success');
+                        // Close modal and refresh page to show updated status
+                        closeModal('detailsModal');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showNotification(data.error || 'Error re-running failed samples', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error re-running failed samples:', error);
+                    showNotification('Failed to re-run failed samples', 'error');
                 });
         }
     }

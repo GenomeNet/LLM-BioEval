@@ -1,5 +1,5 @@
-"Respond with a JSON object for {binomial_name} with the knowledge level category in lowercase in this format:
+Respond with a JSON object for {binomial_name} with the knowledge level category in lowercase in this format:
 
 {
-    ""knowledge_group"": ""<limited|moderate|extensive|NA>""
-}"
+    "knowledge_group": "<limited|moderate|extensive|NA>"
+}
