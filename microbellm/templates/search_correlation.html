@@ -362,14 +362,15 @@
         font-weight: 600;
         position: relative;
         min-width: 16px;
-        cursor: pointer;
-        transition: opacity 0.2s, transform 0.1s;
     }
     
-    .bar-segment:hover {
-        opacity: 0.8;
-        transform: scale(1.05);
-        z-index: 10;
+    .chart-cell {
+        cursor: help;
+        transition: background-color 0.2s;
+    }
+    
+    .chart-cell:hover {
+        background-color: #f8f9fa;
     }
     
     .bar-number {
@@ -679,7 +680,7 @@
         border-radius: 8px;
         padding: 12px;
         font-size: 11px;
-        width: 320px;
+        width: 280px;
     }
     
     .correlation-tooltip-header {
@@ -692,15 +693,15 @@
     }
     
     .scatter-plot-container {
-        width: 100%;
-        height: 200px;
+        width: 256px;
+        height: 180px;
         position: relative;
-        margin: 10px 0;
+        margin: 8px 0;
     }
     
     .scatter-plot-canvas {
-        width: 100%;
-        height: 100%;
+        width: 256px;
+        height: 180px;
     }
     
     .correlation-stats {
@@ -956,7 +957,14 @@
                               ${result.correlation.toFixed(3)}
                         </span>
                      </td>`;
-            html += `<td class="chart-cell">${renderKnowledgeDistributionBar(result.knowledgeDist, result.speciesCount, result.dataPoints)}</td>`;
+            html += `<td class="chart-cell"
+                        data-model="${result.modelName}"
+                        data-correlation="${result.correlation}"
+                        data-points='${JSON.stringify(result.dataPoints)}'
+                        onmouseover="showDistributionTooltip(event, this)"
+                        onmouseout="hideDistributionTooltip()">
+                        ${renderKnowledgeDistributionBar(result.knowledgeDist, result.speciesCount, result.dataPoints)}
+                     </td>`;
             html += `<td style="text-align: center; font-size: 11px; color: #495057; padding: 4px;">${interpretation}</td>`;
             html += `</tr>`;
         });
@@ -1036,12 +1044,7 @@
         adjustedSegments.forEach((seg, index) => {
             const finalWidth = seg.adjustedPct * scaleFactor;
             
-            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%"
-                          data-samples='${JSON.stringify(seg.samples)}'
-                          data-category="${seg.type}"
-                          data-count="${seg.count}"
-                          onmouseover="showSpeciesTooltip(event, this)"
-                          onmouseout="hideSpeciesTooltip()">`;
+            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%">`;
             
             // Show number for larger segments
             if (finalWidth > 4 || seg.count >= 10) {
@@ -1060,6 +1063,7 @@
     // Tooltip functions
     let speciestooltip = null;
     let correlationTooltip = null;
+    let distributionTooltip = null;
     
     function showSpeciesTooltip(event, element) {
         const samples = JSON.parse(element.getAttribute('data-samples'));
@@ -1146,27 +1150,10 @@
         correlationTooltip.className = 'correlation-tooltip';
         
         let html = `<div class="correlation-tooltip-content">`;
-        html += `<div class="correlation-tooltip-header">Correlation Visualization</div>`;
+        html += `<div class="correlation-tooltip-header">Correlation: ${correlation.toFixed(3)}</div>`;
         html += `<div class="scatter-plot-container">`;
         html += `<canvas id="correlationCanvas" class="scatter-plot-canvas"></canvas>`;
         html += `</div>`;
-        
-        // Add statistics
-        html += `<div class="correlation-stats">`;
-        html += `<div class="correlation-stat">`;
-        html += `<div class="correlation-stat-value">${correlation.toFixed(3)}</div>`;
-        html += `<div class="correlation-stat-label">Correlation</div>`;
-        html += `</div>`;
-        html += `<div class="correlation-stat">`;
-        html += `<div class="correlation-stat-value">${dataPoints.length}</div>`;
-        html += `<div class="correlation-stat-label">Data Points</div>`;
-        html += `</div>`;
-        html += `<div class="correlation-stat">`;
-        html += `<div class="correlation-stat-value">${getCorrelationInterpretation(correlation)}</div>`;
-        html += `<div class="correlation-stat-label">Alignment</div>`;
-        html += `</div>`;
-        html += `</div>`;
-        
         html += `</div>`;
         
         correlationTooltip.innerHTML = html;
@@ -1204,17 +1191,21 @@
         }
     }
     
-    function drawScatterPlot(dataPoints, correlation) {
+    function drawScatterPlot(dataPoints, correlation, highlightCategory = null) {
         const canvas = document.getElementById('correlationCanvas');
         if (!canvas) return;
         
         const ctx = canvas.getContext('2d');
-        const width = canvas.offsetWidth;
-        const height = canvas.offsetHeight;
+        const width = 256;
+        const height = 180;
         
-        // Set canvas size
-        canvas.width = width;
-        canvas.height = height;
+        // Set canvas size with device pixel ratio for crisp rendering
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.scale(dpr, dpr);
         
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
@@ -1254,25 +1245,69 @@
             ctx.stroke();
         });
         
-        // Draw data points
+        // Group data by knowledge level for mean±SD visualization
+        const levelData = { 1: [], 2: [], 3: [] };
         dataPoints.forEach(point => {
-            const x = padding + ((Math.log10(point.search_count || 1) - xMin) / (xMax - xMin)) * plotWidth;
-            const y = height - padding - ((point.knowledge_score - yMin) / (yMax - yMin)) * plotHeight;
+            if (levelData[point.knowledge_score]) {
+                levelData[point.knowledge_score].push(Math.log10(point.search_count || 1));
+            }
+        });
+        
+        // Calculate mean and SD for each level
+        Object.entries(levelData).forEach(([level, values]) => {
+            if (values.length === 0) return;
+            
+            const levelNum = parseInt(level);
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const sd = Math.sqrt(values.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / values.length);
+            
+            const x = padding + ((mean - xMin) / (xMax - xMin)) * plotWidth;
+            const y = height - padding - ((levelNum - yMin) / (yMax - yMin)) * plotHeight;
+            const sdWidth = (sd / (xMax - xMin)) * plotWidth;
+            
+            // Draw SD error bar
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x - sdWidth, y);
+            ctx.lineTo(x + sdWidth, y);
+            ctx.stroke();
+            
+            // Draw caps
+            ctx.beginPath();
+            ctx.moveTo(x - sdWidth, y - 3);
+            ctx.lineTo(x - sdWidth, y + 3);
+            ctx.moveTo(x + sdWidth, y - 3);
+            ctx.lineTo(x + sdWidth, y + 3);
+            ctx.stroke();
+            
+            // Draw mean point
+            const isHighlighted = highlightCategory && 
+                ((highlightCategory === 'limited' && levelNum === 1) ||
+                 (highlightCategory === 'moderate' && levelNum === 2) ||
+                 (highlightCategory === 'extensive' && levelNum === 3));
             
             // Color based on knowledge level
-            switch(point.knowledge_score) {
-                case 1: ctx.fillStyle = '#fff3cd'; break;
-                case 2: ctx.fillStyle = '#d1ecf1'; break;
-                case 3: ctx.fillStyle = '#d4edda'; break;
-                default: ctx.fillStyle = '#e2e3e5';
+            switch(levelNum) {
+                case 1: ctx.fillStyle = isHighlighted ? '#ffc107' : '#fff3cd'; break;
+                case 2: ctx.fillStyle = isHighlighted ? '#17a2b8' : '#d1ecf1'; break;
+                case 3: ctx.fillStyle = isHighlighted ? '#28a745' : '#d4edda'; break;
             }
             
             ctx.beginPath();
-            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.arc(x, y, isHighlighted ? 6 : 4, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.strokeStyle = '#6c757d';
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = isHighlighted ? '#212529' : '#6c757d';
+            ctx.lineWidth = isHighlighted ? 2 : 1;
             ctx.stroke();
+            
+            // Add count label if highlighted
+            if (isHighlighted) {
+                ctx.fillStyle = '#212529';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`n=${values.length}`, x, y - 10);
+            }
         });
         
         // Draw trend line if positive correlation
@@ -1320,6 +1355,86 @@
         ctx.fillText('Limited', padding - 5, height - padding - (1 - yMin) / (yMax - yMin) * plotHeight);
         ctx.fillText('Moderate', padding - 5, height - padding - (2 - yMin) / (yMax - yMin) * plotHeight);
         ctx.fillText('Extensive', padding - 5, height - padding - (3 - yMin) / (yMax - yMin) * plotHeight);
+    }
+    
+    function showDistributionTooltip(event, element) {
+        const correlation = parseFloat(element.getAttribute('data-correlation'));
+        const dataPoints = JSON.parse(element.getAttribute('data-points'));
+        
+        // Get which bar segment was hovered by checking mouse position
+        const rect = element.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const barSegments = element.querySelectorAll('.bar-segment');
+        
+        let hoveredCategory = null;
+        let currentX = 0;
+        
+        // Find which segment the mouse is over
+        barSegments.forEach(segment => {
+            const width = segment.offsetWidth;
+            if (x >= currentX && x < currentX + width) {
+                // Determine category from class
+                if (segment.classList.contains('knowledge-limited')) hoveredCategory = 'limited';
+                else if (segment.classList.contains('knowledge-moderate')) hoveredCategory = 'moderate';
+                else if (segment.classList.contains('knowledge-extensive')) hoveredCategory = 'extensive';
+                else if (segment.classList.contains('knowledge-na')) hoveredCategory = 'na';
+            }
+            currentX += width;
+        });
+        
+        // Hide any existing tooltip
+        hideDistributionTooltip();
+        
+        // Create tooltip
+        distributionTooltip = document.createElement('div');
+        distributionTooltip.className = 'correlation-tooltip';
+        
+        let html = `<div class="correlation-tooltip-content">`;
+        html += `<div class="correlation-tooltip-header">Knowledge Distribution Analysis</div>`;
+        html += `<div class="scatter-plot-container">`;
+        html += `<canvas id="distributionCanvas" class="scatter-plot-canvas"></canvas>`;
+        html += `</div>`;
+        html += `</div>`;
+        
+        distributionTooltip.innerHTML = html;
+        document.body.appendChild(distributionTooltip);
+        
+        // Position tooltip below the cell
+        const tooltipRect = distributionTooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.bottom + 10;
+        
+        // If tooltip would go off bottom, show above
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+            top = rect.top - tooltipRect.height - 10;
+        }
+        
+        // Ensure tooltip stays on screen horizontally
+        if (left < 10) left = 10;
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+        
+        distributionTooltip.style.left = left + 'px';
+        distributionTooltip.style.top = top + 'px';
+        
+        // Draw scatter plot with highlighted category
+        setTimeout(() => {
+            const canvas = document.getElementById('distributionCanvas');
+            if (canvas) {
+                canvas.id = 'correlationCanvas'; // Reuse existing draw function
+                drawScatterPlot(dataPoints, correlation, hoveredCategory);
+                canvas.id = 'distributionCanvas'; // Restore ID
+            }
+        }, 10);
+    }
+    
+    function hideDistributionTooltip() {
+        if (distributionTooltip) {
+            distributionTooltip.remove();
+            distributionTooltip = null;
+        }
     }
 </script>
 {% endblock %} 
