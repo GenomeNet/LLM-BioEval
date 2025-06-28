@@ -530,6 +530,11 @@
         font-size: 10px;
     }
     
+    .species-tooltip-item em {
+        font-style: italic;
+        font-family: inherit;
+    }
+    
     .species-tooltip-more {
         margin-top: 4px;
         padding-top: 4px;
@@ -1258,7 +1263,7 @@
                 const annotation = annotationData[inputType];
                 
                 if (annotation) {
-                    html += `<th title="${annotation.description + ' (e.g., ' + annotation.example + ')'}" style="cursor: help;">`;
+                    html += `<th>`;
                     html += `${displayType}<br>`;
                     html += `<span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">${annotation.description}</span><br>`;
                     html += `<span style="font-weight: normal; font-size: 9px; color: #868e96;">(e.g., ${annotation.example})</span>`;
@@ -1516,7 +1521,7 @@
         html += '<div class="species-tooltip-list">';
         
         speciesToShow.forEach(sample => {
-            html += `<div class="species-tooltip-item">${sample.species}</div>`;
+            html += `<div class="species-tooltip-item"><em>${sample.species}</em></div>`;
         });
         
         if (remaining > 0) {
