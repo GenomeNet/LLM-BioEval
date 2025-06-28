@@ -2,8 +2,23 @@
   "template_info": {
     "name": "template3_knowledge",
     "type": "knowledge",
-    "description": "Knowledge level assessment template with NA support",
-    "version": "1.0"
+    "description": "Alternative knowledge level assessment template with NA support",
+    "version": "1.0",
+    "purpose": "This template provides an alternative prompt structure for evaluating scientific knowledge about bacterial species. It includes explicit NA support to test how different prompt formulations affect model responses and calibration.",
+    "usage_context": {
+      "when_to_use": "Use this template to compare how different prompt structures influence knowledge assessment consistency across models.",
+      "typical_workflow": "Often used alongside template1 and template2 to evaluate prompt sensitivity and identify the most reliable formulation for knowledge assessment."
+    },
+    "interpretation_guide": {
+      "limited": "Organisms with minimal scientific literature, often newly discovered or understudied species. These may have basic taxonomic information but lack detailed phenotypic or genomic characterization.",
+      "moderate": "Organisms with a reasonable body of research including some genomic data, basic phenotypic characterization, and presence in multiple studies. Not model organisms but reasonably well-documented.",
+      "extensive": "Well-studied model organisms or pathogens with comprehensive literature, complete genomes, extensive phenotypic data, and often used in research. Examples include E. coli, B. subtilis, or major pathogens.",
+      "NA": "The model cannot assess the knowledge level or is uncertain. This response helps evaluate model calibration and self-awareness."
+    },
+    "quality_indicators": {
+      "high_quality_response": "Consistent categorizations across different prompt formulations, with appropriate use of NA for uncertain cases",
+      "low_quality_response": "Highly variable responses to different prompts for the same species, or inconsistent NA usage"
+    }
   },
   "expected_response": {
     "format": "json",

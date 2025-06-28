@@ -2,8 +2,22 @@
   "template_info": {
     "name": "template2_phenotype",
     "type": "phenotype",
-    "description": "Gene-based phenotype prediction template",
-    "version": "1.0"
+    "description": "Alternative phenotype prediction template with gene-focused approach",
+    "version": "1.0",
+    "purpose": "This template provides an alternative approach to phenotype prediction, potentially using different prompt structures or emphasizing genetic/genomic aspects. It tests how different formulations affect prediction accuracy and completeness.",
+    "usage_context": {
+      "when_to_use": "Use this template to compare phenotype prediction consistency across different prompt formulations, or when you want to emphasize genetic/genomic information in predictions.",
+      "typical_workflow": "Often used alongside template1_phenotype to evaluate prompt sensitivity and identify which formulation yields more accurate or complete phenotypic predictions."
+    },
+    "interpretation_guide": {
+      "consistency_check": "Compare results with template1_phenotype to assess model reliability across different prompt formulations",
+      "genetic_emphasis": "This template may elicit responses that focus more on genetically-determined traits versus environmentally-influenced characteristics",
+      "validation_approach": "Cross-validate predictions from both phenotype templates against known bacterial databases"
+    },
+    "quality_indicators": {
+      "high_quality_response": "Biologically consistent predictions that align with known phenotypic constraints, minimal contradictions with template1 results",
+      "low_quality_response": "Frequent contradictions with template1, biologically impossible trait combinations, or significantly different response patterns without clear justification"
+    }
   },
   "expected_response": {
     "format": "json",

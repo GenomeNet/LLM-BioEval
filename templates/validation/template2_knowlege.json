@@ -3,7 +3,22 @@
     "name": "template2_knowledge",
     "type": "knowledge",
     "description": "Knowledge level assessment template with NA support",
-    "version": "1.0"
+    "version": "1.0",
+    "purpose": "This template evaluates the scientific knowledge available for bacterial species with explicit support for 'NA' responses. It's designed to handle cases where LLMs cannot assess knowledge levels, which is particularly important for testing model calibration.",
+    "usage_context": {
+      "when_to_use": "Use this template when you want to allow models to explicitly state when they cannot determine the knowledge level, providing a more nuanced view of model confidence.",
+      "typical_workflow": "This template is useful for distinguishing between species the model believes are poorly studied versus species the model simply cannot assess."
+    },
+    "interpretation_guide": {
+      "limited": "Organisms with minimal scientific literature, often newly discovered or understudied species. These may have basic taxonomic information but lack detailed phenotypic or genomic characterization.",
+      "moderate": "Organisms with a reasonable body of research including some genomic data, basic phenotypic characterization, and presence in multiple studies. Not model organisms but reasonably well-documented.",
+      "extensive": "Well-studied model organisms or pathogens with comprehensive literature, complete genomes, extensive phenotypic data, and often used in research. Examples include E. coli, B. subtilis, or major pathogens.",
+      "NA": "The model cannot assess the knowledge level or is uncertain. This is a valuable response indicating model calibration and awareness of its limitations."
+    },
+    "quality_indicators": {
+      "high_quality_response": "The model appropriately uses 'NA' for uncertain cases while providing clear categorizations for well-known species",
+      "low_quality_response": "The model never uses 'NA' (overconfident) or uses 'NA' excessively (underconfident)"
+    }
   },
   "expected_response": {
     "format": "json",

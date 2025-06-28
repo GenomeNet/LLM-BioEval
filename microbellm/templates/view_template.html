@@ -3,21 +3,96 @@
 {% block title %}Template Viewer - MicrobeBench{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Template Viewer</h1>
-    <p class="lead">View system and user templates side by side</p>
+<h1>Template Configuration Viewer</h1>
+
+<div class="explanation-section">
+    <div class="explanation-grid">
+        <div class="explanation-box purpose-box">
+            <h3><i class="fas fa-bullseye"></i> Purpose</h3>
+            <p>Templates define how MicrobeLLM interacts with language models to extract bacterial phenotype and knowledge information. Each template consists of:</p>
+            <ol class="purpose-steps">
+                <li><strong>System Template:</strong> Sets the AI assistant's role and instructions</li>
+                <li><strong>User Template:</strong> Defines the query format with placeholders for species names</li>
+                <li><strong>Validation Config:</strong> Specifies expected response format and normalization rules</li>
+            </ol>
+            <p><strong>Key Insight:</strong> Different templates can yield different results from the same model. Use this viewer to understand each template's design and purpose.</p>
+        </div>
+        
+        <div class="explanation-box interpretation-box">
+            <h3><i class="fas fa-info-circle"></i> How to Use This Viewer</h3>
+            
+            <div class="usage-guide">
+                <h4>Template Types:</h4>
+                <div class="template-type-row knowledge">
+                    <span class="type-badge">Knowledge</span>
+                    <span class="type-description">Assess the level of scientific knowledge available for species</span>
+                </div>
+                
+                <div class="template-type-row phenotype">
+                    <span class="type-badge">Phenotype</span>
+                    <span class="type-description">Predict biological characteristics like gram staining, motility, etc.</span>
+                </div>
+            </div>
+            
+            <div class="interpretation-note">
+                <strong>Best Practice:</strong> Review the validation config to understand what responses are expected and how they will be normalized. This ensures consistent data processing across different models.
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if template_data %}
-    <!-- Template Navigation -->
-    <div class="template-tabs">
-        {% for template_name in template_data.keys() %}
-            <button class="template-tab {% if loop.first %}active{% endif %}" 
-                    onclick="showTemplateView('{{ template_name }}')" 
-                    id="tab-{{ template_name }}">
-                {{ template_name }}
-            </button>
-        {% endfor %}
+    <!-- Template Navigation by Type -->
+    {% set knowledge_templates = [] %}
+    {% set phenotype_templates = [] %}
+    {% for template_name, data in template_data.items() %}
+        {% if data.validation and data.validation.info.type == 'knowledge' %}
+            {% set _ = knowledge_templates.append((template_name, data)) %}
+        {% elif data.validation and data.validation.info.type == 'phenotype' %}
+            {% set _ = phenotype_templates.append((template_name, data)) %}
+        {% endif %}
+    {% endfor %}
+    
+    <div class="template-navigation">
+        {% if knowledge_templates %}
+        <div class="template-type-section">
+            <div class="template-type-header knowledge-header">
+                <i class="fas fa-brain"></i>
+                <h3>Knowledge Assessment Templates</h3>
+                <span class="template-count">{{ knowledge_templates|length }} template{{ 's' if knowledge_templates|length != 1 }}</span>
+            </div>
+            <div class="template-tabs knowledge-tabs">
+                {% for template_name, data in knowledge_templates %}
+                    <button class="template-tab knowledge-tab {% if loop.first and not phenotype_templates %}active{% endif %}" 
+                            onclick="showTemplateView('{{ template_name }}')" 
+                            id="tab-{{ template_name }}">
+                        <i class="fas fa-lightbulb"></i>
+                        {{ template_name }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if phenotype_templates %}
+        <div class="template-type-section">
+            <div class="template-type-header phenotype-header">
+                <i class="fas fa-dna"></i>
+                <h3>Phenotype Prediction Templates</h3>
+                <span class="template-count">{{ phenotype_templates|length }} template{{ 's' if phenotype_templates|length != 1 }}</span>
+            </div>
+            <div class="template-tabs phenotype-tabs">
+                {% for template_name, data in phenotype_templates %}
+                    <button class="template-tab phenotype-tab {% if loop.first and not knowledge_templates %}active{% endif %}" 
+                            onclick="showTemplateView('{{ template_name }}')" 
+                            id="tab-{{ template_name }}">
+                        <i class="fas fa-microscope"></i>
+                        {{ template_name }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Template Content Sections -->
@@ -80,7 +155,12 @@
   "template_info": {
     "name": "{{ template_name }}",
     "type": "knowledge|phenotype",
-    "description": "Template description"
+    "description": "Template description",
+    "purpose": "What this template is designed to achieve",
+    "usage_context": {
+      "when_to_use": "When to use this template",
+      "typical_workflow": "How it fits in the analysis workflow"
+    }
   },
   "field_definitions": {
     "field_name": {
@@ -97,6 +177,41 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Move Template Understanding Section to top if validation exists -->
+            {% if data.validation and data.validation.info %}
+                <div class="template-documentation-section">
+                    {% if data.validation.info.description %}
+                    <div class="template-description-banner">
+                        <i class="fas fa-file-alt"></i>
+                        <h3>{{ data.validation.info.description }}</h3>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="template-explanation-grid">
+                        {% if data.validation.info.purpose %}
+                        <div class="template-explanation-box purpose-box">
+                            <h3><i class="fas fa-info-circle"></i> About This Template</h3>
+                            <p>{{ data.validation.info.purpose }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if data.validation.info.usage_context %}
+                        <div class="template-explanation-box usage-box">
+                            <h3><i class="fas fa-cogs"></i> Usage Context</h3>
+                            {% if data.validation.info.usage_context.when_to_use %}
+                                <p><strong>When to use:</strong> {{ data.validation.info.usage_context.when_to_use }}</p>
+                            {% endif %}
+                            {% if data.validation.info.usage_context.typical_workflow %}
+                                <p><strong>Typical workflow:</strong> {{ data.validation.info.usage_context.typical_workflow }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <h3 class="template-code-header">Template Configuration Files</h3>
+            {% endif %}
 
             <div class="template-info">
                 <div class="info-section">
@@ -169,73 +284,392 @@
 {% endif %}
 
 <style>
-.page-header {
+/* Explanation Section Styles - matching search_correlation.html */
+.explanation-section {
     margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #dee2e6;
 }
 
-.page-header .lead {
-    color: #6c757d;
-    font-size: 1.1rem;
+.explanation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 1024px) {
+    .explanation-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.explanation-box {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.explanation-box h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.explanation-box h3 i {
+    font-size: 20px;
+    opacity: 0.7;
+}
+
+.explanation-box p {
+    margin: 0 0 10px 0;
+    line-height: 1.6;
+    color: #495057;
+    font-size: 14px;
+}
+
+.explanation-box p:last-child {
     margin-bottom: 0;
 }
 
+.purpose-steps {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.purpose-steps li {
+    margin-bottom: 8px;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.purpose-box {
+    background: #f0f7ff;
+    border-color: #b3d9ff;
+}
+
+.purpose-box h3 {
+    color: #0056b3;
+}
+
+.interpretation-box {
+    background: #f8f9fa;
+}
+
+.usage-guide {
+    margin: 15px 0;
+}
+
+.usage-guide h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.template-type-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    gap: 15px;
+    font-size: 13px;
+}
+
+.template-type-row.knowledge {
+    background: #f3f0ff;
+    border: 1px solid #d4b3ff;
+}
+
+.template-type-row.phenotype {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+}
+
+.type-badge {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.type-description {
+    color: #495057;
+}
+
+.interpretation-note {
+    margin-top: 20px;
+    padding: 15px;
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #0c5460;
+}
+
+/* Template Navigation */
+.template-navigation {
+    margin-bottom: 30px;
+}
+
+.template-type-section {
+    margin-bottom: 25px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.template-type-section.active-section {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+}
+
+.template-type-header {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.template-type-header h3 {
+    margin: 0;
+    font-size: 16px;
+    flex-grow: 1;
+}
+
+.template-type-header i {
+    font-size: 18px;
+}
+
+.template-count {
+    background: rgba(0,0,0,0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Knowledge Template Styling */
+.knowledge-header {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    color: white;
+}
+
+.knowledge-header .template-count {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+/* Phenotype Template Styling */
+.phenotype-header {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+}
+
+.phenotype-header .template-count {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+/* Template Tabs */
 .template-tabs {
     display: flex;
-    border-bottom: 1px solid #dee2e6;
-    margin-bottom: 20px;
-    gap: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 15px;
+    background: #f8f9fa;
 }
 
 .template-tab {
-    padding: 12px 20px;
-    background: #f8f9fa;
+    padding: 10px 16px;
     border: 1px solid #dee2e6;
-    border-bottom: none;
     cursor: pointer;
     font-weight: 500;
     color: #495057;
     transition: all 0.3s ease;
-    border-radius: 8px 8px 0 0;
-    margin-right: 2px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    background: white;
+}
+
+.template-tab i {
+    font-size: 14px;
+    opacity: 0.7;
 }
 
 .template-tab:hover {
-    background: #e9ecef;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.template-tab.active {
-    background: white;
-    color: #007bff;
-    border-color: #007bff;
-    border-bottom: 1px solid white;
-    margin-bottom: -1px;
+/* Knowledge Tab Styling */
+.knowledge-tab {
+    border-color: #d4b3ff;
+    color: #6f42c1;
 }
 
+.knowledge-tab:hover {
+    background: #f3f0ff;
+    border-color: #9b59b6;
+}
+
+.knowledge-tab.active {
+    background: #9b59b6;
+    color: white;
+    border-color: #9b59b6;
+    box-shadow: 0 4px 12px rgba(155,89,182,0.3);
+}
+
+.knowledge-tab.active i {
+    opacity: 1;
+}
+
+/* Phenotype Tab Styling */
+.phenotype-tab {
+    border-color: #a9dfbf;
+    color: #27ae60;
+}
+
+.phenotype-tab:hover {
+    background: #e8f5e9;
+    border-color: #27ae60;
+}
+
+.phenotype-tab.active {
+    background: #27ae60;
+    color: white;
+    border-color: #27ae60;
+    box-shadow: 0 4px 12px rgba(39,174,96,0.3);
+}
+
+.phenotype-tab.active i {
+    opacity: 1;
+}
+
+/* Template View Sections */
 .template-view-section {
     display: none;
-    padding: 20px 0;
 }
 
 .template-view-section.active {
     display: block;
 }
 
-.template-view-header {
+/* Template Documentation Section */
+.template-documentation-section {
+    margin-bottom: 40px;
+}
+
+.template-description-banner {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.template-description-banner i {
+    font-size: 24px;
+    color: #6c757d;
+}
+
+.template-description-banner h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+/* Template Explanation Grid */
+.template-explanation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
     margin-bottom: 25px;
 }
 
-.template-view-header h3 {
+.template-explanation-box {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.template-explanation-box.full-width {
+    grid-column: 1 / -1;
+}
+
+.template-explanation-box h3 {
+    margin: 0 0 15px 0;
     color: #2c3e50;
-    margin-bottom: 8px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.template-paths {
-    color: #6c757d;
-    font-size: 0.9rem;
+.template-explanation-box h3 i {
+    font-size: 20px;
+    opacity: 0.7;
 }
 
+.template-explanation-box p {
+    margin: 0 0 10px 0;
+    line-height: 1.6;
+    color: #495057;
+    font-size: 14px;
+}
+
+/* Purpose Box */
+.purpose-box {
+    background: #f0f7ff;
+    border-color: #b3d9ff;
+}
+
+.purpose-box h3 {
+    color: #0056b3;
+}
+
+/* Usage Box */
+.usage-box {
+    background: #f3f0ff;
+    border-color: #d4b3ff;
+}
+
+.usage-box h3 {
+    color: #6f42c1;
+}
+
+
+
+/* Template Code Header */
+.template-code-header {
+    margin: 30px 0 20px 0;
+    color: #2c3e50;
+    font-size: 20px;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+/* Template Comparison */
 .template-comparison {
     display: flex;
     gap: 15px;
@@ -303,6 +737,7 @@
     margin: 20px 0;
 }
 
+/* Template Info */
 .template-info {
     background: #f8f9fa;
     border: 1px solid #dee2e6;
@@ -341,24 +776,6 @@
     border-radius: 3px;
     font-size: 0.9em;
     color: #495057;
-}
-
-.alert {
-    padding: 20px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-.alert-warning {
-    color: #856404;
-    background-color: #fff3cd;
-    border-color: #ffeaa7;
-}
-
-.alert h4 {
-    color: #856404;
-    margin-bottom: 10px;
 }
 
 /* Validation Config Styles */
@@ -415,6 +832,7 @@
     line-height: 1.4;
 }
 
+/* Template Type Badge */
 .template-type-badge {
     font-size: 11px;
     padding: 3px 8px;
@@ -439,6 +857,25 @@
     font-style: italic;
 }
 
+/* Alert Styles */
+.alert {
+    padding: 20px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.alert h4 {
+    color: #856404;
+    margin-bottom: 10px;
+}
+
 /* Responsive design */
 @media (max-width: 1200px) {
     .template-comparison {
@@ -458,6 +895,10 @@
     .template-content {
         max-height: 350px;
     }
+    
+    .template-explanation-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -469,13 +910,35 @@
         font-size: 1rem;
     }
     
+    .template-type-header {
+        padding: 12px 15px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .template-type-header h3 {
+        font-size: 14px;
+    }
+    
     .template-tabs {
-        flex-wrap: wrap;
+        padding: 12px;
+        gap: 6px;
     }
     
     .template-tab {
-        padding: 10px 15px;
-        font-size: 0.9rem;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .template-tab i {
+        font-size: 12px;
+    }
+    
+
+    
+    .template-type-section {
+        margin-bottom: 20px;
     }
 }
 </style>
@@ -490,11 +953,34 @@
         // Show selected template section
         document.getElementById('template-view-' + templateName).classList.add('active');
         
-        // Update tab states
+        // Update tab states - remove active from all tabs
         document.querySelectorAll('.template-tab').forEach(tab => {
             tab.classList.remove('active');
         });
+        
+        // Add active to selected tab
         document.getElementById('tab-' + templateName).classList.add('active');
+        
+        // Update section headers to show which type is active
+        document.querySelectorAll('.template-type-section').forEach(section => {
+            section.classList.remove('active-section');
+        });
+        
+        // Find and highlight the active section
+        const activeTab = document.getElementById('tab-' + templateName);
+        const activeSection = activeTab.closest('.template-type-section');
+        if (activeSection) {
+            activeSection.classList.add('active-section');
+        }
     }
+    
+    // Auto-activate first available template on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const firstTab = document.querySelector('.template-tab');
+        if (firstTab) {
+            const templateName = firstTab.id.replace('tab-', '');
+            showTemplateView(templateName);
+        }
+    });
 </script>
 {% endblock %}

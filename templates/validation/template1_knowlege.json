@@ -3,7 +3,21 @@
     "name": "template1_knowledge",
     "type": "knowledge",
     "description": "Basic knowledge level assessment template (limited, moderate, extensive)",
-    "version": "1.0"
+    "version": "1.0",
+    "purpose": "This template evaluates the breadth of scientific knowledge available for bacterial species. It asks the LLM to categorize organisms into three knowledge levels based on how much research, literature, and data exists about them.",
+    "usage_context": {
+      "when_to_use": "Use this template when you need to assess which organisms are well-studied versus poorly understood in the scientific literature.",
+      "typical_workflow": "The template is typically used as a first-pass filter to identify organisms that warrant deeper investigation or to understand research gaps in microbiology."
+    },
+    "interpretation_guide": {
+      "limited": "Organisms with minimal scientific literature, often newly discovered or understudied species. These may have basic taxonomic information but lack detailed phenotypic or genomic characterization.",
+      "moderate": "Organisms with a reasonable body of research including some genomic data, basic phenotypic characterization, and presence in multiple studies. Not model organisms but reasonably well-documented.",
+      "extensive": "Well-studied model organisms or pathogens with comprehensive literature, complete genomes, extensive phenotypic data, and often used in research. Examples include E. coli, B. subtilis, or major pathogens."
+    },
+    "quality_indicators": {
+      "high_quality_response": "The model provides a clear categorization with implicit reasoning based on actual knowledge availability",
+      "low_quality_response": "The model fails to categorize, provides 'NA', or shows no correlation with actual research availability"
+    }
   },
   "expected_response": {
     "format": "json",

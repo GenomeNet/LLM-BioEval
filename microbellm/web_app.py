@@ -1844,6 +1844,10 @@ def templates_page():
                         'info': {
                             'type': template_info.get('type', 'unknown'),
                             'description': template_info.get('description', ''),
+                            'purpose': template_info.get('purpose', ''),
+                            'usage_context': template_info.get('usage_context', {}),
+                            'interpretation_guide': template_info.get('interpretation_guide', {}),
+                            'quality_indicators': template_info.get('quality_indicators', {}),
                             'required_fields': expected_response.get('required_fields', []),
                             'optional_fields': expected_response.get('optional_fields', [])
                         }

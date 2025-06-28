@@ -3,7 +3,24 @@
     "name": "template1_phenotype",
     "type": "phenotype",
     "description": "Comprehensive phenotype prediction template",
-    "version": "1.0"
+    "version": "1.0",
+    "purpose": "This template extracts detailed phenotypic predictions for bacterial species across 13 different characteristics. It tests the model's ability to infer biological properties from species names and any embedded knowledge.",
+    "usage_context": {
+      "when_to_use": "Use this template when you need comprehensive phenotypic predictions including metabolic, pathogenic, and morphological characteristics.",
+      "typical_workflow": "This is the primary phenotype template, providing the most complete set of predictions. Results can be compared against known phenotypic data to evaluate model accuracy."
+    },
+    "interpretation_guide": {
+      "gram_staining": "Fundamental cell wall property: positive (thick peptidoglycan), negative (thin peptidoglycan with outer membrane), or variable",
+      "motility": "Whether the organism can move independently, typically via flagella or other mechanisms",
+      "aerophilicity": "Oxygen requirements - can be multiple values (e.g., facultatively anaerobic organisms)",
+      "extreme_environment_tolerance": "Ability to survive in harsh conditions (high/low pH, temperature extremes, high salt, etc.)",
+      "biosafety_level": "CDC/WHO classification based on pathogenic risk (BSL-1: minimal risk, BSL-2: moderate risk, BSL-3: serious risk)",
+      "pathogenicity": "Animal/plant pathogenicity indicates disease-causing potential in respective hosts"
+    },
+    "quality_indicators": {
+      "high_quality_response": "Predictions align with known biological constraints (e.g., obligate anaerobes shouldn't be aerobic), internally consistent responses",
+      "low_quality_response": "Biologically impossible combinations, missing critical fields for well-known organisms, or excessive uncertainty"
+    }
   },
   "expected_response": {
     "format": "json",
