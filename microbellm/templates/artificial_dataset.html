@@ -1033,10 +1033,25 @@
     function loadKnowledgeAnalysisData() {
         const container = document.getElementById('knowledgeAnalysisContent');
         
+        console.log('Starting to load knowledge analysis data...');
+        
+        // Add timeout for loading
+        const loadingTimeout = setTimeout(() => {
+            container.innerHTML = `<div class="empty-state"><h3>Loading is taking longer than expected</h3><p>Please check your connection and try refreshing the page.</p></div>`;
+        }, 10000); // 10 second timeout
+        
         // Fetch knowledge analysis data
         fetch('/api/knowledge_analysis_data')
-            .then(response => response.json())
+            .then(response => {
+                clearTimeout(loadingTimeout);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Knowledge analysis data received:', data);
+                
                 if (data.error) {
                     container.innerHTML = `<div class="empty-state"><h3>Error loading knowledge analysis</h3><p>${data.error}</p></div>`;
                     return;
@@ -1044,7 +1059,7 @@
                 
                 const knowledgeData = data.knowledge_analysis;
                 
-                if (Object.keys(knowledgeData).length === 0) {
+                if (!knowledgeData || Object.keys(knowledgeData).length === 0) {
                     container.innerHTML = '<div class="empty-state"><h3>No knowledge level data available</h3><p>Process some species with knowledge templates to see the analysis.</p></div>';
                     return;
                 }
@@ -1056,6 +1071,7 @@
                 renderKnowledgeAnalysisInterface(data);
             })
             .catch(error => {
+                clearTimeout(loadingTimeout);
                 console.error('Error loading knowledge analysis:', error);
                 container.innerHTML = `<div class="empty-state"><h3>Error loading knowledge analysis</h3><p>${error.message}</p></div>`;
             });
@@ -1065,6 +1081,11 @@
         const container = document.getElementById('knowledgeAnalysisContent');
         const knowledgeData = data.knowledge_analysis;
         const fileList = data.file_list || Object.keys(knowledgeData);
+        
+        console.log('Rendering knowledge analysis interface with files:', fileList);
+        
+        // Clear the container first
+        container.innerHTML = '';
         
         let html = '';
         
