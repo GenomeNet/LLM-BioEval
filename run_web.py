@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple script to run the MicrobeLLM web interface
+Simple script to run the MicrobeBench web interface
 """
 
 import os
@@ -28,7 +28,7 @@ if __name__ == '__main__':
         print("=" * 50)
         print()
     
-    print("Starting MicrobeLLM Web Interface...")
+    print("Starting MicrobeBench Web Interface...")
     print("Access the dashboard at: http://localhost:5000")
     print("Press Ctrl+C to stop the server")
     print()

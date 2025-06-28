@@ -1,138 +1,153 @@
 {% extends "base.html" %}
-{% block title %}Export Results{% endblock %}
+
+{% block title %}Export Results - MicrobeBench{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-<h1>Export Results</h1>
-
-<div class="dashboard-controls">
-    <a href="/" class="btn btn-primary">
-        <i class="fas fa-tachometer-alt"></i> Dashboard
-    </a>
-    <a href="/settings" class="btn btn-secondary">
-        <i class="fas fa-cog"></i> Settings
-    </a>
-    <a href="/import" class="btn btn-warning">
-        <i class="fas fa-upload"></i> Import Results
-    </a>
-    <a href="/compare" class="btn btn-secondary">
-        <i class="fas fa-balance-scale"></i> Compare Results
-    </a>
+<div class="page-header mb-3">
+    <h2>Export Results</h2>
+    <p class="text-muted">Export your processing results to CSV format</p>
 </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Export Options</h5>
-                </div>
-                <div class="card-body">
-                    <form id="exportForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="species_file">Species File (Optional):</label>
-                                    <select id="species_file" name="species_file" class="form-control">
-                                        <option value="">All species files</option>
-                                        {% for species_file in dashboard_data.species_files %}
-                                            <option value="{{ species_file }}">{{ species_file }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="model">Model (Optional):</label>
-                                    <select id="model" name="model" class="form-control">
-                                        <option value="">All models</option>
-                                        {% for model in dashboard_data.models %}
-                                            <option value="{{ model }}">{{ model }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-download"></i> Export CSV
-                            </button>
-                        </div>
-                    </form>
-                </div>
+
+<div class="nav-links mb-3">
+    <a href="/" class="btn btn-ghost btn-sm">← Back to Dashboard</a>
+</div>
+
+<div class="card">
+    <h3>Export Options</h3>
+    
+    <div class="export-controls">
+        <div class="export-filters mb-3">
+            <div class="filter-group">
+                <label class="setting-label">Filter by Species File</label>
+                <select id="speciesFilter" class="form-control">
+                    <option value="">All species files</option>
+                    {% for file in species_files %}
+                        <option value="{{ file }}">{{ file }}</option>
+                    {% endfor %}
+                </select>
             </div>
             
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle"></i> Export Information</h6>
-                        <ul class="mb-0">
-                            <li><strong>Format:</strong> Semicolon-separated CSV compatible with the original predictions.csv format</li>
-                            <li><strong>Columns:</strong> Binomial name, gram staining, motility, aerophilicity, and all other phenotype predictions</li>
-                            <li><strong>Filtering:</strong> Optionally filter by species file or model before export</li>
-                            <li><strong>Data:</strong> Only successful predictions are included in the export</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="filter-group mt-2">
+                <label class="setting-label">Filter by Model</label>
+                <select id="modelFilter" class="form-control">
+                    <option value="">All models</option>
+                    {% for model in models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
             </div>
+        </div>
+        
+        <div class="export-info card mb-3" style="background: var(--bg-secondary);">
+            <h4 class="text-small">Export includes</h4>
+            <ul class="text-small text-muted">
+                <li>Species names and processing status</li>
+                <li>Model predictions and extracted phenotypes</li>
+                <li>Error messages for failed predictions</li>
+                <li>Timestamps and metadata</li>
+            </ul>
+        </div>
+        
+        <div class="export-actions">
+            <button onclick="exportResults()" class="btn btn-primary">
+                <i class="fas fa-download"></i> Export to CSV
+            </button>
             
-            <!-- Summary table -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="mb-0">Available Data Summary</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <h6>Species Files</h6>
-                                    <ul class="list-unstyled">
-                                        {% for species_file in dashboard_data.species_files %}
-                                            <li>{{ species_file }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                <div class="col-md-8">
-                                    <h6>Models</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            {% for model in dashboard_data.models[:5] %}
-                                                <div class="small">{{ model }}</div>
-                                            {% endfor %}
-                                        </div>
-                                        <div class="col-md-6">
-                                            {% for model in dashboard_data.models[5:] %}
-                                                <div class="small">{{ model }}</div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div id="exportStatus" class="mt-2"></div>
         </div>
     </div>
 </div>
 
+<style>
+    .page-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
+    }
+    
+    .nav-links {
+        padding: 8px 0;
+    }
+    
+    .export-controls {
+        max-width: 600px;
+    }
+    
+    .filter-group {
+        margin-bottom: 16px;
+    }
+    
+    .export-info {
+        padding: 16px;
+    }
+    
+    .export-info h4 {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .export-info ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .export-actions {
+        margin-top: 24px;
+    }
+    
+    #exportStatus {
+        font-size: 12px;
+    }
+    
+    #exportStatus.success {
+        color: var(--accent-secondary);
+    }
+    
+    #exportStatus.error {
+        color: var(--accent-error);
+    }
+</style>
+
 <script>
-document.getElementById('exportForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const params = new URLSearchParams();
-    
-    if (formData.get('species_file')) {
-        params.append('species_file', formData.get('species_file'));
+    function exportResults() {
+        const speciesFile = document.getElementById('speciesFilter').value;
+        const model = document.getElementById('modelFilter').value;
+        const statusDiv = document.getElementById('exportStatus');
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (speciesFile) params.append('species_file', speciesFile);
+        if (model) params.append('model', model);
+        
+        statusDiv.textContent = 'Preparing export...';
+        statusDiv.className = '';
+        
+        fetch('/api/export_csv?' + params.toString())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `microbebench_export_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                
+                statusDiv.textContent = 'Export completed successfully!';
+                statusDiv.className = 'success';
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                statusDiv.textContent = 'Error: Export failed. Please try again.';
+                statusDiv.className = 'error';
+            });
     }
-    if (formData.get('model')) {
-        params.append('model', formData.get('model'));
-    }
-    
-    // Download the CSV
-    window.location.href = `/api/export_csv?${params.toString()}`;
-});
 </script>
 {% endblock %} 

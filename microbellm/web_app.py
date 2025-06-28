@@ -22,8 +22,18 @@ app.config['SECRET_KEY'] = 'microbellm-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global variables for job management
-job_manager = None
+processing_manager = None
 db_path = config.DATABASE_PATH
+
+# Cache for search count correlation data
+_search_correlation_cache = {}
+_search_correlation_cache_timestamp = 0
+
+# Cache for knowledge analysis data
+_knowledge_analysis_cache = {}
+_knowledge_analysis_cache_timestamp = 0
+
+CACHE_DURATION = 300  # 5 minutes in seconds
 
 def reset_running_jobs_on_startup():
     """Set status of 'running' jobs to 'interrupted' on application start."""
@@ -266,9 +276,27 @@ class ProcessingManager:
             return []
     
     def start_combination(self, combination_id):
-        """Start processing a specific combination"""
-        if combination_id in self.running_combinations:
-            return False  # Already running
+        """Start processing a combination."""
+        # Check if API key is configured before starting
+        if not os.getenv('OPENROUTER_API_KEY'):
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE combinations SET status = 'failed' WHERE id = ?", (combination_id,))
+            conn.commit()
+            conn.close()
+            self._emit_log(combination_id, "Error: OPENROUTER_API_KEY is not configured. Please set your API key in Settings.")
+            socketio.emit('job_update', {'combination_id': combination_id, 'status': 'failed', 'error': 'API key not configured'})
+            return False
+            
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check current status
+        cursor.execute("SELECT status FROM combinations WHERE id = ?", (combination_id,))
+        result = cursor.fetchone()
+        if not result or result[0] not in ['pending', 'interrupted']:
+            conn.close()
+            return False
         
         # Remove from paused/stopped sets if it was there
         self.paused_combinations.discard(combination_id)
@@ -281,9 +309,6 @@ class ProcessingManager:
                 self._emit_log(combination_id, f"Job queued - waiting for slot. Queue position: {len(self.job_queue)}")
                 socketio.emit('job_update', {'combination_id': combination_id, 'status': 'queued'})
             return True
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
         
         # Get combination details
         cursor.execute('''
@@ -685,6 +710,9 @@ class ProcessingManager:
                 INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, result, error, timestamp, gram_staining, motility, aerophilicity, extreme_environment_tolerance, biofilm_formation, animal_pathogenicity, biosafety_level, health_association, host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape, knowledge_group)
                 VALUES (:species_file, :binomial_name, :model, :system_template, :user_template, :status, :result, :error, :timestamp, :gram_staining, :motility, :aerophilicity, :extreme_environment_tolerance, :biofilm_formation, :animal_pathogenicity, :biosafety_level, :health_association, :host_association, :plant_pathogenicity, :spore_formation, :hemolysis, :cell_shape, :knowledge_group)
             ''', result_data)
+            
+            # Invalidate all caches when new results are added
+            _invalidate_all_caches()
 
         else:
             # No response from API at all
@@ -697,6 +725,9 @@ class ProcessingManager:
 
         conn.commit()
         conn.close()
+        
+        # Emit progress update after processing each species
+        self._emit_progress_update(combination_id)
 
     def _process_species_error(self, combination_id, species_file, species_name, model, system_template, user_template, error_message):
         """Process an error during species prediction"""
@@ -710,6 +741,9 @@ class ProcessingManager:
         cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
         conn.commit()
         conn.close()
+        
+        # Emit progress update after processing each species
+        self._emit_progress_update(combination_id)
 
     def _process_species_timeout(self, combination_id, species_file, species_name, model, system_template, user_template, error_message):
         """Process a timeout during species prediction"""
@@ -723,13 +757,16 @@ class ProcessingManager:
         cursor.execute("UPDATE combinations SET timeout_species = timeout_species + 1 WHERE id = ?", (combination_id,))
         conn.commit()
         conn.close()
+        
+        # Emit progress update after processing each species
+        self._emit_progress_update(combination_id)
 
     def _emit_progress_update(self, combination_id):
         """Emit detailed progress update"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT total_species, submitted_species, received_species, successful_species, failed_species, completed_species, timeout_species 
+            SELECT total_species, submitted_species, received_species, successful_species, failed_species, completed_species, timeout_species, status
             FROM combinations WHERE id = ?
         """, (combination_id,))
         progress = cursor.fetchone()
@@ -738,7 +775,7 @@ class ProcessingManager:
         if progress:
             socketio.emit('job_update', {
                 'combination_id': combination_id, 
-                'status': 'running',
+                'status': progress[7],
                 'total': progress[0],
                 'submitted': progress[1],
                 'received': progress[2],
@@ -752,27 +789,49 @@ class ProcessingManager:
         """Finalize combination status based on results"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT successful_species, total_species FROM combinations WHERE id = ?", (combination_id,))
-        final_counts = cursor.fetchone()
+        
+        # Get full progress data for final update
+        cursor.execute("""
+            SELECT total_species, submitted_species, received_species, successful_species, failed_species, completed_species, timeout_species 
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
+        progress = cursor.fetchone()
+        
+        if not progress:
+            conn.close()
+            return
+        
+        successful_species, total_species = progress[3], progress[0]
         
         if combination_id in self.paused_combinations:
             final_status = 'interrupted'
-            self._emit_log(combination_id, f"Job paused - processed {final_counts[0]} out of {final_counts[1]} species successfully")
+            self._emit_log(combination_id, f"Job paused - processed {successful_species} out of {total_species} species successfully")
         elif combination_id in self.stopped_combinations:
             final_status = 'interrupted'
-            self._emit_log(combination_id, f"Job stopped - processed {final_counts[0]} out of {final_counts[1]} species successfully")
-        elif final_counts[0] > 0:
+            self._emit_log(combination_id, f"Job stopped - processed {successful_species} out of {total_species} species successfully")
+        elif successful_species > 0:
             final_status = 'completed'
-            self._emit_log(combination_id, f"Job completed - processed {final_counts[0]} out of {final_counts[1]} species successfully")
+            self._emit_log(combination_id, f"Job completed - processed {successful_species} out of {total_species} species successfully")
         else:
             final_status = 'failed'
-            self._emit_log(combination_id, f"Job failed - no species were processed successfully out of {final_counts[1]} total")
+            self._emit_log(combination_id, f"Job failed - no species were processed successfully out of {total_species} total")
         
         cursor.execute("UPDATE combinations SET status = ?, completed_at = ? WHERE id = ?", (final_status, datetime.now(), combination_id))
         conn.commit()
         conn.close()
         
-        socketio.emit('job_update', {'combination_id': combination_id, 'status': final_status})
+        # Send final update with complete progress data
+        socketio.emit('job_update', {
+            'combination_id': combination_id, 
+            'status': final_status,
+            'total': progress[0],
+            'submitted': progress[1],
+            'received': progress[2],
+            'successful': progress[3],
+            'failed': progress[4],
+            'completed': progress[5],
+            'timeouts': progress[6]
+        })
 
     def get_dashboard_data(self):
         """Get data for the dashboard matrix view"""
@@ -1248,6 +1307,9 @@ class ProcessingManager:
             
             conn.commit()
             conn.close()
+            
+            # Invalidate all caches when results are imported
+            _invalidate_all_caches()
             
         except Exception as e:
             results['errors'].append(f"CSV parsing error: {str(e)}")
@@ -1728,8 +1790,15 @@ def compare_page():
 
 @app.route('/correlation')
 def correlation_page():
-    """Search count correlation analysis page"""
     return render_template('correlation.html')
+
+@app.route('/artificial_dataset')
+def artificial_dataset_page():
+    return render_template('artificial_dataset.html')
+
+@app.route('/search_correlation')
+def search_correlation_page():
+    return render_template('search_correlation.html')
 
 @app.route('/settings')
 def settings_page():
@@ -1958,28 +2027,66 @@ def get_comparison_data():
 
 @app.route('/api/search_count_correlation')
 def get_search_count_correlation():
-    """Get correlation analysis between Google search counts and knowledge level predictions"""
+    """Get correlation analysis between Google search counts and knowledge level predictions with caching"""
+    import time
+    import math
+    
     try:
+        # Check cache first
+        current_time = time.time()
+        if (_search_correlation_cache and 
+            current_time - _search_correlation_cache_timestamp < CACHE_DURATION):
+            # Add cache info to cached response
+            cached_response = _search_correlation_cache.copy()
+            cached_response['cache_info'] = {
+                'cached': True,
+                'calculated_at': _search_correlation_cache_timestamp,
+                'cache_duration': CACHE_DURATION,
+                'age_seconds': current_time - _search_correlation_cache_timestamp
+            }
+            return jsonify(cached_response)
+        
+        # Cache miss - need to recalculate
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Get all knowledge level results with template information
+        # Get all knowledge level results with template information (optimized query)
         cursor.execute("""
             SELECT r.binomial_name, r.species_file, r.model, r.knowledge_group, 
-                   r.system_template, r.user_template, r.status
+                   r.system_template, r.user_template
             FROM results r
             WHERE r.knowledge_group IS NOT NULL AND r.status = 'completed'
-            ORDER BY r.species_file, r.binomial_name, r.model
+            ORDER BY r.species_file, r.model
         """)
         
         knowledge_results = cursor.fetchall()
         conn.close()
         
+        if not knowledge_results:
+            empty_result = {
+                'correlation_data': {},
+                'files_with_search_counts': [],
+                'total_files': 0,
+                'cache_info': {
+                    'cached': False,
+                    'calculated_at': current_time,
+                    'cache_duration': CACHE_DURATION
+                }
+            }
+            _update_search_correlation_cache(empty_result, current_time)
+            return jsonify(empty_result)
+        
         # Process data to extract search count information and organize correlations
         correlation_data = {}
         
-        # Helper to get search count from species file
+        # Cache for search count mappings to avoid re-reading files
+        search_count_cache = {}
+        
+        # Helper to get search count from species file (with caching)
         def get_search_count_mapping(species_file):
+            if species_file in search_count_cache:
+                return search_count_cache[species_file]
+                
             search_count_mapping = {}
             try:
                 species_file_path = os.path.join(config.SPECIES_DIR, species_file)
@@ -2009,7 +2116,7 @@ def get_search_count_correlation():
                                 break
                         
                         if search_count_col_idx is not None:
-                            # Process data lines
+                            # Process data lines efficiently
                             for line in lines[1:]:  # Skip header
                                 line = line.strip()
                                 if line and delimiter in line:
@@ -2026,17 +2133,50 @@ def get_search_count_correlation():
             except Exception as e:
                 print(f"Error reading species file {species_file}: {e}")
             
+            # Cache the result
+            search_count_cache[species_file] = search_count_mapping
             return search_count_mapping
         
-        # Process knowledge results and match with search counts
-        for binomial_name, species_file, model, knowledge_group, system_template, user_template, status in knowledge_results:
-            # Get search count mapping for this species file
-            search_count_mapping = get_search_count_mapping(species_file)
-            
+        # Pre-fetch all search count mappings for files that appear in results
+        unique_species_files = list(set(row[1] for row in knowledge_results))
+        for species_file in unique_species_files:
+            get_search_count_mapping(species_file)
+        
+        # Filter out files without search counts early
+        files_with_search_counts = [f for f in unique_species_files if search_count_cache.get(f)]
+        
+        if not files_with_search_counts:
+            empty_result = {
+                'correlation_data': {},
+                'files_with_search_counts': [],
+                'total_files': 0,
+                'cache_info': {
+                    'cached': False,
+                    'calculated_at': current_time,
+                    'cache_duration': CACHE_DURATION
+                }
+            }
+            _update_search_correlation_cache(empty_result, current_time)
+            return jsonify(empty_result)
+        
+        # Cache template display info to avoid repeated calls
+        template_display_cache = {}
+        
+        def get_cached_template_display_info(system_template, user_template):
+            key = f"{system_template}|{user_template}"
+            if key not in template_display_cache:
+                template_display_cache[key] = get_template_display_info(system_template, user_template)
+            return template_display_cache[key]
+        
+        # Process knowledge results and match with search counts (optimized)
+        for binomial_name, species_file, model, knowledge_group, system_template, user_template in knowledge_results:
             # Skip files without search count data
-            if not search_count_mapping:
+            if species_file not in files_with_search_counts:
                 continue
                 
+            # Get search count mapping for this species file
+            search_count_mapping = search_count_cache[species_file]
+            
             # Get search count for this species
             search_count = search_count_mapping.get(binomial_name)
             if search_count is None:
@@ -2047,8 +2187,8 @@ def get_search_count_correlation():
             if search_count is None:
                 continue
             
-            # Get template display info
-            template_display = get_template_display_info(system_template, user_template)
+            # Get template display info (cached)
+            template_display = get_cached_template_display_info(system_template, user_template)
             display_name = template_display['display_name']
             template_type = template_display['template_type']
             
@@ -2056,7 +2196,7 @@ def get_search_count_correlation():
             if template_type != 'knowledge':
                 continue
             
-            # Initialize data structure
+            # Initialize data structure efficiently
             if species_file not in correlation_data:
                 correlation_data[species_file] = {}
             
@@ -2071,9 +2211,10 @@ def get_search_count_correlation():
                     'knowledge_distribution': {'limited': 0, 'moderate': 0, 'extensive': 0, 'NA': 0}
                 }
             
-            # Convert knowledge level to numerical score for correlation
-            knowledge_score = 0
+            # Convert knowledge level to numerical score for correlation (optimized)
             normalized_knowledge = knowledge_group.lower().strip()
+            knowledge_score = None
+            
             if normalized_knowledge in ['limited', 'minimal', 'basic', 'low']:
                 knowledge_score = 1
                 correlation_data[species_file][display_name][model]['knowledge_distribution']['limited'] += 1
@@ -2084,41 +2225,45 @@ def get_search_count_correlation():
                 knowledge_score = 3
                 correlation_data[species_file][display_name][model]['knowledge_distribution']['extensive'] += 1
             elif normalized_knowledge in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
-                knowledge_score = 0  # Exclude NA from correlation
                 correlation_data[species_file][display_name][model]['knowledge_distribution']['NA'] += 1
                 continue  # Skip NA values for correlation calculation
             
-            # Add data point
-            correlation_data[species_file][display_name][model]['data_points'].append({
-                'species': binomial_name,
-                'search_count': search_count,
-                'knowledge_score': knowledge_score,
-                'knowledge_group': knowledge_group
-            })
+            # Add data point only if we have a valid knowledge score
+            if knowledge_score is not None:
+                correlation_data[species_file][display_name][model]['data_points'].append({
+                    'species': binomial_name,
+                    'search_count': search_count,
+                    'knowledge_score': knowledge_score,
+                    'knowledge_group': knowledge_group
+                })
         
-        # Calculate correlations for each model
-        import math
-        
+        # Calculate correlations for each model (optimized)
         def calculate_correlation(data_points):
-            """Calculate Pearson correlation coefficient"""
+            """Calculate Pearson correlation coefficient - optimized version"""
             if len(data_points) < 2:
                 return 0, 0  # correlation, p_value placeholder
             
             n = len(data_points)
-            x_values = [point['search_count'] for point in data_points]
-            y_values = [point['knowledge_score'] for point in data_points]
             
-            # Use log transformation for search counts to handle wide range
-            x_log = [math.log10(x) if x > 0 else 0 for x in x_values]
+            # Pre-calculate log values
+            x_log = [math.log10(point['search_count']) if point['search_count'] > 0 else 0 for point in data_points]
+            y_values = [point['knowledge_score'] for point in data_points]
             
             # Calculate means
             x_mean = sum(x_log) / n
             y_mean = sum(y_values) / n
             
-            # Calculate correlation coefficient
-            numerator = sum((x_log[i] - x_mean) * (y_values[i] - y_mean) for i in range(n))
-            x_variance = sum((x_log[i] - x_mean) ** 2 for i in range(n))
-            y_variance = sum((y_values[i] - y_mean) ** 2 for i in range(n))
+            # Calculate correlation coefficient in one pass
+            numerator = 0
+            x_variance = 0
+            y_variance = 0
+            
+            for i in range(n):
+                x_diff = x_log[i] - x_mean
+                y_diff = y_values[i] - y_mean
+                numerator += x_diff * y_diff
+                x_variance += x_diff * x_diff
+                y_variance += y_diff * y_diff
             
             if x_variance == 0 or y_variance == 0:
                 return 0, 0
@@ -2126,13 +2271,12 @@ def get_search_count_correlation():
             correlation = numerator / (math.sqrt(x_variance) * math.sqrt(y_variance))
             
             # Simple p-value approximation (for display purposes)
-            # Real p-value calculation would require proper statistical library
             t_stat = correlation * math.sqrt((n - 2) / (1 - correlation ** 2)) if abs(correlation) < 1 else 0
             p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
             
             return correlation, p_value
         
-        # Calculate correlations and update data
+        # Calculate correlations and update data efficiently
         for species_file in correlation_data:
             for template_name in correlation_data[species_file]:
                 for model in correlation_data[species_file][template_name]:
@@ -2142,19 +2286,75 @@ def get_search_count_correlation():
                     model_data['p_value'] = p_value
                     model_data['species_count'] = len(model_data['data_points'])
         
-        return jsonify({
+        result = {
             'correlation_data': correlation_data,
-            'files_with_search_counts': list(correlation_data.keys()),
-            'total_files': len(correlation_data)
-        })
+            'files_with_search_counts': files_with_search_counts,
+            'total_files': len(correlation_data),
+            'cache_info': {
+                'cached': False,
+                'calculated_at': current_time,
+                'cache_duration': CACHE_DURATION
+            }
+        }
+        
+        # Update cache
+        _update_search_correlation_cache(result, current_time)
+        
+        return jsonify(result)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def _update_search_correlation_cache(data, timestamp):
+    """Update the global search correlation cache"""
+    global _search_correlation_cache, _search_correlation_cache_timestamp
+    _search_correlation_cache = data
+    _search_correlation_cache_timestamp = timestamp
+
+def _invalidate_search_correlation_cache():
+    """Invalidate the search correlation cache (call when results are updated)"""
+    global _search_correlation_cache, _search_correlation_cache_timestamp
+    _search_correlation_cache = {}
+    _search_correlation_cache_timestamp = 0
+
+def _invalidate_knowledge_analysis_cache():
+    """Invalidate the knowledge analysis cache (call when results are updated)"""
+    global _knowledge_analysis_cache, _knowledge_analysis_cache_timestamp
+    _knowledge_analysis_cache = {}
+    _knowledge_analysis_cache_timestamp = 0
+
+def _invalidate_all_caches():
+    """Invalidate all caches when results are updated"""
+    _invalidate_search_correlation_cache()
+    _invalidate_knowledge_analysis_cache()
+
+def _update_knowledge_analysis_cache(data, timestamp):
+    """Update the global knowledge analysis cache"""
+    global _knowledge_analysis_cache, _knowledge_analysis_cache_timestamp
+    _knowledge_analysis_cache = data
+    _knowledge_analysis_cache_timestamp = timestamp
+
 @app.route('/api/knowledge_analysis_data')
 def get_knowledge_analysis_data():
-    """Get knowledge level analysis data stratified by input type"""
+    """Get knowledge level analysis data stratified by input type with caching"""
+    import time
+    
     try:
+        # Check cache first
+        current_time = time.time()
+        if (_knowledge_analysis_cache and 
+            current_time - _knowledge_analysis_cache_timestamp < CACHE_DURATION):
+            # Add cache info to cached response
+            cached_response = _knowledge_analysis_cache.copy()
+            cached_response['cache_info'] = {
+                'cached': True,
+                'calculated_at': _knowledge_analysis_cache_timestamp,
+                'cache_duration': CACHE_DURATION,
+                'age_seconds': current_time - _knowledge_analysis_cache_timestamp
+            }
+            return jsonify(cached_response)
+        
+        # Cache miss - need to recalculate
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -2332,11 +2532,21 @@ def get_knowledge_analysis_data():
                     if template_type == 'knowledge':
                         formatted_data[species_file]['types'][species_type][display_name] = models
         
-        return jsonify({
+        result = {
             'knowledge_analysis': formatted_data,
             'total_files': len(formatted_data),
-            'file_list': list(formatted_data.keys())
-        })
+            'file_list': list(formatted_data.keys()),
+            'cache_info': {
+                'cached': False,
+                'calculated_at': current_time,
+                'cache_duration': CACHE_DURATION
+            }
+        }
+        
+        # Update cache
+        _update_knowledge_analysis_cache(result, current_time)
+        
+        return jsonify(result)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2351,7 +2561,7 @@ def export_csv_api():
         csv_content = processing_manager.export_results_to_csv(species_file, model)
         
         # Generate filename
-        filename_parts = ['microbellm_results']
+        filename_parts = ['microbebench_results']
         if species_file:
             filename_parts.append(os.path.basename(species_file).replace('.txt', ''))
         if model:
@@ -2899,27 +3109,50 @@ def main():
     """Main entry point for the web application"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="MicrobeLLM Web Interface")
+    parser = argparse.ArgumentParser(description="MicrobeBench Web Interface")
     parser.add_argument('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
     parser.add_argument('--port', type=int, default=5000, help='Port to bind to (default: 5000)')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     
     args = parser.parse_args()
     
+    # Load .env file if it exists
+    env_file_path = os.path.join(os.getcwd(), '.env')
+    if os.path.exists(env_file_path):
+        print("Loading environment variables from .env file...")
+        with open(env_file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    # Remove quotes if present
+                    if value.startswith('"') and value.endswith('"'):
+                        value = value[1:-1]
+                    elif value.startswith("'") and value.endswith("'"):
+                        value = value[1:-1]
+                    os.environ[key] = value
+    
     # Check environment
     if not os.getenv('OPENROUTER_API_KEY'):
         print("Warning: OPENROUTER_API_KEY not set")
         print("Set it with: export OPENROUTER_API_KEY='your-api-key'")
+        print("Or create a .env file with: OPENROUTER_API_KEY=your-api-key")
     
-    print(f"Starting MicrobeLLM Web Interface on http://{args.host}:{args.port}")
+    # Initialize the processing manager after loading environment
+    global processing_manager
+    reset_running_jobs_on_startup()
+    processing_manager = ProcessingManager()
+    
+    print(f"Starting MicrobeBench Web Interface on http://{args.host}:{args.port}")
     socketio.run(app, host=args.host, port=args.port, debug=args.debug)
 
 if __name__ == '__main__':
     main()
 
-# Reset job statuses on startup
-reset_running_jobs_on_startup()
-job_manager = ProcessingManager() 
+# Global variable for processing manager - initialized in main()
+processing_manager = None 
 
 @app.route('/api/rerun_failed_species', methods=['POST'])
 def rerun_failed_species_api():

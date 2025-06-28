@@ -1,161 +1,212 @@
 {% extends "base.html" %}
-{% block title %}Import Results{% endblock %}
+
+{% block title %}Import Results - MicrobeBench{% endblock %}
 
 {% block content %}
-<h1>Import Results</h1>
-
-<div class="dashboard-controls">
-    <a href="/" class="btn btn-primary">
-        <i class="fas fa-tachometer-alt"></i> Dashboard
-    </a>
-    <a href="/settings" class="btn btn-secondary">
-        <i class="fas fa-cog"></i> Settings
-    </a>
-    <a href="/export" class="btn btn-success">
-        <i class="fas fa-download"></i> Export Results
-    </a>
-    <a href="/compare" class="btn btn-secondary">
-        <i class="fas fa-balance-scale"></i> Compare Results
-    </a>
+<div class="page-header mb-3">
+    <h2>Import Results</h2>
+    <p class="text-muted">Import results from a CSV file</p>
 </div>
 
-<div class="import-section">
-    <h3>Upload CSV File</h3>
-    <p>Import results from a previously exported CSV file or from external sources.</p>
+<div class="nav-links mb-3">
+    <a href="/" class="btn btn-ghost btn-sm">← Back to Dashboard</a>
+</div>
+
+<div class="card">
+    <h3>Import CSV File</h3>
     
-    <form id="importForm" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="csvFile">Choose CSV File:</label>
-            <input type="file" id="csvFile" name="file" accept=".csv" class="form-control" required>
-            <small class="form-help">
-                File should be in the same format as exported CSV files with proper columns.
-            </small>
+    <div class="import-controls">
+        <div class="import-info card mb-3" style="background: var(--bg-secondary);">
+            <h4 class="text-small">Requirements</h4>
+            <ul class="text-small text-muted">
+                <li>CSV format with proper headers</li>
+                <li>Must include: species_file, binomial_name, model, status</li>
+                <li>Optional: system_template, user_template, phenotype predictions</li>
+                <li>Supports both exported files and external predictions</li>
+            </ul>
         </div>
         
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-upload"></i> Import CSV
-        </button>
-    </form>
-    
-    <div id="importStatus" class="import-status" style="display: none;">
-        <div class="status-content"></div>
-    </div>
-</div>
-
-<div class="import-info">
-    <h3>Import Information</h3>
-    <div class="info-content">
-        <ul>
-            <li><strong>Format:</strong> CSV files with semicolon separation</li>
-            <li><strong>Required Columns:</strong> binomial_name and at least one phenotype column</li>
-            <li><strong>Supported Phenotypes:</strong> gram_staining, motility, aerophilicity, biofilm_formation, etc.</li>
-            <li><strong>Behavior:</strong> Existing data for the same species/model/template combination will be updated</li>
-        </ul>
+        <div class="file-upload-area">
+            <input type="file" id="csvFile" accept=".csv" style="display: none;">
+            <div class="upload-zone" onclick="document.getElementById('csvFile').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Click to select CSV file</p>
+                <small class="text-muted">or drag and drop</small>
+            </div>
+            
+            <div id="fileInfo" class="file-info mt-2" style="display: none;">
+                <span id="fileName"></span>
+                <button onclick="clearFile()" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+        </div>
+        
+        <div class="import-actions mt-3">
+            <button onclick="importCsv()" id="importBtn" class="btn btn-primary" disabled>
+                <i class="fas fa-upload"></i> Import CSV
+            </button>
+            
+            <div id="importStatus" class="mt-2"></div>
+        </div>
     </div>
 </div>
 
 <style>
-    .import-section {
-        background: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-bottom: 30px;
+    .page-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
     }
     
-    .form-group {
-        margin-bottom: 20px;
+    .nav-links {
+        padding: 8px 0;
     }
     
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #495057;
-    }
-    
-    .form-control {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-    
-    .form-help {
-        display: block;
-        margin-top: 5px;
-        font-size: 12px;
-        color: #6c757d;
-    }
-    
-    .import-status {
-        margin-top: 20px;
-        padding: 15px;
-        border-radius: 6px;
-        border: 1px solid #dee2e6;
-    }
-    
-    .import-status.success {
-        background-color: #d4edda;
-        border-color: #c3e6cb;
-        color: #155724;
-    }
-    
-    .import-status.error {
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
-        color: #721c24;
-    }
-    
-    .import-status.loading {
-        background-color: #d1ecf1;
-        border-color: #bee5eb;
-        color: #0c5460;
+    .import-controls {
+        max-width: 600px;
     }
     
     .import-info {
-        background: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 16px;
     }
     
-    .import-info h3 {
-        margin-top: 0;
-        color: #2c3e50;
-    }
-    
-    .info-content ul {
-        padding-left: 20px;
-        line-height: 1.6;
-    }
-    
-    .info-content li {
+    .import-info h4 {
         margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .import-info ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .upload-zone {
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--bg-secondary);
+    }
+    
+    .upload-zone:hover {
+        border-color: var(--accent-primary);
+        background: var(--white);
+    }
+    
+    .upload-zone.dragover {
+        border-color: var(--accent-secondary);
+        background: linear-gradient(135deg, var(--accent-primary) 0%, transparent 70%);
+    }
+    
+    .upload-zone i {
+        font-size: 48px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+    
+    .upload-zone p {
+        margin: 0;
+        font-weight: 500;
+    }
+    
+    .file-info {
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+    }
+    
+    #importStatus {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    
+    #importStatus.success {
+        color: var(--accent-secondary);
+    }
+    
+    #importStatus.error {
+        color: var(--accent-error);
+    }
+    
+    .import-summary {
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        font-size: 11px;
+    }
+    
+    .import-summary h5 {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 </style>
 
-{% endblock %}
-
-{% block scripts %}
 <script>
-    document.getElementById('importForm').addEventListener('submit', function(e) {
+    // File handling
+    const fileInput = document.getElementById('csvFile');
+    const uploadZone = document.querySelector('.upload-zone');
+    
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    // Drag and drop
+    uploadZone.addEventListener('dragover', (e) => {
         e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+    
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+    
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
         
-        const fileInput = document.getElementById('csvFile');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-            alert('Please select a CSV file to import.');
-            return;
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
         }
+    });
+    
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').style.display = 'flex';
+            document.getElementById('importBtn').disabled = false;
+            document.getElementById('importStatus').textContent = '';
+        }
+    }
+    
+    function clearFile() {
+        fileInput.value = '';
+        document.getElementById('fileInfo').style.display = 'none';
+        document.getElementById('importBtn').disabled = true;
+        document.getElementById('importStatus').textContent = '';
+    }
+    
+    function importCsv() {
+        const file = fileInput.files[0];
+        if (!file) return;
         
         const formData = new FormData();
         formData.append('file', file);
         
-        // Show loading status
-        showImportStatus('loading', 'Uploading and processing file...');
+        const statusDiv = document.getElementById('importStatus');
+        const importBtn = document.getElementById('importBtn');
+        
+        statusDiv.textContent = 'Importing...';
+        statusDiv.className = '';
+        importBtn.disabled = true;
         
         fetch('/api/import_csv', {
             method: 'POST',
@@ -164,40 +215,39 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                let message = 'Import completed successfully!';
-                if (data.results) {
-                    message += `\n- Imported: ${data.results.imported_count || 0} records`;
-                    message += `\n- Updated: ${data.results.updated_count || 0} records`;
-                    message += `\n- Skipped: ${data.results.skipped_count || 0} records`;
-                }
-                showImportStatus('success', message);
+                statusDiv.className = 'success';
+                statusDiv.innerHTML = `
+                    Import completed successfully!
+                    <div class="import-summary">
+                        <h5>Summary</h5>
+                        <div>Total rows: ${data.total_rows}</div>
+                        <div>Imported: ${data.imported}</div>
+                        <div>Skipped: ${data.skipped}</div>
+                        <div>Errors: ${data.errors}</div>
+                    </div>
+                `;
                 
-                // Clear the form
-                fileInput.value = '';
-                
-                // Optionally redirect to dashboard after a delay
+                // Clear file after successful import
                 setTimeout(() => {
-                    if (confirm('Import completed! Would you like to go back to the dashboard?')) {
+                    clearFile();
+                    // Optionally redirect to dashboard
+                    if (confirm('Import successful! Return to dashboard?')) {
                         window.location.href = '/';
                     }
                 }, 2000);
             } else {
-                showImportStatus('error', 'Import failed: ' + (data.error || 'Unknown error'));
+                statusDiv.className = 'error';
+                statusDiv.textContent = 'Error: ' + (data.error || 'Import failed');
             }
         })
         .catch(error => {
             console.error('Import error:', error);
-            showImportStatus('error', 'Import failed: ' + error.message);
+            statusDiv.className = 'error';
+            statusDiv.textContent = 'Error: Import failed. Please check your file format.';
+        })
+        .finally(() => {
+            importBtn.disabled = false;
         });
-    });
-    
-    function showImportStatus(type, message) {
-        const statusDiv = document.getElementById('importStatus');
-        const contentDiv = statusDiv.querySelector('.status-content');
-        
-        statusDiv.className = 'import-status ' + type;
-        statusDiv.style.display = 'block';
-        contentDiv.textContent = message;
     }
 </script>
 {% endblock %}

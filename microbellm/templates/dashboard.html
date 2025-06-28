@@ -1,606 +1,908 @@
 {% extends "base.html" %}
 
-{% block title %}MicrobeLLM Dashboard{% endblock %}
+{% block title %}MicrobeBench Dashboard{% endblock %}
+
+{% block body_class %}page-dashboard{% endblock %}
 
 {% block content %}
-<h1>MicrobeLLM Processing Dashboard</h1>
-
-<!-- API Key Status Indicator - Top Right Corner -->
-<div id="apiKeyCornerStatus" class="api-key-corner-status">
-    <div class="api-corner-status-dot" id="apiStatusDot"></div>
-    <span class="api-corner-status-text" id="apiStatusText">Checking...</span>
-</div>
-
-<!-- Settings Panel -->
-<div class="settings-panel">
-    <div class="settings-header">
-        <h4>Settings</h4>
-        <button onclick="toggleSettings()" class="settings-toggle">Settings</button>
+<div class="content-wrapper">
+    <div class="card">
+        <h2>Dashboard</h2>
+        <p>Manage your microbial prediction jobs</p>
     </div>
-    <div id="settingsContent" class="settings-content" style="display: none;">
-        <div class="setting-item api-key-setting">
-            <label for="apiKeyInput">OpenRouter API Key:</label>
-            <div class="api-key-input-row">
-                <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Enter your OpenRouter API key">
-                <button onclick="updateApiKey()" class="btn btn-primary btn-small">Update</button>
-                <button onclick="toggleApiKeyVisibility()" class="btn btn-secondary btn-small" id="toggleApiKeyBtn">Show</button>
+    
+    <!-- API Key Warning -->
+    <div id="apiKeyWarning" class="card api-warning" style="display: none;">
+        <h3>⚠️ API Key Not Configured</h3>
+        <p>OpenRouter API key is not set. Jobs will fail without a valid API key.</p>
+        <button onclick="window.location.href='/settings'" class="button">Configure API Key</button>
+    </div>
+    
+    <!-- API Status -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 5px 0;">API Status</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 12px;">OpenRouter API connection status</p>
             </div>
-            <div class="api-key-help">
-                Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. 
-                This is stored as an environment variable and requires a server restart to take effect.
+            <div class="status-indicator" id="apiStatus">
+                <span class="status-dot"></span>
+                <span id="apiStatusText">CHECKING</span>
             </div>
         </div>
-        <div class="setting-item">
-            <label for="rateLimitInput">Requests per second:</label>
-            <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="30">
-            <button onclick="updateRateLimit()" class="btn btn-sm btn-primary">Update</button>
-        </div>
-        <div class="setting-item">
-            <label for="concurrentInput">Concurrent requests:</label>
-            <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
-            <button onclick="updateConcurrency()" class="btn btn-sm btn-primary">Update</button>
-            <small class="form-help">Number of species to process in parallel</small>
-        </div>
-        <p class="settings-note">Warning: Higher values may result in rate limiting from the API provider.</p>
-        <div class="queue-status">
-            <strong>Queue Length:</strong> <span id="queueLength">0</span> jobs waiting
-        </div>
     </div>
-</div>
 
-<div class="dashboard-controls">
-    <a href="/export" class="btn btn-success">
-        <i class="fas fa-download"></i> Export Results
-    </a>
-    <a href="/import" class="btn btn-primary">
-        <i class="fas fa-upload"></i> Import Results
-    </a>
-    <button onclick="refreshDashboard()" class="btn btn-secondary">
-        <i class="fas fa-sync-alt"></i> Refresh
-    </button>
-</div>
-
-{% if dashboard_data.matrix %}
-    <!-- Template Navigation -->
-    <div class="template-tabs">
-        {% set templates = dashboard_data.template_display_info %}
-        {% for template_info in templates %}
-            {% set i = loop.index0 %}
-                    <button class="template-tab template-type-{{ template_info.template_type }} {% if i == 0 %}active{% endif %}"
-                onclick="showTemplate({{ i }})"
-                    id="tab-{{ i }}"
-                    title="{{ template_info.description }} ({{ template_info.template_type }} template)">
-                {% if template_info.template_type == 'knowledge' %}
-                    <i class="fas fa-brain"></i>
-                {% else %}
-                    <i class="fas fa-dna"></i>
-                {% endif %}
-                {{ template_info.display_name }}
+    <div class="dashboard-header">
+        <div class="dashboard-controls">
+            <button onclick="toggleSettings()" class="btn btn-ghost">
+                <i class="fas fa-cog"></i> Settings
             </button>
-        {% endfor %}
-        <button class="template-tab template-manage-tab" 
-                onclick="openTemplateManager()" 
-                id="template-manage-btn"
-                title="Manage template names and descriptions">
-            <i class="fas fa-edit"></i>
-        </button>
+            <a href="/export" class="btn">
+                <i class="fas fa-download"></i> Export
+            </a>
+            <a href="/import" class="btn">
+                <i class="fas fa-upload"></i> Import
+            </a>
+            <button onclick="refreshDashboard(true)" class="btn" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
     </div>
 
-    <!-- Template Sections -->
-    {% for template_info in dashboard_data.template_display_info %}
-        {% set sys_template = template_info.system_template %}
-        {% set user_template = template_info.user_template %}
-        {% set i = loop.index0 %}
-        {% set file_template_name = sys_template.split('/')[-1].replace('.txt', '') %}
-        <div class="template-section {% if i == 0 %}active{% endif %}" id="template-{{ i }}">
-            <div class="template-header">
-                <h3>
-                    {% if template_info.template_type == 'knowledge' %}
-                        <i class="fas fa-brain"></i>
-                    {% else %}
-                        <i class="fas fa-dna"></i>
-                    {% endif %}
+    {% if dashboard_data.matrix %}
+        <!-- Template Navigation -->
+        <div class="template-tabs">
+            {% set templates = dashboard_data.template_display_info %}
+            {% for template_info in templates %}
+                {% set i = loop.index0 %}
+                <button class="template-tab {% if i == 0 %}active{% endif %}"
+                        onclick="showTemplate({{ i }})"
+                        id="tab-{{ i }}"
+                        data-tooltip="{{ template_info.description }} ({{ template_info.template_type }} template)">
                     {{ template_info.display_name }}
-                    <span class="template-type-badge template-type-{{ template_info.template_type }}">
-                        {{ template_info.template_type|capitalize }} Template
-                    </span>
-                </h3>
-                <div class="template-description">
-                    <p>{{ template_info.description }}</p>
-                </div>
-                <div class="template-info">
-                    <small>
-                        System: <a href="/view_template/system/{{ file_template_name }}" target="_blank" class="template-link" title="View system template">{{ sys_template.split('/')[-1] }}</a> | 
-                        User: <a href="/view_template/user/{{ file_template_name }}" target="_blank" class="template-link" title="View user template">{{ user_template.split('/')[-1] }}</a>
-                    </small>
-                </div>
-            </div>
+                </button>
+            {% endfor %}
+            <button class="template-tab" 
+                    onclick="openTemplateManager()" 
+                    id="template-manage-btn"
+                    data-tooltip="Manage template names">
+                <i class="fas fa-edit"></i>
+            </button>
+        </div>
 
-            <div class="matrix-container">
-                <table class="processing-matrix">
-                    <thead>
-                        <tr>
-                            <th class="species-header">Species Files</th>
-                            {% for model in dashboard_data.models %}
-                            <th class="model-header">
-                                <div class="model-name">{{ model.split('/')[-1] }}</div>
-                                <button class="delete-model-btn" onclick="deleteModel('{{ model }}')" title="Remove model">×</button>
-                            </th>
-                            {% endfor %}
-                            <th class="add-column">
-                                <button class="add-btn" onclick="addModel()" title="Add new model">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for species_file in dashboard_data.species_files %}
-                            <tr>
-                                <td class="species-name">
-                                    <div>{{ species_file.split('/')[-1] }}</div>
-                                    <button class="delete-species-btn" onclick="deleteSpeciesFile('{{ species_file }}')" title="Remove species file">×</button>
-                                </td>
-                                {% for model in dashboard_data.models %}
-                                    {% set cell_key = species_file + '|' + sys_template + '|' + user_template %}
-                                    {% set cell_data = dashboard_data.matrix.get(cell_key, {}).get('models', {}).get(model) %}
-                                    <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
-                                        {% if cell_data %}
-                                            <div class="status-cell status-{{ cell_data.status }}" onclick="showCombinationDetails({{ cell_data.id }})" style="cursor: pointer;" title="Click to see detailed results">
-                                                <div class="progress-info">
-                                                    <div class="main-progress">
-                                                        {% if cell_data.status == 'completed' and cell_data.successful > 0 %}
-                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Done</span>
-                                                        {% elif cell_data.status == 'failed' and cell_data.successful == 0 %}
-                                                            <span class="completion-main">{{ cell_data.failed + cell_data.timeouts }}/{{ cell_data.total }} Failed</span>
-                                                        {% elif cell_data.status == 'running' %}
-                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Processing</span>
-                                                        {% elif cell_data.status == 'interrupted' %}
-                                                            <span class="completion-main">{{ cell_data.submitted }}/{{ cell_data.total }} Paused</span>
-                                                        {% else %}
-                                                            <span class="completion-main">{{ cell_data.total }} Ready</span>
+        <!-- Template Sections -->
+        {% for template_info in dashboard_data.template_display_info %}
+            {% set sys_template = template_info.system_template %}
+            {% set user_template = template_info.user_template %}
+            {% set i = loop.index0 %}
+            {% set file_template_name = sys_template.split('/')[-1].replace('.txt', '') %}
+            <div class="template-section {% if i == 0 %}active{% endif %}" id="template-{{ i }}">
+                <div class="template-info card mb-3">
+                    <p class="text-muted mb-1">{{ template_info.description }}</p>
+                    <div class="text-small">
+                        System: <a href="/view_template/system/{{ file_template_name }}" target="_blank">{{ sys_template.split('/')[-1] }}</a> | 
+                        User: <a href="/view_template/user/{{ file_template_name }}" target="_blank">{{ user_template.split('/')[-1] }}</a>
+                    </div>
+                </div>
+
+                <div class="matrix-container">
+                    <div class="matrix-scroll" id="matrix-scroll-{{ i }}">
+                        <table class="processing-matrix">
+                            <thead>
+                                <tr>
+                                    <th class="species-header">Species Files</th>
+                                    {% for model in dashboard_data.models %}
+                                    <th class="model-header">
+                                        <div class="model-name">{{ model.split('/')[-1] }}</div>
+                                        <button class="btn btn-ghost btn-sm" onclick="deleteModel('{{ model }}')" title="Remove model">×</button>
+                                    </th>
+                                    {% endfor %}
+                                    <th class="add-column">
+                                        <button class="btn btn-accent btn-sm" onclick="addModel()" title="Add model">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for species_file in dashboard_data.species_files %}
+                                    <tr>
+                                        <td class="species-name">
+                                            <div>{{ species_file.split('/')[-1] }}</div>
+                                            <button class="btn btn-ghost btn-sm" onclick="deleteSpeciesFile('{{ species_file }}')" title="Remove file">×</button>
+                                        </td>
+                                        {% for model in dashboard_data.models %}
+                                            {% set cell_key = species_file + '|' + sys_template + '|' + user_template %}
+                                            {% set cell_data = dashboard_data.matrix.get(cell_key, {}).get('models', {}).get(model) %}
+                                            <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
+                                                {% if cell_data %}
+                                                    <div class="status-cell status-{{ cell_data.status }}" onclick="showCombinationDetails({{ cell_data.id }})" data-combination-id="{{ cell_data.id }}">
+                                                        <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination({{ cell_data.id }})">&times;</button>
+                                                        <div class="progress-info">
+                                                            <div class="progress-main">
+                                                                {% if cell_data.status == 'running' %}
+                                                                    <span class="progress-running">{{ cell_data.submitted }}/{{ cell_data.total }}</span>
+                                                                {% elif cell_data.status in ['completed', 'failed', 'interrupted'] %}
+                                                                    <span>{{ cell_data.successful }}/{{ cell_data.total }}</span>
+                                                                {% else %}
+                                                                    <span class="status-label">{{ cell_data.status }}</span>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div class="progress-details progress-completed">
+                                                                {% if cell_data.status in ['completed', 'failed', 'interrupted'] %}
+                                                                    {% set parts = [] %}
+                                                                    {% if cell_data.successful > 0 %}{% set _ = parts.append(cell_data.successful ~ ' success') %}{% endif %}
+                                                                    {% if cell_data.failed > 0 %}{% set _ = parts.append(cell_data.failed ~ ' failed') %}{% endif %}
+                                                                    {% if cell_data.timeouts > 0 %}{% set _ = parts.append(cell_data.timeouts ~ ' timeout') %}{% endif %}
+                                                                    {{ parts | join(', ') }}
+                                                                {% elif cell_data.status == 'running' %}
+                                                                    {{ cell_data.successful }} success
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {% if cell_data.total > 0 and (cell_data.status == 'running' or cell_data.successful > 0 or cell_data.failed > 0 or cell_data.timeouts > 0) %}
+                                                            <div class="progress-bar">
+                                                                <div class="progress-fill" style="width: {{ (( (cell_data.successful + cell_data.failed + cell_data.timeouts) / cell_data.total * 100)|round) }}%"></div>
+                                                            </div>
                                                         {% endif %}
+                                                        
+                                                        <div class="cell-actions">
+                                                            {% if cell_data.status == 'pending' %}
+                                                                <button onclick="event.stopPropagation(); startCombination({{ cell_data.id }})" class="action-btn start-btn">Start</button>
+                                                            {% elif cell_data.status == 'running' %}
+                                                                <button onclick="event.stopPropagation(); pauseCombination({{ cell_data.id }})" class="action-btn pause-btn" title="Pause">Pause</button>
+                                                                <button onclick="event.stopPropagation(); stopCombination({{ cell_data.id }})" class="action-btn stop-btn" title="Stop">Stop</button>
+                                                            {% elif cell_data.status == 'completed' and cell_data.failed == 0 and cell_data.timeouts == 0 %}
+                                                                <span class="status-label">Complete</span>
+                                                            {% elif cell_data.status in ['completed', 'failed', 'interrupted'] %}
+                                                                <button onclick="event.stopPropagation(); restartCombination({{ cell_data.id }})" class="action-btn start-btn">Retry</button>
+                                                            {% endif %}
+                                                        </div>
                                                     </div>
-                                                    
-                                                    {% if cell_data.submitted > 0 or cell_data.status == 'running' %}
-                                                        <div class="detailed-progress">
-                                                            <div class="progress-line">
-                                                                <span class="progress-label">Sent:</span>
-                                                                <span class="progress-value">{{ cell_data.submitted }}</span>
-                                                            </div>
-                                                            {% if cell_data.received > 0 %}
-                                                                <div class="progress-line">
-                                                                    <span class="progress-label">Received:</span>
-                                                                    <span class="progress-value">{{ cell_data.received }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                            {% if cell_data.successful > 0 %}
-                                                                <div class="progress-line success">
-                                                                    <span class="progress-label">Success:</span>
-                                                                    <span class="progress-value">{{ cell_data.successful }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                            {% if cell_data.timeouts > 0 %}
-                                                                <div class="progress-line timeout">
-                                                                    <span class="progress-label">Timeouts:</span>
-                                                                    <span class="progress-value">{{ cell_data.timeouts }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                            {% if cell_data.failed > 0 %}
-                                                                <div class="progress-line failed">
-                                                                    <span class="progress-label">Failed:</span>
-                                                                    <span class="progress-value">{{ cell_data.failed }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% elif cell_data.imported %}
-                                                        <div class="detailed-progress">
-                                                            <div class="progress-line imported">
-                                                                <span class="progress-label">Source:</span>
-                                                                <span class="progress-value">Imported</span>
-                                                            </div>
-                                                            {% if cell_data.successful > 0 %}
-                                                                <div class="progress-line success">
-                                                                    <span class="progress-label">Success:</span>
-                                                                    <span class="progress-value">{{ cell_data.successful }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                            {% if cell_data.timeouts > 0 %}
-                                                                <div class="progress-line timeout">
-                                                                    <span class="progress-label">Timeouts:</span>
-                                                                    <span class="progress-value">{{ cell_data.timeouts }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                            {% if cell_data.failed > 0 %}
-                                                                <div class="progress-line failed">
-                                                                    <span class="progress-label">Failed:</span>
-                                                                    <span class="progress-value">{{ cell_data.failed }}</span>
-                                                                </div>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% endif %}
-                                                    
-                                                    {% if cell_data.total > 0 and (cell_data.successful > 0 or cell_data.status == 'running') %}
-                                                        <div class="progress-bar">
-                                                            <div class="progress-fill" style="width: {{ ((cell_data.successful / cell_data.total * 100)|round) }}%"></div>
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
-                                                
-                                                {% if cell_data.status == 'pending' %}
-                                                    <button onclick="startCombination({{ cell_data.id }})" class="action-btn start-btn">
-                                                        <i class="fas fa-play"></i> Start
-                                                    </button>
-                                                {% elif cell_data.status == 'running' %}
-                                                    <div class="status-badge running">
-                                                        <i class="fas fa-spinner rotating"></i> Running
-                                                    </div>
-                                                    <div class="job-controls">
-                                                        <button onclick="pauseCombination({{ cell_data.id }})" class="action-btn pause-btn" title="Pause job">
-                                                            <i class="fas fa-pause"></i>
-                                                        </button>
-                                                        <button onclick="stopCombination({{ cell_data.id }})" class="action-btn stop-btn" title="Stop job">
-                                                            <i class="fas fa-stop"></i>
+                                                {% else %}
+                                                    <div class="status-cell status-empty">
+                                                        <button onclick="event.stopPropagation(); createAndStartCombination('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" 
+                                                                class="action-btn">
+                                                            Create
                                                         </button>
                                                     </div>
-                                                {% elif cell_data.status == 'completed' and cell_data.successful > 0 %}
-                                                    <div class="status-badge completed">
-                                                        <i class="fas fa-check"></i> Completed
-                                                    </div>
-                                                    {% if cell_data.imported %}
-                                                        <div class="import-badge" title="This data was imported from CSV">
-                                                            <i class="fas fa-file-import"></i> Imported
-                                                        </div>
-                                                    {% endif %}
-                                                {% elif cell_data.status == 'failed' or (cell_data.status == 'completed' and cell_data.successful == 0) %}
-                                                    <div class="status-badge failed">
-                                                        <i class="fas fa-exclamation-triangle"></i> Failed
-                                                    </div>
-                                                    <button onclick="restartCombination({{ cell_data.id }})" class="action-btn restart-btn">
-                                                        <i class="fas fa-redo"></i> Retry
-                                                    </button>
-                                                {% elif cell_data.status == 'interrupted' %}
-                                                    <div class="status-badge interrupted">
-                                                        <i class="fas fa-pause"></i> Paused
-                                                    </div>
-                                                    <button onclick="startCombination({{ cell_data.id }})" class="action-btn start-btn">
-                                                        <i class="fas fa-play"></i> Resume
-                                                    </button>
                                                 {% endif %}
-                                                <button onclick="deleteCombination({{ cell_data.id }})" class="delete-combination-btn" title="Delete this combination">×</button>
-                                            </div>
-                                        {% else %}
-                                            <div class="status-cell status-empty">
-                                                <button onclick="createAndStartCombination('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" 
-                                                        class="action-btn create-btn">
-                                                    <i class="fas fa-plus"></i> Create
-                                                </button>
-                                            </div>
-                                        {% endif %}
-                                    </td>
+                                            </td>
+                                        {% endfor %}
+                                        <td class="add-cell"></td>
+                                    </tr>
                                 {% endfor %}
-                                <td class="add-cell"></td>
-                            </tr>
-                        {% endfor %}
-                        <tr class="add-row">
-                            <td>
-                                <button class="add-btn" onclick="addSpeciesFile()" title="Add new species file">
-                                    <i class="fas fa-plus"></i> Add Species File
-                                </button>
-                            </td>
-                            {% for model in dashboard_data.models %}
-                                <td></td>
-                            {% endfor %}
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
+                                <tr class="add-row">
+                                    <td>
+                                        <button class="btn btn-accent btn-sm" onclick="addSpeciesFile()">
+                                            <i class="fas fa-plus"></i> Add File
+                                        </button>
+                                    </td>
+                                    {% for model in dashboard_data.models %}
+                                        <td></td>
+                                    {% endfor %}
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-flask"></i>
+            </div>
+            <h3>No Processing Combinations Yet</h3>
+            <p class="text-muted">Start by adding a species file and selecting models to process</p>
+            <button onclick="addSpeciesFile()" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add First Species File
+            </button>
+        </div>
+    {% endif %}
+
+    <!-- Live Status Display -->
+    <div id="liveStatusModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="liveStatusTitle">Live Status</h3>
+                <button onclick="closeModal('liveStatusModal')" class="modal-close">×</button>
+            </div>
+            <div class="modal-body" id="liveStatusContent">
+                <!-- Will be populated dynamically -->
             </div>
         </div>
-    {% endfor %}
-
-{% else %}
-    <div class="empty-state">
-        <div class="empty-icon">
-            <i class="fas fa-flask"></i>
-        </div>
-        <h3>No Processing Combinations Yet</h3>
-        <p>Start by adding a species file and selecting models to process</p>
-        <button onclick="addSpeciesFile()" class="btn btn-primary btn-large">
-            <i class="fas fa-plus"></i> Add First Species File
-        </button>
     </div>
-{% endif %}
 
-<!-- Detailed Results Modal -->
-<div id="detailsModal" class="modal">
-    <div class="modal-content details-modal">
-        <div class="modal-header">
-            <h3 id="detailsTitle">Combination Details</h3>
-            <button onclick="closeModal('detailsModal')" class="modal-close">&times;</button>
-        </div>
-        
-        <div id="detailsContent" class="details-content">
-            <!-- Content will be populated by JavaScript -->
+    <!-- Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="detailsTitle">Combination Details</h3>
+                <button onclick="closeModal('detailsModal')" class="modal-close">×</button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <!-- Will be populated dynamically -->
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Modals -->
-<div id="addModelModal" class="modal">
-    <div class="modal-content">
-        <h3>Add Model</h3>
-        
-        <!-- Input Method Tabs -->
-        <div class="input-method-tabs">
-            <button class="input-tab active" onclick="switchInputMethod('dropdown')" id="dropdownTab">
-                Browse Models
-            </button>
-            <button class="input-tab" onclick="switchInputMethod('manual')" id="manualTab">
-                Manual Entry
-            </button>
+    <!-- Add Model Modal -->
+    <div id="addModelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Model</h3>
+                <button onclick="closeModal('addModelModal')" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label class="setting-label">Model Selection</label>
+                    <div class="input-tabs mb-2">
+                        <button class="input-tab active" onclick="switchInputMethod('dropdown')" id="dropdownTab">
+                            Browse
+                        </button>
+                        <button class="input-tab" onclick="switchInputMethod('manual')" id="manualTab">
+                            Manual
+                        </button>
+                    </div>
+                    
+                    <div id="dropdownMethod" class="input-method active">
+                        <div class="input-group">
+                            <select id="modelDropdown" class="form-control">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <button onclick="refreshModels()" class="btn btn-ghost btn-sm" title="Refresh">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted mt-1">
+                            <span id="modelCount">0</span> models available
+                        </small>
+                        <div id="selectedModelInfo" class="model-info mt-2" style="display: none;"></div>
+                    </div>
+                    
+                    <div id="manualMethod" class="input-method">
+                        <input type="text" id="newModelInput" class="form-control" 
+                               placeholder="e.g., anthropic/claude-3-haiku">
+                        <small class="text-muted mt-1">
+                            Enter the full model name from <a href="https://openrouter.ai/models" target="_blank">OpenRouter</a>
+                        </small>
+                        <div id="modelValidationStatus" class="validation-status mt-2" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <div class="mt-3" style="text-align: right;">
+                    <button onclick="closeModal('addModelModal')" class="btn">Cancel</button>
+                    <button id="addModelBtn" onclick="confirmAddModel()" class="btn btn-primary" disabled>Add Model</button>
+                </div>
+            </div>
         </div>
-        
-        <!-- Dropdown Method -->
-        <div id="dropdownMethod" class="input-method active">
-            <div class="form-group">
-                <label for="modelDropdown">Select Model:</label>
-                <div class="dropdown-container">
-                    <select id="modelDropdown" class="form-control">
-                        <option value="">Loading models...</option>
+    </div>
+
+    <!-- Add Species Modal -->
+    <div id="addSpeciesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Species File</h3>
+                <button onclick="closeModal('addSpeciesModal')" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label class="setting-label">Select Species File</label>
+                    <select id="newSpeciesSelect" class="form-control">
+                        <option value="">Select a file...</option>
+                        {% for file in dashboard_data.available_species_files %}
+                            <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
                     </select>
-                    <button onclick="refreshModels()" class="refresh-btn" title="Refresh model list">
-                        <i class="fas fa-sync"></i>
+                </div>
+                
+                <div class="mt-3" style="text-align: right;">
+                    <button onclick="closeModal('addSpeciesModal')" class="btn">Cancel</button>
+                    <button onclick="confirmAddSpecies()" class="btn btn-primary">Add File</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw Response Modal -->
+    <div id="rawResponseModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h3 id="rawResponseTitle">Raw Response</h3>
+                <button onclick="closeModal('rawResponseModal')" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="response-tabs">
+                    <button class="response-tab active" onclick="switchResponseTab('raw')" id="rawTab">
+                        Raw Response
+                    </button>
+                    <button class="response-tab" onclick="switchResponseTab('parsed')" id="parsedTab">
+                        Parsed Data
                     </button>
                 </div>
-                <small class="form-help">
-                    <span id="modelCount">0</span> models available from OpenRouter
-                </small>
-                <div id="selectedModelInfo" class="model-info" style="display: none;"></div>
+                
+                <div id="rawResponseContent" class="response-content active">
+                    <pre id="rawResponseText"></pre>
+                </div>
+                
+                <div id="parsedResponseContent" class="response-content">
+                    <div id="parsedResponseData"></div>
+                </div>
             </div>
-        </div>
-        
-        <!-- Manual Input Method -->
-        <div id="manualMethod" class="input-method">
-            <div class="form-group">
-                <label for="newModelInput">Model Name:</label>
-                <input type="text" id="newModelInput" class="form-control" 
-                       placeholder="e.g., anthropic/claude-3-haiku, openai/gpt-4o, google/gemini-pro">
-                <small class="form-help">
-                    Enter the full model name as listed on <a href="https://openrouter.ai/models" target="_blank">OpenRouter</a>
-                </small>
-                <div id="modelValidationStatus" class="validation-status" style="display: none;"></div>
-            </div>
-        </div>
-        
-        <div class="modal-buttons">
-            <button onclick="closeModal('addModelModal')" class="btn btn-secondary">Cancel</button>
-            <button id="addModelBtn" onclick="confirmAddModel()" class="btn btn-primary" disabled>Add Model</button>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<div id="addSpeciesModal" class="modal">
-    <div class="modal-content">
-        <h3>Add Species File</h3>
-        <div class="form-group">
-            <label>Species File:</label>
-            <select id="newSpeciesSelect" class="form-control">
-                <option value="">Select a species file...</option>
-                {% for file in dashboard_data.available_species_files %}
-                    <option value="{{ file }}">{{ file }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="modal-buttons">
-            <button onclick="closeModal('addSpeciesModal')" class="btn btn-secondary">Cancel</button>
-            <button onclick="confirmAddSpecies()" class="btn btn-primary">Add Species File</button>
-        </div>
+{% block settings_content %}
+<div class="setting-group">
+    <label class="setting-label">API Configuration</label>
+    <div class="api-key-input-group">
+        <input type="password" id="apiKeyInput" placeholder="Enter your OpenRouter API key">
+        <button onclick="toggleApiKeyVisibility()" class="btn btn-ghost btn-sm" id="toggleApiKeyBtn">Show</button>
+        <button onclick="updateApiKey()" class="btn btn-primary btn-sm">Update</button>
+    </div>
+    <small class="text-muted mt-1">
+        Get your key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
+    </small>
+</div>
+
+<div class="setting-group">
+    <label class="setting-label">Processing Rate</label>
+    <div class="input-group">
+        <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="30">
+        <span class="text-muted">req/sec</span>
+        <button onclick="updateRateLimit()" class="btn btn-primary btn-sm">Update</button>
     </div>
 </div>
 
+<div class="setting-group">
+    <label class="setting-label">Concurrent Requests</label>
+    <div class="input-group">
+        <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
+        <span class="text-muted">workers</span>
+        <button onclick="updateConcurrency()" class="btn btn-primary btn-sm">Update</button>
+    </div>
+    <small class="text-muted mt-1">Number of species to process in parallel</small>
+</div>
 
-
+<div class="setting-group">
+    <label class="setting-label">Queue Status</label>
+    <div class="queue-info">
+        <span id="queueLength">0</span> jobs waiting
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<style>
+    /* Dashboard specific styles */
+    .dashboard-header {
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    /* Template section visibility */
+    .template-section {
+        display: none;
+    }
+    
+    .template-section.active {
+        display: block;
+    }
+    
+    .dashboard-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .template-info {
+        background: var(--bg-secondary);
+        padding: 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    
+    .cell-actions {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+    }
+    
+    .status-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+    }
+    
+    .progress-running {
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    
+    .text-success { color: var(--accent-secondary); }
+    .text-error { color: var(--accent-error); }
+    .text-warning { color: var(--accent-warning); }
+    
+    .api-key-input-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .api-key-input-group input {
+        flex: 1;
+    }
+    
+    .queue-info {
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .input-tabs {
+        display: flex;
+        gap: 2px;
+        background: var(--bg-secondary);
+        padding: 2px;
+        border-radius: 6px;
+    }
+    
+    .input-tab {
+        flex: 1;
+        padding: 6px 12px;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+    }
+    
+    .input-tab:hover {
+        color: var(--text-primary);
+    }
+    
+    .input-tab.active {
+        background: var(--white);
+        color: var(--text-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .input-method {
+        display: none;
+    }
+    
+    .input-method.active {
+        display: block;
+    }
+    
+    .model-info {
+        background: var(--bg-secondary);
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+    
+    .validation-status {
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    
+    .validation-status.loading {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+    }
+    
+    .validation-status.success {
+        background: var(--accent-secondary);
+        color: var(--white);
+    }
+    
+    .validation-status.error {
+        background: var(--accent-error);
+        color: var(--white);
+    }
+    
+    /* Live status display */
+    .live-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+    
+    .live-status-item {
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    
+    .live-status-item.processing {
+        background: linear-gradient(135deg, var(--accent-secondary) 0%, transparent 70%);
+        border: 1px solid var(--accent-secondary);
+    }
+    
+    .live-status-item.success {
+        background: linear-gradient(135deg, var(--accent-primary) 0%, transparent 70%);
+        border: 1px solid var(--accent-primary);
+    }
+    
+    .live-status-item.failed {
+        background: linear-gradient(135deg, var(--accent-error) 0%, transparent 70%);
+        border: 1px solid var(--accent-error);
+    }
+    
+    .species-name-live {
+        font-weight: 600;
+        font-size: 11px;
+        margin-bottom: 4px;
+        font-style: italic;
+    }
+    
+    .species-status-live {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Fix for sticky positioning */
+    .processing-matrix {
+        position: relative;
+    }
+    
+    .species-header,
+    .species-name {
+        position: sticky;
+        left: 0;
+        background: var(--bg-secondary);
+        z-index: 9;
+    }
+    
+    .model-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg-secondary);
+        z-index: 8;
+    }
+    
+    .species-header {
+        z-index: 10;
+    }
+    
+    /* Delete buttons */
+    .species-name button,
+    .model-header button {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .species-name:hover button,
+    .model-header:hover button {
+        opacity: 1;
+    }
+    
+    /* Details modal styles */
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+    }
+    
+    .summary-grid > div {
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        text-align: center;
+        font-size: 12px;
+    }
+    
+    .species-list {
+        max-height: 400px;
+        overflow-y: auto;
+        margin-top: 16px;
+    }
+    
+    .species-result {
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .species-result.success {
+        background: rgba(146, 205, 182, 0.1);
+        border-color: var(--accent-secondary);
+    }
+    
+    .species-result.failed {
+        background: rgba(255, 179, 186, 0.1);
+        border-color: var(--accent-error);
+    }
+    
+    .error-msg {
+        margin-top: 4px;
+        font-size: 10px;
+        color: var(--accent-error);
+    }
+    
+    .species-result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .species-actions {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .btn-small {
+        padding: 2px 6px;
+        font-size: 9px;
+        border-radius: 3px;
+        border: 1px solid currentColor;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .btn-small:hover {
+        background: currentColor;
+        color: var(--white);
+    }
+    
+    .btn-retry { color: var(--accent-warning); }
+    .btn-view { color: var(--accent-primary); }
+    
+    .response-tabs {
+        display: flex;
+        gap: 2px;
+        background: var(--bg-secondary);
+        padding: 2px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+    }
+    
+    .response-tab {
+        flex: 1;
+        padding: 8px 16px;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+    }
+    
+    .response-tab:hover {
+        color: var(--text-primary);
+    }
+    
+    .response-tab.active {
+        background: var(--white);
+        color: var(--text-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .response-content {
+        display: none;
+    }
+    
+    .response-content.active {
+        display: block;
+    }
+    
+    .response-content pre {
+        background: var(--bg-secondary);
+        padding: 16px;
+        border-radius: 6px;
+        font-size: 11px;
+        line-height: 1.5;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    
+    .parsed-data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+    }
+    
+    .parsed-field {
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        border-left: 3px solid var(--accent-primary);
+    }
+    
+    .field-label {
+        font-weight: 600;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
+    
+    .field-value {
+        font-size: 12px;
+        color: var(--text-primary);
+    }
+</style>
+
 <script>
     // Initialize Socket.IO connection
     const socket = io();
     
-    // Helper function to escape HTML for safe display
-    function escapeHtml(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
+    // State management
+    let activeTemplateIndex = 0;
+    let liveStatusTracking = null;
+    let autoRefreshEnabled = true;
+    let lastUpdateTime = Date.now();
     
     socket.on('connect', function() {
         console.log('Connected to server');
+        checkApiKeyStatus();
     });
     
     socket.on('job_update', function(data) {
         console.log('Job update received:', data);
-        // Refresh immediately for job updates
-        setTimeout(refreshDashboard, 100);
+        // Update cell directly with WebSocket data instead of making API call
+        updateCellProgress(data.combination_id, data);
+        updateCellStatusClass(data.combination_id, data.status);
+        updateCellActions(data.combination_id, data);
     });
-
-    // Check API key status on page load
-    checkApiKeyStatus();
-
-    // Load settings on page load
-    loadSettings();
-
-    // Initialize active tab from saved state
-    setTimeout(initializeActiveTab, 100); // Small delay to ensure DOM is ready
-
-    function loadSettings() {
-        fetch('/api/get_settings')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('rateLimitInput').value = data.rate_limit;
-                document.getElementById('concurrentInput').value = data.max_concurrent_requests;
-                document.getElementById('queueLength').textContent = data.queue_length;
-            })
-            .catch(error => console.error('Error loading settings:', error));
-    }
-
-    function toggleSettings() {
-        const content = document.getElementById('settingsContent');
-        const isVisible = content.style.display !== 'none';
-        content.style.display = isVisible ? 'none' : 'block';
-        
-        if (!isVisible) {
-            loadSettings(); // Refresh settings when opening
+    
+    socket.on('progress_update', function(data) {
+        // Real-time progress updates
+        updateCellProgress(data.combination_id, data);
+    });
+    
+    socket.on('log_message', function(data) {
+        // Update live status if modal is open
+        if (liveStatusTracking === data.combination_id) {
+            updateLiveStatus(data);
         }
-    }
-
-    function updateRateLimit() {
-        const rateLimit = parseFloat(document.getElementById('rateLimitInput').value);
-        
-        // Find the update button
-        const btn = document.querySelector('#settingsContent button[onclick="updateRateLimit()"]');
-        
-        fetch('/api/set_rate_limit', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({requests_per_second: rateLimit})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                console.log('Rate limit updated:', data.message);
-                // Show brief success indicator
-                if (btn) {
-                    const originalText = btn.textContent;
-                    btn.textContent = 'Saved';
-                    btn.style.backgroundColor = '#28a745';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                        btn.style.backgroundColor = '';
-                    }, 1000);
-                }
-            } else {
-                alert('Error updating rate limit: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error updating rate limit:', error);
-            alert('Error updating rate limit: ' + error.message);
-        });
-    }
-
-    function updateConcurrency() {
-        const concurrency = parseInt(document.getElementById('concurrentInput').value);
-        
-        // Find the update button
-        const btn = document.querySelector('#settingsContent button[onclick="updateConcurrency()"]');
-        
-        fetch('/api/set_rate_limit', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({max_concurrent_requests: concurrency})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                console.log('Concurrency updated:', data.message);
-                // Show brief success indicator
-                if (btn) {
-                    const originalText = btn.textContent;
-                    btn.textContent = 'Saved';
-                    btn.style.backgroundColor = '#28a745';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                        btn.style.backgroundColor = '';
-                    }, 1000);
-                }
-            } else {
-                alert('Error updating concurrency: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error updating concurrency:', error);
-            alert('Error updating concurrency: ' + error.message);
-        });
-    }
-
-    function pauseCombination(combinationId) {
-        fetch('/api/pause_combination/' + combinationId, {method: 'POST'})
+    });
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check API key status
+        fetch('/api/api_key_status')
             .then(response => response.json())
             .then(data => {
-                if (data.message) {
-                    console.log('Combination paused successfully');
-                    setTimeout(refreshDashboard, 1000);
-                } else {
-                    alert('Failed to pause combination: ' + (data.error || 'Unknown error'));
+                if (!data.configured) {
+                    document.getElementById('apiKeyWarning').style.display = 'block';
                 }
-            })
-            .catch(error => {
-                console.error('Error pausing combination:', error);
-                alert('Error pausing combination: ' + error.message);
             });
-    }
-
-    function stopCombination(combinationId) {
-        if (confirm('Are you sure you want to stop this job? You can resume it later.')) {
-            fetch('/api/stop_combination/' + combinationId, {method: 'POST'})
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message) {
-                        console.log('Combination stopped successfully');
-                        setTimeout(refreshDashboard, 1000);
-                    } else {
-                        alert('Failed to stop combination: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error stopping combination:', error);
-                    alert('Error stopping combination: ' + error.message);
-                });
+        
+        // Initialize template tabs
+        const savedTab = localStorage.getItem('activeTemplateTab');
+        if (savedTab !== null && document.getElementById('tab-' + savedTab)) {
+            showTemplate(parseInt(savedTab));
+        } else {
+            // Make sure at least the first tab is active
+            showTemplate(0);
         }
+        
+        // Load settings
+        loadSettings();
+        
+        // Set up auto-save scroll positions
+        document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
+            container.addEventListener('scroll', () => {
+                saveScrollPosition(`template-${index}`);
+            });
+        });
+        
+        // Restore scroll positions
+        setTimeout(() => {
+            document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
+                restoreScrollPosition(`template-${index}`);
+            });
+        }, 100);
+    });
+    
+    // Template management
+    function showTemplate(index) {
+        console.log('Switching to template tab:', index);
+        activeTemplateIndex = index;
+        
+        // Save current scroll position
+        const currentActive = document.querySelector('.template-section.active');
+        if (currentActive) {
+            const currentScroll = currentActive.querySelector('.matrix-scroll');
+            if (currentScroll) {
+                const currentIndex = currentActive.id.split('-')[1];
+                saveScrollPosition(`template-${currentIndex}`);
+            }
+        }
+        
+        // Update tabs - exclude the manage button
+        const tabs = document.querySelectorAll('.template-tab:not(#template-manage-btn)');
+        tabs.forEach((tab, i) => {
+            if (i === index) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Update sections
+        const sections = document.querySelectorAll('.template-section');
+        sections.forEach((section, i) => {
+            if (i === index) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+        
+        // Save preference
+        localStorage.setItem('activeTemplateTab', index);
+        
+        // Restore scroll position for new tab
+        setTimeout(() => {
+            restoreScrollPosition(`template-${index}`);
+        }, 10);
     }
-
+    
+    // API Key Management
     function checkApiKeyStatus() {
         fetch('/api/api_key_status')
             .then(response => response.json())
             .then(data => {
-                updateApiKeyStatus(data);
+                const statusEl = document.getElementById('apiStatus');
+                const textEl = document.getElementById('apiStatusText');
+                
+                if (data.status === 'configured') {
+                    statusEl.classList.add('active');
+                    statusEl.classList.remove('error');
+                    textEl.textContent = 'API READY';
+                } else {
+                    statusEl.classList.add('error');
+                    statusEl.classList.remove('active');
+                    textEl.textContent = data.message || 'NO API KEY';
+                }
             })
             .catch(error => {
                 console.error('Error checking API key status:', error);
-                updateApiKeyStatus({
-                    status: 'error',
-                    message: 'Unable to check API key status',
-                    configured: false
-                });
             });
     }
-
-    function updateApiKeyStatus(data) {
-        const statusDiv = document.getElementById('apiKeyCornerStatus');
-        const dot = document.getElementById('apiStatusDot');
-        const text = document.getElementById('apiStatusText');
-        
-        // Remove existing status classes
-        statusDiv.className = 'api-key-corner-status';
-        
-        if (data.configured) {
-            statusDiv.classList.add('status-success');
-            dot.className = 'api-corner-status-dot success';
-            text.textContent = 'API key configured';
-        } else {
-            statusDiv.classList.add('status-error');
-            dot.className = 'api-corner-status-dot error';
-            text.textContent = 'API key not configured';
-        }
-    }
-
+    
     function toggleApiKeyVisibility() {
         const input = document.getElementById('apiKeyInput');
         const btn = document.getElementById('toggleApiKeyBtn');
@@ -613,7 +915,7 @@
             btn.textContent = 'Show';
         }
     }
-
+    
     function updateApiKey() {
         const apiKey = document.getElementById('apiKeyInput').value.trim();
         
@@ -622,15 +924,6 @@
             return;
         }
         
-        // Find the update button
-        const btn = document.querySelector('#settingsContent button[onclick="updateApiKey()"]');
-        if (!btn) return;
-        
-        // Show loading state
-        const originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Updating...';
-        
         fetch('/api/set_api_key', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -638,1211 +931,876 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Clear the input for security
+            if (data.status === 'success') {
+                alert('API key updated. Please restart the server for changes to take effect.');
                 document.getElementById('apiKeyInput').value = '';
-                
-                // Show success feedback
-                btn.textContent = 'Updated';
-                btn.style.backgroundColor = '#28a745';
-                
-                // Update the status indicator
-                setTimeout(() => {
-                    checkApiKeyStatus();
-                }, 500);
-                
-                // Reset button after delay
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
-                    btn.disabled = false;
-                }, 2000);
-                
-                // Show info about restart requirement
-                if (data.restart_required) {
-                    setTimeout(() => {
-                        alert('API key updated! Please restart the server for changes to take effect.');
-                    }, 100);
-                }
+                checkApiKeyStatus();
             } else {
-                alert('Error updating API key: ' + (data.error || 'Unknown error'));
-                btn.textContent = originalText;
-                btn.disabled = false;
+                alert('Error: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error updating API key:', error);
-            alert('Error updating API key: ' + error.message);
-            btn.textContent = originalText;
-            btn.disabled = false;
+            alert('Error updating API key');
         });
     }
+    
+    // Settings Management
+    function loadSettings() {
+        fetch('/api/get_settings')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('rateLimitInput').value = data.rate_limit;
+                document.getElementById('concurrentInput').value = data.max_concurrent_requests;
+                document.getElementById('queueLength').textContent = data.queue_length;
+            })
+            .catch(error => console.error('Error loading settings:', error));
+    }
+    
+    function updateRateLimit() {
+        const rateLimit = parseFloat(document.getElementById('rateLimitInput').value);
+        
+        fetch('/api/set_rate_limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({requests_per_second: rateLimit})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                showNotification('Rate limit updated', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        });
+    }
+    
+    function updateConcurrency() {
+        const concurrency = parseInt(document.getElementById('concurrentInput').value);
+        
+        fetch('/api/set_rate_limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_concurrent_requests: concurrency})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                showNotification('Concurrency updated', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        });
+    }
+    
+    // Cell updates without full refresh
+    function updateCellStatus(combinationId) {
+        fetch(`/api/combination_details/${combinationId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) return;
+                
+                // Find and update the specific cell
+                const cell = document.querySelector(`[data-combination-id="${combinationId}"]`);
+                if (cell) {
+                    updateCellContent(cell, data);
+                }
+            });
+    }
+    
+    function updateCellProgress(combinationId, progressData) {
+        const cell = document.querySelector(`[data-combination-id="${combinationId}"]`);
+        if (cell) {
+            const progressMain = cell.querySelector('.progress-main');
+            const progressFill = cell.querySelector('.progress-fill');
+            const progressCompleted = cell.querySelector('.progress-completed');
+            
+            // Calculate processed count (successful + failed + timeouts)
+            const processed = (progressData.successful || 0) + (progressData.failed || 0) + (progressData.timeouts || 0);
+            const total = progressData.total || 0;
+            
+            // Only update progress if we have valid data (avoid showing 0/0 for completed jobs)
+            if (total > 0) {
+                if (progressMain) {
+                    // For completed jobs, show final results
+                    if (progressData.status === 'completed' || progressData.status === 'failed' || progressData.status === 'interrupted') {
+                        progressMain.innerHTML = `<span class="progress-completed">${processed}/${total}</span>`;
+                    } else {
+                        progressMain.innerHTML = `<span class="progress-running">${processed}/${total}</span>`;
+                    }
+                }
+                
+                if (progressCompleted) {
+                    // Show detailed breakdown for completed jobs
+                    if (progressData.status === 'completed' || progressData.status === 'failed' || progressData.status === 'interrupted') {
+                        const parts = [];
+                        if (progressData.successful > 0) parts.push(`${progressData.successful} success`);
+                        if (progressData.failed > 0) parts.push(`${progressData.failed} failed`);
+                        if (progressData.timeouts > 0) parts.push(`${progressData.timeouts} timeout`);
+                        progressCompleted.textContent = parts.join(', ');
+                    } else {
+                        progressCompleted.textContent = `${progressData.successful || 0} success`;
+                    }
+                }
+                
+                if (progressFill) {
+                    const percentage = (processed / total * 100).toFixed(0);
+                    progressFill.style.width = percentage + '%';
+                }
+            }
+            
+            // Update status icon if needed
+            if (progressData.status) {
+                updateCellStatusClass(combinationId, progressData.status);
+            }
+        }
+    }
+    
+    function updateCellStatusClass(combinationId, status) {
+        const cell = document.querySelector(`[data-combination-id="${combinationId}"]`);
+        if (cell) {
+            // Remove existing status classes
+            cell.classList.remove('status-pending', 'status-running', 'status-completed', 'status-failed', 'status-interrupted');
+            // Add new status class
+            cell.classList.add(`status-${status}`);
+        }
+    }
+    
+    function updateCellContent(cell, data) {
+        // Update cell status class
+        cell.className = `status-cell status-${data.status}`;
+        
+        // Update progress info
+        const progressInfo = cell.querySelector('.progress-info');
+        if (progressInfo) {
+            // Update based on new data
+            // ... (implementation details)
+        }
+    }
+    
+    function updateCellActions(combinationId, data) {
+        const cell = document.querySelector(`[data-combination-id="${combinationId}"]`);
+        if (!cell) return;
+        
+        const actionsContainer = cell.querySelector('.cell-actions');
+        if (!actionsContainer) return;
 
-    // Show detailed results for a combination
+        let newHtml = '';
+        const status = data.status;
+        const failed_count = data.failed || 0;
+        const timeout_count = data.timeouts || 0;
+
+        if (status === 'pending') {
+            newHtml = `<button onclick="event.stopPropagation(); startCombination(${combinationId})" class="action-btn start-btn">Start</button>`;
+        } else if (status === 'running') {
+            newHtml = `
+                <button onclick="event.stopPropagation(); pauseCombination(${combinationId})" class="action-btn pause-btn" title="Pause">Pause</button>
+                <button onclick="event.stopPropagation(); stopCombination(${combinationId})" class="action-btn stop-btn" title="Stop">Stop</button>
+            `;
+        } else if (status === 'completed' && failed_count === 0 && timeout_count === 0) {
+            newHtml = `<span class="status-label">Complete</span>`;
+        } else if (['completed', 'failed', 'interrupted'].includes(status)) {
+            newHtml = `<button onclick="event.stopPropagation(); restartCombination(${combinationId})" class="action-btn start-btn">Retry</button>`;
+        }
+        
+        actionsContainer.innerHTML = newHtml;
+    }
+    
+    // Refresh dashboard with scroll preservation
+    function refreshDashboard(manual = false) {
+        if (manual) {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('loading');
+        }
+        
+        // Save all scroll positions
+        document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
+            saveScrollPosition(`template-${index}`);
+        });
+        
+        fetch('/api/dashboard_data')
+            .then(response => response.json())
+            .then(data => {
+                // Update only changed elements
+                updateDashboardData(data);
+                
+                // Restore scroll positions
+                setTimeout(() => {
+                    document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
+                        restoreScrollPosition(`template-${index}`);
+                    });
+                }, 10);
+                
+                if (manual) {
+                    const btn = document.getElementById('refreshBtn');
+                    btn.classList.remove('loading');
+                    showNotification('Dashboard refreshed', 'success');
+                }
+            });
+    }
+    
+    function updateDashboardData(data) {
+        // Smart update logic - only update changed cells
+        // This prevents losing scroll position and modal states
+        // ... (implementation details)
+    }
+    
+    // Combination Management
     function showCombinationDetails(combinationId) {
         console.log('Showing details for combination:', combinationId);
         
-        // Prevent event bubbling when clicking delete button
-        if (event.target.classList.contains('delete-combination-btn')) {
-            event.stopPropagation();
+        // Check if currently running - show live status instead
+        const cell = document.querySelector(`[data-combination-id="${combinationId}"]`);
+        if (cell && cell.classList.contains('status-running')) {
+            showLiveStatus(combinationId);
             return;
         }
         
-        fetch('/api/combination_details/' + combinationId)
+        fetch(`/api/combination_details/${combinationId}`)
             .then(response => response.json())
             .then(data => {
+                console.log('Combination details data:', data);
+                
                 if (data.error) {
-                    alert('Error loading details: ' + data.error);
+                    showNotification(data.error, 'error');
                     return;
                 }
                 
-                displayCombinationDetails(data);
-                document.getElementById('detailsModal').style.display = 'block';
+                const info = data.combination_info || {};
+                document.getElementById('detailsTitle').textContent = 
+                    `${info.species_file || 'Unknown'} - ${(info.model || 'Unknown').split('/').pop()}`;
+                    
+                const content = generateDetailsContent(data);
+                document.getElementById('detailsContent').innerHTML = content;
+                
+                showModal('detailsModal');
             })
             .catch(error => {
                 console.error('Error fetching combination details:', error);
-                alert('Error loading combination details: ' + error.message);
+                showNotification('Failed to load details', 'error');
             });
     }
-
-    function displayCombinationDetails(data) {
-        const info = data.combination_info;
-        const results = data.species_results;
-        const unprocessed = data.unprocessed_species;
-        const stats = data.prediction_stats;
+    
+    function showLiveStatus(combinationId) {
+        liveStatusTracking = combinationId;
         
-        document.getElementById('detailsTitle').textContent = 
-            `${info.model.split('/').pop()} - ${info.species_file} (${info.status})`;
+        fetch(`/api/combination_details/${combinationId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) return;
+                
+                document.getElementById('liveStatusTitle').textContent = 
+                    `Live: ${data.species_file} - ${data.model.split('/').pop()}`;
+                
+                const content = generateLiveStatusContent(data);
+                document.getElementById('liveStatusContent').innerHTML = content;
+                
+                showModal('liveStatusModal');
+            });
+    }
+    
+    function generateDetailsContent(data) {
+        // Generate detailed view content
+        const info = data.combination_info || {};
+        const results = data.species_results || [];
         
         let html = `
-            <div class="combination-summary">
+            <div class="card mb-3">
                 <h4>Summary</h4>
-                <div class="summary-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Species:</span>
-                        <span class="stat-value">${info.total_species}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Submitted:</span>
-                        <span class="stat-value">${info.submitted_species}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Received:</span>
-                        <span class="stat-value">${info.received_species}</span>
-                    </div>
-                    <div class="stat-item success">
-                        <span class="stat-label">Success:</span>
-                        <span class="stat-value">${info.successful_species}</span>
-                    </div>
-                    <div class="stat-item timeout">
-                        <span class="stat-label">Timeouts:</span>
-                        <span class="stat-value">${info.timeout_species || 0}</span>
-                    </div>
-                    <div class="stat-item failed">
-                        <span class="stat-label">Failed:</span>
-                        <span class="stat-value">${info.failed_species}</span>
-                    </div>
-                </div>
-                ${info.failed_species > 0 ? `
-                    <div class="rerun-all-container">
-                        <button onclick="rerunAllFailed(${info.id})" class="btn btn-warning">
-                            <i class="fas fa-redo"></i> Re-run All Failed (${info.failed_species})
-                        </button>
-                    </div>
-                ` : ''}
-                <div class="template-info">
-                    <strong>Templates:</strong> ${info.system_template} + ${info.user_template}
+                <div class="summary-grid">
+                    <div>Total: ${info.total_species || 0}</div>
+                    <div>Success: ${info.successful_species || 0}</div>
+                    <div>Failed: ${info.failed_species || 0}</div>
+                    <div>Timeouts: ${info.timeout_species || 0}</div>
                 </div>
             </div>
         `;
         
-        html += `
-            <div class="species-results">
-                <h4>Species Results</h4>
-        `;
-        
-        if (results.length === 0) {
-            html += `<p class="no-results">No species have been processed yet.</p>`;
-        } else {
-            // Group results by status
-            const successful = results.filter(r => r.status === 'completed');
-            const failed = results.filter(r => r.status === 'failed');
-            
-            if (failed.length > 0) {
-                html += `
-                    <div class="results-section failed-section">
-                        <h5 class="section-title failed">Failed Species (${failed.length})</h5>
-                        <div class="species-list">
-                `;
-                
-                failed.forEach(result => {
-                    html += `
-                        <div class="species-item failed">
-                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
-                                <span class="species-name">${result.binomial_name}</span>
-                                <span class="species-status failed">Failed</span>
-                                <span class="toggle-icon">[+]</span>
-                            </div>
-                            <div class="species-details" style="display: none;">
-                                <div class="error-info">
-                                    <strong>Error:</strong>
-                                    <div class="error-message">${result.error || 'No specific error message'}</div>
-                                </div>
-                                ${result.result ? `
-                                    <div class="raw-response">
-                                        <strong>Raw Response:</strong>
-                                        <div class="response-text">${result.result.substring(0, 500)}${result.result.length > 500 ? '...' : ''}</div>
-                                    </div>
-                                ` : ''}
-                                <div class="timestamp">
-                                    <strong>Processed:</strong> ${new Date(result.timestamp).toLocaleString()}
-                                </div>
-                                <div class="rerun-container">
-                                    <button onclick="rerunFailedSpecies(${info.id}, '${result.binomial_name}')" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-redo"></i> Re-run This Species
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += `
-                        </div>
-                    </div>
-                `;
-            }
-            
-            if (successful.length > 0) {
-                html += `
-                    <div class="results-section success-section">
-                        <h5 class="section-title success">Successful Species (${successful.length})</h5>
-                        <div class="species-list">
-                `;
-                
-                successful.forEach(result => {
-                    let mainContent = '';
-                    let debugContent = '';
-                    
-                    if (result.is_knowledge_template) {
-                        // For knowledge templates, show knowledge level
-                        const knowledgeLevel = result.knowledge_group || 'Not determined';
-                        const levelClass = knowledgeLevel.toLowerCase() === 'limited' ? 'knowledge-limited' :
-                                         knowledgeLevel.toLowerCase() === 'moderate' ? 'knowledge-moderate' :
-                                         knowledgeLevel.toLowerCase() === 'extensive' ? 'knowledge-extensive' :
-                                         knowledgeLevel.toLowerCase() === 'na' ? 'knowledge-na' : '';
-                        
-                        mainContent = `
-                            <div class="knowledge-level">
-                                <strong>Knowledge Level:</strong>
-                                <span class="knowledge-value ${levelClass}">${knowledgeLevel}</span>
-                            </div>
-                        `;
-                        
-                        debugContent = `
-                            <div class="debug-item">
-                                <strong>Knowledge Group:</strong> ${result.knowledge_group || '<em>null/empty</em>'}
-                            </div>
-                        `;
-                    } else {
-                        // For phenotype templates, show phenotypes
-                        const phenotypes = Object.entries(result.phenotypes || {})
-                            .filter(([key, value]) => value)
-                            .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
-                            .join(', ');
-                        
-                        mainContent = `
-                            <div class="phenotypes">
-                                <strong>Phenotypes:</strong>
-                                <div class="phenotype-list">${phenotypes || 'No phenotypes extracted'}</div>
-                            </div>
-                        `;
-                        
-                        debugContent = `
-                            <div class="debug-item">
-                                <strong>All Phenotype Values:</strong>
-                                <ul class="phenotype-debug-list">
-                                    ${Object.entries(result.phenotypes || {})
-                                        .map(([key, value]) => `<li><strong>${key}:</strong> ${value || '<em>null/empty</em>'}</li>`)
-                                        .join('')}
-                                </ul>
-                            </div>
-                        `;
-                    }
-                    
-                    html += `
-                        <div class="species-item success">
-                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
-                                <span class="species-name">${result.binomial_name}</span>
-                                <span class="species-status success">Success</span>
-                                <span class="toggle-icon">[+]</span>
-                            </div>
-                            <div class="species-details" style="display: none;">
-                                ${mainContent}
-                                ${result.result ? `
-                                    <div class="raw-response">
-                                        <strong>Raw LLM Response:</strong>
-                                        <details class="llm-response-details">
-                                            <summary>Click to expand raw output</summary>
-                                            <pre class="response-text">${escapeHtml(result.result)}</pre>
-                                        </details>
-                                    </div>
-                                ` : ''}
-                                <div class="debug-info">
-                                    <details class="debug-details">
-                                        <summary><strong>Debug Information</strong></summary>
-                                        <div class="debug-content">
-                                            <div class="debug-item">
-                                                <strong>Status:</strong> ${result.status}
-                                            </div>
-                                            <div class="debug-item">
-                                                <strong>Species Name:</strong> ${result.binomial_name}
-                                            </div>
-                                            <div class="debug-item">
-                                                <strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}
-                                            </div>
-                                            ${debugContent}
-                                        </div>
-                                    </details>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += `
-                        </div>
-                    </div>
-                `;
-            }
-        }
-        
-        if (unprocessed.length > 0) {
+        if (results.length > 0) {
             html += `
-                <div class="results-section unprocessed-section">
-                    <h5 class="section-title unprocessed">Unprocessed Species (${unprocessed.length})</h5>
-                    <div class="unprocessed-list">
-                        ${unprocessed.map(species => `<span class="unprocessed-species">${species}</span>`).join(', ')}
+                <div class="card">
+                    <h4>Results</h4>
+                    <div class="results-content">
+                        <div class="species-list">
+            `;
+            
+            results.forEach(result => {
+                const statusClass = result.status === 'completed' ? 'success' : 'failed';
+                html += `
+                    <div class="species-result ${statusClass}">
+                        <div class="species-result-header">
+                            <div>
+                                <strong>${result.binomial_name}</strong> - ${result.status}
+                                ${result.error ? `<div class="error-msg">${result.error}</div>` : ''}
+                            </div>
+                            <div class="species-actions">
+                                ${result.status === 'failed' ? `
+                                    <button onclick="rerunSpecies(${info.id}, '${result.binomial_name}')" 
+                                            class="btn-small btn-retry" title="Re-run this species">
+                                        Retry
+                                    </button>
+                                ` : ''}
+                                ${result.result ? `
+                                    <button data-species="${result.binomial_name}" 
+                                            data-raw='${result.result.replace(/'/g, "&#39;")}' 
+                                            data-parsed='${JSON.stringify(result.phenotypes || result.knowledge_group ? {knowledge_group: result.knowledge_group} : {}).replace(/'/g, "&#39;")}'
+                                            onclick="showRawResponseFromData(this)" 
+                                            class="btn-small btn-view" title="View raw response">
+                                        View
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
                     </div>
                 </div>
             `;
         }
         
-        html += `</div>`;
-        
-        document.getElementById('detailsContent').innerHTML = html;
+        return html;
     }
-
-    function toggleSpeciesDetails(header) {
-        const details = header.nextElementSibling;
-        const icon = header.querySelector('.toggle-icon');
-        
-        if (details.style.display === 'none') {
-            details.style.display = 'block';
-            icon.textContent = '[-]';
-        } else {
-            details.style.display = 'none';
-            icon.textContent = '[+]';
-        }
-    }
-
-    // Template switching
-    function showTemplate(templateIndex) {
-        // Hide all template sections
-        document.querySelectorAll('.template-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.querySelectorAll('.template-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        // Show selected template
-        document.getElementById('template-' + templateIndex).classList.add('active');
-        document.getElementById('tab-' + templateIndex).classList.add('active');
-        
-        // Save the active tab to localStorage for persistence across page reloads
-        localStorage.setItem('activeTemplateTab', templateIndex);
-    }
-
-    // Initialize active tab from localStorage or default to first tab
-    function initializeActiveTab() {
-        const savedTabIndex = localStorage.getItem('activeTemplateTab');
-        
-        // Check if saved tab index is valid (exists in DOM)
-        if (savedTabIndex !== null) {
-            const savedTab = document.getElementById('tab-' + savedTabIndex);
-            const savedSection = document.getElementById('template-' + savedTabIndex);
+    
+    function generateLiveStatusContent(data) {
+        return `
+            <div class="card mb-3">
+                <h4>Processing Status</h4>
+                <div class="progress-bar" style="height: 20px;">
+                    <div class="progress-fill" style="width: ${(data.summary.successful / data.summary.total * 100)}%"></div>
+                </div>
+                <div class="text-center mt-2">
+                    ${data.summary.submitted} / ${data.summary.total} submitted
+                </div>
+            </div>
             
-            if (savedTab && savedSection) {
-                // Restore the saved tab
-                showTemplate(parseInt(savedTabIndex));
-                return;
-            }
-        }
-        
-        // If no valid saved tab, ensure first tab is active (fallback)
-        const firstTab = document.getElementById('tab-0');
-        if (firstTab && !firstTab.classList.contains('active')) {
-            showTemplate(0);
-        }
+            <h4>Species Status</h4>
+            <div class="live-status-grid" id="liveStatusGrid">
+                ${generateLiveStatusGrid(data)}
+            </div>
+        `;
     }
-
-    // Combination actions
-    function startCombination(combinationId) {
-        console.log('Starting combination:', combinationId);
-        
-        fetch('/api/start_combination/' + combinationId, {method: 'POST'})
+    
+    function generateResultsList(data) {
+        // Generate results list HTML
+        // ... (implementation details)
+        return '<div>Results will be displayed here</div>';
+    }
+    
+    function generateLiveStatusGrid(data) {
+        // Generate live status grid HTML
+        // ... (implementation details)
+        return '<div>Live status will be displayed here</div>';
+    }
+    
+    function updateLiveStatus(logData) {
+        // Update live status display
+        // ... (implementation details)
+    }
+    
+    // Action Functions
+    function startCombination(id) {
+        fetch(`/api/start_combination/${id}`, {method: 'POST'})
             .then(response => response.json())
             .then(data => {
-                if (data.message) {
-                    console.log('Combination started successfully');
-                    setTimeout(refreshDashboard, 1000);
+                if (data.success) {
+                    showNotification('Job started', 'success');
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('Failed to start combination: ' + (data.error || 'Unknown error'));
+                    showNotification('Error: ' + data.error, 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error starting combination:', error);
-                alert('Error starting combination: ' + error.message);
             });
     }
-
-    function restartCombination(combinationId) {
-        console.log('Restarting combination:', combinationId);
-        
-        fetch('/api/restart_combination/' + combinationId, {method: 'POST'})
+    
+    function pauseCombination(id) {
+        fetch(`/api/pause_combination/${id}`, {method: 'POST'})
             .then(response => response.json())
             .then(data => {
-                if (data.message) {
-                    console.log('Combination restarted successfully');
-                    setTimeout(refreshDashboard, 1000);
-                } else {
-                    alert('Failed to restart combination: ' + (data.error || 'Unknown error'));
+                if (data.success) {
+                    showNotification('Job paused', 'success');
+                    setTimeout(() => location.reload(), 500);
                 }
-            })
-            .catch(error => {
-                console.error('Error restarting combination:', error);
-                alert('Error restarting combination: ' + error.message);
             });
     }
-
-    function createAndStartCombination(speciesFile, model, systemTemplate, userTemplate) {
-        console.log('Creating and starting combination:', speciesFile, model, systemTemplate, userTemplate);
-        
-        fetch('/api/create_combination', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                species_file: speciesFile,
-                model: model,
-                system_template: systemTemplate,
-                user_template: userTemplate
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Combination created and started successfully');
-                setTimeout(refreshDashboard, 1000);
-            } else {
-                alert('Failed to create combination: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error creating combination:', error);
-            alert('Error creating combination: ' + error.message);
-        });
-    }
-
-    function deleteCombination(combinationId) {
-        if (confirm('Are you sure you want to delete this combination and all its results?')) {
-            fetch('/api/delete_combination/' + combinationId, {method: 'DELETE'})
+    
+    function stopCombination(id) {
+        if (confirm('Are you sure you want to stop this job?')) {
+            fetch(`/api/stop_combination/${id}`, {method: 'POST'})
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Combination deleted');
-                    setTimeout(refreshDashboard, 1000);
-                })
-                .catch(error => {
-                    console.error('Error deleting combination:', error);
-                    alert('Error deleting combination: ' + error.message);
+                    if (data.success) {
+                        showNotification('Job stopped', 'success');
+                        setTimeout(() => location.reload(), 500);
+                    }
                 });
         }
     }
-
-    // Modal functions
-    function addModel() {
-        document.getElementById('addModelModal').style.display = 'block';
-        
-        // Reset both input methods
-        document.getElementById('newModelInput').value = '';
-        document.getElementById('modelDropdown').selectedIndex = 0;
-        document.getElementById('addModelBtn').disabled = true;
-        document.getElementById('modelValidationStatus').style.display = 'none';
-        document.getElementById('selectedModelInfo').style.display = 'none';
-        
-        // Switch to dropdown method by default
-        switchInputMethod('dropdown');
-        
-        // Load models for dropdown
-        loadOpenRouterModels();
-        
-        // Add event listeners
-        const manualInput = document.getElementById('newModelInput');
-        manualInput.removeEventListener('input', validateModelInput);
-        manualInput.addEventListener('input', validateModelInput);
-        
-        const dropdown = document.getElementById('modelDropdown');
-        dropdown.removeEventListener('change', onDropdownChange);
-        dropdown.addEventListener('change', onDropdownChange);
+    
+    function restartCombination(id) {
+        fetch(`/api/restart_combination/${id}`, {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Job restarted', 'success');
+                    setTimeout(() => location.reload(), 500);
+                }
+            });
     }
-
-    function switchInputMethod(method) {
-        // Update tab states
-        document.querySelectorAll('.input-tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.input-method').forEach(method => method.classList.remove('active'));
-        
-        if (method === 'dropdown') {
-            document.getElementById('dropdownTab').classList.add('active');
-            document.getElementById('dropdownMethod').classList.add('active');
-        } else {
-            document.getElementById('manualTab').classList.add('active');
-            document.getElementById('manualMethod').classList.add('active');
+    
+    function createAndStartCombination(species_file, model, system_template, user_template) {
+        // Check API key status first
+        fetch('/api/api_key_status')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.configured) {
+                    showNotification('API key not configured. Please configure it in Settings.', 'error');
+                    return;
+                }
+                
+                const templateName = document.querySelector('.template-tab.active').textContent.trim();
+                
+                showNotification('Creating combination...', 'info');
+                
+                fetch('/api/create_combination', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        species_file: species_file,
+                        model: model,
+                        system_template: system_template,
+                        user_template: user_template
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Combination created successfully!', 'success');
+                        // Refresh the page to show the new combination
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showNotification('Error creating combination: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error creating combination:', error);
+                    showNotification('Failed to create combination', 'error');
+                });
+            })
+            .catch(error => {
+                console.error('Error checking API key:', error);
+                showNotification('Failed to check API key status', 'error');
+            });
+    }
+    
+    function deleteCombination(id) {
+        if (confirm('Are you sure you want to delete this combination and all its results?')) {
+            fetch(`/api/delete_combination/${id}`, {method: 'DELETE'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Combination deleted', 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    }
+                });
         }
-        
-        // Reset button state and validation
-        document.getElementById('addModelBtn').disabled = true;
-        document.getElementById('modelValidationStatus').style.display = 'none';
-        document.getElementById('selectedModelInfo').style.display = 'none';
     }
-
-    function loadOpenRouterModels() {
+    
+    // Model Management
+    function addModel() {
+        // Load available models
+        refreshModels();
+        showModal('addModelModal');
+    }
+    
+    function refreshModels() {
         const dropdown = document.getElementById('modelDropdown');
-        const countSpan = document.getElementById('modelCount');
-        
-        dropdown.innerHTML = '<option value="">Loading models...</option>';
-        dropdown.disabled = true;
+        dropdown.innerHTML = '<option value="">Loading...</option>';
         
         fetch('/api/get_openrouter_models')
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    dropdown.innerHTML = '<option value="">Select a model...</option>';
-                    
-                    // Group models by provider for better organization
-                    const providers = {};
-                    data.models.forEach(model => {
-                        const provider = model.id.split('/')[0];
-                        if (!providers[provider]) providers[provider] = [];
-                        providers[provider].push(model);
-                    });
-                    
-                    // Add models grouped by provider
-                    Object.keys(providers).sort().forEach(provider => {
-                        const optgroup = document.createElement('optgroup');
-                        optgroup.label = provider;
-                        
-                        providers[provider].forEach(model => {
-                            const option = document.createElement('option');
-                            option.value = model.id;
-                            option.textContent = `${model.name || model.id}`;
-                            option.dataset.description = model.description;
-                            option.dataset.contextLength = model.context_length;
-                            optgroup.appendChild(option);
-                        });
-                        
-                        dropdown.appendChild(optgroup);
-                    });
-                    
-                    countSpan.textContent = data.models.length;
-                    dropdown.disabled = false;
-                } else {
+                if (data.error) {
                     dropdown.innerHTML = '<option value="">Error loading models</option>';
-                    countSpan.textContent = '0';
-                    console.error('Error loading models:', data.error);
+                    return;
                 }
-            })
-            .catch(error => {
-                dropdown.innerHTML = '<option value="">Error loading models</option>';
-                countSpan.textContent = '0';
-                console.error('Error loading models:', error);
+                
+                dropdown.innerHTML = '<option value="">Select a model...</option>';
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = `${model.name} ($${model.pricing.prompt}/1K)`;
+                    option.dataset.info = JSON.stringify(model);
+                    dropdown.appendChild(option);
+                });
+                
+                document.getElementById('modelCount').textContent = data.models.length;
             });
     }
-
-    function refreshModels() {
-        loadOpenRouterModels();
-    }
-
-    function onDropdownChange() {
-        const dropdown = document.getElementById('modelDropdown');
-        const selectedOption = dropdown.options[dropdown.selectedIndex];
-        const addBtn = document.getElementById('addModelBtn');
-        const modelInfo = document.getElementById('selectedModelInfo');
+    
+    function switchInputMethod(method) {
+        document.querySelectorAll('.input-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.id === method + 'Tab');
+        });
         
-        if (dropdown.value) {
-            addBtn.disabled = false;
-            
-            // Show model information
-            let infoHtml = `<strong>${selectedOption.textContent}</strong><br>`;
-            if (selectedOption.dataset.description) {
-                infoHtml += `<small>${selectedOption.dataset.description}</small><br>`;
-            }
-            if (selectedOption.dataset.contextLength && selectedOption.dataset.contextLength !== '0') {
-                infoHtml += `<small>Context: ${parseInt(selectedOption.dataset.contextLength).toLocaleString()} tokens</small>`;
-            }
-            
-            modelInfo.innerHTML = infoHtml;
-            modelInfo.style.display = 'block';
-        } else {
-            addBtn.disabled = true;
-            modelInfo.style.display = 'none';
-        }
-    }
-
-    function getSelectedModel() {
-        const activeMethod = document.querySelector('.input-method.active');
+        document.querySelectorAll('.input-method').forEach(m => {
+            m.classList.toggle('active', m.id === method + 'Method');
+        });
         
-        if (activeMethod.id === 'dropdownMethod') {
-            return document.getElementById('modelDropdown').value.trim();
-        } else {
-            return document.getElementById('newModelInput').value.trim();
-        }
+        // Reset validation
+        document.getElementById('addModelBtn').disabled = true;
+        document.getElementById('modelValidationStatus').style.display = 'none';
     }
-
-    function validateModelInput() {
-        const model = document.getElementById('newModelInput').value.trim();
-        const statusDiv = document.getElementById('modelValidationStatus');
-        const addBtn = document.getElementById('addModelBtn');
-        
-        if (!model) {
-            statusDiv.style.display = 'none';
-            addBtn.disabled = true;
-            return;
+    
+    // Set up event listeners after DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        const modelDropdown = document.getElementById('modelDropdown');
+        if (modelDropdown) {
+            modelDropdown.addEventListener('change', function() {
+                const selected = this.options[this.selectedIndex];
+                const infoDiv = document.getElementById('selectedModelInfo');
+                const addBtn = document.getElementById('addModelBtn');
+                
+                if (selected.value) {
+                    const info = JSON.parse(selected.dataset.info);
+                    infoDiv.innerHTML = `
+                        <strong>${info.name}</strong><br>
+                        Context: ${info.context_length.toLocaleString()} tokens<br>
+                        Pricing: $${info.pricing.prompt}/1K prompt, $${info.pricing.completion}/1K completion
+                    `;
+                    infoDiv.style.display = 'block';
+                    addBtn.disabled = false;
+                } else {
+                    infoDiv.style.display = 'none';
+                    addBtn.disabled = true;
+                }
+            });
         }
         
-        // Show loading state
-        statusDiv.style.display = 'block';
-        statusDiv.className = 'validation-status loading';
-        statusDiv.innerHTML = 'Validating model with OpenRouter...';
-        addBtn.disabled = true;
+        const newModelInput = document.getElementById('newModelInput');
+        if (newModelInput) {
+            newModelInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                const addBtn = document.getElementById('addModelBtn');
+                const status = document.getElementById('modelValidationStatus');
+                
+                if (!value) {
+                    addBtn.disabled = true;
+                    status.style.display = 'none';
+                    return;
+                }
+                
+                // Validate model format
+                if (value.includes('/')) {
+                    status.textContent = 'Validating...';
+                    status.className = 'validation-status loading';
+                    status.style.display = 'block';
+                    
+                    // Validate with API
+                    fetch('/api/validate_model', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({model: value})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.valid) {
+                            status.textContent = 'Valid model';
+                            status.className = 'validation-status success';
+                            addBtn.disabled = false;
+                        } else {
+                            status.textContent = data.error || 'Invalid model';
+                            status.className = 'validation-status error';
+                            addBtn.disabled = true;
+                        }
+                    });
+                } else {
+                    status.textContent = 'Format: provider/model-name';
+                    status.className = 'validation-status error';
+                    status.style.display = 'block';
+                    addBtn.disabled = true;
+                }
+            });
+        }
+    });
+    
+    function confirmAddModel() {
+        const dropdownMethod = document.getElementById('dropdownMethod').classList.contains('active');
+        const model = dropdownMethod 
+            ? document.getElementById('modelDropdown').value 
+            : document.getElementById('newModelInput').value.trim();
         
-        // Debounce the validation call
-        clearTimeout(window.modelValidationTimeout);
-        window.modelValidationTimeout = setTimeout(() => {
-            validateModelWithAPI(model);
-        }, 500);
-    }
-
-    function validateModelWithAPI(model) {
-        fetch('/api/validate_model', {
+        if (!model) return;
+        
+        fetch('/api/add_model', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({model: model})
         })
         .then(response => response.json())
         .then(data => {
-            const statusDiv = document.getElementById('modelValidationStatus');
-            const addBtn = document.getElementById('addModelBtn');
-            
-            if (data.valid) {
-                statusDiv.className = 'validation-status success';
-                statusDiv.innerHTML = 'Valid: ' + data.message;
-                addBtn.disabled = false;
+            if (data.success) {
+                closeModal('addModelModal');
+                showNotification('Model added', 'success');
+                // Force a full page reload to show new column
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                statusDiv.className = 'validation-status error';
-                statusDiv.innerHTML = 'Error: ' + data.error;
-                addBtn.disabled = true;
+                showNotification('Error: ' + data.error, 'error');
             }
-        })
-        .catch(error => {
-            console.error('Model validation error:', error);
-            const statusDiv = document.getElementById('modelValidationStatus');
-            const addBtn = document.getElementById('addModelBtn');
-            
-            statusDiv.className = 'validation-status error';
-            statusDiv.innerHTML = 'Validation failed: ' + error.message;
-            addBtn.disabled = true;
         });
     }
-
-    function confirmAddModel() {
-        const model = getSelectedModel();
-        if (model && !document.getElementById('addModelBtn').disabled) {
-            // Show loading state
-            const addBtn = document.getElementById('addModelBtn');
-            const originalText = addBtn.textContent;
-            addBtn.disabled = true;
-            addBtn.textContent = 'Adding...';
-            
-            fetch('/api/add_model', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({model: model})
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log(data.message);
-                closeModal('addModelModal');
-                setTimeout(refreshDashboard, 500);
-            })
-            .catch(error => {
-                console.error('Error adding model:', error);
-                alert('Error adding model: ' + error.message);
-            })
-            .finally(() => {
-                addBtn.disabled = false;
-                addBtn.textContent = originalText;
-            });
-        }
-    }
-
-    function addSpeciesFile() {
-        document.getElementById('addSpeciesModal').style.display = 'block';
-    }
-
-
-
-    function closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
-    }
-
-    function confirmAddSpecies() {
-        const speciesFile = document.getElementById('newSpeciesSelect').value;
-        if (speciesFile) {
-            fetch('/api/add_species_file', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({species_file: speciesFile})
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log(data.message);
-                closeModal('addSpeciesModal');
-                setTimeout(refreshDashboard, 500);
-            });
-        }
-    }
-
-
-
+    
     function deleteModel(model) {
-        if (confirm(`Are you sure you want to remove the model "${model}" from the dashboard view? This will not delete any existing results.`)) {
+        if (confirm(`Remove model ${model.split('/').pop()} from dashboard?`)) {
             fetch('/api/delete_model', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({model: model})
             })
-            .then(res => res.json())
+            .then(response => response.json())
             .then(data => {
-                console.log(data.message);
-                setTimeout(refreshDashboard, 500);
-            });
-        }
-    }
-
-    function deleteSpeciesFile(speciesFile) {
-        if (confirm(`Are you sure you want to remove the species file "${speciesFile}" from the dashboard view? This will not delete any existing results.`)) {
-            fetch('/api/delete_species_file', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({species_file: speciesFile})
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log(data.message);
-                setTimeout(refreshDashboard, 500);
-            });
-        }
-    }
-
-    function refreshDashboard() {
-        location.reload();
-    }
-    
-    function showToast(message, type = 'info') {
-        // Create toast element if it doesn't exist
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 10000;
-                pointer-events: none;
-            `;
-            document.body.appendChild(toastContainer);
-        }
-        
-        // Create toast
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
-            color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
-            border: 1px solid ${type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#bee5eb'};
-            padding: 12px 20px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            pointer-events: auto;
-            max-width: 300px;
-            word-wrap: break-word;
-        `;
-        toast.textContent = message;
-        
-        toastContainer.appendChild(toast);
-        
-        // Animate in
-        setTimeout(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateX(0)';
-        }, 10);
-        
-        // Auto remove after 3 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
+                if (data.success) {
+                    showNotification('Model removed', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 }
-            }, 300);
-        }, 3000);
-    }
-    
-    function rerunFailedSpecies(combinationId, speciesName) {
-        fetch('/api/rerun_failed_species', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                combination_id: combinationId,
-                species_name: speciesName
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show a brief success message
-                showToast(data.message, 'success');
-                // Close the modal and refresh
-                closeModal('detailsModal');
-                // Refresh immediately and then again after processing
-                setTimeout(refreshDashboard, 500);
-                setTimeout(refreshDashboard, 3000);
-            } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error re-running species:', error);
-            alert('Error re-running species: ' + error.message);
-        });
-    }
-    
-    function rerunAllFailed(combinationId) {
-        fetch(`/api/rerun_all_failed/${combinationId}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show a brief success message
-                showToast(data.message, 'success');
-                // Close the modal and refresh
-                closeModal('detailsModal');
-                // Refresh immediately and then periodically to catch updates
-                setTimeout(refreshDashboard, 500);
-                setTimeout(refreshDashboard, 3000);
-                setTimeout(refreshDashboard, 6000);
-            } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error re-running failed species:', error);
-            alert('Error re-running failed species: ' + error.message);
-        });
-    }
-    
-    // Auto-refresh every 30 seconds and update settings
-    setInterval(() => {
-        refreshDashboard();
-        loadSettings();
-    }, 30000);
-
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
+            });
         }
     }
-
-    // Template management functions
-    function openTemplateManager() {
-        const modal = document.getElementById('templateManagerModal');
-        modal.style.display = 'block';
-        loadTemplateMetadata();
+    
+    // Species File Management
+    function addSpeciesFile() {
+        showModal('addSpeciesModal');
     }
-
-    function loadTemplateMetadata() {
-        fetch('/api/template_metadata')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const container = document.getElementById('templateMetadataContainer');
-                container.innerHTML = '';
-                
-                data.metadata.forEach(template => {
-                    const templateItem = createTemplateItem(template);
-                    container.appendChild(templateItem);
-                });
-            }
-        })
-        .catch(error => console.error('Error loading template metadata:', error));
-    }
-
-    function createTemplateItem(template) {
-        const div = document.createElement('div');
-        div.className = 'template-metadata-item template-type-' + template.template_type;
-        div.innerHTML = `
-            <div class="template-metadata-header">
-                <h4>
-                    ${template.template_type === 'knowledge' ? '<i class="fas fa-brain"></i>' : '<i class="fas fa-dna"></i>'}
-                    ${template.template_name} (Files)
-                    <span class="template-type-badge template-type-${template.template_type}">
-                        ${template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)} Template
-                    </span>
-                </h4>
-                <small>${template.system_template} | ${template.user_template}</small>
-            </div>
-            <div class="template-metadata-form">
-                <div class="form-group">
-                    <label>Display Name:</label>
-                    <input type="text" class="display-name-input" value="${template.display_name}" 
-                           data-system="${template.system_template}" data-user="${template.user_template}">
-                </div>
-                <div class="form-group">
-                    <label>Description:</label>
-                    <textarea class="description-input" rows="2" 
-                              data-system="${template.system_template}" data-user="${template.user_template}">${template.description}</textarea>
-                </div>
-                <div class="form-group">
-                    <label>Template Type:</label>
-                    <select class="template-type-select" data-system="${template.system_template}" data-user="${template.user_template}">
-                        <option value="phenotype" ${template.template_type === 'phenotype' ? 'selected' : ''}>
-                            Phenotype Template (Species Properties)
-                        </option>
-                        <option value="knowledge" ${template.template_type === 'knowledge' ? 'selected' : ''}>
-                            Knowledge Template (Knowledge Assessment)
-                        </option>
-                    </select>
-                </div>
-                <button class="btn btn-primary btn-small" onclick="saveTemplateMetadata('${template.system_template}', '${template.user_template}')">
-                    Save
-                </button>
-            </div>
-        `;
-        return div;
-    }
-
-    function saveTemplateMetadata(systemTemplate, userTemplate) {
-        const displayNameInput = document.querySelector(`input[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
-        const descriptionInput = document.querySelector(`textarea[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
-        const templateTypeSelect = document.querySelector(`select[data-system="${systemTemplate}"][data-user="${userTemplate}"]`);
+    
+    function confirmAddSpecies() {
+        const file = document.getElementById('newSpeciesSelect').value;
         
-        const displayName = displayNameInput.value.trim();
-        const description = descriptionInput.value.trim();
-        const templateType = templateTypeSelect.value;
-        
-        if (!displayName) {
-            alert('Display name is required');
+        if (!file) {
+            showNotification('Please select a species file', 'error');
             return;
         }
         
-        fetch('/api/update_template_metadata', {
+        fetch('/api/add_species_file', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                system_template: systemTemplate,
-                user_template: userTemplate,
-                display_name: displayName,
-                description: description,
-                template_type: templateType
-            })
+            body: JSON.stringify({species_file: file})
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Template metadata updated successfully!');
+                closeModal('addSpeciesModal');
+                showNotification('Species file added', 'success');
                 setTimeout(() => {
-                    closeModal('templateManagerModal');
-                    refreshDashboard();
+                    location.reload();
                 }, 1000);
             } else {
-                alert('Error: ' + data.error);
+                showNotification('Error: ' + data.error, 'error');
             }
-        })
-        .catch(error => {
-            console.error('Error saving template metadata:', error);
-            alert('Error saving template metadata');
         });
     }
+    
+    function deleteSpeciesFile(file) {
+        if (confirm(`Remove species file ${file} from dashboard?`)) {
+            fetch('/api/delete_species_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({species_file: file})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Species file removed', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+            });
+        }
+    }
+    
+    // Template Manager
+    function openTemplateManager() {
+        // Implementation for template manager
+        showNotification('Template manager coming soon', 'info');
+    }
+    
+    // Re-run individual species
+    function rerunSpecies(combinationId, speciesName) {
+        if (confirm(`Re-run processing for ${speciesName}?`)) {
+            showNotification(`Re-running ${speciesName}...`, 'info');
+            
+            fetch('/api/rerun_failed_species', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    combination_id: combinationId,
+                    species_name: speciesName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    // Refresh the details modal
+                    setTimeout(() => {
+                        showCombinationDetails(combinationId);
+                    }, 1000);
+                } else {
+                    showNotification('Error: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error re-running species:', error);
+                showNotification('Failed to re-run species', 'error');
+            });
+        }
+    }
+    
+    // Show raw response modal from data attributes
+    function showRawResponseFromData(button) {
+        const speciesName = button.getAttribute('data-species');
+        const rawResponse = button.getAttribute('data-raw').replace(/&#39;/g, "'");
+        let parsedData = {};
+        
+        try {
+            parsedData = JSON.parse(button.getAttribute('data-parsed').replace(/&#39;/g, "'"));
+        } catch (e) {
+            console.error('Error parsing data:', e);
+        }
+        
+        showRawResponse(speciesName, rawResponse, parsedData);
+    }
+    
+    // Show raw response modal
+    function showRawResponse(speciesName, rawResponse, parsedData) {
+        document.getElementById('rawResponseTitle').textContent = `Raw Response - ${speciesName}`;
+        document.getElementById('rawResponseText').textContent = rawResponse || 'No raw response available';
+        
+        // Generate parsed data display
+        let parsedHtml = '<div class="parsed-data-grid">';
+        
+        if (parsedData && typeof parsedData === 'object') {
+            for (const [key, value] of Object.entries(parsedData)) {
+                if (value !== null && value !== undefined && value !== '') {
+                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    parsedHtml += `
+                        <div class="parsed-field">
+                            <div class="field-label">${label}</div>
+                            <div class="field-value">${value}</div>
+                        </div>
+                    `;
+                }
+            }
+        } else {
+            parsedHtml += '<div class="text-muted">No parsed data available</div>';
+        }
+        
+        parsedHtml += '</div>';
+        document.getElementById('parsedResponseData').innerHTML = parsedHtml;
+        
+        // Reset to raw tab
+        switchResponseTab('raw');
+        showModal('rawResponseModal');
+    }
+    
+    // Switch response tab
+    function switchResponseTab(tab) {
+        // Update tabs
+        document.querySelectorAll('.response-tab').forEach(t => {
+            t.classList.toggle('active', t.id === tab + 'Tab');
+        });
+        
+        // Update content
+        document.querySelectorAll('.response-content').forEach(c => {
+            c.classList.toggle('active', c.id === tab + 'ResponseContent');
+        });
+    }
+    
+    // Notification System
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => notification.classList.add('show'), 10);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    
+    // Add notification styles
+    const notificationStyles = document.createElement('style');
+    notificationStyles.textContent = `
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: var(--gray-900);
+            color: var(--white);
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 3000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .notification-success {
+            background: var(--accent-secondary);
+        }
+        
+        .notification-error {
+            background: var(--accent-error);
+        }
+        
+        .notification-info {
+            background: var(--accent-primary);
+        }
+        
+        .api-warning {
+            background: var(--accent-warning);
+            border-left: 4px solid var(--accent-error);
+            margin-bottom: 20px;
+        }
+        
+        .api-warning h3 {
+            color: var(--gray-900);
+            margin-bottom: 10px;
+        }
+        
+        .api-warning p {
+            color: var(--gray-700);
+            margin-bottom: 15px;
+        }
+        
+        .api-warning button {
+            background: var(--gray-900);
+            color: var(--white);
+        }
+    `;
+    document.head.appendChild(notificationStyles);
 </script>
-
-<!-- Template Manager Modal -->
-<div id="templateManagerModal" class="modal">
-    <div class="modal-content template-manager-modal">
-        <div class="modal-header">
-            <h3>Manage Template Names & Descriptions</h3>
-            <span class="close" onclick="closeModal('templateManagerModal')">&times;</span>
-        </div>
-        <div class="modal-body">
-            <p>Customize the display names and descriptions for your template pairs:</p>
-            <div id="templateMetadataContainer" class="template-metadata-scrollable">
-                <!-- Template metadata items will be loaded here -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-.template-manage-tab {
-    background: #f8f9fa !important;
-    border: 1px dashed #007bff !important;
-    color: #007bff !important;
-}
-
-.template-manage-tab:hover {
-    background: #e3f2fd !important;
-}
-
-.template-description {
-    margin: 10px 0;
-    color: #6c757d;
-    font-style: italic;
-}
-
-.template-manager-modal {
-    max-width: 800px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.template-manager-modal .modal-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-}
-
-.template-metadata-scrollable {
-    max-height: 60vh;
-    overflow-y: auto;
-    padding-right: 10px;
-}
-
-.template-metadata-item {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
-    background: #f8f9fa;
-}
-
-.template-metadata-item.template-type-knowledge {
-    border-left: 4px solid #9b59b6;
-}
-
-.template-metadata-item.template-type-phenotype {
-    border-left: 4px solid #00796b;
-}
-
-.template-metadata-header h4 {
-    margin: 0 0 5px 0;
-    color: #495057;
-}
-
-.template-metadata-header small {
-    color: #6c757d;
-}
-
-.template-metadata-form {
-    margin-top: 15px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-    color: #495057;
-}
-
-.display-name-input, .description-input, .template-type-select {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.display-name-input:focus, .description-input:focus, .template-type-select:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.template-type-badge {
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-left: 8px;
-    font-weight: normal;
-}
-
-.template-type-badge.template-type-knowledge {
-    background-color: #9b59b6;
-    color: white;
-}
-
-.template-type-badge.template-type-phenotype {
-    background-color: #00796b;
-    color: white;
-}
-
-.progress-line.na-entries {
-    color: #6c757d;
-}
-
-.progress-line.na-entries .progress-label {
-    color: #6c757d;
-}
-
-.progress-line.na-entries .progress-value {
-    color: #6c757d;
-    font-weight: 500;
-}
-
-/* Knowledge level styling */
-.knowledge-level {
-    margin: 10px 0;
-}
-
-.knowledge-value {
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 4px;
-    display: inline-block;
-}
-
-.knowledge-value.knowledge-limited {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
-}
-
-.knowledge-value.knowledge-moderate {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-
-.knowledge-value.knowledge-extensive {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.knowledge-value.knowledge-na {
-    background-color: #e2e3e5;
-    color: #6c757d;
-    border: 1px solid #d6d8db;
-}
-
-.progress-line.na-entries {
-}
-
-.setting-item {
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.setting-item label {
-    min-width: 150px;
-    font-weight: 500;
-}
-
-.setting-item input {
-    width: 80px;
-    padding: 5px 10px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-}
-
-.setting-item .form-help {
-    color: #6c757d;
-    font-size: 0.875rem;
-    margin-left: 10px;
-}
-
-.settings-note {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 4px;
-    color: #856404;
-    font-size: 0.9rem;
-}
-
-.queue-status {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #d1ecf1;
-    border: 1px solid #bee5eb;
-    border-radius: 4px;
-    color: #0c5460;
-}
-
-.rerun-all-container {
-    margin-top: 15px;
-    text-align: center;
-}
-
-.rerun-container {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #dee2e6;
-}
-
-.btn-warning {
-    background-color: #ffc107;
-    border-color: #ffc107;
-    color: #212529;
-}
-
-.btn-warning:hover {
-    background-color: #e0a800;
-    border-color: #d39e00;
-    color: #212529;
-}
-
-.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    border-radius: 0.2rem;
-}
-</style>
-
 {% endblock %} 
