@@ -254,15 +254,15 @@
         padding-left: 10px;
         font-size: 11px;
         white-space: nowrap;
-        min-width: 80px;
-        max-width: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
         cursor: default;
+        border-left: 3px solid #007bff;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     }
     
     .chart-cell {
-        width: 400px;
+        width: 500px;
         padding: 2px;
     }
     
@@ -365,7 +365,7 @@
     }
     
     .chart-cell {
-        cursor: help;
+        cursor: default;
         transition: background-color 0.2s;
     }
     
@@ -540,8 +540,8 @@
         color: #1976d2;
     }
     
-    /* Statistics cards styles */
-    .correlation-stats {
+    /* Statistics cards styles - matching artificial_dataset.html */
+    .analysis-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 20px;
@@ -582,6 +582,41 @@
         font-size: 14px;
         color: #6c757d;
         font-weight: 500;
+    }
+    
+    .model-name {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        color: #495057;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    /* Template header styles */
+    .template-header-with-description {
+        margin-bottom: 15px;
+    }
+    
+    .template-header-link {
+        color: #2c3e50;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .template-header-link:hover {
+        color: #6f42c1;
+        text-decoration: underline;
+    }
+    
+    .template-description-text {
+        margin: 0;
+        color: #6c757d;
+        font-size: 13px;
+        font-style: italic;
+        line-height: 1.4;
     }
     
     /* Species Distribution Tooltip Styles */
@@ -727,16 +762,10 @@
     }
     
     .correlation-value {
-        cursor: help;
         position: relative;
         display: inline-block;
         padding: 2px 6px;
         border-radius: 3px;
-        transition: background-color 0.2s;
-    }
-    
-    .correlation-value:hover {
-        background: #e3f2fd;
     }
 </style>
 {% endblock %}
@@ -766,8 +795,23 @@
         return `${displayProvider} ${model}`;
     }
     
-    // Load correlation data on page load
+    // Load template validation info and correlation data on page load
+    loadTemplateValidationInfo();
     loadCorrelationData();
+    
+    function loadTemplateValidationInfo() {
+        fetch('/api/template_validation_info')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.templateValidationInfo = data.validation_info;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading template validation info:', error);
+                window.templateValidationInfo = {};
+            });
+    }
     
     function loadCorrelationData() {
         fetch('/api/search_count_correlation')
@@ -875,31 +919,35 @@
             return;
         }
         
-        // Statistics
+        // Statistics - updated to match artificial_dataset.html styling
         const avgCorrelation = modelResults.reduce((sum, m) => sum + m.correlation, 0) / modelResults.length;
         const maxCorrelation = Math.max(...modelResults.map(m => m.correlation));
         const minCorrelation = Math.min(...modelResults.map(m => m.correlation));
         const bestModel = modelResults.find(m => m.correlation === maxCorrelation);
+        const worstModel = modelResults.find(m => m.correlation === minCorrelation);
         
-        html += '<div class="correlation-stats">';
-        html += `<div class="stat-card ${avgCorrelation > 0.3 ? 'positive' : avgCorrelation < -0.3 ? 'negative' : 'neutral'}">`;
-        html += `<div class="stat-number">${avgCorrelation.toFixed(3)}</div>`;
-        html += `<div class="stat-label">Average Correlation</div>`;
-        html += `</div>`;
+        // Count unique templates
+        const uniqueTemplates = new Set(modelResults.map(m => m.templateName));
         
-        html += `<div class="stat-card ${maxCorrelation > 0.5 ? 'positive' : 'neutral'}">`;
-        html += `<div class="stat-number">${maxCorrelation.toFixed(3)}</div>`;
-        html += `<div class="stat-label">Best Alignment</div>`;
-        html += `</div>`;
-        
-        html += `<div class="stat-card positive">`;
-        html += `<div class="stat-number">${bestModel ? bestModel.modelName.split('/').pop() : 'N/A'}</div>`;
-        html += `<div class="stat-label">Top Aligned Model</div>`;
-        html += `</div>`;
-        
+        html += '<div class="analysis-stats">';
         html += `<div class="stat-card neutral">`;
         html += `<div class="stat-number">${modelResults.length}</div>`;
         html += `<div class="stat-label">Models Analyzed</div>`;
+        html += `</div>`;
+        
+        html += `<div class="stat-card neutral">`;
+        html += `<div class="stat-number"><a href="/templates" style="color: inherit; text-decoration: none;">${uniqueTemplates.size}</a></div>`;
+        html += `<div class="stat-label"><a href="/templates" style="color: inherit; text-decoration: none;">Query template compared</a></div>`;
+        html += `</div>`;
+        
+        html += `<div class="stat-card positive">`;
+        html += `<div class="stat-number model-name">${bestModel ? formatModelName(bestModel.modelName).replace('Anthropic ', '').replace('OpenAI ', '').replace('Google ', '').replace('Meta ', '').replace('Mistral ', '').replace('Cohere ', '').replace('xAI ', '') : 'N/A'}</div>`;
+        html += `<div class="stat-label">Best Model (Correlation: ${maxCorrelation.toFixed(3)})</div>`;
+        html += `</div>`;
+        
+        html += `<div class="stat-card negative">`;
+        html += `<div class="stat-number model-name">${worstModel ? formatModelName(worstModel.modelName).replace('Anthropic ', '').replace('OpenAI ', '').replace('Google ', '').replace('Meta ', '').replace('Mistral ', '').replace('Cohere ', '').replace('xAI ', '') : 'N/A'}</div>`;
+        html += `<div class="stat-label">Worst Model (Correlation: ${minCorrelation.toFixed(3)})</div>`;
         html += `</div>`;
         html += '</div>';
         
@@ -924,17 +972,32 @@
     }
     
     function renderTemplateCorrelationTable(templateName, modelResults) {
+        // Get template description from loaded validation info
+        const templateInfo = window.templateValidationInfo?.[templateName];
+        const description = templateInfo?.description || 'Template for model evaluation';
+        
         let html = `<div class="correlation-analysis-container">`;
-        html += `<h4 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">${templateName}</h4>`;
+        html += `<div class="template-header-with-description">`;
+        html += `<h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">`;
+        html += `<a href="/templates" class="template-header-link" onclick="scrollToTemplate('${templateName}')">${templateName}</a>`;
+        html += `</h4>`;
+        html += `<p class="template-description-text">${description}</p>`;
+        html += `</div>`;
         
         html += `<table class="correlation-analysis-table">`;
         
-        // Header row
+        // Header row with help text (removed Interpretation column)
         html += `<thead><tr>`;
-        html += `<th style="text-align: left; background-color: #e9ecef;">Model</th>`;
-        html += `<th style="text-align: center; background-color: #e9ecef; width: 80px;">Correlation</th>`;
-        html += `<th style="text-align: center; background-color: #e9ecef; width: 400px;">Knowledge Distribution</th>`;
-        html += `<th style="text-align: center; background-color: #e9ecef; width: 100px;">Alignment</th>`;
+        html += `<th style="text-align: left; background-color: #e9ecef;">Model<br>`;
+        html += `<span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Language model used for predictions</span></th>`;
+        
+        html += `<th style="text-align: center; background-color: #e9ecef; width: 500px;">Knowledge Distribution<br>`;
+        html += `<span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">How often model claims each level of knowledge</span><br>`;
+        html += `<span style="font-weight: normal; font-size: 9px; color: #868e96;">Hover bars to see species breakdown</span></th>`;
+        
+        html += `<th style="text-align: center; background-color: #e9ecef; width: 150px;">Correlation (Interpretation)<br>`;
+        html += `<span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Knowledge vs web presence alignment</span><br>`;
+        html += `<span style="font-weight: normal; font-size: 9px; color: #868e96;">(-1 to +1 range)</span></th>`;
         html += `</tr></thead>`;
         
         // Data rows
@@ -946,17 +1009,7 @@
             
             html += `<tr>`;
             html += `<td class="model-name-cell">${formatModelName(result.modelName)}</td>`;
-            html += `<td class="correlation-value-cell">
-                        <span class="correlation-value ${correlationClass}" 
-                              data-model="${result.modelName}"
-                              data-template="${result.templateName}"
-                              data-correlation="${result.correlation}"
-                              data-points='${JSON.stringify(result.dataPoints)}'
-                              onmouseover="showCorrelationTooltip(event, this)"
-                              onmouseout="hideCorrelationTooltip()">
-                              ${result.correlation.toFixed(3)}
-                        </span>
-                     </td>`;
+            
             html += `<td class="chart-cell"
                         data-model="${result.modelName}"
                         data-correlation="${result.correlation}"
@@ -965,7 +1018,13 @@
                         onmouseout="hideDistributionTooltip()">
                         ${renderKnowledgeDistributionBar(result.knowledgeDist, result.speciesCount, result.dataPoints)}
                      </td>`;
-            html += `<td style="text-align: center; font-size: 11px; color: #495057; padding: 4px;">${interpretation}</td>`;
+            
+            html += `<td class="correlation-value-cell" style="text-align: center;">
+                        <span class="${correlationClass}" style="font-weight: 600;">
+                              ${result.correlation.toFixed(3)}
+                        </span><br>
+                        <span style="font-size: 9px; color: #6c757d;">(${interpretation})</span>
+                     </td>`;
             html += `</tr>`;
         });
         
@@ -1435,6 +1494,11 @@
             distributionTooltip.remove();
             distributionTooltip = null;
         }
+    }
+    
+    function scrollToTemplate(templateName) {
+        // Store the template name to scroll to after page loads
+        sessionStorage.setItem('scrollToTemplate', templateName);
     }
 </script>
 {% endblock %} 

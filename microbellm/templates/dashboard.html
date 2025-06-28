@@ -1213,6 +1213,16 @@
                     <div>Failed: ${info.failed_species || 0}</div>
                     <div>Timeouts: ${info.timeout_species || 0}</div>
                 </div>
+                ${info.user_template && info.user_template.includes('phenotype') ? `
+                    <div style="margin-top: 16px; text-align: center;">
+                        <button onclick="reparsePhenotypeData(${info.id})" class="btn btn-primary">
+                            <i class="fas fa-sync"></i> Re-parse Phenotype Data
+                        </button>
+                        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                            Use this if phenotype predictions show raw JSON but no parsed data
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `;
         
@@ -1243,7 +1253,7 @@
                                 ${result.result ? `
                                     <button data-species="${result.binomial_name}" 
                                             data-raw='${result.result.replace(/'/g, "&#39;")}' 
-                                            data-parsed='${JSON.stringify(result.phenotypes || result.knowledge_group ? {knowledge_group: result.knowledge_group} : {}).replace(/'/g, "&#39;")}'
+                                            data-parsed='${JSON.stringify(result.phenotypes || (result.knowledge_group ? {knowledge_group: result.knowledge_group} : {})).replace(/'/g, "&#39;")}'
                                             onclick="showRawResponseFromData(this)" 
                                             class="btn-small btn-view" title="View raw response">
                                         View
@@ -1408,6 +1418,31 @@
                             location.reload();
                         }, 1000);
                     }
+                });
+        }
+    }
+    
+    function reparsePhenotypeData(combinationId) {
+        if (confirm('This will re-parse all raw phenotype responses for this combination. Continue?')) {
+            showNotification('Re-parsing phenotype data...', 'info');
+            
+            fetch(`/api/reparse_phenotype_data/${combinationId}`, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(`Successfully re-parsed ${data.updated} results`, 'success');
+                        // Close modal and refresh details
+                        closeModal('detailsModal');
+                        setTimeout(() => {
+                            showCombinationDetails(combinationId);
+                        }, 500);
+                    } else {
+                        showNotification(data.message || 'Error re-parsing data', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error re-parsing phenotype data:', error);
+                    showNotification('Failed to re-parse phenotype data', 'error');
                 });
         }
     }

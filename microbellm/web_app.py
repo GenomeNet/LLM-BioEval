@@ -520,7 +520,8 @@ class ProcessingManager:
                 user_template_content,
                 model,
                 temperature=0.0,
-                verbose=False
+                verbose=False,
+                user_template_path=user_template
             )
             
             # Process result
@@ -694,7 +695,12 @@ class ProcessingManager:
                 result_data['knowledge_group'] = None
                 result_data['gram_staining'] = result.get('gram_staining')
                 result_data['motility'] = result.get('motility')
-                result_data['aerophilicity'] = result.get('aerophilicity')
+                # Handle aerophilicity as array - convert to string for database storage
+                aerophilicity = result.get('aerophilicity')
+                if isinstance(aerophilicity, list):
+                    result_data['aerophilicity'] = str(aerophilicity)
+                else:
+                    result_data['aerophilicity'] = aerophilicity
                 result_data['extreme_environment_tolerance'] = result.get('extreme_environment_tolerance')
                 result_data['biofilm_formation'] = result.get('biofilm_formation')
                 result_data['animal_pathogenicity'] = result.get('animal_pathogenicity')
@@ -1420,7 +1426,8 @@ class ProcessingManager:
                 user_template_content,
                 model,
                 temperature=0.0,
-                verbose=False
+                verbose=False,
+                user_template_path=user_template
             )
             
             # Process result
@@ -1826,6 +1833,10 @@ def artificial_dataset_page():
 def search_correlation_page():
     return render_template('search_correlation.html')
 
+@app.route('/phenotype_analysis')
+def phenotype_analysis_page():
+    return render_template('phenotype_analysis.html')
+
 @app.route('/settings')
 def settings_page():
     """Settings page for API key and configuration management"""
@@ -1925,6 +1936,46 @@ def get_template_metadata_api():
             })
         
         return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/template_validation_info')
+def get_template_validation_info_api():
+    """API endpoint to get template validation info from JSON files"""
+    try:
+        template_pairs = get_available_template_pairs()
+        validation_info = {}
+        
+        for template_name, paths in template_pairs.items():
+            # Try to read validation config
+            try:
+                from microbellm.template_config import find_validation_config_for_template, TemplateValidator
+                config_path = find_validation_config_for_template(paths['user'])
+                if config_path:
+                    # Parse validation config to get template info
+                    validator = TemplateValidator(config_path)
+                    template_info = validator.get_template_info()
+                    
+                    validation_info[template_name] = {
+                        'type': template_info.get('type', 'unknown'),
+                        'description': template_info.get('description', ''),
+                        'purpose': template_info.get('purpose', ''),
+                        'usage_context': template_info.get('usage_context', {}),
+                        'interpretation_guide': template_info.get('interpretation_guide', {}),
+                        'quality_indicators': template_info.get('quality_indicators', {})
+                    }
+            except Exception as e:
+                print(f"Could not load validation config for {template_name}: {e}")
+                validation_info[template_name] = {
+                    'type': 'unknown',
+                    'description': 'Template for model evaluation',
+                    'purpose': '',
+                    'usage_context': {},
+                    'interpretation_guide': {},
+                    'quality_indicators': {}
+                }
+        
+        return jsonify({'success': True, 'validation_info': validation_info})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -2577,6 +2628,94 @@ def get_knowledge_analysis_data():
         _update_knowledge_analysis_cache(result, current_time)
         
         return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phenotype_analysis')
+def get_phenotype_analysis():
+    """Get phenotype prediction analysis data"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all phenotype results (excluding knowledge templates)
+        # Use detect_template_type or check for phenotype fields instead of relying on template_metadata
+        cursor.execute("""
+            SELECT r.binomial_name, r.species_file, r.model, r.status,
+                   r.system_template, r.user_template,
+                   r.gram_staining, r.motility, r.aerophilicity, 
+                   r.extreme_environment_tolerance, r.biofilm_formation,
+                   r.animal_pathogenicity, r.biosafety_level, r.health_association,
+                   r.host_association, r.plant_pathogenicity, r.spore_formation,
+                   r.hemolysis, r.cell_shape
+            FROM results r
+            WHERE r.user_template LIKE '%phenotype%'
+                  AND (r.gram_staining IS NOT NULL OR r.motility IS NOT NULL 
+                       OR r.aerophilicity IS NOT NULL OR r.biofilm_formation IS NOT NULL)
+            ORDER BY r.species_file, r.model, r.binomial_name
+        """)
+        
+        results = cursor.fetchall()
+        
+        # Get list of unique species files that have phenotype data
+        cursor.execute("""
+            SELECT DISTINCT r.species_file
+            FROM results r
+            WHERE r.user_template LIKE '%phenotype%'
+                  AND (r.gram_staining IS NOT NULL OR r.motility IS NOT NULL 
+                       OR r.aerophilicity IS NOT NULL OR r.biofilm_formation IS NOT NULL)
+            ORDER BY r.species_file
+        """)
+        
+        files = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        # Process data by file
+        file_data = {}
+        
+        for row in results:
+            (binomial_name, species_file, model, status,
+             system_template, user_template,
+             gram_staining, motility, aerophilicity,
+             extreme_environment_tolerance, biofilm_formation,
+             animal_pathogenicity, biosafety_level, health_association,
+             host_association, plant_pathogenicity, spore_formation,
+             hemolysis, cell_shape) = row
+            
+            if species_file not in file_data:
+                file_data[species_file] = []
+            
+            # Create phenotype data entry
+            entry = {
+                'binomial_name': binomial_name,
+                'model': model,
+                'status': status,
+                'system_template': system_template,
+                'user_template': user_template,
+                'gram_staining': gram_staining,
+                'motility': motility,
+                'aerophilicity': aerophilicity,
+                'extreme_environment_tolerance': extreme_environment_tolerance,
+                'biofilm_formation': biofilm_formation,
+                'animal_pathogenicity': animal_pathogenicity,
+                'biosafety_level': biosafety_level,
+                'health_association': health_association,
+                'host_association': host_association,
+                'plant_pathogenicity': plant_pathogenicity,
+                'spore_formation': spore_formation,
+                'hemolysis': hemolysis,
+                'cell_shape': cell_shape
+            }
+            
+            file_data[species_file].append(entry)
+        
+        return jsonify({
+            'files': files,
+            'data': file_data,
+            'total_results': len(results)
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -3247,6 +3386,122 @@ def rerun_failed_species_api():
         thread.start()
         
         return jsonify({'success': True, 'message': f'Re-running {species_name}...'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reparse_phenotype_data/<int:combination_id>', methods=['POST'])
+def reparse_phenotype_data_api(combination_id):
+    """Re-parse phenotype data from raw responses for a combination"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get combination details
+        cursor.execute("""
+            SELECT species_file, model, system_template, user_template 
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
+        
+        combo = cursor.fetchone()
+        if not combo:
+            conn.close()
+            return jsonify({'error': 'Combination not found'}), 404
+        
+        species_file, model, system_template, user_template = combo
+        
+        # Check if this is a phenotype template
+        if detect_template_type(user_template) != 'phenotype':
+            conn.close()
+            return jsonify({'error': 'This is not a phenotype template combination'}), 400
+        
+        # Get all results with raw responses for this combination
+        cursor.execute("""
+            SELECT id, binomial_name, result
+            FROM results 
+            WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+                  AND result IS NOT NULL AND result != ''
+                  AND status = 'completed'
+        """, (species_file, model, system_template, user_template))
+        
+        results = cursor.fetchall()
+        
+        if not results:
+            conn.close()
+            return jsonify({'success': False, 'message': 'No results with raw data found to re-parse'}), 404
+        
+        # Re-parse each result
+        updated_count = 0
+        failed_count = 0
+        
+        from microbellm.utils import parse_response
+        
+        for result_id, binomial_name, raw_response in results:
+            try:
+                # Parse the raw response using template validation
+                parsed_result = parse_response(raw_response, user_template)
+                
+                if parsed_result:
+                    # Handle aerophilicity as array - convert to string for database storage
+                    aerophilicity = parsed_result.get('aerophilicity')
+                    if isinstance(aerophilicity, list):
+                        aerophilicity_str = str(aerophilicity)
+                    else:
+                        aerophilicity_str = aerophilicity
+                    
+                    # Update the phenotype fields in the database
+                    cursor.execute("""
+                        UPDATE results 
+                        SET gram_staining = ?,
+                            motility = ?,
+                            aerophilicity = ?,
+                            extreme_environment_tolerance = ?,
+                            biofilm_formation = ?,
+                            animal_pathogenicity = ?,
+                            biosafety_level = ?,
+                            health_association = ?,
+                            host_association = ?,
+                            plant_pathogenicity = ?,
+                            spore_formation = ?,
+                            hemolysis = ?,
+                            cell_shape = ?
+                        WHERE id = ?
+                    """, (
+                        parsed_result.get('gram_staining'),
+                        parsed_result.get('motility'),
+                        aerophilicity_str,
+                        parsed_result.get('extreme_environment_tolerance'),
+                        parsed_result.get('biofilm_formation'),
+                        parsed_result.get('animal_pathogenicity'),
+                        parsed_result.get('biosafety_level'),
+                        parsed_result.get('health_association'),
+                        parsed_result.get('host_association'),
+                        parsed_result.get('plant_pathogenicity'),
+                        parsed_result.get('spore_formation'),
+                        parsed_result.get('hemolysis'),
+                        parsed_result.get('cell_shape'),
+                        result_id
+                    ))
+                    updated_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                print(f"Error re-parsing result for {binomial_name}: {e}")
+                failed_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        # Invalidate caches
+        _invalidate_all_caches()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Re-parsed {updated_count} results successfully, {failed_count} failed',
+            'updated': updated_count,
+            'failed': failed_count,
+            'total': len(results)
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
