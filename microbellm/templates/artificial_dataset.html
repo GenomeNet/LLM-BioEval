@@ -83,7 +83,6 @@
 
 <div id="knowledgeAnalysisContent">
     <div class="loading-container">
-        <div class="loading-spinner"></div>
         <div class="loading-progress">
             <div class="loading-progress-bar"></div>
         </div>
@@ -1345,8 +1344,31 @@
                     
                     scoreBreakdown += `\nTotal: ${totalBreakdown} / ${totalSamples} = ${averageQualityScore.toFixed(2)}`;
                     
+                    // Store data safely without including raw response text
+                    const scoreData = {
+                        inputTypes: inputTypeArray,
+                        templates: {},
+                        totalSamples,
+                        averageScore: averageQualityScore
+                    };
+                    
+                    // Copy only the counts, not the samples with raw responses
+                    inputTypeArray.forEach(inputType => {
+                        if (templates[inputType]) {
+                            scoreData.templates[inputType] = {
+                                NA: templates[inputType].NA || 0,
+                                limited: templates[inputType].limited || 0,
+                                moderate: templates[inputType].moderate || 0,
+                                extensive: templates[inputType].extensive || 0,
+                                no_result: templates[inputType].no_result || 0,
+                                inference_failed: templates[inputType].inference_failed || 0,
+                                total: templates[inputType].total || 0
+                            };
+                        }
+                    });
+                    
                     html += `<span class="quality-score-value" 
-                                   data-breakdown='${JSON.stringify({inputTypes: inputTypeArray, templates, totalSamples, averageScore: averageQualityScore})}'
+                                   data-breakdown="${encodeURIComponent(JSON.stringify(scoreData))}"
                                    onmouseover="showScoreTooltip(event, this)"
                                    onmouseout="hideScoreTooltip()">
                                    ${averageQualityScore.toFixed(2)}
@@ -1517,7 +1539,7 @@
     let scoreTooltip = null;
     
     function showScoreTooltip(event, element) {
-        const data = JSON.parse(element.getAttribute('data-breakdown'));
+        const data = JSON.parse(decodeURIComponent(element.getAttribute('data-breakdown')));
         
         // Hide any existing tooltip
         hideScoreTooltip();
