@@ -362,6 +362,14 @@
         font-weight: 600;
         position: relative;
         min-width: 16px;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.1s;
+    }
+    
+    .bar-segment:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+        z-index: 10;
     }
     
     .bar-number {
@@ -574,6 +582,161 @@
         color: #6c757d;
         font-weight: 500;
     }
+    
+    /* Species Distribution Tooltip Styles */
+    .species-tooltip {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+    }
+    
+    .species-tooltip-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 11px;
+        max-width: 250px;
+    }
+    
+    .species-tooltip-header {
+        font-weight: 600;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .species-tooltip-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .species-tooltip-item {
+        padding: 2px 0;
+        color: #495057;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 10px;
+    }
+    
+    .species-tooltip-item em {
+        font-style: italic;
+        font-family: inherit;
+    }
+    
+    .species-tooltip-more {
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px solid #e9ecef;
+        font-style: italic;
+        color: #6c757d;
+    }
+    
+    /* Tooltip color themes */
+    .tooltip-limited .species-tooltip-header {
+        color: #856404;
+        background: #fff3cd;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-moderate .species-tooltip-header {
+        color: #0c5460;
+        background: #d1ecf1;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-extensive .species-tooltip-header {
+        color: #155724;
+        background: #d4edda;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-na .species-tooltip-header {
+        color: #383d41;
+        background: #e2e3e5;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    /* Correlation Visualization Tooltip */
+    .correlation-tooltip {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 12px rgba(0,0,0,0.15));
+    }
+    
+    .correlation-tooltip-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 11px;
+        width: 320px;
+    }
+    
+    .correlation-tooltip-header {
+        font-weight: 700;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e9ecef;
+        color: #2c3e50;
+        font-size: 12px;
+    }
+    
+    .scatter-plot-container {
+        width: 100%;
+        height: 200px;
+        position: relative;
+        margin: 10px 0;
+    }
+    
+    .scatter-plot-canvas {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .correlation-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        font-size: 11px;
+    }
+    
+    .correlation-stat {
+        text-align: center;
+    }
+    
+    .correlation-stat-value {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 13px;
+    }
+    
+    .correlation-stat-label {
+        color: #6c757d;
+        font-size: 10px;
+    }
+    
+    .correlation-value {
+        cursor: help;
+        position: relative;
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+    }
+    
+    .correlation-value:hover {
+        background: #e3f2fd;
+    }
 </style>
 {% endblock %}
 
@@ -782,8 +945,18 @@
             
             html += `<tr>`;
             html += `<td class="model-name-cell">${formatModelName(result.modelName)}</td>`;
-            html += `<td class="correlation-value-cell"><span class="correlation-value ${correlationClass}">${result.correlation.toFixed(3)}</span></td>`;
-            html += `<td class="chart-cell">${renderKnowledgeDistributionBar(result.knowledgeDist, result.speciesCount)}</td>`;
+            html += `<td class="correlation-value-cell">
+                        <span class="correlation-value ${correlationClass}" 
+                              data-model="${result.modelName}"
+                              data-template="${result.templateName}"
+                              data-correlation="${result.correlation}"
+                              data-points='${JSON.stringify(result.dataPoints)}'
+                              onmouseover="showCorrelationTooltip(event, this)"
+                              onmouseout="hideCorrelationTooltip()">
+                              ${result.correlation.toFixed(3)}
+                        </span>
+                     </td>`;
+            html += `<td class="chart-cell">${renderKnowledgeDistributionBar(result.knowledgeDist, result.speciesCount, result.dataPoints)}</td>`;
             html += `<td style="text-align: center; font-size: 11px; color: #495057; padding: 4px;">${interpretation}</td>`;
             html += `</tr>`;
         });
@@ -813,9 +986,21 @@
         return 'Strong -';
     }
     
-    function renderKnowledgeDistributionBar(dist, total) {
+    function renderKnowledgeDistributionBar(dist, total, dataPoints) {
         if (total === 0) {
             return '<div class="no-data">No data</div>';
+        }
+        
+        // Group data points by knowledge level
+        const pointsByLevel = {};
+        if (dataPoints) {
+            dataPoints.forEach(point => {
+                const level = point.knowledge_group.toLowerCase();
+                if (!pointsByLevel[level]) {
+                    pointsByLevel[level] = [];
+                }
+                pointsByLevel[level].push(point);
+            });
         }
         
         // Calculate percentages
@@ -827,10 +1012,10 @@
         // Calculate minimum visible width
         const minVisiblePct = 2;
         const segments = [
-            { type: 'limited', count: dist.limited || 0, pct: limitedPct, class: 'knowledge-limited' },
-            { type: 'moderate', count: dist.moderate || 0, pct: moderatePct, class: 'knowledge-moderate' },
-            { type: 'extensive', count: dist.extensive || 0, pct: extensivePct, class: 'knowledge-extensive' },
-            { type: 'na', count: dist.NA || 0, pct: naPct, class: 'knowledge-na' }
+            { type: 'limited', count: dist.limited || 0, pct: limitedPct, class: 'knowledge-limited', samples: pointsByLevel['limited'] || [] },
+            { type: 'moderate', count: dist.moderate || 0, pct: moderatePct, class: 'knowledge-moderate', samples: pointsByLevel['moderate'] || [] },
+            { type: 'extensive', count: dist.extensive || 0, pct: extensivePct, class: 'knowledge-extensive', samples: pointsByLevel['extensive'] || [] },
+            { type: 'na', count: dist.NA || 0, pct: naPct, class: 'knowledge-na', samples: pointsByLevel['na'] || pointsByLevel['n/a'] || [] }
         ].filter(seg => seg.count > 0);
         
         // Calculate adjusted widths
@@ -851,7 +1036,12 @@
         adjustedSegments.forEach((seg, index) => {
             const finalWidth = seg.adjustedPct * scaleFactor;
             
-            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%">`;
+            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%"
+                          data-samples='${JSON.stringify(seg.samples)}'
+                          data-category="${seg.type}"
+                          data-count="${seg.count}"
+                          onmouseover="showSpeciesTooltip(event, this)"
+                          onmouseout="hideSpeciesTooltip()">`;
             
             // Show number for larger segments
             if (finalWidth > 4 || seg.count >= 10) {
@@ -865,6 +1055,271 @@
         html += '</div>';
         
         return html;
+    }
+    
+    // Tooltip functions
+    let speciestooltip = null;
+    let correlationTooltip = null;
+    
+    function showSpeciesTooltip(event, element) {
+        const samples = JSON.parse(element.getAttribute('data-samples'));
+        const category = element.getAttribute('data-category');
+        const count = element.getAttribute('data-count');
+        
+        // Hide any existing tooltip
+        hideSpeciesTooltip();
+        
+        // Create tooltip
+        speciestooltip = document.createElement('div');
+        speciestooltip.className = 'species-tooltip';
+        
+        // Get color class based on category
+        let colorClass = '';
+        switch(category) {
+            case 'limited': colorClass = 'tooltip-limited'; break;
+            case 'moderate': colorClass = 'tooltip-moderate'; break;
+            case 'extensive': colorClass = 'tooltip-extensive'; break;
+            case 'na': colorClass = 'tooltip-na'; break;
+        }
+        
+        // Create content - show up to 10 species names
+        const maxShow = 10;
+        const speciesToShow = samples.slice(0, maxShow);
+        const remaining = samples.length - maxShow;
+        
+        let html = `<div class="species-tooltip-content ${colorClass}">`;
+        html += `<div class="species-tooltip-header">${category.charAt(0).toUpperCase() + category.slice(1)} (${count})</div>`;
+        html += '<div class="species-tooltip-list">';
+        
+        speciesToShow.forEach(sample => {
+            html += `<div class="species-tooltip-item"><em>${sample.species}</em></div>`;
+        });
+        
+        if (remaining > 0) {
+            html += `<div class="species-tooltip-more">... and ${remaining} more</div>`;
+        }
+        
+        html += '</div></div>';
+        
+        speciestooltip.innerHTML = html;
+        document.body.appendChild(speciestooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = speciestooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 10;
+        
+        // Ensure tooltip stays on screen
+        if (left < 10) left = 10;
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+        
+        // If tooltip would go above screen, show below
+        if (top < 10) {
+            top = rect.bottom + 10;
+        }
+        
+        speciestooltip.style.left = left + 'px';
+        speciestooltip.style.top = top + 'px';
+    }
+    
+    function hideSpeciesTooltip() {
+        if (speciestooltip) {
+            speciestooltip.remove();
+            speciestooltip = null;
+        }
+    }
+    
+    function showCorrelationTooltip(event, element) {
+        const model = element.getAttribute('data-model');
+        const correlation = parseFloat(element.getAttribute('data-correlation'));
+        const dataPoints = JSON.parse(element.getAttribute('data-points'));
+        
+        // Hide any existing tooltip
+        hideCorrelationTooltip();
+        
+        // Create tooltip
+        correlationTooltip = document.createElement('div');
+        correlationTooltip.className = 'correlation-tooltip';
+        
+        let html = `<div class="correlation-tooltip-content">`;
+        html += `<div class="correlation-tooltip-header">Correlation Visualization</div>`;
+        html += `<div class="scatter-plot-container">`;
+        html += `<canvas id="correlationCanvas" class="scatter-plot-canvas"></canvas>`;
+        html += `</div>`;
+        
+        // Add statistics
+        html += `<div class="correlation-stats">`;
+        html += `<div class="correlation-stat">`;
+        html += `<div class="correlation-stat-value">${correlation.toFixed(3)}</div>`;
+        html += `<div class="correlation-stat-label">Correlation</div>`;
+        html += `</div>`;
+        html += `<div class="correlation-stat">`;
+        html += `<div class="correlation-stat-value">${dataPoints.length}</div>`;
+        html += `<div class="correlation-stat-label">Data Points</div>`;
+        html += `</div>`;
+        html += `<div class="correlation-stat">`;
+        html += `<div class="correlation-stat-value">${getCorrelationInterpretation(correlation)}</div>`;
+        html += `<div class="correlation-stat-label">Alignment</div>`;
+        html += `</div>`;
+        html += `</div>`;
+        
+        html += `</div>`;
+        
+        correlationTooltip.innerHTML = html;
+        document.body.appendChild(correlationTooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = correlationTooltip.getBoundingClientRect();
+        
+        let left = rect.right + 10;
+        let top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+        
+        // If tooltip would go off right edge, show on left
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = rect.left - tooltipRect.width - 10;
+        }
+        
+        // Ensure tooltip stays on screen vertically
+        if (top < 10) top = 10;
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+            top = window.innerHeight - tooltipRect.height - 10;
+        }
+        
+        correlationTooltip.style.left = left + 'px';
+        correlationTooltip.style.top = top + 'px';
+        
+        // Draw scatter plot
+        setTimeout(() => drawScatterPlot(dataPoints, correlation), 10);
+    }
+    
+    function hideCorrelationTooltip() {
+        if (correlationTooltip) {
+            correlationTooltip.remove();
+            correlationTooltip = null;
+        }
+    }
+    
+    function drawScatterPlot(dataPoints, correlation) {
+        const canvas = document.getElementById('correlationCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = canvas.offsetWidth;
+        const height = canvas.offsetHeight;
+        
+        // Set canvas size
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Calculate bounds
+        const xValues = dataPoints.map(p => Math.log10(p.search_count || 1));
+        const yValues = dataPoints.map(p => p.knowledge_score);
+        
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        const yMin = 0.5;
+        const yMax = 3.5;
+        
+        const padding = 30;
+        const plotWidth = width - 2 * padding;
+        const plotHeight = height - 2 * padding;
+        
+        // Draw axes
+        ctx.strokeStyle = '#dee2e6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+        
+        // Draw grid lines
+        ctx.strokeStyle = '#f0f0f0';
+        ctx.lineWidth = 0.5;
+        
+        // Y grid lines (knowledge levels)
+        [1, 2, 3].forEach(level => {
+            const y = height - padding - ((level - yMin) / (yMax - yMin)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+        });
+        
+        // Draw data points
+        dataPoints.forEach(point => {
+            const x = padding + ((Math.log10(point.search_count || 1) - xMin) / (xMax - xMin)) * plotWidth;
+            const y = height - padding - ((point.knowledge_score - yMin) / (yMax - yMin)) * plotHeight;
+            
+            // Color based on knowledge level
+            switch(point.knowledge_score) {
+                case 1: ctx.fillStyle = '#fff3cd'; break;
+                case 2: ctx.fillStyle = '#d1ecf1'; break;
+                case 3: ctx.fillStyle = '#d4edda'; break;
+                default: ctx.fillStyle = '#e2e3e5';
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        });
+        
+        // Draw trend line if positive correlation
+        if (correlation > 0.1) {
+            // Simple linear regression
+            const n = xValues.length;
+            const sumX = xValues.reduce((a, b) => a + b, 0);
+            const sumY = yValues.reduce((a, b) => a + b, 0);
+            const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+            const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            ctx.strokeStyle = correlation > 0.5 ? '#28a745' : '#17a2b8';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            
+            const x1 = padding;
+            const y1 = height - padding - ((slope * xMin + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            const x2 = width - padding;
+            const y2 = height - padding - ((slope * xMax + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // Add axis labels
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Log(Search Count)', width / 2, height - 5);
+        
+        ctx.save();
+        ctx.translate(10, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Knowledge Level', 0, 0);
+        ctx.restore();
+        
+        // Add level labels
+        ctx.textAlign = 'right';
+        ctx.fillText('Limited', padding - 5, height - padding - (1 - yMin) / (yMax - yMin) * plotHeight);
+        ctx.fillText('Moderate', padding - 5, height - padding - (2 - yMin) / (yMax - yMin) * plotHeight);
+        ctx.fillText('Extensive', padding - 5, height - padding - (3 - yMin) / (yMax - yMin) * plotHeight);
     }
 </script>
 {% endblock %} 
