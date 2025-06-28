@@ -18,9 +18,9 @@
                 <h3><i class="fas fa-file-alt"></i> Templates</h3>
                 <p>We use <strong>3 different query templates</strong> to test the models:</p>
                 <ul class="template-list">
-                    <li><strong>Template 1:</strong> Does NOT offer an "NA" option - forces the model to guess</li>
-                    <li><strong>Template 2:</strong> Explicitly offers "NA" as a valid response option</li>
-                    <li><strong>Template 3:</strong> Also offers "NA" option with different wording</li>
+                    <li><strong><a href="/templates" class="template-inline-link" onclick="scrollToTemplate('template1_knowlege')">Template 1</a>:</strong> Does NOT offer an "NA" option - forces the model to guess</li>
+                    <li><strong><a href="/templates" class="template-inline-link" onclick="scrollToTemplate('template2_knowlege')">Template 2</a>:</strong> Explicitly offers "NA" as a valid response option</li>
+                    <li><strong><a href="/templates" class="template-inline-link" onclick="scrollToTemplate('template3_knowlege')">Template 3</a>:</strong> Also offers "NA" option with different wording</li>
                 </ul>
                 <p class="template-note">Templates 2 & 3 give models the correct option to refuse answering about fake data.</p>
                 <p><a href="/templates" class="template-link"><i class="fas fa-external-link-alt"></i> View full template details</a></p>
@@ -225,6 +225,17 @@
         font-size: 12px;
     }
     
+    .template-inline-link {
+        color: #6f42c1;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .template-inline-link:hover {
+        color: #5a32a3;
+        text-decoration: underline;
+    }
+    
     .legend-with-annotation {
         margin: 15px 0;
         flex: 1;
@@ -354,6 +365,19 @@
         overflow: hidden;
         text-overflow: ellipsis;
         cursor: default;
+        border-left: 3px solid #007bff;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .model-name {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        color: #495057;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
     }
     
     .chart-cell {
@@ -756,6 +780,30 @@
         color: #6c757d;
         font-weight: 500;
     }
+    
+    /* Template header styles */
+    .template-header-with-description {
+        margin-bottom: 15px;
+    }
+    
+    .template-header-link {
+        color: #2c3e50;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .template-header-link:hover {
+        color: #6f42c1;
+        text-decoration: underline;
+    }
+    
+    .template-description-text {
+        margin: 0;
+        color: #6c757d;
+        font-size: 13px;
+        font-style: italic;
+        line-height: 1.4;
+    }
 </style>
 {% endblock %}
 
@@ -821,7 +869,7 @@
         const knowledgeData = data.knowledge_analysis;
         const fileList = data.file_list || Object.keys(knowledgeData);
         
-        let html = '<h3>Model Performance Analysis</h3>';
+        let html = '';
         
         // Content for analysis by species type
         html += '<div id="artificalAnalysisContent">';
@@ -856,7 +904,7 @@
         }
         
         const displayName = selectedFile.replace(/\.(txt|csv)$/i, '');
-        let html = `<h4 style="color: #2c3e50; margin-bottom: 20px;">Analysis by species type (${Object.keys(fileData.types).length} types found)</h4>`;
+        let html = '';
         
         // Reorganize data by model and input type
         const modelData = {};
@@ -886,7 +934,9 @@
         let totalModels = 0;
         let totalTemplates = templateArray.length;
         let bestModel = null;
+        let worstModel = null;
         let bestScore = -1;
+        let worstScore = 4; // Start with max possible score
         let avgScore = 0;
         let scoreCount = 0;
         
@@ -920,6 +970,11 @@
                             bestScore = averageScore;
                             bestModel = modelName.split('/').pop();
                         }
+                        
+                        if (averageScore < worstScore) {
+                            worstScore = averageScore;
+                            worstModel = modelName.split('/').pop();
+                        }
                     }
                 }
             });
@@ -935,19 +990,18 @@
         html += `</div>`;
         
         html += `<div class="stat-card neutral">`;
-        html += `<div class="stat-number">${totalTemplates}</div>`;
-        html += `<div class="stat-label">Query Templates</div>`;
-        html += `</div>`;
-        
-        const avgScoreClass = avgScore > 2.0 ? 'positive' : avgScore > 1.5 ? 'neutral' : 'negative';
-        html += `<div class="stat-card ${avgScoreClass}">`;
-        html += `<div class="stat-number">${avgScore.toFixed(2)}</div>`;
-        html += `<div class="stat-label">Average Quality Score</div>`;
+        html += `<div class="stat-number"><a href="/templates" style="color: inherit; text-decoration: none;">${totalTemplates}</a></div>`;
+        html += `<div class="stat-label"><a href="/templates" style="color: inherit; text-decoration: none;">Query templates compared</a></div>`;
         html += `</div>`;
         
         html += `<div class="stat-card positive">`;
-        html += `<div class="stat-number">${bestModel || 'N/A'}</div>`;
+        html += `<div class="stat-number model-name">${bestModel || 'N/A'}</div>`;
         html += `<div class="stat-label">Best Performing Model</div>`;
+        html += `</div>`;
+        
+        html += `<div class="stat-card negative">`;
+        html += `<div class="stat-number model-name">${worstModel || 'N/A'}</div>`;
+        html += `<div class="stat-label">Worst Performing Model</div>`;
         html += `</div>`;
         html += '</div>';
         
@@ -959,10 +1013,22 @@
     function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) {
         let html = '';
         
+        // Template descriptions for context
+        const templateDescriptions = {
+            'template1_knowlege': 'Basic knowledge level assessment template (limited, moderate, extensive)',
+            'template2_knowlege': 'Knowledge level assessment template with NA support', 
+            'template3_knowlege': 'Alternative knowledge level assessment template with NA support'
+        };
+        
         // Create compact table layout for each template
         templateArray.forEach(templateName => {
             html += `<div class="knowledge-analysis-container">`;
-            html += `<h4 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">${templateName}</h4>`;
+            html += `<div class="template-header-with-description">`;
+            html += `<h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">`;
+            html += `<a href="/templates" class="template-header-link" onclick="scrollToTemplate('${templateName}')">${templateName}</a>`;
+            html += `</h4>`;
+            html += `<p class="template-description-text">${templateDescriptions[templateName] || 'Template for model evaluation'}</p>`;
+            html += `</div>`;
             
             html += `<table class="knowledge-analysis-table">`;
             
@@ -1195,6 +1261,11 @@
         if (modal) {
             modal.remove();
         }
+    }
+    
+    function scrollToTemplate(templateName) {
+        // Store the template name to scroll to after page loads
+        sessionStorage.setItem('scrollToTemplate', templateName);
     }
 </script>
 {% endblock %} 

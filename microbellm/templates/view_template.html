@@ -976,6 +976,25 @@
     
     // Auto-activate first available template on page load
     document.addEventListener('DOMContentLoaded', function() {
+        // Check if we should scroll to a specific template
+        const scrollToTemplate = sessionStorage.getItem('scrollToTemplate');
+        if (scrollToTemplate) {
+            sessionStorage.removeItem('scrollToTemplate');
+            const targetTab = document.getElementById('tab-' + scrollToTemplate);
+            if (targetTab) {
+                showTemplateView(scrollToTemplate);
+                // Scroll to the template section after a short delay
+                setTimeout(() => {
+                    const templateSection = document.getElementById('template-view-' + scrollToTemplate);
+                    if (templateSection) {
+                        templateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+                return;
+            }
+        }
+        
+        // Default behavior: activate first available template
         const firstTab = document.querySelector('.template-tab');
         if (firstTab) {
             const templateName = firstTab.id.replace('tab-', '');
