@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Artificial Data Set - MicrobeBench{% endblock %}
+{% block title %}LLM Hallucination Test - MicrobeBench{% endblock %}
 
 {% block content %}
-<h1>Artificial Data Set</h1>
+<h1>LLM Hallucination Test</h1>
 
 <div class="explanation-section">
     <div class="explanation-grid">
@@ -342,7 +342,9 @@
         border: 1px solid #dee2e6;
         border-bottom: 2px solid #007bff;
         font-size: 11px;
-        white-space: nowrap;
+        white-space: normal;
+        vertical-align: top;
+        line-height: 1.3;
     }
     
     .knowledge-analysis-table td {
@@ -484,6 +486,199 @@
         position: relative;
         min-width: 16px; /* Minimum width to show at least the number */
         cursor: pointer;
+        transition: opacity 0.2s, transform 0.1s;
+    }
+    
+    .bar-segment:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+        z-index: 10;
+    }
+    
+    /* Species Tooltip Styles */
+    .species-tooltip {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+    }
+    
+    .species-tooltip-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 11px;
+        max-width: 250px;
+    }
+    
+    .species-tooltip-header {
+        font-weight: 600;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .species-tooltip-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .species-tooltip-item {
+        padding: 2px 0;
+        color: #495057;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 10px;
+    }
+    
+    .species-tooltip-more {
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px solid #e9ecef;
+        font-style: italic;
+        color: #6c757d;
+    }
+    
+    /* Tooltip color themes */
+    .tooltip-limited .species-tooltip-header {
+        color: #856404;
+        background: #fff3cd;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-moderate .species-tooltip-header {
+        color: #0c5460;
+        background: #d1ecf1;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-extensive .species-tooltip-header {
+        color: #155724;
+        background: #d4edda;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-na .species-tooltip-header {
+        color: #383d41;
+        background: #e2e3e5;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tooltip-failed .species-tooltip-header {
+        color: #721c24;
+        background: #f8d7da;
+        padding: 4px 8px;
+        margin: -8px -12px 6px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    /* Quality Score Tooltip */
+    .quality-score-value {
+        cursor: help;
+        position: relative;
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #e3f2fd;
+        transition: background-color 0.2s;
+    }
+    
+    .quality-score-value:hover {
+        background: #bbdefb;
+    }
+    
+    /* Score Calculation Tooltip */
+    .score-tooltip {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 12px rgba(0,0,0,0.15));
+    }
+    
+    .score-tooltip-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 11px;
+        min-width: 220px;
+    }
+    
+    .score-tooltip-header {
+        font-weight: 700;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e9ecef;
+        color: #2c3e50;
+        font-size: 12px;
+    }
+    
+    .score-tooltip-breakdown {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .score-type-section {
+        padding: 4px 0;
+    }
+    
+    .score-type-name {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 4px;
+        text-transform: capitalize;
+    }
+    
+    .score-item {
+        padding: 2px 6px;
+        margin: 2px 0;
+        border-radius: 3px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 10px;
+        display: inline-block;
+    }
+    
+    .score-label {
+        font-size: 9px;
+        opacity: 0.8;
+    }
+    
+    .score-item.score-na {
+        background: #e2e3e5;
+        color: #383d41;
+    }
+    
+    .score-item.score-limited {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .score-item.score-moderate {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .score-item.score-extensive {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .score-total {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e9ecef;
+        font-weight: 700;
+        color: #2c3e50;
+        font-size: 12px;
     }
     
     .bar-number {
@@ -809,6 +1004,9 @@
 
 {% block scripts %}
 <script>
+    // Pass annotation data from backend to JavaScript
+    const annotationData = {{ annotations|tojson }};
+    
     // Format model name without hover effects
     function formatModelName(modelName) {
         if (!modelName.includes('/')) {
@@ -1037,7 +1235,17 @@
             html += `<th style="text-align: left; background-color: #e9ecef;">Model</th>`;
             inputTypeArray.forEach(inputType => {
                 const displayType = inputType.replace(/_/g, ' ');
-                html += `<th>${displayType}</th>`;
+                const annotation = annotationData[inputType];
+                
+                if (annotation) {
+                    html += `<th title="${annotation.description + ' (e.g., ' + annotation.example + ')'}" style="cursor: help;">`;
+                    html += `${displayType}<br>`;
+                    html += `<span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">${annotation.description}</span><br>`;
+                    html += `<span style="font-weight: normal; font-size: 9px; color: #868e96;">(e.g., ${annotation.example})</span>`;
+                    html += `</th>`;
+                } else {
+                    html += `<th>${displayType}</th>`;
+                }
             });
             html += `<th style="text-align: center; background-color: #e9ecef; width: 100px; min-width: 100px;">Quality Score</th>`;
             html += `</tr></thead>`;
@@ -1100,10 +1308,49 @@
                     html += `</td>`;
                 });
                 
-                // Add quality score column
+                // Add quality score column with calculation breakdown
                 html += `<td style="text-align: center; font-size: 11px; color: #495057; font-weight: 600; width: 100px; padding: 4px;">`;
                 if (totalSamples > 0) {
-                    html += `${averageQualityScore.toFixed(2)}`;
+                    // Calculate breakdown for hover tooltip
+                    let scoreBreakdown = '';
+                    let totalBreakdown = 0;
+                    
+                    inputTypeArray.forEach(inputType => {
+                        const data = templates[inputType];
+                        if (data) {
+                            const naFailedCount = (data.NA || 0) + (data.no_result || 0) + (data.inference_failed || 0);
+                            const limitedCount = data.limited || 0;
+                            const moderateCount = data.moderate || 0;
+                            const extensiveCount = data.extensive || 0;
+                            
+                            if (scoreBreakdown) scoreBreakdown += '\n';
+                            scoreBreakdown += `${inputType.replace(/_/g, ' ')}:\n`;
+                            if (naFailedCount > 0) {
+                                scoreBreakdown += `  3 × ${naFailedCount} (NA/Failed) = ${3 * naFailedCount}\n`;
+                                totalBreakdown += 3 * naFailedCount;
+                            }
+                            if (limitedCount > 0) {
+                                scoreBreakdown += `  2 × ${limitedCount} (Limited) = ${2 * limitedCount}\n`;
+                                totalBreakdown += 2 * limitedCount;
+                            }
+                            if (moderateCount > 0) {
+                                scoreBreakdown += `  1 × ${moderateCount} (Moderate) = ${1 * moderateCount}\n`;
+                                totalBreakdown += 1 * moderateCount;
+                            }
+                            if (extensiveCount > 0) {
+                                scoreBreakdown += `  0 × ${extensiveCount} (Extensive) = 0\n`;
+                            }
+                        }
+                    });
+                    
+                    scoreBreakdown += `\nTotal: ${totalBreakdown} / ${totalSamples} = ${averageQualityScore.toFixed(2)}`;
+                    
+                    html += `<span class="quality-score-value" 
+                                   data-breakdown='${JSON.stringify({inputTypes: inputTypeArray, templates, totalSamples, averageScore: averageQualityScore})}'
+                                   onmouseover="showScoreTooltip(event, this)"
+                                   onmouseout="hideScoreTooltip()">
+                                   ${averageQualityScore.toFixed(2)}
+                             </span>`;
                 } else {
                     html += '<span style="color: #6c757d; font-style: italic; font-size: 9px;">No data</span>';
                 }
@@ -1174,7 +1421,8 @@
                           data-samples="${encodeURIComponent(JSON.stringify(seg.samples))}"
                           data-category="${seg.type}"
                           data-count="${seg.count}"
-                          onclick="showFullSamplesList(this)">`;
+                          onmouseover="showSpeciesTooltip(event, this)"
+                          onmouseout="hideSpeciesTooltip()">`;
             
             // Show number for important categories or larger segments
             const isImportantCategory = ['na', 'failed'].includes(seg.type);
@@ -1191,75 +1439,165 @@
         return html;
     }
     
-    function showFullSamplesList(element) {
+    let speciestooltip = null;
+    
+    function showSpeciesTooltip(event, element) {
         const samples = JSON.parse(decodeURIComponent(element.getAttribute('data-samples')));
         const category = element.getAttribute('data-category');
         const count = element.getAttribute('data-count');
         
-        const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
+        // Hide any existing tooltip
+        hideSpeciesTooltip();
         
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'knowledge-modal';
-        modal.innerHTML = `
-            <div class="knowledge-modal-content">
-                <div class="knowledge-modal-header">
-                    <h3>${categoryLabel} Samples (${count} total)</h3>
-                    <button class="knowledge-modal-close" onclick="closeKnowledgeModal()">&times;</button>
-                </div>
-                <div class="knowledge-modal-body">
-                    ${samples.length === 0 ? '<p>No samples available</p>' : generateSamplesHTML(samples)}
-                </div>
-            </div>
-        `;
+        // Create tooltip
+        speciestooltip = document.createElement('div');
+        speciestooltip.className = 'species-tooltip';
         
-        document.body.appendChild(modal);
-        modal.style.display = 'block';
+        // Get color class based on category
+        let colorClass = '';
+        switch(category) {
+            case 'limited': colorClass = 'tooltip-limited'; break;
+            case 'moderate': colorClass = 'tooltip-moderate'; break;
+            case 'extensive': colorClass = 'tooltip-extensive'; break;
+            case 'na': colorClass = 'tooltip-na'; break;
+            case 'failed': colorClass = 'tooltip-failed'; break;
+        }
         
-        // Close modal when clicking outside
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeKnowledgeModal();
+        // Create content - show up to 10 species names
+        const maxShow = 10;
+        const speciesToShow = samples.slice(0, maxShow);
+        const remaining = samples.length - maxShow;
+        
+        let html = `<div class="species-tooltip-content ${colorClass}">`;
+        html += `<div class="species-tooltip-header">${category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ')} (${count})</div>`;
+        html += '<div class="species-tooltip-list">';
+        
+        speciesToShow.forEach(sample => {
+            html += `<div class="species-tooltip-item">${sample.species}</div>`;
+        });
+        
+        if (remaining > 0) {
+            html += `<div class="species-tooltip-more">... and ${remaining} more</div>`;
+        }
+        
+        html += '</div></div>';
+        
+        speciestooltip.innerHTML = html;
+        document.body.appendChild(speciestooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = speciestooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 10;
+        
+        // Ensure tooltip stays on screen
+        if (left < 10) left = 10;
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+        
+        // If tooltip would go above screen, show below
+        if (top < 10) {
+            top = rect.bottom + 10;
+        }
+        
+        speciestooltip.style.left = left + 'px';
+        speciestooltip.style.top = top + 'px';
+    }
+    
+    function hideSpeciesTooltip() {
+        if (speciestooltip) {
+            speciestooltip.remove();
+            speciestooltip = null;
+        }
+    }
+    
+    let scoreTooltip = null;
+    
+    function showScoreTooltip(event, element) {
+        const data = JSON.parse(element.getAttribute('data-breakdown'));
+        
+        // Hide any existing tooltip
+        hideScoreTooltip();
+        
+        // Create tooltip
+        scoreTooltip = document.createElement('div');
+        scoreTooltip.className = 'score-tooltip';
+        
+        let html = '<div class="score-tooltip-content">';
+        html += '<div class="score-tooltip-header">Quality Score Calculation</div>';
+        html += '<div class="score-tooltip-breakdown">';
+        
+        let totalScore = 0;
+        
+        data.inputTypes.forEach(inputType => {
+            const typeData = data.templates[inputType];
+            if (typeData) {
+                const naFailedCount = (typeData.NA || 0) + (typeData.no_result || 0) + (typeData.inference_failed || 0);
+                const limitedCount = typeData.limited || 0;
+                const moderateCount = typeData.moderate || 0;
+                const extensiveCount = typeData.extensive || 0;
+                
+                html += `<div class="score-type-section">`;
+                html += `<div class="score-type-name">${inputType.replace(/_/g, ' ')}:</div>`;
+                
+                if (naFailedCount > 0) {
+                    const points = 3 * naFailedCount;
+                    totalScore += points;
+                    html += `<div class="score-item score-na">3 × ${naFailedCount} <span class="score-label">(NA/Failed)</span> = ${points}</div>`;
+                }
+                if (limitedCount > 0) {
+                    const points = 2 * limitedCount;
+                    totalScore += points;
+                    html += `<div class="score-item score-limited">2 × ${limitedCount} <span class="score-label">(Limited)</span> = ${points}</div>`;
+                }
+                if (moderateCount > 0) {
+                    const points = 1 * moderateCount;
+                    totalScore += points;
+                    html += `<div class="score-item score-moderate">1 × ${moderateCount} <span class="score-label">(Moderate)</span> = ${points}</div>`;
+                }
+                if (extensiveCount > 0) {
+                    html += `<div class="score-item score-extensive">0 × ${extensiveCount} <span class="score-label">(Extensive)</span> = 0</div>`;
+                }
+                
+                html += '</div>';
             }
         });
         
-        // Close modal with ESC key
-        const escapeHandler = function(e) {
-            if (e.key === 'Escape') {
-                closeKnowledgeModal();
-                document.removeEventListener('keydown', escapeHandler);
-            }
-        };
-        document.addEventListener('keydown', escapeHandler);
+        html += `<div class="score-total">Total: ${totalScore} ÷ ${data.totalSamples} = ${data.averageScore.toFixed(2)}</div>`;
+        html += '</div></div>';
+        
+        scoreTooltip.innerHTML = html;
+        document.body.appendChild(scoreTooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = scoreTooltip.getBoundingClientRect();
+        
+        let left = rect.right + 10;
+        let top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+        
+        // If tooltip would go off right edge, show on left
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = rect.left - tooltipRect.width - 10;
+        }
+        
+        // Ensure tooltip stays on screen vertically
+        if (top < 10) top = 10;
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+            top = window.innerHeight - tooltipRect.height - 10;
+        }
+        
+        scoreTooltip.style.left = left + 'px';
+        scoreTooltip.style.top = top + 'px';
     }
     
-    function generateSamplesHTML(samples) {
-        let html = '<div class="samples-list">';
-        
-        samples.forEach((sample, index) => {
-            html += `<div class="sample-item">`;
-            html += `<div class="sample-header">`;
-            html += `<span class="sample-number">#${index + 1}</span>`;
-            html += `<span class="sample-species">${sample.species}</span>`;
-            if (sample.knowledge_group) {
-                html += `<span class="sample-parsed-badge">${sample.knowledge_group}</span>`;
-            }
-            html += `</div>`;
-            html += `<div class="sample-response">`;
-            html += `<strong>Raw LLM Response:</strong>`;
-            html += `<pre class="sample-raw-full">${sample.raw_response || 'No response received'}</pre>`;
-            html += `</div>`;
-            html += `</div>`;
-        });
-        
-        html += '</div>';
-        return html;
-    }
-    
-    function closeKnowledgeModal() {
-        const modal = document.querySelector('.knowledge-modal');
-        if (modal) {
-            modal.remove();
+    function hideScoreTooltip() {
+        if (scoreTooltip) {
+            scoreTooltip.remove();
+            scoreTooltip = null;
         }
     }
     

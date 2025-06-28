@@ -1793,8 +1793,34 @@ def correlation_page():
     return render_template('correlation.html')
 
 @app.route('/artificial_dataset')
+@app.route('/hallucination_test')  # Alternative route name
 def artificial_dataset_page():
-    return render_template('artificial_dataset.html')
+    """Page for testing LLM hallucination with artificial species names"""
+    # Read annotation file if it exists
+    annotation_data = {}
+    annotation_file = os.path.join(config.SPECIES_DIR, 'artificial_annotation.txt')
+    
+    try:
+        if os.path.exists(annotation_file):
+            with open(annotation_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                if len(lines) > 1:  # Skip header
+                    for line in lines[1:]:
+                        line = line.strip()
+                        if line and ';' in line:
+                            parts = line.split(';')
+                            if len(parts) >= 3:
+                                type_name = parts[0].strip()
+                                description = parts[1].strip()
+                                example = parts[2].strip()
+                                annotation_data[type_name] = {
+                                    'description': description,
+                                    'example': example
+                                }
+    except Exception as e:
+        print(f"Error reading annotation file: {e}")
+    
+    return render_template('artificial_dataset.html', annotations=annotation_data)
 
 @app.route('/search_correlation')
 def search_correlation_page():
