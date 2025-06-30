@@ -11,6 +11,7 @@ import requests
 from colorama import Fore, Style
 from microbellm import config
 from tenacity import retry, stop_after_attempt, wait_exponential
+import sqlite3
 
 # --- LLM Provider Abstraction ---
 
@@ -385,11 +386,32 @@ def parse_response_with_template_config(response, user_template_path):
                 
                 if errors:
                     print(f"Template validation errors: {errors}")
-                    # Still return the data but mark validation issues
+                    # Still include validation errors for tracking
                     result['validation_errors'] = errors
                 
-                # Merge validated data into result
-                result.update(validated_data)
+                # Process validated data - only include properly validated values
+                cleaned_data = {}
+                invalid_fields = []
+                
+                for key, value in validated_data.items():
+                    if value is None:
+                        # Skip None values
+                        continue
+                    elif isinstance(value, str) and value.startswith('INVALID:'):
+                        # Track invalid values
+                        original_value = value[8:]  # Remove "INVALID:" prefix
+                        invalid_fields.append({'field': key, 'value': original_value})
+                        # Don't include in cleaned data
+                    else:
+                        # Include valid values
+                        cleaned_data[key] = value
+                
+                # Add tracking for invalid fields
+                if invalid_fields:
+                    result['invalid_fields'] = invalid_fields
+                
+                # Merge cleaned data into result
+                result.update(cleaned_data)
                 
                 return result
                 
@@ -560,13 +582,21 @@ def clean_phenotype_value(value):
     else:
         value = str(value)
     
-    # Remove surrounding quotes (including multiple quotes)
+    # Initial cleanup
     value = value.strip()
+    
+    # Remove trailing commas and other JSON punctuation that might be included
+    value = value.rstrip(',.;:')
+    
+    # Remove surrounding quotes (including multiple quotes)
     # Handle multiple surrounding quotes like ""value"" or """value"""
     value = re.sub(r'^"{2,}(.+?)"{2,}$', r'\1', value)
     value = re.sub(r"^'{2,}(.+?)'{2,}$", r'\1', value)
     # Handle single surrounding quotes
     value = value.strip('"').strip("'")
+    
+    # Remove trailing commas again after quote removal
+    value = value.rstrip(',.;:')
     
     # Remove brackets if they exist
     value = re.sub(r'^[\[\(](.+)[\]\)]$', r'\1', value)
@@ -576,8 +606,9 @@ def clean_phenotype_value(value):
     if value.count('"') > 2 or value.count("'") > 2:
         value = value.replace('"', '').replace("'", '')
     
-    # Clean up whitespace
+    # Final cleanup of whitespace and trailing punctuation
     value = ' '.join(value.split())
+    value = value.rstrip(',.;:')
     
     # Handle boolean-like values
     if value.lower() in ['true', 'yes', '1']:
@@ -810,3 +841,346 @@ def clean_csv_field(field):
     field = ' '.join(field.split())
     
     return field
+
+# Ground Truth Data Management
+def create_ground_truth_tables():
+    """Create tables for storing ground truth data"""
+    conn = sqlite3.connect('microbellm.db')
+    cursor = conn.cursor()
+    
+    # Main ground truth table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ground_truth (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dataset_name TEXT NOT NULL,
+            template_name TEXT NOT NULL,
+            binomial_name TEXT NOT NULL,
+            gram_staining TEXT,
+            motility TEXT,
+            aerophilicity TEXT,
+            extreme_environment_tolerance TEXT,
+            biofilm_formation TEXT,
+            animal_pathogenicity TEXT,
+            biosafety_level TEXT,
+            health_association TEXT,
+            host_association TEXT,
+            plant_pathogenicity TEXT,
+            spore_formation TEXT,
+            hemolysis TEXT,
+            cell_shape TEXT,
+            import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(dataset_name, binomial_name)
+        )
+    ''')
+    
+    # Ground truth metadata table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ground_truth_datasets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dataset_name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            source TEXT,
+            template_name TEXT NOT NULL,
+            species_count INTEGER,
+            import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            validation_summary TEXT
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+def validate_ground_truth_value(field_name, value, template_data):
+    """Validate a ground truth value against template specifications"""
+    if not template_data or 'field_definitions' not in template_data:
+        return {'valid': True, 'normalized': value}
+    
+    field_def = template_data['field_definitions'].get(field_name)
+    if not field_def:
+        return {'valid': True, 'normalized': value}
+    
+    # Handle null/empty values
+    if value is None or value == '' or value.upper() in ['NA', 'N/A', 'NULL', 'NONE']:
+        return {'valid': True, 'normalized': None}
+    
+    # Get validation rules
+    validation_rules = field_def.get('validation_rules', {})
+    allowed_values = field_def.get('allowed_values', [])
+    
+    # Normalize the value
+    normalized_value = value
+    if validation_rules.get('trim_whitespace', True):
+        normalized_value = normalized_value.strip()
+    
+    if not validation_rules.get('case_sensitive', True):
+        normalized_value = normalized_value.lower()
+    
+    # Check normalization mapping
+    normalize_mapping = validation_rules.get('normalize_mapping', {})
+    for canonical, variations in normalize_mapping.items():
+        if normalized_value.lower() in [v.lower() for v in variations]:
+            normalized_value = canonical
+            break
+    
+    # Check if value is allowed
+    if allowed_values:
+        allowed_lower = [v.lower() for v in allowed_values]
+        if normalized_value.lower() not in allowed_lower:
+            return {
+                'valid': False,
+                'normalized': normalized_value,
+                'error': f"Value '{value}' not in allowed values: {allowed_values}"
+            }
+    
+    return {'valid': True, 'normalized': normalized_value}
+
+def import_ground_truth_csv(csv_path, dataset_name, template_name, description=None, source=None):
+    """Import ground truth data from CSV file"""
+    import csv
+    
+    # Load template data for validation
+    template_path = os.path.join('templates', 'validation', f'{template_name}.json')
+    with open(template_path, 'r') as f:
+        template_data = json.load(f)
+    
+    # Create tables if they don't exist
+    create_ground_truth_tables()
+    
+    conn = sqlite3.connect('microbellm.db')
+    cursor = conn.cursor()
+    
+    # Read CSV
+    imported_count = 0
+    validation_errors = []
+    
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        # Detect delimiter
+        first_line = f.readline()
+        f.seek(0)
+        delimiter = ';' if ';' in first_line else ','
+        
+        reader = csv.DictReader(f, delimiter=delimiter)
+        
+        # Normalize header fields to handle different casing or spacing
+        if reader.fieldnames:
+            reader.fieldnames = [field.strip().lower().replace(" ", "_") for field in reader.fieldnames]
+
+        for row in reader:
+            binomial_name = row.get('binomial_name', '').strip()
+            if not binomial_name:
+                continue
+            
+            # Validate and normalize each field
+            validated_row = {'dataset_name': dataset_name, 'template_name': template_name, 'binomial_name': binomial_name}
+            row_errors = []
+            
+            for field_name in ['gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                              'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                              'health_association', 'host_association', 'plant_pathogenicity',
+                              'spore_formation', 'hemolysis', 'cell_shape']:
+                
+                if field_name in row:
+                    validation_result = validate_ground_truth_value(field_name, row[field_name], template_data)
+                    
+                    if validation_result['valid']:
+                        validated_row[field_name] = validation_result['normalized']
+                    else:
+                        row_errors.append(f"{field_name}: {validation_result['error']}")
+                        validated_row[field_name] = row[field_name]  # Store original value
+                else:
+                    validated_row[field_name] = None
+            
+            if row_errors:
+                validation_errors.append({
+                    'binomial_name': binomial_name,
+                    'errors': row_errors
+                })
+            
+            # Insert or update the record
+            placeholders = ', '.join(['?' for _ in validated_row])
+            columns = ', '.join(validated_row.keys())
+            
+            cursor.execute(f'''
+                INSERT OR REPLACE INTO ground_truth ({columns})
+                VALUES ({placeholders})
+            ''', list(validated_row.values()))
+            
+            imported_count += 1
+    
+    # Update dataset metadata
+    cursor.execute('''
+        INSERT OR REPLACE INTO ground_truth_datasets 
+        (dataset_name, description, source, template_name, species_count, validation_summary)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (dataset_name, description, source, template_name, imported_count, json.dumps(validation_errors)))
+    
+    conn.commit()
+    conn.close()
+    
+    return {
+        'success': True,
+        'imported_count': imported_count,
+        'validation_errors': validation_errors
+    }
+
+def get_ground_truth_datasets():
+    """Get list of imported ground truth datasets"""
+    conn = sqlite3.connect('microbellm.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT dataset_name, description, source, template_name, species_count, import_date
+        FROM ground_truth_datasets
+        ORDER BY import_date DESC
+    ''')
+    
+    datasets = []
+    for row in cursor.fetchall():
+        datasets.append({
+            'dataset_name': row[0],
+            'description': row[1],
+            'source': row[2],
+            'template_name': row[3],
+            'species_count': row[4],
+            'import_date': row[5]
+        })
+    
+    conn.close()
+    return datasets
+
+def get_ground_truth_data(dataset_name=None, binomial_name=None, limit=None, offset=0):
+    """Retrieve ground truth data with optional filtering"""
+    conn = sqlite3.connect('microbellm.db')
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM ground_truth WHERE 1=1'
+    params = []
+    
+    if dataset_name:
+        query += ' AND dataset_name = ?'
+        params.append(dataset_name)
+    
+    if binomial_name:
+        query += ' AND binomial_name LIKE ?'
+        params.append(f'%{binomial_name}%')
+    
+    query += ' ORDER BY binomial_name'
+    
+    if limit:
+        query += f' LIMIT {limit} OFFSET {offset}'
+    
+    cursor.execute(query, params)
+    
+    columns = [description[0] for description in cursor.description]
+    results = []
+    
+    for row in cursor.fetchall():
+        results.append(dict(zip(columns, row)))
+    
+    conn.close()
+    return results
+
+def delete_ground_truth_dataset(dataset_name):
+    """Deletes a ground truth dataset and its associated data."""
+    conn = None
+    try:
+        conn = sqlite3.connect('microbellm.db')
+        cursor = conn.cursor()
+        
+        # Delete data from the main table
+        cursor.execute("DELETE FROM ground_truth WHERE dataset_name = ?", (dataset_name,))
+        
+        # Delete metadata from the datasets table
+        cursor.execute("DELETE FROM ground_truth_datasets WHERE dataset_name = ?", (dataset_name,))
+        
+        conn.commit()
+        return {'success': True}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        if conn:
+            conn.close()
+
+def calculate_model_accuracy(predictions_file, dataset_name, template_name):
+    """Calculate accuracy metrics for model predictions against ground truth"""
+    # Load predictions
+    with open(predictions_file, 'r') as f:
+        predictions = json.load(f)
+    
+    # Get ground truth data
+    ground_truth = get_ground_truth_data(dataset_name=dataset_name)
+    gt_dict = {gt['binomial_name']: gt for gt in ground_truth}
+    
+    # Calculate metrics for each field
+    metrics = {}
+    phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                       'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                       'health_association', 'host_association', 'plant_pathogenicity',
+                       'spore_formation', 'hemolysis', 'cell_shape']
+    
+    for field in phenotype_fields:
+        metrics[field] = {
+            'total': 0,
+            'correct': 0,
+            'incorrect': 0,
+            'missing_prediction': 0,
+            'missing_ground_truth': 0,
+            'confusion_matrix': {}
+        }
+    
+    # Process each prediction
+    for pred in predictions:
+        binomial_name = pred.get('prompt')
+        if not binomial_name or binomial_name not in gt_dict:
+            continue
+        
+        gt = gt_dict[binomial_name]
+        
+        for field in phenotype_fields:
+            pred_value = pred.get(field)
+            gt_value = gt.get(field)
+            
+            # Skip if ground truth is missing
+            if gt_value is None or gt_value == '':
+                metrics[field]['missing_ground_truth'] += 1
+                continue
+            
+            # Count total
+            metrics[field]['total'] += 1
+            
+            # Check if prediction is missing
+            if pred_value is None or pred_value == '' or pred_value == 'NA':
+                metrics[field]['missing_prediction'] += 1
+                continue
+            
+            # Normalize values for comparison
+            pred_normalized = str(pred_value).lower().strip()
+            gt_normalized = str(gt_value).lower().strip()
+            
+            # Check correctness
+            if pred_normalized == gt_normalized:
+                metrics[field]['correct'] += 1
+            else:
+                metrics[field]['incorrect'] += 1
+            
+            # Update confusion matrix
+            if gt_normalized not in metrics[field]['confusion_matrix']:
+                metrics[field]['confusion_matrix'][gt_normalized] = {}
+            
+            if pred_normalized not in metrics[field]['confusion_matrix'][gt_normalized]:
+                metrics[field]['confusion_matrix'][gt_normalized][pred_normalized] = 0
+            
+            metrics[field]['confusion_matrix'][gt_normalized][pred_normalized] += 1
+    
+    # Calculate accuracy percentages
+    for field in phenotype_fields:
+        if metrics[field]['total'] > 0:
+            metrics[field]['accuracy'] = (metrics[field]['correct'] / metrics[field]['total']) * 100
+            metrics[field]['missing_rate'] = (metrics[field]['missing_prediction'] / metrics[field]['total']) * 100
+        else:
+            metrics[field]['accuracy'] = 0
+            metrics[field]['missing_rate'] = 0
+    
+    return metrics

@@ -16,6 +16,10 @@ import sqlite3
 from pathlib import Path
 from microbellm import config
 from microbellm.utils import detect_template_type
+from microbellm.utils import (
+    create_ground_truth_tables, import_ground_truth_csv, get_ground_truth_datasets,
+    get_ground_truth_data, calculate_model_accuracy, delete_ground_truth_dataset
+)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
@@ -663,7 +667,7 @@ class ProcessingManager:
                 # Got a response but no valid data extracted
                 data_type = "knowledge level" if is_knowledge_prediction else "phenotype data"
                 self._emit_log(combination_id, f"Warning: Received response for {species_name} but no valid {data_type} extracted")
-                cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
+                cursor.execute("UPDATE combinations SET failed_species = failed_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
                 result_status = 'failed'
             
             # Prepare data for insertion
@@ -693,14 +697,19 @@ class ProcessingManager:
             else:
                 # For phenotype predictions, store phenotype data
                 result_data['knowledge_group'] = None
+                
+                # Process each field - if it contains INVALID: prefix, save it as is for tracking
+                # The validation has already been done in parse_response
                 result_data['gram_staining'] = result.get('gram_staining')
                 result_data['motility'] = result.get('motility')
+                
                 # Handle aerophilicity as array - convert to string for database storage
                 aerophilicity = result.get('aerophilicity')
                 if isinstance(aerophilicity, list):
                     result_data['aerophilicity'] = str(aerophilicity)
                 else:
                     result_data['aerophilicity'] = aerophilicity
+                    
                 result_data['extreme_environment_tolerance'] = result.get('extreme_environment_tolerance')
                 result_data['biofilm_formation'] = result.get('biofilm_formation')
                 result_data['animal_pathogenicity'] = result.get('animal_pathogenicity')
@@ -711,6 +720,11 @@ class ProcessingManager:
                 result_data['spore_formation'] = result.get('spore_formation')
                 result_data['hemolysis'] = result.get('hemolysis')
                 result_data['cell_shape'] = result.get('cell_shape')
+                
+                # Log if there were invalid fields
+                if 'invalid_fields' in result:
+                    invalid_info = ", ".join([f"{f['field']}={f['value']}" for f in result['invalid_fields']])
+                    self._emit_log(combination_id, f"Validation warning for {species_name}: {invalid_info}")
             
             cursor.execute('''
                 INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, result, error, timestamp, gram_staining, motility, aerophilicity, extreme_environment_tolerance, biofilm_formation, animal_pathogenicity, biosafety_level, health_association, host_association, plant_pathogenicity, spore_formation, hemolysis, cell_shape, knowledge_group)
@@ -727,10 +741,9 @@ class ProcessingManager:
                 INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, error, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (species_file, species_name, model, system_template, user_template, 'failed', 'No response from API', datetime.now()))
-            cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
-
-        conn.commit()
-        conn.close()
+            cursor.execute("UPDATE combinations SET failed_species = failed_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
+            conn.commit()
+            conn.close()
         
         # Emit progress update after processing each species
         self._emit_progress_update(combination_id)
@@ -744,7 +757,7 @@ class ProcessingManager:
             INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, error, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (species_file, species_name, model, system_template, user_template, 'failed', error_message, datetime.now()))
-        cursor.execute("UPDATE combinations SET failed_species = failed_species + 1 WHERE id = ?", (combination_id,))
+        cursor.execute("UPDATE combinations SET failed_species = failed_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
         conn.commit()
         conn.close()
         
@@ -760,7 +773,7 @@ class ProcessingManager:
             INSERT INTO results (species_file, binomial_name, model, system_template, user_template, status, error, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (species_file, species_name, model, system_template, user_template, 'timeout', error_message, datetime.now()))
-        cursor.execute("UPDATE combinations SET timeout_species = timeout_species + 1 WHERE id = ?", (combination_id,))
+        cursor.execute("UPDATE combinations SET timeout_species = timeout_species + 1, completed_species = completed_species + 1 WHERE id = ?", (combination_id,))
         conn.commit()
         conn.close()
         
@@ -877,6 +890,21 @@ class ProcessingManager:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # Ensure all models with results are in managed_models
+        cursor.execute("SELECT DISTINCT model FROM results")
+        models_in_results = set([row[0] for row in cursor.fetchall()])
+        
+        cursor.execute("SELECT model FROM managed_models")
+        managed_models_set = set([row[0] for row in cursor.fetchall()])
+        
+        missing_models = models_in_results - managed_models_set
+        if missing_models:
+            print(f"Found {len(missing_models)} models in results but not in managed_models. Adding them now.")
+            for model in missing_models:
+                cursor.execute("INSERT OR IGNORE INTO managed_models (model) VALUES (?)", (model,))
+            conn.commit()
+            print("Missing models added to managed_models.")
+
         cursor.execute("SELECT model FROM managed_models")
         managed_models = set([row[0] for row in cursor.fetchall()])
         
@@ -2632,6 +2660,127 @@ def get_knowledge_analysis_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/template_field_definitions')
+def get_template_field_definitions():
+    """API endpoint to get field definitions from template validation files"""
+    try:
+        template_name = request.args.get('template', 'template1_phenotype')
+        
+        # Find the validation config file
+        from microbellm.template_config import find_validation_config_for_template, TemplateValidator
+        
+        # Construct the user template path
+        user_template_path = f"templates/user/{template_name}.txt"
+        config_path = find_validation_config_for_template(user_template_path)
+        
+        if not config_path:
+            return jsonify({'success': False, 'error': f'No validation config found for template {template_name}'}), 404
+        
+        # Load the template validator
+        validator = TemplateValidator(config_path)
+        if not validator.config:
+            return jsonify({'success': False, 'error': f'Could not load validation config for template {template_name}'}), 500
+        
+        # Extract field definitions and template info
+        field_definitions = validator.config.get('field_definitions', {})
+        template_info = validator.get_template_info()
+        
+        # Process field definitions to extract allowed values and create legend mappings
+        legend_data = {}
+        value_orderings = {}
+        color_mappings = {}
+        
+        for field_name, field_def in field_definitions.items():
+            allowed_values = field_def.get('allowed_values', [])
+            description = field_def.get('description', '')
+            field_type_raw = field_def.get('type', 'string') # e.g. 'string', 'array'
+            
+            # Determine field category for UI filtering
+            if field_type_raw == 'array':
+                field_category = 'multi-select'
+            elif field_type_raw == 'string' and len(allowed_values) > 2:
+                field_category = 'categorical'
+            else: # Defaults to binary for string with 2 or less values
+                field_category = 'binary'
+            
+            visualization = field_def.get('visualization', {})
+            color_mapping = visualization.get('color_mapping', {})
+            
+            # Store the ordering from the template
+            value_orderings[field_name] = allowed_values
+            
+            # Store the color mapping from the template
+            color_mappings[field_name] = color_mapping
+            
+            # Create legend items
+            legend_items = []
+            for value in allowed_values:
+                color_info = color_mapping.get(value, {})
+                legend_items.append({
+                    'value': value,
+                    'label': color_info.get('label', value.title()),
+                    'canonical': value,
+                    'background': color_info.get('background', '#f8f9fa'),
+                    'color': color_info.get('color', '#495057')
+                })
+            
+            # Always add NA as the last item
+            legend_items.append({
+                'value': 'NA',
+                'label': 'NA/Failed',
+                'canonical': 'NA',
+                'background': '#e2e3e5',
+                'color': '#6c757d'
+            })
+            
+            legend_data[field_name] = {
+                'name': field_name.replace('_', ' ').title(),
+                'description': description,
+                'type': field_type_raw,
+                'field_type': field_category,
+                'items': legend_items
+            }
+        
+        return jsonify({
+            'success': True,
+            'template_name': template_name,
+            'template_info': template_info,
+            'field_definitions': field_definitions,
+            'legend_data': legend_data,
+            'value_orderings': value_orderings,
+            'color_mappings': color_mappings
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/available_phenotype_templates')
+def get_available_phenotype_templates():
+    """API endpoint to get list of available phenotype templates"""
+    try:
+        # Get all template pairs and filter for phenotype templates
+        template_pairs = get_available_template_pairs()
+        phenotype_templates = []
+        
+        for template_name, paths in template_pairs.items():
+            # Check if it's a phenotype template
+            template_type = detect_template_type(paths['user'])
+            if template_type == 'phenotype':
+                phenotype_templates.append({
+                    'name': template_name,
+                    'display_name': template_name.replace('_', ' ').title(),
+                    'user_path': paths['user'],
+                    'system_path': paths['system']
+                })
+        
+        return jsonify({
+            'success': True,
+            'templates': phenotype_templates
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/phenotype_analysis')
 def get_phenotype_analysis():
     """Get phenotype prediction analysis data"""
@@ -3433,6 +3582,7 @@ def reparse_phenotype_data_api(combination_id):
         # Re-parse each result
         updated_count = 0
         failed_count = 0
+        invalid_count = 0
         
         from microbellm.utils import parse_response
         
@@ -3442,6 +3592,11 @@ def reparse_phenotype_data_api(combination_id):
                 parsed_result = parse_response(raw_response, user_template)
                 
                 if parsed_result:
+                    # Check if there were any invalid fields
+                    if 'invalid_fields' in parsed_result:
+                        invalid_count += 1
+                        print(f"Warning: {binomial_name} has invalid fields: {parsed_result['invalid_fields']}")
+                    
                     # Handle aerophilicity as array - convert to string for database storage
                     aerophilicity = parsed_result.get('aerophilicity')
                     if isinstance(aerophilicity, list):
@@ -3497,9 +3652,10 @@ def reparse_phenotype_data_api(combination_id):
         
         return jsonify({
             'success': True,
-            'message': f'Re-parsed {updated_count} results successfully, {failed_count} failed',
+            'message': f'Re-parsed {updated_count} results successfully, {failed_count} failed, {invalid_count} had validation issues',
             'updated': updated_count,
             'failed': failed_count,
+            'invalid': invalid_count,
             'total': len(results)
         })
         
@@ -3567,3 +3723,157 @@ def rerun_all_failed_api(combination_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Ground Truth Data Routes
+@app.route('/ground_truth')
+def ground_truth_viewer():
+    """Ground truth data viewer page"""
+    return render_template('ground_truth.html')
+
+@app.route('/api/ground_truth/datasets', methods=['GET'])
+def api_get_ground_truth_datasets():
+    """Get list of ground truth datasets"""
+    try:
+        datasets = get_ground_truth_datasets()
+        return jsonify({
+            'success': True,
+            'datasets': datasets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/ground_truth/data', methods=['GET'])
+def api_get_ground_truth_data():
+    """Get ground truth data with pagination and filtering"""
+    try:
+        dataset_name = request.args.get('dataset')
+        search_term = request.args.get('search')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        
+        offset = (page - 1) * per_page
+        
+        # Get total count
+        all_data = get_ground_truth_data(dataset_name=dataset_name, binomial_name=search_term)
+        total_count = len(all_data)
+        
+        # Get paginated data
+        data = get_ground_truth_data(
+            dataset_name=dataset_name,
+            binomial_name=search_term,
+            limit=per_page,
+            offset=offset
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_count,
+                'pages': (total_count + per_page - 1) // per_page
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/ground_truth/import', methods=['POST'])
+def api_import_ground_truth():
+    """Import ground truth data from CSV"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'})
+        
+        file = request.files['file']
+        dataset_name = request.form.get('dataset_name')
+        template_name = request.form.get('template_name')
+        description = request.form.get('description')
+        source = request.form.get('source')
+        
+        if not dataset_name or not template_name:
+            return jsonify({'success': False, 'error': 'Dataset name and template are required'})
+        
+        # Save uploaded file temporarily
+        temp_path = os.path.join('temp', file.filename)
+        os.makedirs('temp', exist_ok=True)
+        file.save(temp_path)
+        
+        # Import the data
+        result = import_ground_truth_csv(
+            temp_path,
+            dataset_name,
+            template_name,
+            description,
+            source
+        )
+        
+        # Clean up temp file
+        os.remove(temp_path)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/ground_truth/species/<binomial_name>', methods=['GET'])
+def api_get_species_ground_truth(binomial_name):
+    """Get ground truth data for a specific species"""
+    try:
+        data = get_ground_truth_data(binomial_name=binomial_name)
+        
+        return jsonify({
+            'success': True,
+            'data': data[0] if data else None
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/model_accuracy')
+def model_accuracy():
+    """Model accuracy analysis page"""
+    return render_template('model_accuracy.html')
+
+@app.route('/api/model_accuracy/calculate', methods=['POST'])
+def api_calculate_model_accuracy():
+    """Calculate model accuracy against ground truth"""
+    try:
+        predictions_file = request.json.get('predictions_file')
+        dataset_name = request.json.get('dataset_name')
+        template_name = request.json.get('template_name')
+        
+        if not all([predictions_file, dataset_name, template_name]):
+            return jsonify({'success': False, 'error': 'Missing required parameters'})
+        
+        # Calculate accuracy metrics
+        metrics = calculate_model_accuracy(predictions_file, dataset_name, template_name)
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/ground_truth/datasets/<dataset_name>', methods=['DELETE'])
+def api_delete_ground_truth_dataset(dataset_name):
+    """Delete a ground truth dataset"""
+    try:
+        result = delete_ground_truth_dataset(dataset_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

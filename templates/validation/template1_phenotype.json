@@ -37,7 +37,14 @@
       "type": "string",
       "required": false,
       "description": "Gram staining result",
-      "allowed_values": ["gram stain negative", "gram stain positive", "gram stain variable"],
+      "allowed_values": ["gram stain positive", "gram stain negative", "gram stain variable"],
+      "visualization": {
+        "color_mapping": {
+          "gram stain positive": {"label": "Positive", "background": "#d4edda", "color": "#155724"},
+          "gram stain negative": {"label": "Negative", "background": "#f8d7da", "color": "#721c24"},
+          "gram stain variable": {"label": "Variable", "background": "#fff3cd", "color": "#856404"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -53,6 +60,12 @@
       "required": false,
       "description": "Motility capability",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -67,6 +80,14 @@
       "required": false,
       "description": "Oxygen requirements (can have multiple values)",
       "allowed_values": ["aerobic", "aerotolerant", "anaerobic", "facultatively anaerobic"],
+      "visualization": {
+        "color_mapping": {
+          "aerobic": {"label": "Aerobic", "background": "#cce5ff", "color": "#004085"},
+          "anaerobic": {"label": "Anaerobic", "background": "#e2e3e5", "color": "#383d41"},
+          "facultatively anaerobic": {"label": "Facultative", "background": "#d1ecf1", "color": "#0c5460"},
+          "aerotolerant": {"label": "Aerotolerant", "background": "#e7e8ea", "color": "#495057"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -85,6 +106,12 @@
       "required": false,
       "description": "Tolerance to extreme environmental conditions",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -99,6 +126,12 @@
       "required": false,
       "description": "Ability to form biofilms",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -113,6 +146,12 @@
       "required": false,
       "description": "Pathogenic to animals",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -127,6 +166,13 @@
       "required": false,
       "description": "Biosafety classification level",
       "allowed_values": ["biosafety level 1", "biosafety level 2", "biosafety level 3"],
+      "visualization": {
+        "color_mapping": {
+          "biosafety level 1": {"label": "BSL-1", "background": "#d4edda", "color": "#155724"},
+          "biosafety level 2": {"label": "BSL-2", "background": "#fff3cd", "color": "#856404"},
+          "biosafety level 3": {"label": "BSL-3", "background": "#ffeaa7", "color": "#b8860b"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -142,6 +188,12 @@
       "required": false,
       "description": "Association with human health",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -156,6 +208,12 @@
       "required": false,
       "description": "Association with a host organism",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -170,6 +228,12 @@
       "required": false,
       "description": "Pathogenic to plants",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -184,6 +248,12 @@
       "required": false,
       "description": "Ability to form spores",
       "allowed_values": ["TRUE", "FALSE"],
+      "visualization": {
+        "color_mapping": {
+          "TRUE": {"label": "True", "background": "#d4edda", "color": "#155724"},
+          "FALSE": {"label": "False", "background": "#f8d7da", "color": "#721c24"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -198,6 +268,14 @@
       "required": false,
       "description": "Hemolytic activity",
       "allowed_values": ["alpha", "beta", "gamma", "non-hemolytic"],
+      "visualization": {
+        "color_mapping": {
+          "alpha": {"label": "Alpha", "background": "#cce5ff", "color": "#004085"},
+          "beta": {"label": "Beta", "background": "#f8d7da", "color": "#721c24"},
+          "gamma": {"label": "Gamma", "background": "#d1ecf1", "color": "#0c5460"},
+          "non-hemolytic": {"label": "Non-hemolytic", "background": "#e2e3e5", "color": "#6c757d"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,
@@ -214,6 +292,14 @@
       "required": false,
       "description": "Cellular morphology",
       "allowed_values": ["bacillus", "coccus", "spirillum", "tail"],
+      "visualization": {
+        "color_mapping": {
+          "bacillus": {"label": "Rod", "background": "#f3e5f5", "color": "#4a148c"},
+          "coccus": {"label": "Spherical", "background": "#e1f5fe", "color": "#01579b"},
+          "spirillum": {"label": "Spiral", "background": "#fff8e1", "color": "#e65100"},
+          "tail": {"label": "Tail", "background": "#e8f5e8", "color": "#2e7d32"}
+        }
+      },
       "validation_rules": {
         "case_sensitive": false,
         "trim_whitespace": true,

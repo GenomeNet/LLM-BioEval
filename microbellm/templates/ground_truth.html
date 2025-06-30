@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Ground Truth Data - MicrobeBench{% endblock %}
+
+{% block content %}
+<h1>Ground Truth Data Management</h1>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Import Ground Truth Data</h5>
+            </div>
+            <div class="card-body">
+                <form id="importForm">
+                    <div class="mb-3">
+                        <label for="csvFile" class="form-label">CSV File</label>
+                        <input type="file" class="form-control" id="csvFile" accept=".csv" required>
+                        <small class="text-muted">CSV should have columns: binomial_name, gram_staining, motility, etc.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="datasetName" class="form-label">Dataset Name</label>
+                        <input type="text" class="form-control" id="datasetName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="templateName" class="form-label">Template</label>
+                        <select class="form-control" id="templateName" required>
+                            <option value="template1_phenotype">Template 1 - Phenotype</option>
+                            <option value="template2_phenotype">Template 2 - Phenotype</option>
+                            <option value="template3_phenotype">Template 3 - Phenotype</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="source" class="form-label">Data Source</label>
+                        <input type="text" class="form-control" id="source">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Import Data</button>
+                </form>
+                <div id="importResult" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Available Datasets</h5>
+            </div>
+            <div class="card-body">
+                <div id="datasetsList">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Ground Truth Data Browser</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <select class="form-control" id="datasetFilter">
+                    <option value="">All Datasets</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search species...">
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-secondary" onclick="loadGroundTruthData()">Search</button>
+            </div>
+        </div>
+        
+        <div id="dataTable">
+            <p class="text-muted">Select a dataset to view data</p>
+        </div>
+    </div>
+</div>
+
+<!-- Species Detail Modal -->
+<div class="modal" id="speciesModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="speciesModalTitle">Species Details</h5>
+            <button type="button" class="modal-close" onclick="closeSpeciesModal()">×</button>
+        </div>
+        <div class="modal-body" id="speciesModalBody">
+            <!-- Content will be loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<style>
+.dataset-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dataset-item .delete-btn {
+    background-color: #dc3545;
+    border: none;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.dataset-item .delete-btn:hover {
+    opacity: 1;
+}
+
+.dataset-item:hover {
+    background-color: #f8f9fa;
+}
+
+.phenotype-table {
+    font-size: 14px;
+}
+
+.phenotype-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background-color: #f8f9fa;
+}
+
+.phenotype-value {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.value-positive { background-color: #d4edda; color: #155724; }
+.value-negative { background-color: #f8d7da; color: #721c24; }
+.value-true { background-color: #d4edda; color: #155724; }
+.value-false { background-color: #f8d7da; color: #721c24; }
+.value-na { background-color: #e2e3e5; color: #6c757d; }
+
+.validation-errors-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    padding: 15px;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+}
+
+.validation-error-item {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.validation-error-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.validation-error-item ul {
+    margin-bottom: 0;
+    padding-left: 20px;
+    font-size: 13px;
+}
+
+/* Modal styling to work with base template */
+:root {
+    --white: #ffffff;
+    --border-color: #dee2e6;
+    --bg-secondary: #f8f9fa;
+    --accent-error: #dc3545;
+}
+
+#speciesModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    align-items: center;
+    justify-content: center;
+}
+
+#speciesModal.show {
+    opacity: 1;
+}
+
+#speciesModal .modal-content {
+    background: var(--white);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    transform: scale(0.9);
+    transition: transform 0.3s;
+}
+
+#speciesModal.show .modal-content {
+    transform: scale(1);
+}
+
+#speciesModal .modal-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#speciesModal .modal-body {
+    padding: 24px;
+}
+
+#speciesModal .modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#speciesModal .modal-close:hover {
+    background: var(--accent-error);
+    color: var(--white);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentDatasets = [];
+let currentPage = 1;
+const perPage = 50;
+
+// Load datasets on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatasets();
+});
+
+// Import form submission
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const importButton = e.target.querySelector('button[type="submit"]');
+    importButton.disabled = true;
+    importButton.textContent = 'Importing...';
+
+    const importResultDiv = document.getElementById('importResult');
+    importResultDiv.style.display = 'none';
+    importResultDiv.innerHTML = '';
+    
+    const formData = new FormData();
+    formData.append('file', document.getElementById('csvFile').files[0]);
+    formData.append('dataset_name', document.getElementById('datasetName').value);
+    formData.append('template_name', document.getElementById('templateName').value);
+    formData.append('description', document.getElementById('description').value);
+    formData.append('source', document.getElementById('source').value);
+    
+    try {
+        const response = await fetch('/api/ground_truth/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let resultHtml = '';
+            
+            if (result.validation_errors && result.validation_errors.length > 0) {
+                resultHtml += `
+                    <div class="alert alert-warning">
+                        Successfully imported <strong>${result.imported_count}</strong> records, but found 
+                        <strong>${result.validation_errors.length}</strong> records with validation issues.
+                    </div>
+                    <h5>Validation Details</h5>
+                    <div class="validation-errors-container">
+                `;
+
+                result.validation_errors.forEach(errorItem => {
+                    resultHtml += `
+                        <div class="validation-error-item">
+                            <strong>Species:</strong> ${errorItem.binomial_name}
+                            <ul>
+                    `;
+                    errorItem.errors.forEach(errorMessage => {
+                        resultHtml += `<li>${errorMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`;
+                    });
+                    resultHtml += `
+                            </ul>
+                        </div>
+                    `;
+                });
+                resultHtml += `</div>`;
+            } else {
+                resultHtml = `
+                    <div class="alert alert-success">
+                        Successfully imported <strong>${result.imported_count}</strong> records. All records passed validation.
+                    </div>
+                `;
+            }
+            
+            importResultDiv.innerHTML = resultHtml;
+            importResultDiv.style.display = 'block';
+
+            // Reload datasets
+            loadDatasets();
+            
+            // Reset form
+            document.getElementById('importForm').reset();
+        } else {
+            importResultDiv.innerHTML = `<div class="alert alert-danger">Error importing data: ${result.error}</div>`;
+            importResultDiv.style.display = 'block';
+        }
+    } catch (error) {
+        importResultDiv.innerHTML = `<div class="alert alert-danger">An error occurred: ${error.message}</div>`;
+        importResultDiv.style.display = 'block';
+    } finally {
+        importButton.disabled = false;
+        importButton.textContent = 'Import Data';
+    }
+});
+
+async function loadDatasets() {
+    try {
+        const response = await fetch('/api/ground_truth/datasets');
+        const result = await response.json();
+        
+        if (result.success) {
+            currentDatasets = result.datasets;
+            displayDatasets(result.datasets);
+            updateDatasetFilter(result.datasets);
+        }
+    } catch (error) {
+        console.error('Error loading datasets:', error);
+    }
+}
+
+function displayDatasets(datasets) {
+    const container = document.getElementById('datasetsList');
+    
+    if (datasets.length === 0) {
+        container.innerHTML = '<p class="text-muted">No datasets imported yet</p>';
+        return;
+    }
+    
+    let html = '';
+    datasets.forEach(dataset => {
+        const escapedName = dataset.dataset_name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        html += `
+            <div class="dataset-item" onclick="selectDataset('${escapedName}')">
+                <div>
+                    <strong>${dataset.dataset_name}</strong>
+                    <br>
+                    <small class="text-muted">
+                        ${dataset.species_count} species | ${dataset.template_name}
+                        <br>
+                        Imported: ${new Date(dataset.import_date).toLocaleDateString()}
+                    </small>
+                </div>
+                <button class="delete-btn" onclick="deleteDataset(event, '${escapedName}')">Delete</button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateDatasetFilter(datasets) {
+    const filter = document.getElementById('datasetFilter');
+    let html = '<option value="">All Datasets</option>';
+    
+    datasets.forEach(dataset => {
+        html += `<option value="${dataset.dataset_name}">${dataset.dataset_name}</option>`;
+    });
+    
+    filter.innerHTML = html;
+}
+
+function selectDataset(datasetName) {
+    document.getElementById('datasetFilter').value = datasetName;
+    loadGroundTruthData();
+}
+
+async function loadGroundTruthData() {
+    const dataset = document.getElementById('datasetFilter').value;
+    const search = document.getElementById('searchInput').value;
+    
+    try {
+        const response = await fetch(`/api/ground_truth/data?dataset=${dataset}&search=${search}&page=${currentPage}&per_page=${perPage}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayGroundTruthData(result.data, result.pagination);
+        }
+    } catch (error) {
+        console.error('Error loading ground truth data:', error);
+    }
+}
+
+function displayGroundTruthData(data, pagination) {
+    const container = document.getElementById('dataTable');
+    
+    if (data.length === 0) {
+        container.innerHTML = '<p class="text-muted">No data found</p>';
+        return;
+    }
+    
+    let html = '<table class="table table-hover phenotype-table">';
+    html += '<thead><tr>';
+    html += '<th>Species</th>';
+    html += '<th>Gram Staining</th>';
+    html += '<th>Motility</th>';
+    html += '<th>Aerophilicity</th>';
+    html += '<th>Pathogenicity</th>';
+    html += '<th>Actions</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    data.forEach(row => {
+        html += `<tr class="clickable-row" onclick="showSpeciesDetails('${row.binomial_name}')">`;
+        html += `<td><strong>${row.binomial_name}</strong></td>`;
+        html += `<td>${formatPhenotypeValue(row.gram_staining)}</td>`;
+        html += `<td>${formatPhenotypeValue(row.motility)}</td>`;
+        html += `<td>${formatPhenotypeValue(row.aerophilicity)}</td>`;
+        html += `<td>${formatPhenotypeValue(row.animal_pathogenicity)}</td>`;
+        html += `<td><button class="btn btn-sm btn-info" onclick="event.stopPropagation(); showSpeciesDetails('${row.binomial_name}')">Details</button></td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    
+    // Add pagination
+    if (pagination.pages > 1) {
+        html += '<nav><ul class="pagination">';
+        
+        for (let i = 1; i <= pagination.pages; i++) {
+            html += `<li class="page-item ${i === pagination.page ? 'active' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+            html += '</li>';
+        }
+        
+        html += '</ul></nav>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function formatPhenotypeValue(value) {
+    if (!value || value === 'null' || value === '') {
+        return '<span class="phenotype-value value-na">N/A</span>';
+    }
+    
+    const lowerValue = value.toString().toLowerCase();
+    let className = 'value-na';
+    
+    if (lowerValue === 'true' || lowerValue === 'gram stain positive' || lowerValue === 'positive') {
+        className = 'value-positive';
+    } else if (lowerValue === 'false' || lowerValue === 'gram stain negative' || lowerValue === 'negative') {
+        className = 'value-negative';
+    }
+    
+    return `<span class="phenotype-value ${className}">${value}</span>`;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadGroundTruthData();
+}
+
+async function showSpeciesDetails(binomialName) {
+    try {
+        const response = await fetch(`/api/ground_truth/species/${encodeURIComponent(binomialName)}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            document.getElementById('speciesModalTitle').textContent = binomialName;
+            
+            let html = '<table class="table">';
+            const fields = [
+                'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                'health_association', 'host_association', 'plant_pathogenicity',
+                'spore_formation', 'hemolysis', 'cell_shape'
+            ];
+            
+            fields.forEach(field => {
+                const value = result.data[field];
+                html += `<tr>`;
+                html += `<th>${field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</th>`;
+                html += `<td>${formatPhenotypeValue(value)}</td>`;
+                html += `</tr>`;
+            });
+            
+            html += '</table>';
+            
+            document.getElementById('speciesModalBody').innerHTML = html;
+            
+            // Show modal using the base template's modal system
+            const modal = document.getElementById('speciesModal');
+            modal.classList.add('show');
+            modal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error loading species details:', error);
+        alert('Error loading species details: ' + error.message);
+    }
+}
+
+function closeSpeciesModal() {
+    const modal = document.getElementById('speciesModal');
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('speciesModal');
+        if (modal.classList.contains('show')) {
+            closeSpeciesModal();
+        }
+    }
+});
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('speciesModal');
+    if (e.target === modal) {
+        closeSpeciesModal();
+    }
+});
+
+async function deleteDataset(event, datasetName) {
+    event.stopPropagation(); // Prevent the row's onclick from firing
+
+    if (confirm(`Are you sure you want to delete the dataset "${datasetName}"? This action cannot be undone.`)) {
+        try {
+            const response = await fetch(`/api/ground_truth/datasets/${datasetName}`, {
+                method: 'DELETE',
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('Dataset deleted successfully.');
+                loadDatasets(); // Refresh the list
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (err) {
+            alert(`An error occurred: ${err}`);
+        }
+    }
+}
+</script>
+{% endblock %} 

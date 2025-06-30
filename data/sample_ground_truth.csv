@@ -1,0 +1,11 @@
+binomial_name,gram_staining,motility,aerophilicity,extreme_environment_tolerance,biofilm_formation,animal_pathogenicity,biosafety_level,health_association,host_association,plant_pathogenicity,spore_formation,hemolysis,cell_shape
+Escherichia coli,gram stain negative,TRUE,facultatively anaerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,alpha,bacillus
+Staphylococcus aureus,gram stain positive,FALSE,facultatively anaerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,beta,coccus
+Pseudomonas aeruginosa,gram stain negative,TRUE,aerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,beta,bacillus
+Helicobacter pylori,gram stain negative,TRUE,microaerophilic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,gamma,spirillum
+Mycobacterium tuberculosis,gram stain positive,FALSE,aerobic,FALSE,FALSE,TRUE,biosafety level 3,TRUE,TRUE,FALSE,FALSE,gamma,bacillus
+Bacillus subtilis,gram stain positive,TRUE,aerobic,FALSE,TRUE,FALSE,biosafety level 1,FALSE,FALSE,FALSE,TRUE,gamma,bacillus
+Streptococcus pneumoniae,gram stain positive,FALSE,facultatively anaerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,alpha,coccus
+Klebsiella pneumoniae,gram stain negative,FALSE,facultatively anaerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,gamma,bacillus
+Listeria monocytogenes,gram stain positive,TRUE,facultatively anaerobic,FALSE,TRUE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,beta,bacillus
+Haemophilus influenzae,gram stain negative,FALSE,facultatively anaerobic,FALSE,FALSE,TRUE,biosafety level 2,TRUE,TRUE,FALSE,FALSE,gamma,bacillus 
