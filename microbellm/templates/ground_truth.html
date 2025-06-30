@@ -112,6 +112,8 @@
 }
 
 .dataset-item .delete-btn {
+    display: inline-block;
+    text-decoration: none;
     background-color: #dc3545;
     border: none;
     color: white;
@@ -399,7 +401,7 @@ function displayDatasets(datasets) {
                         Imported: ${new Date(dataset.import_date).toLocaleDateString()}
                     </small>
                 </div>
-                <button class="delete-btn" onclick="deleteDataset(event, '${escapedName}')">Delete</button>
+                <a href="#" class="delete-btn" onclick="deleteDataset(event, '${escapedName}'); return false;">Delete</a>
             </div>
         `;
     });
