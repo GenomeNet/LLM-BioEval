@@ -812,11 +812,12 @@ let selectedModels = [];
 let fieldDefinitions = {};
 let groundTruthMap = {};
 let predictionsByModel = {};
+let predictionDataPromise = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadGroundTruthDatasets();
-    loadPredictionData();
+    predictionDataPromise = loadPredictionData();
 });
 
 async function loadGroundTruthDatasets() {
@@ -859,6 +860,12 @@ async function loadGroundTruthDatasets() {
                     document.getElementById('datasetInfo').textContent = '';
                 }
             });
+
+            if (result.datasets.length === 1) {
+                select.value = result.datasets[0].dataset_name;
+                select.dispatchEvent(new Event('change'));
+                analyzeAccuracy();
+            }
         }
     } catch (error) {
         console.error('Error loading datasets:', error);
@@ -897,6 +904,8 @@ async function analyzeAccuracy() {
         return;
     }
     
+    await predictionDataPromise; // Wait for prediction data to be loaded
+
     if (!predictionData || Object.keys(predictionData).length === 0) {
         alert('No prediction data available. Please run predictions first.');
         return;
@@ -1341,6 +1350,7 @@ function displayDetailedMetrics(metrics, fieldDefinitions) {
             }
             
             html += `<td class="metric-cell"
+                        onclick="openDetailsPage('${modelName}', '${phenotype}')"
                         onmouseover="showMetricTooltip(event, '${modelName}', '${phenotype}', ${JSON.stringify(fieldData).replace(/"/g, '&quot;')})"
                         onmouseout="hideMetricTooltip()">
                         <span class="${spanClass}">
@@ -1356,6 +1366,16 @@ function displayDetailedMetrics(metrics, fieldDefinitions) {
     html += '</div>';
     
     document.getElementById('detailedAccuracy').innerHTML = html;
+}
+
+function openDetailsPage(modelName, phenotype) {
+    const datasetName = document.getElementById('groundTruthDataset').value;
+    if (!datasetName) {
+        alert('Please select a ground truth dataset first.');
+        return;
+    }
+    const url = `/model_accuracy/details?dataset=${encodeURIComponent(datasetName)}&model=${encodeURIComponent(modelName)}&phenotype=${encodeURIComponent(phenotype)}`;
+    window.open(url, '_blank');
 }
 
 function handleModelSelection(checkbox) {

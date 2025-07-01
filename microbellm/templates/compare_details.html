@@ -1,569 +1,180 @@
 {% extends "base.html" %}
 
-{% block title %}Detailed Comparison - {{ model1 }} vs {{ model2 }} - MicrobeBench{% endblock %}
+{% block title %}Prediction Details - MicrobeBench{% endblock %}
 
 {% block content %}
-<h1>Detailed Comparison</h1>
-
-<div class="comparison-header">
-    <div class="comparison-info">
-        <h2>{{ phenotype.replace('_', ' ').title() }}</h2>
-        <p>Comparing <strong>{{ model1 }}</strong> vs <strong>{{ model2 }}</strong></p>
+<div class="details-header">
+    <div>
+        <h1>Prediction Details</h1>
+        <h5 class="text-muted">
+            <span class="badge model-badge">{{ model_name }}</span>
+            <i class="fas fa-angle-right"></i>
+            <span class="badge phenotype-badge">{{ phenotype }}</span>
+            <i class="fas fa-angle-right"></i>
+            <span class="badge dataset-badge">{{ dataset_name }}</span>
+        </h5>
     </div>
-    <div class="header-controls">
-        <a href="/compare" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Compare
-        </a>
-        <button onclick="exportComparison()" class="btn btn-success">
-            <i class="fas fa-download"></i> Export CSV
-        </button>
+    <a href="{{ url_for('model_accuracy') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Accuracy</a>
+</div>
+
+<!-- Summary Row -->
+<div class="analysis-stats">
+    <div class="stat-card positive">
+        <div class="stat-number">{{ summary.correct }}</div>
+        <div class="stat-label"><i class="fas fa-check-circle"></i> Correct</div>
+    </div>
+    <div class="stat-card negative">
+        <div class="stat-number">{{ summary.incorrect }}</div>
+        <div class="stat-label"><i class="fas fa-times-circle"></i> Incorrect</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-number">{{ summary.missing_prediction }}</div>
+        <div class="stat-label"><i class="fas fa-question-circle"></i> Missing Prediction</div>
+    </div>
+    <div class="stat-card neutral">
+        <div class="stat-number">{{ summary.missing_ground_truth }}</div>
+        <div class="stat-label"><i class="fas fa-ban"></i> Missing Ground Truth</div>
     </div>
 </div>
 
-<div id="comparisonStats" class="comparison-stats">
-    <div class="stat-card">
-        <div class="stat-number" id="totalCompared">0</div>
-        <div class="stat-label">Total Species</div>
+<!-- Details Section -->
+<div class="details-container">
+    <!-- Incorrect Predictions -->
+    <div class="card details-section">
+        <div class="card-header incorrect-header">
+            <h5><i class="fas fa-times-circle"></i> Incorrect Predictions ({{ summary.incorrect }})</h5>
+        </div>
+        <div class="card-body">
+            {{ render_table(data.incorrect, ['Species', 'Predicted Value', 'Ground Truth'], 'incorrect') }}
+        </div>
     </div>
-    <div class="stat-card agreement">
-        <div class="stat-number" id="agreementCount">0</div>
-        <div class="stat-label">Agreements</div>
-    </div>
-    <div class="stat-card disagreement">
-        <div class="stat-number" id="disagreementCount">0</div>
-        <div class="stat-label">Disagreements</div>
-    </div>
-    <div class="stat-card na-stats">
-        <div class="stat-number" id="naCount">0</div>
-        <div class="stat-label">NA Values</div>
-    </div>
-</div>
 
-<!-- Directional Analysis Section -->
-<div id="directionalAnalysis" class="directional-analysis" style="display: none;">
-    <h3>Directional Analysis</h3>
-    <div id="directionContent">
-        <!-- Will be populated by JavaScript -->
-    </div>
-</div>
-
-<!-- Filters -->
-<div class="detail-filters">
-    <div class="filter-group">
-        <label for="showFilter">Show:</label>
-        <select id="showFilter" class="form-control" onchange="updateDetailedView()">
-            <option value="all">All Predictions</option>
-            <option value="disagreements">Disagreements Only</option>
-            <option value="agreements">Agreements Only</option>
-            <option value="na">NA Values Only</option>
-        </select>
+    <!-- Correct Predictions -->
+    <div class="card details-section">
+        <div class="card-header correct-header">
+            <h5><i class="fas fa-check-circle"></i> Correct Predictions ({{ summary.correct }})</h5>
+        </div>
+        <div class="card-body">
+            {{ render_table(data.correct, ['Species', 'Agreed Value'], 'correct') }}
+        </div>
     </div>
     
-    <div class="filter-group">
-        <label for="sortBy">Sort by:</label>
-        <select id="sortBy" class="form-control" onchange="updateDetailedView()">
-            <option value="species">Species Name</option>
-            <option value="agreement">Agreement Status</option>
-            <option value="model1">{{ model1 }} Value</option>
-            <option value="model2">{{ model2 }} Value</option>
-        </select>
+    <!-- Missing Data -->
+    <div class="card details-section">
+        <div class="card-header missing-header">
+            <h5><i class="fas fa-question-circle"></i> Missing Data</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Missing Predictions ({{ summary.missing_prediction }})</h6>
+                    <p class="text-muted small">Species present in ground truth but not in model's predictions.</p>
+                    {{ render_table(data.missing_prediction, ['Species', 'Ground Truth Value'], 'missing') }}
+                </div>
+                <div class="col-md-6">
+                    <h6>Missing in Ground Truth ({{ summary.missing_ground_truth }})</h6>
+                    <p class="text-muted small">Species predicted by model but not found in ground truth dataset.</p>
+                    {{ render_table(data.missing_ground_truth, ['Species', 'Predicted Value'], 'missing') }}
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <div class="filter-group">
-        <label for="searchSpecies">Search Species:</label>
-        <input type="text" id="searchSpecies" class="form-control" placeholder="Type to filter..." onkeyup="updateDetailedView()">
-    </div>
-</div>
-
-<div id="detailedContent">
-    <div class="loading">Loading comparison data...</div>
 </div>
 
 <style>
-    .comparison-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-    }
-    
-    .comparison-info h2 {
-        margin: 0 0 10px 0;
-        color: #2c3e50;
-    }
-    
-    .comparison-info p {
-        margin: 0;
-        color: #6c757d;
-        font-size: 16px;
-    }
-    
-    .header-controls {
-        display: flex;
-        gap: 10px;
-    }
-    
-    .comparison-stats {
+    .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .details-header h1 { margin-bottom: 0.5rem; }
+    .details-header .badge { font-size: 1rem; padding: 0.5em 0.8em; }
+    .model-badge { background-color: #007bff; color: white; }
+    .phenotype-badge { background-color: #6c757d; color: white; }
+    .dataset-badge { background-color: #17a2b8; color: white; }
+
+    /* Re-using styles from model_accuracy.html for consistency */
+    .analysis-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 20px;
         margin-bottom: 30px;
     }
-    
+
     .stat-card {
         background: white;
         border: 2px solid #e9ecef;
         border-radius: 8px;
         padding: 20px;
         text-align: center;
-        transition: transform 0.2s ease;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-    
     .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
-    
-    .stat-card.agreement {
-        border-color: #28a745;
-        background-color: #f8fff9;
-    }
-    
-    .stat-card.disagreement {
-        border-color: #dc3545;
-        background-color: #fff8f8;
-    }
-    
-    .stat-card.na-stats {
-        border-color: #6c757d;
-        background-color: #f8f9fa;
-    }
-    
+    .stat-card.positive { border-color: #28a745; background-color: #f8fff9; }
+    .stat-card.negative { border-color: #dc3545; background-color: #fff8f8; }
+    .stat-card.warning { border-color: #ffc107; background-color: #fffcf2; }
+    .stat-card.neutral { border-color: #6c757d; background-color: #f8f9fa; }
+
     .stat-number {
-        font-size: 32px;
+        font-size: 2rem;
         font-weight: 700;
         color: #2c3e50;
         margin-bottom: 5px;
     }
-    
+
     .stat-label {
-        font-size: 14px;
+        font-size: 1rem;
         color: #6c757d;
         font-weight: 500;
     }
-    
-    .directional-analysis {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 30px;
+    .stat-label i {
+        margin-right: 5px;
     }
-    
-    .directional-analysis h3 {
-        margin-top: 0;
-        color: #495057;
-    }
-    
-    .direction-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
-        margin-top: 15px;
-    }
-    
-    .direction-item {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 15px;
-    }
-    
-    .direction-header {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 8px;
-    }
-    
-    .direction-count {
-        font-size: 24px;
-        font-weight: 700;
-        color: #2c3e50;
-    }
-    
-    .direction-arrow {
-        color: #6c757d;
-        margin: 0 5px;
-    }
-    
-    .detail-filters {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 25px;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        flex-wrap: wrap;
-    }
-    
-    .filter-group {
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .filter-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: 600;
-        color: #495057;
-        font-size: 14px;
-    }
-    
-    .predictions-table {
-        width: 100%;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    .predictions-table thead {
-        background-color: #f8f9fa;
-    }
-    
-    .predictions-table th {
-        padding: 15px;
-        text-align: left;
-        font-weight: 600;
-        color: #495057;
-        border-bottom: 2px solid #dee2e6;
-        position: sticky;
-        top: 0;
-        background-color: #f8f9fa;
-        z-index: 10;
-    }
-    
-    .predictions-table td {
-        padding: 12px 15px;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .predictions-table tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .species-name {
-        font-style: italic;
-        font-weight: 500;
-        color: #2c3e50;
-    }
-    
-    .prediction-value {
-        font-weight: 500;
-    }
-    
-    .prediction-match {
-        background-color: #d4edda;
-    }
-    
-    .prediction-mismatch {
-        background-color: #f8d7da;
-    }
-    
-    .prediction-na {
-        background-color: #f8f9fa;
-        color: #6c757d;
-    }
-    
-    .match-indicator {
-        text-align: center;
-        font-weight: bold;
-        font-size: 18px;
-    }
-    
-    .match-indicator.match {
-        color: #28a745;
-    }
-    
-    .match-indicator.mismatch {
-        color: #dc3545;
-    }
-    
-    .na-value {
-        color: #6c757d;
-        font-style: italic;
-    }
-    
-    .loading {
-        text-align: center;
-        padding: 40px;
-        color: #6c757d;
-        font-style: italic;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 60px;
-        color: #6c757d;
-    }
-    
-    .empty-state h3 {
-        color: #495057;
-        margin-bottom: 10px;
-    }
+
+    .details-section { margin-bottom: 2rem; }
+    .details-section .card-header { font-weight: 600; }
+    .correct-header { background-color: rgba(40, 167, 69, 0.1); border-bottom: 2px solid #28a745; }
+    .incorrect-header { background-color: rgba(220, 53, 69, 0.1); border-bottom: 2px solid #dc3545; }
+    .missing-header { background-color: rgba(255, 193, 7, 0.1); border-bottom: 2px solid #ffc107; }
+
+    .table { font-size: 0.9em; }
+    .value-predicted { background-color: #f8d7da; color: #721c24; padding: 0.2em 0.5em; border-radius: 4px; font-weight: 600; }
+    .value-actual { background-color: #d4edda; color: #155724; padding: 0.2em 0.5em; border-radius: 4px; font-weight: 600; }
+    .value-agreed { background-color: #e2e3e5; color: #343a40; padding: 0.2em 0.5em; border-radius: 4px; }
+    .table-responsive { max-height: 400px; overflow-y: auto; }
 </style>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    const model1 = "{{ model1 }}";
-    const model2 = "{{ model2 }}";
-    const phenotype = "{{ phenotype }}";
-    let allPredictions = [];
-    
-    // Load comparison data on page load
-    loadDetailedComparison();
-    
-    function loadDetailedComparison() {
-        fetch('/api/comparison_data')
-            .then(response => response.json())
-            .then(data => {
-                processComparisonData(data);
-                updateDetailedView();
-            })
-            .catch(error => {
-                console.error('Error loading comparison data:', error);
-                document.getElementById('detailedContent').innerHTML = 
-                    '<div class="empty-state"><h3>Error loading data</h3><p>' + error.message + '</p></div>';
-            });
-    }
-    
-    function processComparisonData(data) {
-        allPredictions = [];
-        let agreeCount = 0;
-        let disagreeCount = 0;
-        let naCount = 0;
-        
-        data.comparisons.forEach(comp => {
-            const phenotypeData = comp.phenotypes[phenotype];
-            if (phenotypeData && phenotypeData.predictions[model1] !== undefined && phenotypeData.predictions[model2] !== undefined) {
-                const pred1 = phenotypeData.predictions[model1];
-                const pred2 = phenotypeData.predictions[model2];
-                
-                // Determine status
-                let status = 'agreement';
-                if (isNAValue(pred1) || isNAValue(pred2)) {
-                    status = 'na';
-                    naCount++;
-                } else if (pred1 === pred2) {
-                    status = 'agreement';
-                    agreeCount++;
-                } else {
-                    status = 'disagreement';
-                    disagreeCount++;
-                }
-                
-                allPredictions.push({
-                    species: comp.species,
-                    species_file: comp.species_file,
-                    model1_value: pred1 || 'NA',
-                    model2_value: pred2 || 'NA',
-                    status: status,
-                    matches: pred1 === pred2
-                });
-            }
-        });
-        
-        // Update statistics
-        document.getElementById('totalCompared').textContent = allPredictions.length;
-        document.getElementById('agreementCount').textContent = agreeCount;
-        document.getElementById('disagreementCount').textContent = disagreeCount;
-        document.getElementById('naCount').textContent = naCount;
-        
-        // Perform directional analysis
-        if (disagreeCount > 0) {
-            performDirectionalAnalysis();
-        }
-    }
-    
-    function performDirectionalAnalysis() {
-        const directionCounts = {};
-        
-        // Count directional changes
-        allPredictions.forEach(pred => {
-            if (pred.status === 'disagreement') {
-                const direction = `${pred.model1_value} → ${pred.model2_value}`;
-                directionCounts[direction] = (directionCounts[direction] || 0) + 1;
-            }
-        });
-        
-        // Sort by count
-        const sortedDirections = Object.entries(directionCounts)
-            .sort((a, b) => b[1] - a[1]);
-        
-        // Build HTML
-        let html = '<div class="direction-grid">';
-        
-        sortedDirections.forEach(([direction, count]) => {
-            const [from, to] = direction.split(' → ');
-            html += `
-                <div class="direction-item">
-                    <div class="direction-header">
-                        ${escapeHtml(from)} <span class="direction-arrow">→</span> ${escapeHtml(to)}
-                    </div>
-                    <div class="direction-count">${count} species</div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        
-        // Add special analysis for biosafety levels
-        if (phenotype === 'biosafety_level') {
-            html += analyzeBiosafetyDirections(directionCounts);
-        }
-        
-        document.getElementById('directionContent').innerHTML = html;
-        document.getElementById('directionalAnalysis').style.display = 'block';
-    }
-    
-    function analyzeBiosafetyDirections(directionCounts) {
-        let html = '<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 6px;">';
-        html += '<h4 style="margin-top: 0;">Biosafety Level Analysis</h4>';
-        
-        let increasedRisk = 0;
-        let decreasedRisk = 0;
-        
-        Object.entries(directionCounts).forEach(([direction, count]) => {
-            const match = direction.match(/biosafety level (\d+) → biosafety level (\d+)/);
-            if (match) {
-                const from = parseInt(match[1]);
-                const to = parseInt(match[2]);
-                if (to > from) increasedRisk += count;
-                else if (to < from) decreasedRisk += count;
-            }
-        });
-        
-        html += `
-            <p><strong>${increasedRisk}</strong> species with increased biosafety level (higher risk)</p>
-            <p><strong>${decreasedRisk}</strong> species with decreased biosafety level (lower risk)</p>
-        `;
-        
-        html += '</div>';
-        return html;
-    }
-    
-    function updateDetailedView() {
-        const showFilter = document.getElementById('showFilter').value;
-        const sortBy = document.getElementById('sortBy').value;
-        const searchTerm = document.getElementById('searchSpecies').value.toLowerCase();
-        
-        // Filter predictions
-        let filteredPredictions = allPredictions.filter(pred => {
-            // Apply show filter
-            if (showFilter === 'disagreements' && pred.status !== 'disagreement') return false;
-            if (showFilter === 'agreements' && pred.status !== 'agreement') return false;
-            if (showFilter === 'na' && pred.status !== 'na') return false;
-            
-            // Apply search filter
-            if (searchTerm && !pred.species.toLowerCase().includes(searchTerm)) return false;
-            
-            return true;
-        });
-        
-        // Sort predictions
-        filteredPredictions.sort((a, b) => {
-            switch(sortBy) {
-                case 'species':
-                    return a.species.localeCompare(b.species);
-                case 'agreement':
-                    if (a.status !== b.status) {
-                        const statusOrder = {'disagreement': 0, 'na': 1, 'agreement': 2};
-                        return statusOrder[a.status] - statusOrder[b.status];
-                    }
-                    return a.species.localeCompare(b.species);
-                case 'model1':
-                    return (a.model1_value || '').localeCompare(b.model1_value || '');
-                case 'model2':
-                    return (a.model2_value || '').localeCompare(b.model2_value || '');
-                default:
-                    return 0;
-            }
-        });
-        
-        // Build table HTML
-        let html = '<table class="predictions-table">';
-        html += '<thead><tr>';
-        html += '<th>Species</th>';
-        html += `<th>${model1}</th>`;
-        html += `<th>${model2}</th>`;
-        html += '<th style="text-align: center;">Match</th>';
-        html += '</tr></thead><tbody>';
-        
-        if (filteredPredictions.length === 0) {
-            html += '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #6c757d;">No matching predictions found</td></tr>';
-        } else {
-            filteredPredictions.forEach(pred => {
-                const rowClass = pred.status === 'disagreement' ? 'prediction-mismatch' : 
-                               pred.status === 'na' ? 'prediction-na' : 'prediction-match';
-                
-                html += `<tr class="${rowClass}">`;
-                html += `<td class="species-name">${escapeHtml(pred.species)}</td>`;
-                html += `<td class="prediction-value ${isNAValue(pred.model1_value) ? 'na-value' : ''}">${escapeHtml(pred.model1_value)}</td>`;
-                html += `<td class="prediction-value ${isNAValue(pred.model2_value) ? 'na-value' : ''}">${escapeHtml(pred.model2_value)}</td>`;
-                
-                if (pred.status === 'na') {
-                    html += '<td class="match-indicator" style="color: #6c757d;">NA</td>';
-                } else if (pred.matches) {
-                    html += '<td class="match-indicator match">Match</td>';
-                } else {
-                    html += '<td class="match-indicator mismatch">Differ</td>';
-                }
-                
-                html += '</tr>';
-            });
-        }
-        
-        html += '</tbody></table>';
-        
-        document.getElementById('detailedContent').innerHTML = html;
-    }
-    
-    function isNAValue(value) {
-        if (!value) return true;
-        const valueStr = String(value).toLowerCase().trim();
-        const naPatterns = ['na', 'n/a', 'n.a.', 'null', 'none', 'unknown', 'not available', 'not applicable', 'missing', 'no data', 'unavailable', '-', '?', 'nd', 'n.d.', 'not determined', 'not specified', 'unspecified'];
-        return naPatterns.includes(valueStr);
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    function exportComparison() {
-        // Create CSV content
-        let csv = `Species,${model1},${model2},Match,Status\n`;
-        
-        allPredictions.forEach(pred => {
-            const match = pred.status === 'na' ? 'NA' : (pred.matches ? 'Yes' : 'No');
-            csv += `"${pred.species}","${pred.model1_value}","${pred.model2_value}","${match}","${pred.status}"\n`;
-        });
-        
-        // Download CSV
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `comparison_${model1.replace('/', '-')}_vs_${model2.replace('/', '-')}_${phenotype}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    }
-</script>
-{% endblock %} 
+{% macro render_table(data, headers, type) %}
+<div class="table-responsive">
+    <table class="table table-striped table-bordered table-sm">
+        <thead class="thead-light" style="position: sticky; top: 0;">
+            <tr>
+                {% for header in headers %}
+                <th>{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% if data %}
+                {% for row in data %}
+                <tr>
+                    <td><i>{{ row[0] }}</i></td>
+                    {% if type == 'incorrect' %}
+                        <td><span class="value-predicted">{{ row[1] }}</span></td>
+                        <td><span class="value-actual">{{ row[2] }}</span></td>
+                    {% elif type == 'correct' %}
+                        <td><span class="value-agreed">{{ row[1] }}</span></td>
+                    {% else %}
+                        <td>{{ row[1] }}</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="{{ headers|length }}" class="text-center text-muted py-4">No data available.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %} 

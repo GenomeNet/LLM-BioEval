@@ -48,7 +48,7 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Available Datasets</h5>
+                <h5 class="mb-0">Available Datasetss</h5>
             </div>
             <div class="card-body">
                 <div id="datasetsList">
@@ -102,38 +102,6 @@
 </div>
 
 <style>
-.dataset-item {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.dataset-item .delete-btn {
-    display: inline-block;
-    text-decoration: none;
-    background-color: #dc3545;
-    border: none;
-    color: white;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    opacity: 0.8;
-    transition: opacity 0.2s;
-}
-
-.dataset-item .delete-btn:hover {
-    opacity: 1;
-}
-
-.dataset-item:hover {
-    background-color: #f8f9fa;
-}
-
 .phenotype-table {
     font-size: 14px;
 }
@@ -391,17 +359,16 @@ function displayDatasets(datasets) {
     datasets.forEach(dataset => {
         const escapedName = dataset.dataset_name.replace(/'/g, "\\'").replace(/"/g, '\\"');
         html += `
-            <div class="dataset-item" onclick="selectDataset('${escapedName}')">
-                <div>
-                    <strong>${dataset.dataset_name}</strong>
+            <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                <strong onclick="selectDataset('${escapedName}')" style="cursor: pointer;">${dataset.dataset_name}</strong>
+                <br>
+                <small class="text-muted">
+                    ${dataset.species_count} species | ${dataset.template_name}
                     <br>
-                    <small class="text-muted">
-                        ${dataset.species_count} species | ${dataset.template_name}
-                        <br>
-                        Imported: ${new Date(dataset.import_date).toLocaleDateString()}
-                    </small>
-                </div>
-                <a href="#" class="delete-btn" onclick="deleteDataset(event, '${escapedName}'); return false;">Delete</a>
+                    Imported: ${new Date(dataset.import_date).toLocaleDateString()}
+                </small>
+                <br>
+                <a href="#" onclick="deleteDataset(event, '${escapedName}'); return false;">Delete</a>
             </div>
         `;
     });

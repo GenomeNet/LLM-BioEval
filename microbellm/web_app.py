@@ -18,7 +18,8 @@ from microbellm import config
 from microbellm.utils import detect_template_type
 from microbellm.utils import (
     create_ground_truth_tables, import_ground_truth_csv, get_ground_truth_datasets,
-    get_ground_truth_data, calculate_model_accuracy, delete_ground_truth_dataset
+    get_ground_truth_data, calculate_model_accuracy, delete_ground_truth_dataset,
+    normalize_value
 )
 
 app = Flask(__name__)
@@ -3842,12 +3843,95 @@ def api_get_species_ground_truth(binomial_name):
 
 @app.route('/model_accuracy')
 def model_accuracy():
-    """Model accuracy analysis page"""
     return render_template('model_accuracy.html')
+
+def get_all_predictions():
+    """Helper function to get all predictions from the database."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM results WHERE status = "completed"')
+    rows = cursor.fetchall()
+    conn.close()
+
+    predictions = {}
+    for row in rows:
+        species_name = row['binomial_name'].lower()
+        if species_name not in predictions:
+            predictions[species_name] = []
+        predictions[species_name].append(dict(row))
+    return predictions
+
+@app.route('/model_accuracy/details')
+def model_accuracy_details():
+    """Display detailed comparison for a model's phenotype predictions."""
+    dataset_name = request.args.get('dataset')
+    model_name = request.args.get('model')
+    phenotype = request.args.get('phenotype')
+
+    if not all([dataset_name, model_name, phenotype]):
+        return "Error: Missing required parameters (dataset, model, phenotype)", 400
+
+    # Load ground truth data
+    gt_data_list = get_ground_truth_data(dataset_name)
+    ground_truth_map = {item['binomial_name'].lower(): item for item in gt_data_list}
+    
+    # Load all predictions
+    all_predictions = get_all_predictions()
+    
+    # Filter predictions for the specific model
+    model_predictions = {}
+    for species, preds in all_predictions.items():
+        for pred in preds:
+            if pred['model'] == model_name:
+                model_predictions[species.lower()] = pred
+                break
+
+    # Categorize species
+    results = {
+        'correct': [],
+        'incorrect': [],
+        'missing_prediction': [],
+        'missing_ground_truth': []
+    }
+    
+    all_species = set(ground_truth_map.keys()) | set(model_predictions.keys())
+
+    for species in sorted(list(all_species)):
+        gt = ground_truth_map.get(species)
+        pred = model_predictions.get(species)
+
+        gt_value = normalize_value(gt.get(phenotype)) if gt else 'NA'
+        pred_value = normalize_value(pred.get(phenotype)) if pred else 'NA'
+
+        if gt_value != 'NA':
+            if pred_value != 'NA':
+                if gt_value.lower() == pred_value.lower():
+                    results['correct'].append((gt['binomial_name'], gt_value))
+                else:
+                    results['incorrect'].append((gt['binomial_name'], pred_value, gt_value))
+            else:
+                results['missing_prediction'].append((gt['binomial_name'], gt_value))
+        elif pred_value != 'NA':
+            results['missing_ground_truth'].append((pred['binomial_name'], pred_value))
+
+    summary = {key: len(value) for key, value in results.items()}
+
+    return render_template('compare_details.html',
+                           dataset_name=dataset_name,
+                           model_name=model_name,
+                           phenotype=phenotype,
+                           data=results,
+                           summary=summary)
+
+@app.route('/ground_truth_alternative')
+def ground_truth_alternative():
+    return render_template('ground_truth_alternative.html')
 
 @app.route('/api/model_accuracy/calculate', methods=['POST'])
 def api_calculate_model_accuracy():
-    """Calculate model accuracy against ground truth"""
+    """Calculate and return model accuracy metrics."""
     try:
         predictions_file = request.json.get('predictions_file')
         dataset_name = request.json.get('dataset_name')

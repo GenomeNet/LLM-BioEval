@@ -662,8 +662,31 @@ def clean_phenotype_value(value):
     # Return cleaned value
     return value.strip()
 
+def normalize_value(value):
+    """Normalize a value to a consistent format."""
+    if value is None:
+        return 'NA'
+    
+    val_str = str(value).strip().lower()
+    
+    if val_str in ['', 'na', 'n/a', 'null', 'none', 'unknown']:
+        return 'NA'
+        
+    if isinstance(value, list):
+        return ', '.join(sorted([str(v) for v in value])).lower()
+
+    return str(value).strip()
+
 def detect_template_type(user_template_path):
-    """Detect if template is for phenotype or knowledge prediction"""
+    """
+    Detects if a template is for phenotype prediction or knowledge level assessment.
+    
+    Args:
+        user_template_path (str): Path to the user template file
+    
+    Returns:
+        str: 'phenotype' or 'knowledge'
+    """
     try:
         # First try to detect from JSON config file
         from microbellm.template_config import detect_template_type_from_config
