@@ -282,8 +282,14 @@ class ProcessingManager:
     
     def start_combination(self, combination_id):
         """Start processing a combination."""
+        print(f"[DEBUG] start_combination called for ID {combination_id}")
+        
         # Check if API key is configured before starting
-        if not os.getenv('OPENROUTER_API_KEY'):
+        api_key = os.getenv('OPENROUTER_API_KEY')
+        print(f"[DEBUG] API key status: {'SET' if api_key else 'NOT SET'}")
+        
+        if not api_key:
+            print(f"[ERROR] No API key found for combination {combination_id}")
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("UPDATE combinations SET status = 'failed' WHERE id = ?", (combination_id,))
@@ -299,7 +305,16 @@ class ProcessingManager:
         # Check current status
         cursor.execute("SELECT status FROM combinations WHERE id = ?", (combination_id,))
         result = cursor.fetchone()
-        if not result or result[0] not in ['pending', 'interrupted']:
+        if not result:
+            print(f"[ERROR] Combination {combination_id} not found in database")
+            conn.close()
+            return False
+            
+        current_status = result[0]
+        print(f"[DEBUG] Current status for combination {combination_id}: {current_status}")
+        
+        if current_status not in ['pending', 'interrupted']:
+            print(f"[WARNING] Cannot start combination {combination_id} - status is {current_status}, not pending/interrupted")
             conn.close()
             return False
         
@@ -308,9 +323,13 @@ class ProcessingManager:
         self.stopped_combinations.discard(combination_id)
         
         # Check if we can start immediately or need to queue
-        if not self.can_start_new_job():
+        can_start = self.can_start_new_job()
+        print(f"[DEBUG] Can start new job: {can_start}")
+        
+        if not can_start:
             if combination_id not in self.job_queue:
                 self.job_queue.append(combination_id)
+                print(f"[INFO] Job {combination_id} queued - position: {len(self.job_queue)}")
                 self._emit_log(combination_id, f"Job queued - waiting for slot. Queue position: {len(self.job_queue)}")
                 socketio.emit('job_update', {'combination_id': combination_id, 'status': 'queued'})
             return True
@@ -323,10 +342,13 @@ class ProcessingManager:
         
         result = cursor.fetchone()
         if not result:
+            print(f"[ERROR] Could not retrieve combination details for {combination_id}")
             conn.close()
             return False
         
         species_file, model, system_template, user_template = result
+        print(f"[DEBUG] Starting combination {combination_id}: {species_file} + {model}")
+        print(f"[DEBUG] Templates: {system_template} + {user_template}")
         
         # Update status to running
         cursor.execute('''
@@ -334,6 +356,8 @@ class ProcessingManager:
         ''', ('running', datetime.now(), combination_id))
         conn.commit()
         conn.close()
+        
+        print(f"[INFO] Starting processing thread for combination {combination_id}")
         
         # Start processing in a separate thread
         thread = threading.Thread(target=self._process_combination, 
@@ -349,6 +373,7 @@ class ProcessingManager:
             'status': 'running'
         }
         
+        print(f"[SUCCESS] Combination {combination_id} started successfully")
         return True
 
     def pause_combination(self, combination_id):
@@ -402,6 +427,9 @@ class ProcessingManager:
 
     def _process_combination(self, combination_id, species_file, model, system_template, user_template):
         """The actual processing logic for a combination with parallel processing."""
+        
+        print(f"[DEBUG] _process_combination started for {combination_id}")
+        self._emit_log(combination_id, f"Starting processing for {species_file} with model {model}")
         
         try:
             species_list = self._read_species_from_file(os.path.join(config.SPECIES_DIR, species_file))
@@ -615,10 +643,17 @@ class ProcessingManager:
         return True, "Combination restarted successfully."
 
     def _emit_log(self, combination_id, message):
-        """Emit a log message to the client."""
+        """Emit a log message to the client and console."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_message = f"[{timestamp}] {message}"
+        
+        # Print to console for debugging
+        print(f"[COMBO-{combination_id}] {log_message}")
+        
+        # Emit to web client
         socketio.emit('log_message', {
             'combination_id': combination_id,
-            'log': f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}"
+            'log': log_message
         })
 
     def _process_species_result(self, combination_id, species_file, species_name, model, system_template, user_template, result):
@@ -734,6 +769,10 @@ class ProcessingManager:
             
             # Invalidate all caches when new results are added
             _invalidate_all_caches()
+            
+            # CRITICAL FIX: Commit the transaction for successful results
+            conn.commit()
+            conn.close()
 
         else:
             # No response from API at all
@@ -822,6 +861,8 @@ class ProcessingManager:
             return
         
         successful_species, total_species = progress[3], progress[0]
+        print(f"[DEBUG] _finalize_combination for {combination_id}: successful={successful_species}, total={total_species}")
+        print(f"[DEBUG] Full progress: {progress}")
         
         if combination_id in self.paused_combinations:
             final_status = 'interrupted'
@@ -2938,7 +2979,14 @@ def create_combination_api():
         system_template = data.get('system_template')
         user_template = data.get('user_template')
         
+        print(f"[DEBUG] create_combination_api called with:")
+        print(f"  species_file: {species_file}")
+        print(f"  model: {model}")
+        print(f"  system_template: {system_template}")
+        print(f"  user_template: {user_template}")
+        
         if not all([species_file, model, system_template, user_template]):
+            print(f"[ERROR] Missing required parameters")
             return jsonify({'error': 'Missing required parameters'}), 400
         
         # Create the combination using existing logic
@@ -2949,7 +2997,9 @@ def create_combination_api():
             }
         }
         
+        print(f"[DEBUG] Creating combinations...")
         created_combinations = processing_manager.create_combinations(species_file, [model], template_pairs)
+        print(f"[DEBUG] Created combinations: {created_combinations}")
         
         if created_combinations:
             # Get the created combination ID
@@ -2964,14 +3014,24 @@ def create_combination_api():
             
             if result:
                 combination_id = result[0]
+                print(f"[DEBUG] Found combination ID: {combination_id}")
+                
                 # Start the combination immediately
-                if processing_manager.start_combination(combination_id):
+                print(f"[DEBUG] Attempting to start combination {combination_id}")
+                start_result = processing_manager.start_combination(combination_id)
+                print(f"[DEBUG] Start result: {start_result}")
+                
+                if start_result:
+                    print(f"[SUCCESS] Combination {combination_id} started successfully")
                     return jsonify({'success': True, 'combination_id': combination_id})
                 else:
+                    print(f"[WARNING] Combination {combination_id} created but could not start")
                     return jsonify({'success': True, 'combination_id': combination_id, 'note': 'Created but could not start immediately'})
             else:
+                print(f"[ERROR] Could not retrieve combination ID")
                 return jsonify({'error': 'Combination created but could not retrieve ID'}), 500
         else:
+            print(f"[ERROR] Failed to create combination")
             return jsonify({'error': 'Failed to create combination - may already exist'}), 400
             
     except Exception as e:
@@ -3960,4 +4020,217 @@ def api_delete_ground_truth_dataset(dataset_name):
         result = delete_ground_truth_dataset(dataset_name)
         return jsonify(result)
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ground_truth/distribution', methods=['GET'])
+def api_get_ground_truth_distribution():
+    dataset_name = request.args.get('dataset_name')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        print(f"[DEBUG] Distribution API called for dataset: {dataset_name}")
+        
+        conn = sqlite3.connect(db_path)
+        
+        # Check if table exists
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ground_truth'")
+        if not cursor.fetchone():
+            print("[DEBUG] Ground truth table does not exist")
+            conn.close()
+            return jsonify({'success': True, 'distribution': {}})
+
+        # Define phenotype columns to analyze
+        phenotype_columns = [
+            'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+            'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+            'health_association', 'host_association', 'plant_pathogenicity',
+            'spore_formation', 'hemolysis', 'cell_shape'
+        ]
+
+        # Use pandas to read data and get value counts
+        query = f"SELECT {', '.join(phenotype_columns)} FROM ground_truth WHERE dataset_name = ?"
+        print(f"[DEBUG] Executing query: {query} with params: {dataset_name}")
+        
+        df = pd.read_sql_query(query, conn, params=(dataset_name,))
+        print(f"[DEBUG] DataFrame shape: {df.shape}, empty: {df.empty}")
+        
+        distribution = {}
+        if not df.empty:
+            for col in phenotype_columns:
+                if col in df.columns:
+                    # Fill NA values with a consistent string 'NA'
+                    counts = df[col].fillna('NA').value_counts().to_dict()
+                    # Convert numpy types to native python types
+                    distribution[col] = {str(k): int(v) for k, v in counts.items()}
+                    print(f"[DEBUG] {col}: {len(counts)} unique values")
+            
+            print(f"[DEBUG] Distribution created with {len(distribution)} phenotypes")
+        else:
+            print("[DEBUG] DataFrame is empty - no data found for this dataset")
+
+        conn.close()
+        
+        return jsonify({'success': True, 'distribution': distribution})
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in distribution API: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ground_truth/phenotype_statistics', methods=['GET'])
+def api_get_ground_truth_phenotype_statistics():
+    """Get detailed phenotype statistics for a dataset"""
+    dataset_name = request.args.get('dataset_name')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ground_truth'")
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': True, 'statistics': []})
+
+        # Define phenotype information
+        phenotypes = {
+            'motility': {
+                'label': 'Motility',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'spore_formation': {
+                'label': 'Spore formation',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'gram_staining': {
+                'label': 'Gram staining',
+                'type': 'Multi-class',
+                'targets': ['gram stain negative', 'gram stain positive', 'gram stain variable']
+            },
+            'cell_shape': {
+                'label': 'Cell shape',
+                'type': 'Multi-class',
+                'targets': ['bacillus', 'coccus', 'spirillum', 'tail']
+            },
+            'health_association': {
+                'label': 'Health Association',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'host_association': {
+                'label': 'Host Association',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'plant_pathogenicity': {
+                'label': 'Plant pathogenicity',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'biosafety_level': {
+                'label': 'Biosafety level',
+                'type': 'Multi-class',
+                'targets': ['biosafety level 1', 'biosafety level 2', 'biosafety level 3']
+            },
+            'extreme_environment_tolerance': {
+                'label': 'Extreme environment tolerance',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'animal_pathogenicity': {
+                'label': 'Animal Pathogenicity',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            },
+            'hemolysis': {
+                'label': 'Hemolysis',
+                'type': 'Multi-class',
+                'targets': ['alpha', 'beta', 'gamma']
+            },
+            'aerophilicity': {
+                'label': 'Aerophilicity',
+                'type': 'Multi-class',
+                'targets': ['aerobic', 'aerotolerant', 'anaerobic', 'facultatively anaerobic']
+            },
+            'biofilm_formation': {
+                'label': 'Biofilm formation',
+                'type': 'Binary',
+                'targets': ['TRUE', 'FALSE']
+            }
+        }
+
+        # Get total number of species in dataset
+        cursor.execute("SELECT COUNT(*) FROM ground_truth WHERE dataset_name = ?", (dataset_name,))
+        total_species = cursor.fetchone()[0]
+
+        if total_species == 0:
+            conn.close()
+            return jsonify({'success': True, 'statistics': [], 'total_species': 0})
+
+        # Calculate statistics for each phenotype
+        statistics = []
+        
+        for field, info in phenotypes.items():
+            # Count total non-NA values for this field
+            cursor.execute(f"""
+                SELECT COUNT(*) FROM ground_truth 
+                WHERE dataset_name = ? AND {field} IS NOT NULL AND {field} != '' AND {field} != 'NA'
+            """, (dataset_name,))
+            annotated_count = cursor.fetchone()[0]
+            
+            # Calculate annotation fraction
+            annotation_fraction = (annotated_count / total_species * 100) if total_species > 0 else 0
+            
+            # Get value distribution
+            cursor.execute(f"""
+                SELECT {field}, COUNT(*) as count
+                FROM ground_truth 
+                WHERE dataset_name = ? AND {field} IS NOT NULL AND {field} != '' AND {field} != 'NA'
+                GROUP BY {field}
+                ORDER BY count DESC
+            """, (dataset_name,))
+            
+            value_distribution = {}
+            for row in cursor.fetchall():
+                value, count = row
+                percentage = (count / annotated_count * 100) if annotated_count > 0 else 0
+                value_distribution[value] = {
+                    'count': count,
+                    'percentage': round(percentage, 1)
+                }
+            
+            statistics.append({
+                'field': field,
+                'label': info['label'],
+                'type': info['type'],
+                'targets': info['targets'],
+                'total_species': total_species,
+                'annotated_species': annotated_count,
+                'missing_species': total_species - annotated_count,
+                'annotation_fraction': round(annotation_fraction, 1),
+                'value_distribution': value_distribution
+            })
+
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'statistics': statistics,
+            'total_species': total_species,
+            'dataset_name': dataset_name
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in phenotype statistics API: {e}")
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500

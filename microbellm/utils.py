@@ -10,7 +10,24 @@ from string import Template
 import requests
 from colorama import Fore, Style
 from microbellm import config
-from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Try to import tenacity for retry logic, fallback if not available
+try:
+    from tenacity import retry, stop_after_attempt, wait_exponential
+    TENACITY_AVAILABLE = True
+except ImportError:
+    print("Warning: tenacity not available, retries disabled")
+    TENACITY_AVAILABLE = False
+    # Create dummy decorators
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    def stop_after_attempt(*args):
+        pass
+    def wait_exponential(*args, **kwargs):
+        pass
+
 import sqlite3
 
 # --- LLM Provider Abstraction ---
@@ -28,12 +45,8 @@ class OpenRouterProvider(LLMProvider):
     def __init__(self, api_key=None):
         self.api_key = api_key or config.OPENROUTER_API_KEY
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-        reraise=True
-    )
-    def query(self, messages, model, temperature, verbose=False):
+    def _query_with_retry(self, messages, model, temperature, verbose=False):
+        """Internal method with retry logic"""
         if not self.api_key:
             raise ValueError("OpenRouter API key is not set.")
 
@@ -77,6 +90,18 @@ class OpenRouterProvider(LLMProvider):
             print(f"Error parsing OpenRouter API response: {e}")
             print(f"Response: {completion}")
             return None
+
+    if TENACITY_AVAILABLE:
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=4, max=10),
+            reraise=True
+        )
+        def query(self, messages, model, temperature, verbose=False):
+            return self._query_with_retry(messages, model, temperature, verbose)
+    else:
+        def query(self, messages, model, temperature, verbose=False):
+            return self._query_with_retry(messages, model, temperature, verbose)
 
 # --- Existing Utility Functions ---
 
@@ -252,27 +277,45 @@ def write_prediction(output_file, prediction, model_used, template_path):
         # Write the prediction row to the CSV file
         writer.writerow(row)
 
-@retry(
-    stop=stop_after_attempt(3),  # Retry up to 3 times
-    wait=wait_exponential(multiplier=1, min=4, max=10),  # Wait 2^x * 1 seconds between retries
-    reraise=True  # Reraise the exception if all retries fail
-)
-def query_openrouter_api(messages, model, temperature, verbose=False):
-    """
-    Queries the OpenRouter API with the given messages and model.
-    Includes exponential backoff for retries.
-    
-    Args:
-        messages (list): List of messages to send to the API.
-        model (str): Model to use for the API call.
-        temperature (float): Temperature to use for the API call.
-        verbose (bool): Whether to print verbose output.
-    
-    Returns:
-        str: The content of the API response.
-    """
-    provider = OpenRouterProvider()
-    return provider.query(messages, model, temperature, verbose)
+if TENACITY_AVAILABLE:
+    @retry(
+        stop=stop_after_attempt(3),  # Retry up to 3 times
+        wait=wait_exponential(multiplier=1, min=4, max=10),  # Wait 2^x * 1 seconds between retries
+        reraise=True  # Reraise the exception if all retries fail
+    )
+    def query_openrouter_api(messages, model, temperature, verbose=False):
+        """
+        Queries the OpenRouter API with the given messages and model.
+        Includes exponential backoff for retries.
+        
+        Args:
+            messages (list): List of messages to send to the API.
+            model (str): Model to use for the API call.
+            temperature (float): Temperature to use for the API call.
+            verbose (bool): Whether to print verbose output.
+        
+        Returns:
+            str: The content of the API response.
+        """
+        provider = OpenRouterProvider()
+        return provider.query(messages, model, temperature, verbose)
+else:
+    def query_openrouter_api(messages, model, temperature, verbose=False):
+        """
+        Queries the OpenRouter API with the given messages and model.
+        No retries when tenacity is not available.
+        
+        Args:
+            messages (list): List of messages to send to the API.
+            model (str): Model to use for the API call.
+            temperature (float): Temperature to use for the API call.
+            verbose (bool): Whether to print verbose output.
+        
+        Returns:
+            str: The content of the API response.
+        """
+        provider = OpenRouterProvider()
+        return provider.query(messages, model, temperature, verbose)
 
 def summarize_predictions(predictions):
     """
@@ -424,7 +467,8 @@ def parse_response_with_template_config(response, user_template_path):
         
         # If JSON parsing fails, try fallback parsing
         fallback_result = parse_response_fallback(response)
-        result.update(fallback_result)
+        if fallback_result:
+            result.update(fallback_result)
         
         return result
         
@@ -868,7 +912,8 @@ def clean_csv_field(field):
 # Ground Truth Data Management
 def create_ground_truth_tables():
     """Create tables for storing ground truth data"""
-    conn = sqlite3.connect('microbellm.db')
+    from .config import DATABASE_PATH
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     # Main ground truth table
@@ -969,7 +1014,8 @@ def import_ground_truth_csv(csv_path, dataset_name, template_name, description=N
     # Create tables if they don't exist
     create_ground_truth_tables()
     
-    conn = sqlite3.connect('microbellm.db')
+    from .config import DATABASE_PATH
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     # Read CSV
@@ -1048,7 +1094,8 @@ def import_ground_truth_csv(csv_path, dataset_name, template_name, description=N
 
 def get_ground_truth_datasets():
     """Get list of imported ground truth datasets"""
-    conn = sqlite3.connect('microbellm.db')
+    from .config import DATABASE_PATH
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -1073,7 +1120,8 @@ def get_ground_truth_datasets():
 
 def get_ground_truth_data(dataset_name=None, binomial_name=None, limit=None, offset=0):
     """Retrieve ground truth data with optional filtering"""
-    conn = sqlite3.connect('microbellm.db')
+    from .config import DATABASE_PATH
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     query = 'SELECT * FROM ground_truth WHERE 1=1'
@@ -1105,9 +1153,10 @@ def get_ground_truth_data(dataset_name=None, binomial_name=None, limit=None, off
 
 def delete_ground_truth_dataset(dataset_name):
     """Deletes a ground truth dataset and its associated data."""
+    from .config import DATABASE_PATH
     conn = None
     try:
-        conn = sqlite3.connect('microbellm.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Delete data from the main table

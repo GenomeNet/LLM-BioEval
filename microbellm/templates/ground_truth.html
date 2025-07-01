@@ -48,7 +48,7 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Available Datasetss</h5>
+                <h5 class="mb-0">Available Datasets</h5>
             </div>
             <div class="card-body">
                 <div id="datasetsList">
@@ -64,8 +64,11 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Ground Truth Data Browser</h5>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshDistributionChart()" id="refreshChartBtn" style="display: none;">
+            <i class="fas fa-chart-bar"></i> Refresh Overview
+        </button>
     </div>
     <div class="card-body">
         <div class="row mb-3">
@@ -79,6 +82,47 @@
             </div>
             <div class="col-md-4">
                 <button class="btn btn-secondary" onclick="loadGroundTruthData()">Search</button>
+            </div>
+        </div>
+        
+        <!-- Distribution Overview Section - Make it more prominent -->
+        <div id="overviewSection" class="mb-4" style="display: none;">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Phenotype Distribution Overview</h6>
+                </div>
+                <div class="card-body">
+                    <div id="overviewChart">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading distribution...</span>
+                            </div>
+                            <span class="ms-2">Loading distribution data...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phenotype Statistics Table Section -->
+        <div id="statisticsSection" class="mb-4" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Phenotype Distribution Statistics</h5>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportStatisticsToCSV()" id="exportStatsBtn">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="statisticsTable">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading statistics...</span>
+                            </div>
+                            <span class="ms-2">Loading statistics data...</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -234,6 +278,144 @@
     background: var(--accent-error);
     color: var(--white);
 }
+
+.phenotype-analysis-container {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.2s ease;
+}
+
+.phenotype-analysis-container:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.phenotype-header {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.single-stacked-bar {
+    width: 100%;
+    height: 24px;
+    display: flex;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f8f9fa;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.bar-segment {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    position: relative;
+    min-width: 2px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.bar-segment:hover {
+    filter: brightness(0.9);
+    transform: translateY(-1px);
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.bar-number {
+    font-size: 11px;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(255,255,255,0.8);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Enhanced overview section styling */
+#overviewSection .card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#overviewSection .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Improved responsive design for distribution details */
+@media (max-width: 768px) {
+    .phenotype-analysis-container {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .single-stacked-bar {
+        height: 20px;
+    }
+    
+    .bar-segment {
+        font-size: 9px;
+    }
+}
+
+/* Statistics table styling */
+.statistics-table {
+    font-size: 14px;
+    margin-bottom: 0;
+}
+
+.statistics-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.statistics-table td {
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.statistics-table .phenotype-label {
+    font-weight: 500;
+}
+
+.statistics-table .phenotype-type {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.statistics-table .annotation-percentage {
+    font-weight: 600;
+}
+
+.annotation-high { color: #155724; }
+.annotation-medium { color: #856404; }
+.annotation-low { color: #721c24; }
+
+.value-distribution-summary {
+    font-size: 12px;
+    max-width: 300px;
+}
+
+.distribution-item {
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 2px;
+    padding: 1px 4px;
+    background-color: #f8f9fa;
+    border-radius: 3px;
+    border: 1px solid #e9ecef;
+}
 </style>
 {% endblock %}
 
@@ -242,6 +424,7 @@
 let currentDatasets = [];
 let currentPage = 1;
 const perPage = 50;
+let templateData = null;
 
 // Load datasets on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -389,22 +572,67 @@ function updateDatasetFilter(datasets) {
 
 function selectDataset(datasetName) {
     document.getElementById('datasetFilter').value = datasetName;
+    // Reset to first page when selecting a new dataset
+    currentPage = 1;
+    // Clear any search terms
+    document.getElementById('searchInput').value = '';
     loadGroundTruthData();
 }
 
 async function loadGroundTruthData() {
-    const dataset = document.getElementById('datasetFilter').value;
+    const datasetName = document.getElementById('datasetFilter').value;
     const search = document.getElementById('searchInput').value;
     
+    // Clear and hide overview section when no dataset selected
+    if (!datasetName) {
+        document.getElementById('overviewSection').style.display = 'none';
+        document.getElementById('statisticsSection').style.display = 'none';
+        document.getElementById('refreshChartBtn').style.display = 'none';
+        document.getElementById('dataTable').innerHTML = '<p class="text-muted">Select a dataset to view data</p>';
+        return;
+    }
+
+    // Show and update overview section
+    document.getElementById('overviewSection').style.display = 'block';
+    document.getElementById('statisticsSection').style.display = 'block';
+    document.getElementById('refreshChartBtn').style.display = 'inline-block';
+    
+    // Load distribution chart for any dataset selection (not just first page)
+    const datasetInfo = currentDatasets.find(d => d.dataset_name === datasetName);
+    if (datasetInfo && datasetInfo.template_name) {
+        // Show loading state for distribution chart
+        document.getElementById('overviewChart').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading distribution...</span>
+                </div>
+                <span class="ms-2">Loading distribution data...</span>
+            </div>
+        `;
+        
+        // Load template definitions and distribution chart
+        await loadTemplateDefinitions(datasetInfo.template_name);
+        loadAndRenderDistributionChart(datasetName);
+        
+        // Load statistics table
+        loadAndRenderStatisticsTable(datasetName);
+    }
+
+    // Load table data
+    document.getElementById('dataTable').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
     try {
-        const response = await fetch(`/api/ground_truth/data?dataset=${dataset}&search=${search}&page=${currentPage}&per_page=${perPage}`);
+        const response = await fetch(`/api/ground_truth/data?dataset=${datasetName}&search=${search}&page=${currentPage}&per_page=${perPage}`);
         const result = await response.json();
         
         if (result.success) {
             displayGroundTruthData(result.data, result.pagination);
+        } else {
+             document.getElementById('dataTable').innerHTML = `<p class="text-danger">Error loading table data: ${result.error}</p>`;
         }
     } catch (error) {
         console.error('Error loading ground truth data:', error);
+        document.getElementById('dataTable').innerHTML = `<p class="text-danger">An error occurred while loading data.</p>`;
     }
 }
 
@@ -428,13 +656,13 @@ function displayGroundTruthData(data, pagination) {
     html += '<tbody>';
     
     data.forEach(row => {
-        html += `<tr class="clickable-row" onclick="showSpeciesDetails('${row.binomial_name}')">`;
+        html += `<tr class="clickable-row" data-species="${row.binomial_name}">`;
         html += `<td><strong>${row.binomial_name}</strong></td>`;
         html += `<td>${formatPhenotypeValue(row.gram_staining)}</td>`;
         html += `<td>${formatPhenotypeValue(row.motility)}</td>`;
         html += `<td>${formatPhenotypeValue(row.aerophilicity)}</td>`;
         html += `<td>${formatPhenotypeValue(row.animal_pathogenicity)}</td>`;
-        html += `<td><button class="btn btn-sm btn-info" onclick="event.stopPropagation(); showSpeciesDetails('${row.binomial_name}')">Details</button></td>`;
+        html += `<td><button class="btn btn-sm btn-info species-details-btn" data-species="${row.binomial_name}">Details</button></td>`;
         html += '</tr>';
     });
     
@@ -454,6 +682,26 @@ function displayGroundTruthData(data, pagination) {
     }
     
     container.innerHTML = html;
+    
+    // Add event listeners for the new data-attribute approach
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.clickable-row') && !e.target.closest('button')) {
+            const row = e.target.closest('.clickable-row');
+            const speciesName = row.getAttribute('data-species');
+            if (speciesName) {
+                showSpeciesDetails(speciesName);
+            }
+        }
+        
+        if (e.target.classList.contains('species-details-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const speciesName = e.target.getAttribute('data-species');
+            if (speciesName) {
+                showSpeciesDetails(speciesName);
+            }
+        }
+    });
 }
 
 function formatPhenotypeValue(value) {
@@ -559,6 +807,479 @@ async function deleteDataset(event, datasetName) {
         } catch (err) {
             alert(`An error occurred: ${err}`);
         }
+    }
+}
+
+async function loadTemplateDefinitions(templateName) {
+    try {
+        console.log('[DEBUG] Loading template definitions for:', templateName);
+        const response = await fetch(`/api/template_field_definitions?template=${templateName}`);
+        const result = await response.json();
+        console.log('[DEBUG] Template definitions response:', result);
+        if (result.success) {
+            templateData = result;
+            console.log('[DEBUG] Template data loaded:', templateData);
+        } else {
+            console.error('Failed to load template definitions:', result.error);
+            templateData = null;
+        }
+    } catch (error) {
+        console.error('Error loading template definitions:', error);
+        templateData = null;
+    }
+}
+
+async function loadAndRenderDistributionChart(datasetName) {
+    try {
+        console.log('[DEBUG] Loading distribution for dataset:', datasetName);
+        const response = await fetch(`/api/ground_truth/distribution?dataset_name=${datasetName}`);
+        console.log('[DEBUG] Distribution API response status:', response.status);
+        const result = await response.json();
+        console.log('[DEBUG] Distribution API result:', result);
+
+        if (result.success) {
+            console.log('[DEBUG] Distribution data keys:', Object.keys(result.distribution || {}));
+            renderDistributionChart(result.distribution);
+        } else {
+            console.error('Error loading distribution data:', result.error);
+            document.getElementById('overviewChart').innerHTML = `<p class="text-danger">Could not load overview: ${result.error}</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching distribution data:', error);
+        document.getElementById('overviewChart').innerHTML = `<p class="text-danger">Could not load overview chart.</p>`;
+    }
+}
+
+function renderDistributionChart(distribution) {
+    console.log('[DEBUG] renderDistributionChart called with:', distribution);
+    const container = document.getElementById('overviewChart');
+    if (!distribution || Object.keys(distribution).length === 0) {
+        console.log('[DEBUG] No distribution data - showing empty message');
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                <h6>No distribution data available</h6>
+                <p>This dataset may be empty or the phenotype data is not available.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log('[DEBUG] Distribution has data, calculating total species...');
+    // Calculate total species count
+    const totalSpecies = Object.values(distribution).reduce((max, phenotypeData) => {
+        const phenotypeTotal = Object.values(phenotypeData).reduce((sum, count) => sum + count, 0);
+        return Math.max(max, phenotypeTotal);
+    }, 0);
+    console.log('[DEBUG] Total species calculated:', totalSpecies);
+    
+    let html = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span class="badge bg-primary fs-6">Total Species: ${totalSpecies}</span>
+            </div>
+            <div>
+                <small class="text-muted">Click on bars to see detailed breakdowns</small>
+            </div>
+        </div>
+    `;
+    
+    const phenotypes = {
+        'gram_staining': { name: 'Gram Staining' },
+        'motility': { name: 'Motility' },
+        'aerophilicity': { name: 'Aerophilicity' },
+        'extreme_environment_tolerance': { name: 'Extreme Environment Tolerance' },
+        'biofilm_formation': { name: 'Biofilm Formation' },
+        'animal_pathogenicity': { name: 'Animal Pathogenicity' },
+        'biosafety_level': { name: 'Biosafety Level' },
+        'health_association': { name: 'Health Association' },
+        'host_association': { name: 'Host Association' },
+        'plant_pathogenicity': { name: 'Plant Pathogenicity' },
+        'spore_formation': { name: 'Spore Formation' },
+        'hemolysis': { name: 'Hemolysis' },
+        'cell_shape': { name: 'Cell Shape' }
+    };
+    
+    const sortedPhenotypes = Object.keys(distribution).sort();
+    let hasData = false;
+
+    for (const phenotypeKey of sortedPhenotypes) {
+        if (distribution[phenotypeKey] && Object.keys(distribution[phenotypeKey]).length > 0) {
+            html += renderPhenotypeChart(phenotypeKey, phenotypes[phenotypeKey], distribution[phenotypeKey]);
+            hasData = true;
+        }
+    }
+    
+    if (!hasData) {
+        html += `
+            <div class="text-center text-muted">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h6>No phenotype data found</h6>
+                <p>The selected dataset does not contain valid phenotype information.</p>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function renderPhenotypeChart(phenotypeKey, phenotypeInfo, phenotypeDistribution) {
+    let html = `<div class="phenotype-analysis-container">`;
+    
+    const total = Object.values(phenotypeDistribution).reduce((sum, count) => sum + count, 0);
+    const phenotypeName = phenotypeInfo ? phenotypeInfo.name : phenotypeKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    html += `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="phenotype-header mb-0" style="font-size: 14px; font-weight: 600;">${phenotypeName}</h6>
+            <small class="text-muted">${total} species</small>
+        </div>
+    `;
+
+    html += renderValueDistributionBar(phenotypeDistribution, total, phenotypeKey);
+    
+    // Add detailed breakdown
+    const sortedValues = Object.entries(phenotypeDistribution).sort((a, b) => b[1] - a[1]);
+    html += `<div class="row mt-2">`;
+    
+    sortedValues.forEach(([value, count], index) => {
+        const percentage = (count / total * 100).toFixed(1);
+        const colors = getValueColors(value, phenotypeKey);
+        
+        if (index < 4) { // Show top 4 values
+            html += `
+                <div class="col-6 col-md-3 mb-1">
+                    <small class="d-block">
+                        <span class="phenotype-value" style="background-color: ${colors.background}; color: ${colors.color}; font-size: 10px; padding: 1px 4px; border-radius: 2px;">${value}</span>
+                        <span class="ms-1">${count} (${percentage}%)</span>
+                    </small>
+                </div>
+            `;
+        }
+    });
+    
+    if (sortedValues.length > 4) {
+        html += `
+            <div class="col-12 mt-1">
+                <small class="text-muted">+ ${sortedValues.length - 4} more categories</small>
+            </div>
+        `;
+    }
+    
+    html += `</div></div>`;
+    return html;
+}
+
+function renderValueDistributionBar(distribution, total, phenotypeKey) {
+    if (total === 0) return '';
+    
+    let preferredOrder = [];
+    if (templateData && templateData.value_orderings && templateData.value_orderings[phenotypeKey]) {
+        preferredOrder = templateData.value_orderings[phenotypeKey];
+    }
+    
+    const sortedValues = Object.entries(distribution).sort((a, b) => {
+        const [valueA] = a;
+        const [valueB] = b;
+        
+        if (valueA === 'NA') return 1;
+        if (valueB === 'NA') return -1;
+        
+        const indexA = preferredOrder.indexOf(valueA);
+        const indexB = preferredOrder.indexOf(valueB);
+        
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        
+        return valueA.localeCompare(valueB);
+    });
+    
+    let html = '<div class="single-stacked-bar">';
+    
+    sortedValues.forEach(([value, count]) => {
+        const percentage = (count / total * 100);
+        const colors = getValueColors(value, phenotypeKey);
+        
+        if (percentage > 0) {
+            html += `<div class="bar-segment" style="width: ${percentage}%; background-color: ${colors.background}; color: ${colors.color};" 
+                        title="${value}: ${count} (${percentage.toFixed(1)}%)" 
+                        onclick="showPhenotypeBreakdown('${phenotypeKey}', '${value}', ${count}, ${percentage.toFixed(1)})">`;
+            
+            if (percentage > 10) {
+                html += `<span class="bar-number">${count}</span>`;
+            }
+            
+            html += `</div>`;
+        }
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function getValueColors(value, phenotypeKey) {
+    const defaultColors = { background: '#e2e3e5', color: '#6c757d' };
+    
+    if (value === null || value === 'NA' || value === 'N/A' || value === '') {
+        return defaultColors;
+    }
+    
+    if (templateData && templateData.color_mappings && templateData.color_mappings[phenotypeKey]) {
+        const colorMapping = templateData.color_mappings[phenotypeKey];
+        const lowerValue = String(value).toLowerCase();
+        
+        if (colorMapping[value]) return colorMapping[value];
+        if (colorMapping[lowerValue]) return colorMapping[lowerValue];
+
+        if (lowerValue === 'true' && colorMapping['TRUE']) return colorMapping['TRUE'];
+        if (lowerValue === 'false' && colorMapping['FALSE']) return colorMapping['FALSE'];
+        
+        for (const [mappedValue, colors] of Object.entries(colorMapping)) {
+            if (lowerValue.includes(mappedValue.toLowerCase())) return colors;
+        }
+    }
+    
+    const lowerVal = String(value).toLowerCase();
+    if (lowerVal.includes('positive') || lowerVal === 'true') return { background: '#d4edda', color: '#155724' };
+    if (lowerVal.includes('negative') || lowerVal === 'false') return { background: '#f8d7da', color: '#721c24' };
+
+    return { background: '#f8f9fa', color: '#495057' };
+}
+
+function refreshDistributionChart() {
+    const datasetName = document.getElementById('datasetFilter').value;
+    if (!datasetName) {
+        alert('Please select a dataset first');
+        return;
+    }
+    
+    const datasetInfo = currentDatasets.find(d => d.dataset_name === datasetName);
+    if (datasetInfo && datasetInfo.template_name) {
+        // Show loading state
+        document.getElementById('overviewChart').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Refreshing...</span>
+                </div>
+                <span class="ms-2">Refreshing distribution data...</span>
+            </div>
+        `;
+        
+        // Reload template definitions and distribution chart
+        loadTemplateDefinitions(datasetInfo.template_name).then(() => {
+            loadAndRenderDistributionChart(datasetName);
+        });
+    }
+}
+
+function showPhenotypeBreakdown(phenotypeKey, value, count, percentage) {
+    const phenotypeName = phenotypeKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const datasetName = document.getElementById('datasetFilter').value;
+    
+    // Create a simple alert for now - could be enhanced to a modal
+    alert(`${phenotypeName} - ${value}\n\nCount: ${count} species\nPercentage: ${percentage}%\nDataset: ${datasetName}\n\nClick "Search" with this value to see specific species.`);
+    
+    // Optionally, we could also filter the table to show only species with this value
+    // For now, just log it for future enhancement
+    console.log(`Clicked on ${phenotypeKey}: ${value} (${count} species, ${percentage}%)`);
+}
+
+async function loadAndRenderStatisticsTable(datasetName) {
+    try {
+        console.log('[DEBUG] Loading statistics for dataset:', datasetName);
+        const response = await fetch(`/api/ground_truth/phenotype_statistics?dataset_name=${datasetName}`);
+        console.log('[DEBUG] Statistics API response status:', response.status);
+        const result = await response.json();
+        console.log('[DEBUG] Statistics API result:', result);
+
+        if (result.success) {
+            console.log('[DEBUG] Statistics data loaded with', result.statistics.length, 'phenotypes');
+            renderStatisticsTable(result.statistics, result.total_species, result.dataset_name);
+        } else {
+            console.error('Error loading statistics data:', result.error);
+            document.getElementById('statisticsTable').innerHTML = `<p class="text-danger">Could not load statistics: ${result.error}</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching statistics data:', error);
+        document.getElementById('statisticsTable').innerHTML = `<p class="text-danger">Could not load statistics table.</p>`;
+    }
+}
+
+function renderStatisticsTable(statistics, totalSpecies, datasetName) {
+    console.log('[DEBUG] renderStatisticsTable called with:', statistics.length, 'statistics');
+    const container = document.getElementById('statisticsTable');
+    
+    if (!statistics || statistics.length === 0) {
+        console.log('[DEBUG] No statistics data - showing empty message');
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-table fa-3x mb-3"></i>
+                <h6>No statistics data available</h6>
+                <p>This dataset may be empty or the phenotype data is not available.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h6 class="mb-0">Dataset: <strong>${datasetName}</strong></h6>
+                <small class="text-muted">Total Species: ${totalSpecies}</small>
+            </div>
+        </div>
+    `;
+    
+    // Create the table
+    html += `
+        <div class="table-responsive">
+            <table class="table statistics-table">
+                <thead>
+                    <tr>
+                        <th>Phenotype</th>
+                        <th>Type</th>
+                        <th>Targets</th>
+                        <th>Annotated Species</th>
+                        <th>Annotation %</th>
+                        <th>Value Distribution</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    statistics.forEach(stat => {
+        // Format annotation percentage with color coding
+        let annotationClass = 'annotation-low';
+        if (stat.annotation_fraction >= 80) annotationClass = 'annotation-high';
+        else if (stat.annotation_fraction >= 50) annotationClass = 'annotation-medium';
+        
+        // Format value distribution
+        let distributionHtml = '';
+        const sortedValues = Object.entries(stat.value_distribution).sort((a, b) => b[1].count - a[1].count);
+        
+        sortedValues.forEach(([value, data], index) => {
+            if (index < 3) { // Show top 3 values
+                distributionHtml += `
+                    <span class="distribution-item">
+                        <strong>${value}:</strong> ${data.count} (${data.percentage}%)
+                    </span>
+                `;
+            }
+        });
+        
+        if (sortedValues.length > 3) {
+            distributionHtml += `<span class="text-muted">+${sortedValues.length - 3} more</span>`;
+        }
+        
+        if (!distributionHtml) {
+            distributionHtml = '<span class="text-muted">No data</span>';
+        }
+        
+        html += `
+            <tr>
+                <td>
+                    <div class="phenotype-label">${stat.label}</div>
+                </td>
+                <td>
+                    <span class="phenotype-type">${stat.type}</span>
+                </td>
+                <td>
+                    <small>[${stat.targets.join(', ')}]</small>
+                </td>
+                <td class="text-center">
+                    <strong>${stat.annotated_species}</strong> / ${stat.total_species}
+                    <br>
+                    <small class="text-muted">${stat.missing_species} missing</small>
+                </td>
+                <td class="text-center">
+                    <span class="annotation-percentage ${annotationClass}">
+                        ${stat.annotation_fraction}%
+                    </span>
+                </td>
+                <td>
+                    <div class="value-distribution-summary">
+                        ${distributionHtml}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function exportStatisticsToCSV() {
+    const datasetName = document.getElementById('datasetFilter').value;
+    if (!datasetName) {
+        alert('Please select a dataset first');
+        return;
+    }
+    
+    // Get the statistics data from the API and export it
+    fetch(`/api/ground_truth/phenotype_statistics?dataset_name=${datasetName}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.statistics) {
+                const csv = generateStatisticsCSV(result.statistics, result.dataset_name, result.total_species);
+                downloadCSV(csv, `${datasetName}_phenotype_statistics.csv`);
+            } else {
+                alert('Error: Could not export statistics data');
+            }
+        })
+        .catch(error => {
+            console.error('Error exporting statistics:', error);
+            alert('Error exporting statistics data');
+        });
+}
+
+function generateStatisticsCSV(statistics, datasetName, totalSpecies) {
+    let csv = 'Dataset,Total_Species,Phenotype,Type,Targets,Annotated_Species,Missing_Species,Annotation_Fraction_Percent,Value_Distribution\n';
+    
+    statistics.forEach(stat => {
+        const targets = `"[${stat.targets.join(', ')}]"`;
+        
+        // Format value distribution for CSV
+        const distribution = Object.entries(stat.value_distribution)
+            .map(([value, data]) => `${value}: ${data.count} (${data.percentage}%)`)
+            .join('; ');
+        
+        const row = [
+            datasetName,
+            totalSpecies,
+            stat.label,
+            stat.type,
+            targets,
+            stat.annotated_species,
+            stat.missing_species,
+            stat.annotation_fraction,
+            `"${distribution}"`
+        ].join(',');
+        
+        csv += row + '\n';
+    });
+    
+    return csv;
+}
+
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 }
 </script>
