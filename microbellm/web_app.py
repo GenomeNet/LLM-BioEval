@@ -3905,6 +3905,10 @@ def api_get_species_ground_truth(binomial_name):
 def model_accuracy():
     return render_template('model_accuracy.html')
 
+@app.route('/accuracy_by_knowledge')
+def accuracy_by_knowledge():
+    return render_template('accuracy_by_knowledge.html')
+
 def get_all_predictions():
     """Helper function to get all predictions from the database."""
     conn = sqlite3.connect(db_path)
@@ -4012,6 +4016,261 @@ def api_calculate_model_accuracy():
             'success': False,
             'error': str(e)
         })
+
+@app.route('/api/available_template_runs')
+def api_available_template_runs():
+    """Get available template runs from the results table."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get unique combinations of user_template, system_template with counts
+        cursor.execute('''
+            SELECT user_template, system_template, 
+                   COUNT(DISTINCT model) as model_count,
+                   COUNT(DISTINCT binomial_name) as species_count,
+                   COUNT(*) as total_results
+            FROM results 
+            WHERE status = "completed"
+            GROUP BY user_template, system_template
+            ORDER BY user_template, system_template
+        ''')
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        all_templates = []
+        
+        for row in results:
+            user_template, system_template, model_count, species_count, total_results = row
+            
+            # Extract template name for display
+            template_name = user_template.split('/')[-1].replace('.txt', '') if '/' in user_template else user_template
+            
+            template_info = {
+                'key': f"{system_template}|{user_template}",  # Unique key for backend lookup
+                'display_name': f"{template_name} ({model_count} models, {species_count} species)",
+                'template_name': template_name,
+                'user_template': user_template,
+                'system_template': system_template,
+                'models': model_count,
+                'species_count': species_count,
+                'total_results': total_results
+            }
+            
+            all_templates.append(template_info)
+        
+        return jsonify({
+            'success': True,
+            'all_templates': all_templates
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/accuracy_by_knowledge', methods=['POST'])
+def api_accuracy_by_knowledge():
+    """Calculate accuracy metrics stratified by knowledge group."""
+    try:
+        dataset_name = request.json.get('dataset_name')
+        phenotype_template_key = request.json.get('phenotype_template_key')
+        knowledge_template_key = request.json.get('knowledge_template_key')
+        
+        if not all([dataset_name, phenotype_template_key, knowledge_template_key]):
+            return jsonify({'success': False, 'error': 'Missing required parameters'})
+        
+        # Parse template keys
+        phenotype_system_template, phenotype_user_template = phenotype_template_key.split('|')
+        knowledge_system_template, knowledge_user_template = knowledge_template_key.split('|')
+        
+        # Get ground truth data
+        ground_truth_data = get_ground_truth_data(dataset_name=dataset_name)
+        ground_truth_map = {item['binomial_name'].lower(): item for item in ground_truth_data}
+        
+        # Get prediction data from the selected phenotype template run
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM results 
+            WHERE status = "completed" 
+            AND system_template = ? 
+            AND user_template = ?
+        ''', (phenotype_system_template, phenotype_user_template))
+        
+        phenotype_rows = cursor.fetchall()
+        
+        # Get knowledge data from the selected knowledge template run
+        cursor.execute('''
+            SELECT model, binomial_name, knowledge_group FROM results 
+            WHERE status = "completed" 
+            AND system_template = ? 
+            AND user_template = ?
+            AND knowledge_group IS NOT NULL
+        ''', (knowledge_system_template, knowledge_user_template))
+        
+        knowledge_rows = cursor.fetchall()
+        conn.close()
+        
+        # Organize predictions by model
+        predictions_by_model = {}
+        for row in phenotype_rows:
+            model = row['model']
+            species = row['binomial_name'].lower()
+            if model not in predictions_by_model:
+                predictions_by_model[model] = {}
+            predictions_by_model[model][species] = dict(row)
+        
+        # Organize knowledge data by model
+        knowledge_by_model = {}
+        for row in knowledge_rows:
+            model = row['model']
+            species = row['binomial_name'].lower()
+            knowledge_group = row['knowledge_group']
+            
+            if model not in knowledge_by_model:
+                knowledge_by_model[model] = {}
+            knowledge_by_model[model][species] = knowledge_group
+        
+        # Get template name for field definitions
+        phenotype_template_name = phenotype_user_template.split('/')[-1].replace('.txt', '') if '/' in phenotype_user_template else phenotype_user_template
+        
+        # Calculate metrics stratified by knowledge group
+        metrics = calculate_accuracy_by_knowledge_groups(
+            predictions_by_model, 
+            ground_truth_map, 
+            knowledge_by_model,
+            phenotype_template_name
+        )
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+def calculate_accuracy_by_knowledge_groups(predictions_by_model, ground_truth_map, knowledge_by_model, template_name):
+    """Calculate accuracy metrics grouped by knowledge level."""
+    # Get field definitions for the template
+    try:
+        from microbellm.template_config import find_validation_config_for_template, TemplateValidator
+        
+        # Construct the user template path
+        user_template_path = f"templates/user/{template_name}.txt"
+        config_path = find_validation_config_for_template(user_template_path)
+        
+        if config_path:
+            validator = TemplateValidator(config_path)
+            if validator.config:
+                field_definitions = validator.config.get('field_definitions', {})
+                phenotype_fields = [field for field, defn in field_definitions.items() if defn.get('type') != 'array']
+            else:
+                raise Exception("Could not load validator config")
+        else:
+            raise Exception("No config found")
+    except:
+        # Fallback to common phenotype fields
+        phenotype_fields = [
+            'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+            'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+            'health_association', 'host_association', 'plant_pathogenicity',
+            'spore_formation', 'hemolysis', 'cell_shape'
+        ]
+    
+    model_metrics = {}
+    knowledge_groups = ['limited', 'moderate', 'extensive', 'overall']
+    
+    for model, model_predictions in predictions_by_model.items():
+        if model not in knowledge_by_model:
+            continue
+            
+        model_metrics[model] = {}
+        
+        # Initialize metrics for each knowledge group and phenotype
+        for group in knowledge_groups:
+            model_metrics[model][group] = {}
+            for field in phenotype_fields:
+                model_metrics[model][group][field] = {
+                    'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0,
+                    'correct': 0, 'incorrect': 0, 'missing': 0, 'total': 0
+                }
+        
+        # Process each species prediction
+        for species, prediction in model_predictions.items():
+            if species not in ground_truth_map or species not in knowledge_by_model[model]:
+                continue
+                
+            ground_truth = ground_truth_map[species]
+            knowledge_group = knowledge_by_model[model][species].lower()
+            
+            if knowledge_group not in ['limited', 'moderate', 'extensive']:
+                continue
+            
+            # Compare each phenotype field
+            for field in phenotype_fields:
+                if field not in prediction or field not in ground_truth:
+                    continue
+                    
+                pred_value = normalize_value(prediction[field])
+                truth_value = normalize_value(ground_truth[field])
+                
+                # Update metrics for specific knowledge group and overall
+                for group in [knowledge_group, 'overall']:
+                    metrics = model_metrics[model][group][field]
+                    metrics['total'] += 1
+                    
+                    if truth_value == 'NA' or truth_value == '':
+                        continue  # Skip ground truth NA values
+                    elif pred_value == 'NA' or pred_value == '':
+                        metrics['missing'] += 1
+                        metrics['fn'] += 1
+                    elif pred_value == truth_value:
+                        metrics['correct'] += 1
+                        metrics['tp'] += 1
+                    else:
+                        metrics['incorrect'] += 1
+                        metrics['fp'] += 1
+                        metrics['fn'] += 1
+    
+    # Calculate derived metrics
+    for model in model_metrics:
+        for group in knowledge_groups:
+            for field in phenotype_fields:
+                metrics = model_metrics[model][group][field]
+                
+                # Calculate accuracy
+                total = metrics['correct'] + metrics['incorrect'] + metrics['missing']
+                metrics['accuracy'] = (metrics['correct'] / total * 100) if total > 0 else 0
+                
+                # Calculate precision, recall, F1
+                tp_fp = metrics['tp'] + metrics['fp']
+                tp_fn = metrics['tp'] + metrics['fn']
+                
+                metrics['precision'] = (metrics['tp'] / tp_fp) if tp_fp > 0 else 0
+                metrics['recall'] = (metrics['tp'] / tp_fn) if tp_fn > 0 else 0
+                
+                precision_recall_sum = metrics['precision'] + metrics['recall']
+                metrics['f1'] = (2 * metrics['precision'] * metrics['recall'] / precision_recall_sum) if precision_recall_sum > 0 else 0
+                
+                # Calculate MCC
+                tp, tn, fp, fn = metrics['tp'], metrics['tn'], metrics['fp'], metrics['fn']
+                numerator = (tp * tn) - (fp * fn)
+                denominator = ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)) ** 0.5
+                metrics['mcc'] = numerator / denominator if denominator > 0 else 0
+    
+    return model_metrics
 
 @app.route('/api/ground_truth/datasets/<dataset_name>', methods=['DELETE'])
 def api_delete_ground_truth_dataset(dataset_name):

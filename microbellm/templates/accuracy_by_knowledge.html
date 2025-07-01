@@ -1,0 +1,1157 @@
+{% extends "base.html" %}
+
+{% block title %}Accuracy by Knowledge Group - MicrobeBench{% endblock %}
+
+{% block content %}
+<h1>Accuracy by Knowledge Group Analysis</h1>
+
+<div class="explanation-section">
+    <div class="explanation-grid">
+        <div class="explanation-box purpose-box">
+            <h3><i class="fas fa-bullseye"></i> Purpose</h3>
+            <p>This analysis examines how well models perform when predicting phenotypes for species they claim different levels of knowledge about. We stratify accuracy metrics by the model's self-reported knowledge level:</p>
+            <ul class="purpose-list">
+                <li><strong>Limited Knowledge:</strong> Species the model claims to know little about</li>
+                <li><strong>Moderate Knowledge:</strong> Species with moderate familiarity</li>
+                <li><strong>Extensive Knowledge:</strong> Species the model is most confident about</li>
+            </ul>
+            <p class="note"><em>Note: This helps identify whether models perform better on species they're more confident about, indicating good calibration.</em></p>
+        </div>
+        
+        <div class="explanation-box interpretation-box">
+            <h3><i class="fas fa-chart-bar"></i> How to Interpret Results</h3>
+            
+            <div class="interpretation-guide">
+                <h4>What to Look For:</h4>
+                <div class="interpretation-row good">
+                    <span class="interpretation-icon">✓</span>
+                    <span class="interpretation-label">Well-Calibrated Model</span>
+                    <span class="interpretation-desc">Higher accuracy for "Extensive" knowledge species</span>
+                </div>
+                
+                <div class="interpretation-row moderate">
+                    <span class="interpretation-icon">~</span>
+                    <span class="interpretation-label">Overconfident Model</span>
+                    <span class="interpretation-desc">Similar accuracy across all knowledge levels</span>
+                </div>
+                
+                <div class="interpretation-row poor">
+                    <span class="interpretation-icon">✗</span>
+                    <span class="interpretation-label">Poorly Calibrated</span>
+                    <span class="interpretation-desc">Better performance on "Limited" knowledge species</span>
+                </div>
+            </div>
+            
+            <div class="calibration-note">
+                <strong>Ideal Pattern:</strong> Extensive > Moderate > Limited knowledge accuracy, indicating the model correctly assesses its own knowledge limitations.
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="p-3" style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label for="groundTruthDataset">Ground Truth Dataset</label>
+                    <select class="form-control" id="groundTruthDataset">
+                        <option value="">Loading datasets...</option>
+                    </select>
+                    <small class="text-muted mt-1 d-block" id="datasetInfo"></small>
+                </div>
+                <div class="col-md-3">
+                    <label for="phenotypeTemplate">Phenotype Template Run</label>
+                    <select class="form-control" id="phenotypeTemplate">
+                        <option value="">Loading templates...</option>
+                    </select>
+                    <small class="text-muted mt-1 d-block" id="phenotypeTemplateInfo"></small>
+                </div>
+                <div class="col-md-3">
+                    <label for="knowledgeTemplate">Knowledge Template Run</label>
+                    <select class="form-control" id="knowledgeTemplate">
+                        <option value="">Loading templates...</option>
+                    </select>
+                    <small class="text-muted mt-1 d-block" id="knowledgeTemplateInfo"></small>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary btn-block" onclick="analyzeAccuracyByKnowledge()" id="analyzeBtn" disabled>
+                        <i class="fas fa-chart-line"></i> Analyze Accuracy by Knowledge
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="analysisResults" style="display: none;">
+    <h5 class="mb-3"><i class="fas fa-layer-group"></i> Performance by Knowledge Level</h5>
+    <div id="overallSummary" class="mb-4"></div>
+    
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-microscope"></i> Detailed Metrics by Model and Knowledge Group</h5>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted mb-3 d-block"><i class="fas fa-info-circle"></i> Higher accuracy for "Extensive" knowledge species indicates good model calibration.</small>
+                    <div id="detailedAccuracy"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-balance-scale"></i> Calibration Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div id="calibrationAnalysis"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tooltip container -->
+<div id="metricTooltip" class="metric-tooltip" style="display: none;">
+    <div class="metric-tooltip-content">
+        <div class="metric-tooltip-header"></div>
+        <div class="metric-tooltip-body"></div>
+    </div>
+</div>
+
+<div style="height: 600px;"></div>
+
+<style>
+/* Explanation Section Styles (matching other pages) */
+.explanation-section {
+    margin-bottom: 30px;
+}
+
+.explanation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 1024px) {
+    .explanation-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.explanation-box {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.explanation-box h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.explanation-box h3 i {
+    font-size: 20px;
+    opacity: 0.7;
+}
+
+.purpose-box {
+    background: #f0f7ff;
+    border-color: #b3d9ff;
+}
+
+.purpose-box h3 {
+    color: #0056b3;
+}
+
+.interpretation-box {
+    background: #f8f9fa;
+}
+
+.explanation-box p {
+    margin: 0 0 10px 0;
+    line-height: 1.6;
+    color: #495057;
+    font-size: 14px;
+}
+
+.purpose-list {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.purpose-list li {
+    margin-bottom: 8px;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.note {
+    margin-top: 15px;
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.interpretation-guide {
+    margin: 15px 0;
+}
+
+.interpretation-guide h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.interpretation-row {
+    display: grid;
+    grid-template-columns: 30px 150px 1fr;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    gap: 15px;
+    font-size: 13px;
+}
+
+.interpretation-row.good {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.interpretation-row.moderate {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+}
+
+.interpretation-row.poor {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+}
+
+.interpretation-icon {
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+}
+
+.interpretation-label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.interpretation-desc {
+    color: #495057;
+    font-style: italic;
+}
+
+.calibration-note {
+    margin-top: 20px;
+    padding: 15px;
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #0c5460;
+}
+
+/* Knowledge Group Styling */
+.knowledge-limited {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.knowledge-moderate {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.knowledge-extensive {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.knowledge-overall {
+    background-color: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+/* Knowledge group table styling */
+.knowledge-group-table {
+    font-size: 13px;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.knowledge-group-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    padding: 8px 6px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+    font-size: 11px;
+}
+
+.knowledge-group-table td {
+    padding: 4px 6px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    font-size: 11px;
+}
+
+.model-name-cell {
+    font-weight: 600;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    background: #f8f9fa;
+    text-align: left;
+    padding-left: 10px;
+    border-left: 3px solid #007bff;
+}
+
+.phenotype-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    height: 120px;
+    vertical-align: bottom;
+    padding: 5px 3px;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.metric-cell {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.metric-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+
+.metric-value {
+    font-weight: 600;
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.calibration-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.calibration-table th {
+    background-color: #f8f9fa;
+    padding: 8px 10px;
+    text-align: left;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.calibration-table td {
+    padding: 6px 10px;
+    border: 1px solid #e9ecef;
+}
+
+.calibration-score {
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.calibration-excellent {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.calibration-good {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.calibration-moderate {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.calibration-poor {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Performance color classes */
+.excellent {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.good {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.moderate {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.poor {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.na-value {
+    background-color: #e2e3e5;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Summary statistics */
+.analysis-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-card.positive {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.stat-card.neutral {
+    border-color: #6c757d;
+    background-color: #f8f9fa;
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.model-name {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #495057;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+/* Enhanced Tooltip styling */
+.metric-tooltip {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.2));
+}
+
+.metric-tooltip-content {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    max-width: 400px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.metric-tooltip-header {
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+    color: #2c3e50;
+}
+
+.metric-tooltip-body {
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.tooltip-metric {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding: 2px 0;
+}
+
+.tooltip-metric-name {
+    color: #6c757d;
+}
+
+.tooltip-metric-value {
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* Loading animation */
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e9ecef;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global variables
+let groundTruthDatasets = [];
+let currentMetrics = null;
+let fieldDefinitions = {};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadGroundTruthDatasets();
+    loadAvailableTemplates();
+});
+
+async function loadGroundTruthDatasets() {
+    try {
+        const response = await fetch('/api/ground_truth/datasets');
+        const result = await response.json();
+        
+        if (result.success) {
+            groundTruthDatasets = result.datasets;
+            const select = document.getElementById('groundTruthDataset');
+            
+            if (result.datasets.length === 0) {
+                select.innerHTML = '<option value="">No ground truth datasets available</option>';
+                document.getElementById('datasetInfo').innerHTML = 
+                    '<i class="fas fa-info-circle"></i> Please import ground truth data first.';
+            } else {
+                let html = '<option value="">Select dataset...</option>';
+                result.datasets.forEach(dataset => {
+                    html += `<option value="${dataset.dataset_name}" 
+                        data-template="${dataset.template_name}" 
+                        data-species-count="${dataset.species_count}">
+                        ${dataset.dataset_name}
+                    </option>`;
+                });
+                
+                select.innerHTML = html;
+                updateAnalyzeButtonState();
+            }
+            
+            // Add event listener for dataset selection
+            select.addEventListener('change', function() {
+                if (this.value) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const speciesCount = selectedOption.getAttribute('data-species-count');
+                    const templateName = selectedOption.getAttribute('data-template');
+                    document.getElementById('datasetInfo').innerHTML = 
+                        `<i class="fas fa-dna"></i> ${speciesCount} species | ` +
+                        `<i class="fas fa-file-alt"></i> Template: ${templateName}`;
+                } else {
+                    document.getElementById('datasetInfo').textContent = '';
+                }
+                updateAnalyzeButtonState();
+            });
+
+            if (result.datasets.length === 1) {
+                select.value = result.datasets[0].dataset_name;
+                select.dispatchEvent(new Event('change'));
+            }
+        }
+    } catch (error) {
+        console.error('Error loading datasets:', error);
+        document.getElementById('groundTruthDataset').innerHTML = 
+            '<option value="">Error loading datasets</option>';
+    }
+}
+
+async function loadAvailableTemplates() {
+    try {
+        // Load available templates from results data
+        const response = await fetch('/api/available_template_runs');
+        const result = await response.json();
+        
+        if (!result.success) {
+            document.getElementById('phenotypeTemplate').innerHTML = '<option value="">Error loading templates</option>';
+            document.getElementById('knowledgeTemplate').innerHTML = '<option value="">Error loading templates</option>';
+            return;
+        }
+        
+        // Load both dropdowns with all available templates
+        const phenotypeSelect = document.getElementById('phenotypeTemplate');
+        const knowledgeSelect = document.getElementById('knowledgeTemplate');
+        
+        if (result.all_templates.length === 0) {
+            phenotypeSelect.innerHTML = '<option value="">No templates available</option>';
+            knowledgeSelect.innerHTML = '<option value="">No templates available</option>';
+            document.getElementById('phenotypeTemplateInfo').innerHTML = 
+                '<i class="fas fa-info-circle"></i> Please run predictions first.';
+            document.getElementById('knowledgeTemplateInfo').innerHTML = 
+                '<i class="fas fa-info-circle"></i> Please run predictions first.';
+        } else {
+            let phenotypeHtml = '<option value="">Select phenotype template...</option>';
+            let knowledgeHtml = '<option value="">Select knowledge template...</option>';
+            
+            result.all_templates.forEach(template => {
+                const option = `<option value="${template.key}">${template.display_name}</option>`;
+                phenotypeHtml += option;
+                knowledgeHtml += option;
+            });
+            
+            phenotypeSelect.innerHTML = phenotypeHtml;
+            knowledgeSelect.innerHTML = knowledgeHtml;
+        }
+        
+        // Add event listeners
+        phenotypeSelect.addEventListener('change', function() {
+            if (this.value) {
+                const selectedTemplate = result.all_templates.find(t => t.key === this.value);
+                document.getElementById('phenotypeTemplateInfo').innerHTML = 
+                    `<i class="fas fa-microscope"></i> ${selectedTemplate.models} models, ${selectedTemplate.species_count} species`;
+            } else {
+                document.getElementById('phenotypeTemplateInfo').textContent = '';
+            }
+            updateAnalyzeButtonState();
+        });
+        
+        knowledgeSelect.addEventListener('change', function() {
+            if (this.value) {
+                const selectedTemplate = result.all_templates.find(t => t.key === this.value);
+                document.getElementById('knowledgeTemplateInfo').innerHTML = 
+                    `<i class="fas fa-brain"></i> ${selectedTemplate.models} models, ${selectedTemplate.species_count} species`;
+            } else {
+                document.getElementById('knowledgeTemplateInfo').textContent = '';
+            }
+            updateAnalyzeButtonState();
+        });
+
+        // Auto-select templates with "phenotype" and "knowledge" in their names if available
+        const phenotypeTemplate = result.all_templates.find(t => t.template_name.toLowerCase().includes('phenotype'));
+        const knowledgeTemplate = result.all_templates.find(t => t.template_name.toLowerCase().includes('knowledge'));
+        
+        if (phenotypeTemplate) {
+            phenotypeSelect.value = phenotypeTemplate.key;
+            phenotypeSelect.dispatchEvent(new Event('change'));
+        }
+        
+        if (knowledgeTemplate) {
+            knowledgeSelect.value = knowledgeTemplate.key;
+            knowledgeSelect.dispatchEvent(new Event('change'));
+        }
+        
+        updateAnalyzeButtonState();
+        
+    } catch (error) {
+        console.error('Error loading templates:', error);
+        document.getElementById('phenotypeTemplate').innerHTML = '<option value="">Error loading templates</option>';
+        document.getElementById('knowledgeTemplate').innerHTML = '<option value="">Error loading templates</option>';
+    }
+}
+
+function updateAnalyzeButtonState() {
+    const datasetSelect = document.getElementById('groundTruthDataset');
+    const phenotypeSelect = document.getElementById('phenotypeTemplate');
+    const knowledgeSelect = document.getElementById('knowledgeTemplate');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    
+    const hasDataset = datasetSelect.value !== '';
+    const hasPhenotypeTemplate = phenotypeSelect.value !== '';
+    const hasKnowledgeTemplate = knowledgeSelect.value !== '';
+    
+    analyzeBtn.disabled = !(hasDataset && hasPhenotypeTemplate && hasKnowledgeTemplate);
+}
+
+async function analyzeAccuracyByKnowledge() {
+    const datasetSelect = document.getElementById('groundTruthDataset');
+    const phenotypeTemplateSelect = document.getElementById('phenotypeTemplate');
+    const knowledgeTemplateSelect = document.getElementById('knowledgeTemplate');
+    
+    const datasetName = datasetSelect.value;
+    const phenotypeTemplateKey = phenotypeTemplateSelect.value;
+    const knowledgeTemplateKey = knowledgeTemplateSelect.value;
+    
+    if (!datasetName) {
+        alert('Please select a ground truth dataset');
+        return;
+    }
+
+    if (!phenotypeTemplateKey) {
+        alert('Please select a phenotype template run');
+        return;
+    }
+
+    if (!knowledgeTemplateKey) {
+        alert('Please select a knowledge template run');
+        return;
+    }
+    
+    // Show loading state
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    
+    try {
+        // Call the backend API to get the stratified metrics
+        const response = await fetch('/api/accuracy_by_knowledge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                dataset_name: datasetName,
+                phenotype_template_key: phenotypeTemplateKey,
+                knowledge_template_key: knowledgeTemplateKey
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to calculate accuracy metrics');
+        }
+
+        currentMetrics = result.metrics;
+        
+        if (Object.keys(currentMetrics).length === 0) {
+            alert('No matching species found between predictions, ground truth, and knowledge data.');
+            return;
+        }
+
+        // Extract template name from the ground truth dataset for field definitions
+        const selectedOption = datasetSelect.options[datasetSelect.selectedIndex];
+        const phenotypeTemplateName = selectedOption.getAttribute('data-template');
+        
+        // Load field definitions for display
+        const templateResponse = await fetch(`/api/template_field_definitions?template=${phenotypeTemplateName}`);
+        const templateResult = await templateResponse.json();
+        if (templateResult.success) {
+            fieldDefinitions = templateResult.field_definitions;
+        } else {
+            // Fallback field definitions
+            fieldDefinitions = {
+                'gram_staining': { type: 'string' },
+                'motility': { type: 'string' },
+                'aerophilicity': { type: 'string' },
+                'extreme_environment_tolerance': { type: 'string' },
+                'biofilm_formation': { type: 'string' },
+                'animal_pathogenicity': { type: 'string' },
+                'biosafety_level': { type: 'string' },
+                'health_association': { type: 'string' },
+                'host_association': { type: 'string' },
+                'plant_pathogenicity': { type: 'string' },
+                'spore_formation': { type: 'string' },
+                'hemolysis': { type: 'string' },
+                'cell_shape': { type: 'string' }
+            };
+        }
+        
+        displayAccuracyByKnowledgeResults(currentMetrics, fieldDefinitions);
+        document.getElementById('analysisResults').style.display = 'block';
+        
+    } catch (error) {
+        alert('Error analyzing accuracy by knowledge: ' + error.message);
+    } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-chart-line"></i> Analyze Accuracy by Knowledge';
+    }
+}
+
+
+
+function displayAccuracyByKnowledgeResults(metrics, fieldDefinitions) {
+    displayOverallSummary(metrics);
+    displayDetailedMetrics(metrics, fieldDefinitions);
+    displayCalibrationAnalysis(metrics, fieldDefinitions);
+}
+
+function displayOverallSummary(metrics) {
+    const models = Object.keys(metrics);
+    
+    // Calculate some interesting statistics
+    const avgAccuracyByKnowledge = {};
+    const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+    
+    knowledgeGroups.forEach(group => {
+        avgAccuracyByKnowledge[group] = [];
+    });
+    
+    models.forEach(model => {
+        knowledgeGroups.forEach(group => {
+            const groupMetrics = metrics[model][group];
+            if (groupMetrics) {
+                const phenotypeFields = Object.keys(groupMetrics);
+                const accuracies = phenotypeFields
+                    .map(field => groupMetrics[field].accuracy)
+                    .filter(acc => !isNaN(acc) && acc > 0);
+                
+                if (accuracies.length > 0) {
+                    const avgAcc = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+                    avgAccuracyByKnowledge[group].push(avgAcc);
+                }
+            }
+        });
+    });
+    
+    // Find best calibrated model (highest difference between extensive and limited)
+    let bestCalibration = -Infinity;
+    let bestCalibratedModel = null;
+    
+    models.forEach(model => {
+        const extensiveAvg = calculateAverageAccuracy(metrics[model]['extensive']);
+        const limitedAvg = calculateAverageAccuracy(metrics[model]['limited']);
+        const calibration = extensiveAvg - limitedAvg;
+        
+        if (calibration > bestCalibration) {
+            bestCalibration = calibration;
+            bestCalibratedModel = model;
+        }
+    });
+    
+    let html = '<div class="analysis-stats">';
+    
+    // Models Analyzed card
+    html += `<div class="stat-card neutral">`;
+    html += `<div class="stat-number">${models.length}</div>`;
+    html += `<div class="stat-label">Models Analyzed</div>`;
+    html += `</div>`;
+    
+    // Knowledge Groups card
+    html += `<div class="stat-card neutral">`;
+    html += `<div class="stat-number">3</div>`;
+    html += `<div class="stat-label">Knowledge Groups</div>`;
+    html += `</div>`;
+    
+    // Best Calibrated Model card
+    if (bestCalibratedModel) {
+        html += `<div class="stat-card positive">`;
+        html += `<div class="stat-number model-name">${formatModelName(bestCalibratedModel)}</div>`;
+        html += `<div class="stat-label">Best Calibrated (+${bestCalibration.toFixed(1)}% diff)</div>`;
+        html += `</div>`;
+    }
+    
+    // Average Extensive Knowledge Accuracy
+    if (avgAccuracyByKnowledge['extensive'].length > 0) {
+        const avgExtensive = avgAccuracyByKnowledge['extensive'].reduce((a, b) => a + b, 0) / avgAccuracyByKnowledge['extensive'].length;
+        html += `<div class="stat-card neutral">`;
+        html += `<div class="stat-number">${avgExtensive.toFixed(1)}%</div>`;
+        html += `<div class="stat-label">Avg. Extensive Knowledge Accuracy</div>`;
+        html += `</div>`;
+    }
+
+    html += '</div>';
+    
+    document.getElementById('overallSummary').innerHTML = html;
+}
+
+function calculateAverageAccuracy(groupMetrics) {
+    if (!groupMetrics) return 0;
+    
+    const accuracies = Object.values(groupMetrics)
+        .map(field => field.accuracy)
+        .filter(acc => !isNaN(acc) && acc > 0);
+    
+    return accuracies.length > 0 ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length : 0;
+}
+
+function displayDetailedMetrics(metrics, fieldDefinitions) {
+    const models = Object.keys(metrics);
+    const phenotypeFields = Object.keys(fieldDefinitions).filter(field => 
+        fieldDefinitions[field]?.type !== 'array'
+    );
+    const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+    
+    // Sort models by overall calibration (extensive - limited accuracy difference)
+    const sortedModels = models.sort((a, b) => {
+        const calibrationA = calculateAverageAccuracy(metrics[a]['extensive']) - calculateAverageAccuracy(metrics[a]['limited']);
+        const calibrationB = calculateAverageAccuracy(metrics[b]['extensive']) - calculateAverageAccuracy(metrics[b]['limited']);
+        return calibrationB - calibrationA;
+    });
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="knowledge-group-table">';
+    
+    // Header row
+    html += '<thead><tr>';
+    html += '<th rowspan="2" style="min-width: 200px;">Model</th>';
+    
+    // Phenotype headers with knowledge group sub-headers
+    phenotypeFields.forEach(phenotype => {
+        const phenotypeName = phenotype.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        html += `<th colspan="3" class="phenotype-header">${phenotypeName}</th>`;
+    });
+    
+    html += '</tr><tr>';
+    
+    // Knowledge group sub-headers for each phenotype
+    phenotypeFields.forEach(phenotype => {
+        knowledgeGroups.forEach(group => {
+            const groupLabel = group.charAt(0).toUpperCase() + group.slice(1);
+            const groupClass = `knowledge-${group}`;
+            html += `<th class="${groupClass}" style="font-size: 10px; padding: 2px;">${groupLabel.charAt(0)}</th>`;
+        });
+    });
+    
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    // Display each model's metrics
+    sortedModels.forEach(modelName => {
+        const modelData = metrics[modelName];
+        
+        html += `<tr>`;
+        html += `<td class="model-name-cell">${formatModelName(modelName)}</td>`;
+        
+        // Per-phenotype metrics with knowledge group breakdown
+        phenotypeFields.forEach(phenotype => {
+            knowledgeGroups.forEach(group => {
+                const fieldData = modelData[group][phenotype];
+                const value = fieldData.accuracy;
+                const groupClass = `knowledge-${group}`;
+                
+                let cellClass = `metric-cell ${groupClass}`;
+                if (!isNaN(value) && value > 0) {
+                    cellClass += ` ${getPerformanceClass(value)}`;
+                }
+                
+                html += `<td class="${cellClass}"
+                            onmouseover="showMetricTooltip(event, '${modelName}', '${phenotype}', '${group}', ${JSON.stringify(fieldData).replace(/"/g, '&quot;')})"
+                            onmouseout="hideMetricTooltip()">
+                            <span class="metric-value">
+                                ${!isNaN(value) && value > 0 ? value.toFixed(1) + '%' : 'N/A'}
+                            </span>
+                         </td>`;
+            });
+        });
+        
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    html += '</div>';
+    
+    document.getElementById('detailedAccuracy').innerHTML = html;
+}
+
+function displayCalibrationAnalysis(metrics, fieldDefinitions) {
+    const models = Object.keys(metrics);
+    
+    let html = '<table class="calibration-table">';
+    html += '<thead><tr>';
+    html += '<th>Model</th>';
+    html += '<th>Limited Knowledge</th>';
+    html += '<th>Moderate Knowledge</th>';
+    html += '<th>Extensive Knowledge</th>';
+    html += '<th>Calibration Score</th>';
+    html += '<th>Assessment</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    // Calculate calibration for each model
+    const calibrationScores = [];
+    
+    models.forEach(model => {
+        const limitedAvg = calculateAverageAccuracy(metrics[model]['limited']);
+        const moderateAvg = calculateAverageAccuracy(metrics[model]['moderate']);
+        const extensiveAvg = calculateAverageAccuracy(metrics[model]['extensive']);
+        
+        // Calibration score: how much better extensive is than limited
+        const calibrationScore = extensiveAvg - limitedAvg;
+        calibrationScores.push({ model, score: calibrationScore, limitedAvg, moderateAvg, extensiveAvg });
+    });
+    
+    // Sort by calibration score
+    calibrationScores.sort((a, b) => b.score - a.score);
+    
+    calibrationScores.forEach(({ model, score, limitedAvg, moderateAvg, extensiveAvg }) => {
+        const calibrationClass = getCalibrationClass(score);
+        const assessment = getCalibrationAssessment(score);
+        
+        html += '<tr>';
+        html += `<td><span class="model-name">${formatModelName(model)}</span></td>`;
+        html += `<td>${limitedAvg.toFixed(1)}%</td>`;
+        html += `<td>${moderateAvg.toFixed(1)}%</td>`;
+        html += `<td>${extensiveAvg.toFixed(1)}%</td>`;
+        html += `<td><span class="calibration-score ${calibrationClass}">${score >= 0 ? '+' : ''}${score.toFixed(1)}%</span></td>`;
+        html += `<td>${assessment}</td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    
+    document.getElementById('calibrationAnalysis').innerHTML = html;
+}
+
+function getCalibrationClass(score) {
+    if (score >= 15) return 'calibration-excellent';
+    if (score >= 5) return 'calibration-good';
+    if (score >= -5) return 'calibration-moderate';
+    return 'calibration-poor';
+}
+
+function getCalibrationAssessment(score) {
+    if (score >= 15) return 'Excellent calibration';
+    if (score >= 5) return 'Good calibration';
+    if (score >= -5) return 'Moderate calibration';
+    return 'Poor calibration - may be overconfident';
+}
+
+function getPerformanceClass(value) {
+    if (value >= 90) return 'excellent';
+    if (value >= 70) return 'good';
+    if (value >= 50) return 'moderate';
+    return 'poor';
+}
+
+function showMetricTooltip(event, modelName, phenotype, knowledgeGroup, data) {
+    const tooltip = document.getElementById('metricTooltip');
+    const header = tooltip.querySelector('.metric-tooltip-header');
+    const body = tooltip.querySelector('.metric-tooltip-body');
+    
+    // Set header
+    header.textContent = `${formatModelName(modelName)} - ${phenotype.replace(/_/g, ' ')} (${knowledgeGroup} knowledge)`;
+    
+    // Set body content
+    let bodyHtml = '<div>';
+    bodyHtml += `<div class="tooltip-metric"><span class="tooltip-metric-name">Accuracy:</span><span class="tooltip-metric-value">${data.accuracy.toFixed(1)}%</span></div>`;
+    bodyHtml += `<div class="tooltip-metric"><span class="tooltip-metric-name">Precision:</span><span class="tooltip-metric-value">${data.precision.toFixed(3)}</span></div>`;
+    bodyHtml += `<div class="tooltip-metric"><span class="tooltip-metric-name">Recall:</span><span class="tooltip-metric-value">${data.recall.toFixed(3)}</span></div>`;
+    bodyHtml += `<div class="tooltip-metric"><span class="tooltip-metric-name">F1 Score:</span><span class="tooltip-metric-value">${data.f1.toFixed(3)}</span></div>`;
+    bodyHtml += `<div class="tooltip-metric"><span class="tooltip-metric-name">MCC:</span><span class="tooltip-metric-value">${data.mcc.toFixed(3)}</span></div>`;
+    
+    // Add sample counts
+    if (data.total) {
+        bodyHtml += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e9ecef; font-size: 11px; color: #6c757d;">';
+        bodyHtml += `Total: ${data.total} | Correct: ${data.correct} | Incorrect: ${data.incorrect} | Missing: ${data.missing}`;
+        bodyHtml += '</div>';
+    }
+    
+    bodyHtml += '</div>';
+    body.innerHTML = bodyHtml;
+    
+    // Position tooltip
+    positionTooltip(event, tooltip);
+    tooltip.style.display = 'block';
+}
+
+function hideMetricTooltip() {
+    document.getElementById('metricTooltip').style.display = 'none';
+}
+
+function positionTooltip(event, tooltip) {
+    const rect = event.target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Calculate available space
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Default positioning - try to show to the right and slightly above cursor
+    let left = rect.right + 10;
+    let top = rect.top - 100;
+    
+    // If tooltip would go off right edge, show on left
+    if (left + tooltipRect.width > viewportWidth - 10) {
+        left = rect.left - tooltipRect.width - 10;
+    }
+    
+    // If still not enough horizontal space, center above/below
+    if (left < 10) {
+        left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        top = rect.top - tooltipRect.height - 10;
+        
+        // If not enough space above, position below
+        if (top < 10) {
+            top = rect.bottom + 10;
+        }
+    }
+    
+    // Ensure boundaries
+    left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
+    
+    if (top < 10) {
+        top = 10;
+    } else if (top + tooltipRect.height > viewportHeight - 10) {
+        top = viewportHeight - tooltipRect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function formatModelName(modelName) {
+    if (!modelName.includes('/')) {
+        return modelName.charAt(0).toUpperCase() + modelName.slice(1);
+    }
+    
+    const [provider, model] = modelName.split('/');
+    const providerMap = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta',
+        'mistralai': 'Mistral',
+        'cohere': 'Cohere',
+        'x-ai': 'xAI'
+    };
+    
+    const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+    return `${displayProvider} ${model}`;
+}
+</script>
+{% endblock %} 
