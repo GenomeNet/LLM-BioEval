@@ -1730,7 +1730,17 @@ def get_available_models_from_db():
 
 @app.route('/')
 def index():
-    """Main dashboard"""
+    """Landing page"""
+    return render_template('index.html')
+
+@app.route('/research')
+def research():
+    """Research projects page"""
+    return render_template('research.html')
+
+@app.route('/dashboard')
+def dashboard():
+    """Technical dashboard for managing processing jobs"""
     dashboard_data = processing_manager.get_dashboard_data()
     
     # Add additional data needed for the modals
@@ -2818,6 +2828,60 @@ def get_available_phenotype_templates():
         return jsonify({
             'success': True,
             'templates': phenotype_templates
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/available_knowledge_templates')
+def get_available_knowledge_templates():
+    """API endpoint to get list of available knowledge templates with full content"""
+    try:
+        template_pairs = get_available_template_pairs()
+        knowledge_templates = {}
+        
+        for template_name, paths in template_pairs.items():
+            # Check if it's a knowledge template
+            template_type = detect_template_type(paths['user'])
+            if template_type == 'knowledge':
+                # Read system template
+                with open(paths['system'], 'r', encoding='utf-8') as f:
+                    system_content = f.read()
+                
+                # Read user template  
+                with open(paths['user'], 'r', encoding='utf-8') as f:
+                    user_content = f.read()
+                
+                # Try to read validation config
+                validation_content = None
+                try:
+                    from microbellm.template_config import find_validation_config_for_template
+                    config_path = find_validation_config_for_template(paths['user'])
+                    if config_path:
+                        with open(config_path, 'r', encoding='utf-8') as f:
+                            validation_content = f.read()
+                except Exception as e:
+                    print(f"Could not load validation config for {template_name}: {e}")
+                
+                knowledge_templates[template_name] = {
+                    'name': template_name,
+                    'display_name': template_name.replace('_', ' ').title(),
+                    'system': {
+                        'path': paths['system'],
+                        'content': system_content
+                    },
+                    'user': {
+                        'path': paths['user'],
+                        'content': user_content
+                    },
+                    'validation': {
+                        'content': validation_content
+                    } if validation_content else None
+                }
+        
+        return jsonify({
+            'success': True,
+            'templates': knowledge_templates
         })
         
     except Exception as e:

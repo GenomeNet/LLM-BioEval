@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Phenotype Prediction Patterns - MicrobeBench{% endblock %}
+{% block title %}Phenotype Analysis - LLM-BioEval{% endblock %}
 
 {% block content %}
+<div class="container">
 <h1>Phenotype Prediction Patterns</h1>
 
 <div class="explanation-section">
@@ -58,6 +59,7 @@
         </div>
         <div class="loading-text">Loading phenotype prediction data...</div>
     </div>
+</div>
 </div>
 
 <style>
@@ -1082,7 +1084,7 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_scripts %}
 <script>
     let phenotypeData = null;
     let templateData = null;

@@ -1,5 +1,0 @@
-type;description;example
-random_words;Two random English words combined to form non-scientific names;Velvet Thunder
-latin_random_words;Completely fictional Latin-sounding binomial names with made-up genus and species;Luminaricella splendens
-real_genus_latin_strain;Real bacterial genus paired with fictional Latin species epithet;Bacillus splendens
-latin_genus_real_strain;Fictional Latin genus paired with real bacterial species epithet;Luminaricella coli 

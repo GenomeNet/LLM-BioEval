@@ -95,7 +95,7 @@
                     <h5 class="mb-0"><i class="fas fa-microscope"></i> Detailed Metrics by Model and Knowledge Group</h5>
                 </div>
                 <div class="card-body">
-                    <small class="text-muted mb-3 d-block"><i class="fas fa-info-circle"></i> Higher accuracy for "Extensive" knowledge species indicates good model calibration.</small>
+                    <small class="text-muted mb-3 d-block"><i class="fas fa-info-circle"></i> Higher accuracy for "Extensive" knowledge species indicates good model calibration. Hover over cells to see individual phenotype trends.</small>
                     <div id="detailedAccuracy"></div>
                 </div>
             </div>
@@ -106,9 +106,10 @@
         <div class="col-lg-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-balance-scale"></i> Calibration Analysis</h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Knowledge-Based Performance Improvements</h5>
                 </div>
                 <div class="card-body">
+                    <small class="text-muted mb-3 d-block"><i class="fas fa-info-circle"></i> Shows how accuracy changes as models move from Limited → Moderate → Extensive knowledge levels. Arrows indicate improvement direction.</small>
                     <div id="calibrationAnalysis"></div>
                 </div>
             </div>
@@ -121,6 +122,15 @@
     <div class="metric-tooltip-content">
         <div class="metric-tooltip-header"></div>
         <div class="metric-tooltip-body"></div>
+    </div>
+</div>
+
+<!-- Phenotype trend plot tooltip -->
+<div id="phenotypeTrendTooltip" class="phenotype-trend-tooltip" style="display: none;">
+    <div class="phenotype-trend-content">
+        <div class="phenotype-trend-header"></div>
+        <div class="phenotype-trend-chart"></div>
+        <div class="phenotype-trend-details"></div>
     </div>
 </div>
 
@@ -361,6 +371,15 @@
     font-size: 11px;
 }
 
+.sample-size {
+    font-size: 8px;
+    color: #6c757d;
+    font-weight: 400;
+    text-align: center;
+    margin-top: 1px;
+    line-height: 1;
+}
+
 .calibration-table {
     width: 100%;
     border-collapse: collapse;
@@ -530,6 +549,102 @@
     font-family: monospace;
 }
 
+/* Phenotype trend tooltip styles */
+.phenotype-trend-tooltip {
+    position: fixed;
+    z-index: 1001;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 20px rgba(0,0,0,0.25));
+}
+
+.phenotype-trend-content {
+    background: white;
+    border: 2px solid #007bff;
+    border-radius: 12px;
+    padding: 16px;
+    max-width: 350px;
+    min-width: 300px;
+}
+
+.phenotype-trend-header {
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+    color: #2c3e50;
+    font-size: 14px;
+    text-align: center;
+}
+
+.phenotype-trend-chart {
+    margin: 15px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.phenotype-trend-details {
+    font-size: 11px;
+    line-height: 1.4;
+    color: #6c757d;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+    padding-top: 8px;
+    margin-top: 10px;
+}
+
+.trend-assessment {
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.trend-excellent {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.trend-good {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.trend-moderate {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.trend-poor {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Improvement arrow styles */
+.text-success {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+
+.text-info {
+    color: #17a2b8 !important;
+    font-weight: 600;
+}
+
+.text-warning {
+    color: #e67e22 !important;
+    font-weight: 600;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
 /* Loading animation */
 .loading-container {
     display: flex;
@@ -551,6 +666,8 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+
 </style>
 {% endblock %}
 
@@ -714,7 +831,8 @@ function updateAnalyzeButtonState() {
     const hasPhenotypeTemplate = phenotypeSelect.value !== '';
     const hasKnowledgeTemplate = knowledgeSelect.value !== '';
     
-    analyzeBtn.disabled = !(hasDataset && hasPhenotypeTemplate && hasKnowledgeTemplate);
+    const shouldEnable = hasDataset && hasPhenotypeTemplate && hasKnowledgeTemplate;
+    analyzeBtn.disabled = !shouldEnable;
 }
 
 async function analyzeAccuracyByKnowledge() {
@@ -909,6 +1027,43 @@ function calculateAverageAccuracy(groupMetrics) {
     return accuracies.length > 0 ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length : 0;
 }
 
+function calculateGroupSampleSizes(modelMetrics, fieldDefinitions) {
+    const phenotypeFields = Object.keys(fieldDefinitions).filter(field => 
+        fieldDefinitions[field]?.type !== 'array'
+    );
+    const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+    
+    const sampleSizes = {};
+    
+    knowledgeGroups.forEach(group => {
+        let totalSamples = 0;
+        let fieldCount = 0;
+        
+        phenotypeFields.forEach(field => {
+            if (modelMetrics[group] && modelMetrics[group][field] && modelMetrics[group][field].total > 0) {
+                totalSamples += modelMetrics[group][field].total;
+                fieldCount += 1;
+            }
+        });
+        
+        // Average sample size per field for this group
+        sampleSizes[group] = fieldCount > 0 ? Math.round(totalSamples / fieldCount) : 0;
+    });
+    
+    return sampleSizes;
+}
+
+function formatImprovementWithArrow(improvement) {
+    if (isNaN(improvement)) return 'N/A';
+    
+    const absValue = Math.abs(improvement);
+    const sign = improvement >= 0 ? '+' : '';
+    const arrow = improvement > 5 ? ' ↗' : improvement < -5 ? ' ↘' : improvement > 0 ? ' ↑' : improvement < 0 ? ' ↓' : ' →';
+    const colorClass = improvement > 5 ? 'text-success' : improvement < -5 ? 'text-danger' : improvement > 0 ? 'text-info' : improvement < 0 ? 'text-warning' : 'text-muted';
+    
+    return `<span class="${colorClass}">${sign}${improvement.toFixed(1)}%${arrow}</span>`;
+}
+
 function displayDetailedMetrics(metrics, fieldDefinitions) {
     const models = Object.keys(metrics);
     const phenotypeFields = Object.keys(fieldDefinitions).filter(field => 
@@ -916,8 +1071,27 @@ function displayDetailedMetrics(metrics, fieldDefinitions) {
     );
     const knowledgeGroups = ['limited', 'moderate', 'extensive'];
     
+    // Filter out models that have only N/A values
+    const modelsWithData = models.filter(model => {
+        for (const group of knowledgeGroups) {
+            for (const field of phenotypeFields) {
+                const fieldData = metrics[model][group][field];
+                if (fieldData && !isNaN(fieldData.accuracy) && fieldData.accuracy > 0) {
+                    return true; // Found at least one valid accuracy value
+                }
+            }
+        }
+        return false; // No valid data found for this model
+    });
+    
+    if (modelsWithData.length === 0) {
+        document.getElementById('detailedAccuracy').innerHTML = 
+            '<div class="text-center text-muted p-4"><i class="fas fa-info-circle"></i> No models with valid accuracy data found.</div>';
+        return;
+    }
+    
     // Sort models by overall calibration (extensive - limited accuracy difference)
-    const sortedModels = models.sort((a, b) => {
+    const sortedModels = modelsWithData.sort((a, b) => {
         const calibrationA = calculateAverageAccuracy(metrics[a]['extensive']) - calculateAverageAccuracy(metrics[a]['limited']);
         const calibrationB = calculateAverageAccuracy(metrics[b]['extensive']) - calculateAverageAccuracy(metrics[b]['limited']);
         return calibrationB - calibrationA;
@@ -969,12 +1143,17 @@ function displayDetailedMetrics(metrics, fieldDefinitions) {
                     cellClass += ` ${getPerformanceClass(value)}`;
                 }
                 
+                const sampleSize = fieldData.total || 0;
+                const sampleInfo = sampleSize > 0 ? ` (n=${sampleSize})` : '';
+                
                 html += `<td class="${cellClass}"
-                            onmouseover="showMetricTooltip(event, '${modelName}', '${phenotype}', '${group}', ${JSON.stringify(fieldData).replace(/"/g, '&quot;')})"
-                            onmouseout="hideMetricTooltip()">
+                            onmouseover="showPhenotypeTrend(event, '${modelName}', '${phenotype}')"
+                            onmouseout="hidePhenotypeTrend()"
+                            onclick="showMetricTooltip(event, '${modelName}', '${phenotype}', '${group}', ${JSON.stringify(fieldData).replace(/"/g, '&quot;')})">
                             <span class="metric-value">
                                 ${!isNaN(value) && value > 0 ? value.toFixed(1) + '%' : 'N/A'}
                             </span>
+                            ${sampleSize > 0 ? `<div class="sample-size">${sampleSize}</div>` : ''}
                          </td>`;
             });
         });
@@ -988,21 +1167,12 @@ function displayDetailedMetrics(metrics, fieldDefinitions) {
     document.getElementById('detailedAccuracy').innerHTML = html;
 }
 
+
+
 function displayCalibrationAnalysis(metrics, fieldDefinitions) {
     const models = Object.keys(metrics);
     
-    let html = '<table class="calibration-table">';
-    html += '<thead><tr>';
-    html += '<th>Model</th>';
-    html += '<th>Limited Knowledge</th>';
-    html += '<th>Moderate Knowledge</th>';
-    html += '<th>Extensive Knowledge</th>';
-    html += '<th>Calibration Score</th>';
-    html += '<th>Assessment</th>';
-    html += '</tr></thead>';
-    html += '<tbody>';
-    
-    // Calculate calibration for each model
+    // Calculate calibration for each model and filter out those with no valid data
     const calibrationScores = [];
     
     models.forEach(model => {
@@ -1010,24 +1180,59 @@ function displayCalibrationAnalysis(metrics, fieldDefinitions) {
         const moderateAvg = calculateAverageAccuracy(metrics[model]['moderate']);
         const extensiveAvg = calculateAverageAccuracy(metrics[model]['extensive']);
         
-        // Calibration score: how much better extensive is than limited
-        const calibrationScore = extensiveAvg - limitedAvg;
-        calibrationScores.push({ model, score: calibrationScore, limitedAvg, moderateAvg, extensiveAvg });
+        // Calculate sample sizes for each group
+        const sampleSizes = calculateGroupSampleSizes(metrics[model], fieldDefinitions);
+        
+        // Only include models that have at least some valid accuracy data
+        if (limitedAvg > 0 || moderateAvg > 0 || extensiveAvg > 0) {
+            // Calculate step-wise improvements
+            const limitedToModerate = moderateAvg - limitedAvg;
+            const moderateToExtensive = extensiveAvg - moderateAvg;
+            const overallImprovement = extensiveAvg - limitedAvg;
+            
+            calibrationScores.push({ 
+                model, 
+                limitedAvg, 
+                moderateAvg, 
+                extensiveAvg,
+                limitedToModerate,
+                moderateToExtensive,
+                overallImprovement,
+                sampleSizes
+            });
+        }
     });
     
-    // Sort by calibration score
-    calibrationScores.sort((a, b) => b.score - a.score);
+    if (calibrationScores.length === 0) {
+        document.getElementById('calibrationAnalysis').innerHTML = 
+            '<div class="text-center text-muted p-4"><i class="fas fa-info-circle"></i> No models with sufficient data for calibration analysis.</div>';
+        return;
+    }
     
-    calibrationScores.forEach(({ model, score, limitedAvg, moderateAvg, extensiveAvg }) => {
-        const calibrationClass = getCalibrationClass(score);
-        const assessment = getCalibrationAssessment(score);
+    let html = '<table class="calibration-table">';
+    html += '<thead><tr>';
+    html += '<th>Model</th>';
+    html += '<th>Limited → Moderate</th>';
+    html += '<th>Moderate → Extensive</th>';
+    html += '<th>Overall Improvement</th>';
+    html += '<th>Sample Sizes (L/M/E)</th>';
+    html += '<th>Assessment</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    // Sort by overall improvement
+    calibrationScores.sort((a, b) => b.overallImprovement - a.overallImprovement);
+    
+    calibrationScores.forEach(({ model, limitedToModerate, moderateToExtensive, overallImprovement, sampleSizes }) => {
+        const overallClass = getCalibrationClass(overallImprovement);
+        const assessment = getCalibrationAssessment(overallImprovement);
         
         html += '<tr>';
         html += `<td><span class="model-name">${formatModelName(model)}</span></td>`;
-        html += `<td>${limitedAvg.toFixed(1)}%</td>`;
-        html += `<td>${moderateAvg.toFixed(1)}%</td>`;
-        html += `<td>${extensiveAvg.toFixed(1)}%</td>`;
-        html += `<td><span class="calibration-score ${calibrationClass}">${score >= 0 ? '+' : ''}${score.toFixed(1)}%</span></td>`;
+        html += `<td>${formatImprovementWithArrow(limitedToModerate)}</td>`;
+        html += `<td>${formatImprovementWithArrow(moderateToExtensive)}</td>`;
+        html += `<td><span class="calibration-score ${overallClass}">${formatImprovementWithArrow(overallImprovement)}</span></td>`;
+        html += `<td style="font-size: 11px; color: #6c757d;">${sampleSizes.limited}/${sampleSizes.moderate}/${sampleSizes.extensive}</td>`;
         html += `<td>${assessment}</td>`;
         html += '</tr>';
     });
@@ -1044,11 +1249,11 @@ function getCalibrationClass(score) {
     return 'calibration-poor';
 }
 
-function getCalibrationAssessment(score) {
-    if (score >= 15) return 'Excellent calibration';
-    if (score >= 5) return 'Good calibration';
-    if (score >= -5) return 'Moderate calibration';
-    return 'Poor calibration - may be overconfident';
+function getCalibrationAssessment(improvement) {
+    if (improvement >= 15) return 'Excellent improvement - well-calibrated';
+    if (improvement >= 5) return 'Good improvement - reasonably calibrated';
+    if (improvement >= -5) return 'Stable performance across knowledge levels';
+    return 'Declining performance - may be overconfident';
 }
 
 function getPerformanceClass(value) {
@@ -1152,6 +1357,233 @@ function formatModelName(modelName) {
     
     const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
     return `${displayProvider} ${model}`;
+}
+
+function showPhenotypeTrend(event, modelName, phenotype) {
+    if (!currentMetrics || !currentMetrics[modelName]) {
+        return;
+    }
+    
+    const tooltip = document.getElementById('phenotypeTrendTooltip');
+    const header = tooltip.querySelector('.phenotype-trend-header');
+    const chartContainer = tooltip.querySelector('.phenotype-trend-chart');
+    const details = tooltip.querySelector('.phenotype-trend-details');
+    
+    // Set header
+    const phenotypeName = phenotype.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    header.textContent = `${formatModelName(modelName)} - ${phenotypeName}`;
+    
+    // Get data for all knowledge groups
+    const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+    const groupLabels = ['Limited', 'Moderate', 'Extensive'];
+    const modelData = currentMetrics[modelName];
+    
+    const trendData = [];
+    let hasData = false;
+    
+    knowledgeGroups.forEach((group, index) => {
+        const groupMetrics = modelData[group];
+        if (groupMetrics && groupMetrics[phenotype]) {
+            const accuracy = groupMetrics[phenotype].accuracy;
+            if (!isNaN(accuracy) && accuracy > 0) {
+                trendData.push({
+                    group: groupLabels[index],
+                    accuracy: accuracy
+                });
+                hasData = true;
+            } else {
+                trendData.push({
+                    group: groupLabels[index],
+                    accuracy: null
+                });
+            }
+        } else {
+            trendData.push({
+                group: groupLabels[index],
+                accuracy: null
+            });
+        }
+    });
+    
+    if (!hasData) {
+        chartContainer.innerHTML = '<div style="text-align: center; color: #6c757d; font-style: italic;">No data available</div>';
+        details.innerHTML = '';
+    } else {
+        // Create mini trend chart
+        createPhenotypeTrendChart(chartContainer, trendData, phenotypeName);
+        
+        // Calculate trend assessment and sample sizes
+        const validAccuracies = trendData.filter(d => d.accuracy !== null).map(d => d.accuracy);
+        let trendAssessment = '';
+        let trendClass = '';
+        
+        // Get sample sizes for each group
+        const sampleSizes = knowledgeGroups.map(group => {
+            const groupMetrics = modelData[group];
+            if (groupMetrics && groupMetrics[phenotype]) {
+                return groupMetrics[phenotype].total || 0;
+            }
+            return 0;
+        });
+        
+        if (validAccuracies.length >= 2) {
+            const firstAcc = trendData.find(d => d.accuracy !== null)?.accuracy || 0;
+            const lastAcc = [...trendData].reverse().find(d => d.accuracy !== null)?.accuracy || 0;
+            const difference = lastAcc - firstAcc;
+            
+            if (difference >= 15) {
+                trendAssessment = 'Excellent Calibration';
+                trendClass = 'trend-excellent';
+            } else if (difference >= 5) {
+                trendAssessment = 'Good Calibration';
+                trendClass = 'trend-good';
+            } else if (difference >= -5) {
+                trendAssessment = 'Moderate Calibration';
+                trendClass = 'trend-moderate';
+            } else {
+                trendAssessment = 'Poor Calibration';
+                trendClass = 'trend-poor';
+            }
+            
+            details.innerHTML = `
+                <div>Trend: ${firstAcc.toFixed(1)}% → ${lastAcc.toFixed(1)}% (${difference >= 0 ? '+' : ''}${difference.toFixed(1)}%)</div>
+                <div style="font-size: 10px; color: #6c757d; margin: 5px 0;">Sample sizes: L(${sampleSizes[0]}) M(${sampleSizes[1]}) E(${sampleSizes[2]})</div>
+                <div class="trend-assessment ${trendClass}">${trendAssessment}</div>
+            `;
+        } else {
+            const totalSamples = sampleSizes.reduce((a, b) => a + b, 0);
+            details.innerHTML = `
+                <div style="color: #6c757d;">Insufficient data for trend analysis</div>
+                ${totalSamples > 0 ? `<div style="font-size: 10px; color: #6c757d; margin-top: 5px;">Sample sizes: L(${sampleSizes[0]}) M(${sampleSizes[1]}) E(${sampleSizes[2]})</div>` : ''}
+            `;
+        }
+    }
+    
+    // Position tooltip
+    positionPhenotypeTrendTooltip(event, tooltip);
+    tooltip.style.display = 'block';
+}
+
+function hidePhenotypeTrend() {
+    document.getElementById('phenotypeTrendTooltip').style.display = 'none';
+}
+
+function createPhenotypeTrendChart(container, trendData, phenotypeName) {
+    const width = 200;
+    const height = 120;
+    const margin = { top: 15, right: 15, bottom: 25, left: 35 };
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
+    
+    // Find min/max for scaling
+    const validAccuracies = trendData.filter(d => d.accuracy !== null).map(d => d.accuracy);
+    if (validAccuracies.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #6c757d;">No valid data</div>';
+        return;
+    }
+    
+    const minAcc = Math.max(0, Math.min(...validAccuracies) - 10);
+    const maxAcc = Math.min(100, Math.max(...validAccuracies) + 10);
+    
+    let html = `<svg width="${width}" height="${height}" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px;">`;
+    
+    // Background grid
+    for (let i = 0; i <= 3; i++) {
+        const y = margin.top + (i * chartHeight / 3);
+        const value = maxAcc - (i * (maxAcc - minAcc) / 3);
+        html += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e9ecef" stroke-width="1"/>`;
+        html += `<text x="${margin.left - 3}" y="${y + 3}" text-anchor="end" font-size="9" fill="#6c757d">${value.toFixed(0)}%</text>`;
+    }
+    
+    // X-axis positions and labels
+    const xPositions = [
+        margin.left + chartWidth * 0.2,
+        margin.left + chartWidth * 0.5,
+        margin.left + chartWidth * 0.8
+    ];
+    
+    xPositions.forEach((x, i) => {
+        html += `<text x="${x}" y="${height - 8}" text-anchor="middle" font-size="9" font-weight="600" fill="#495057">${trendData[i].group.charAt(0)}</text>`;
+    });
+    
+    // Draw line and points
+    let pathData = '';
+    let hasValidPath = false;
+    
+    trendData.forEach((point, i) => {
+        const x = xPositions[i];
+        
+        if (point.accuracy !== null) {
+            const y = margin.top + chartHeight - ((point.accuracy - minAcc) / (maxAcc - minAcc)) * chartHeight;
+            
+            // Draw point
+            html += `<circle cx="${x}" cy="${y}" r="4" fill="#007bff" stroke="white" stroke-width="2"/>`;
+            
+            // Add to path
+            if (!hasValidPath) {
+                pathData += `M ${x} ${y}`;
+                hasValidPath = true;
+            } else {
+                pathData += ` L ${x} ${y}`;
+            }
+            
+            // Add value label above point
+            html += `<text x="${x}" y="${y - 8}" text-anchor="middle" font-size="8" font-weight="600" fill="#007bff">${point.accuracy.toFixed(1)}%</text>`;
+        } else {
+            // Draw empty circle for missing data
+            html += `<circle cx="${x}" cy="${margin.top + chartHeight/2}" r="3" fill="none" stroke="#dee2e6" stroke-width="2" stroke-dasharray="2,2"/>`;
+        }
+    });
+    
+    // Draw connecting line
+    if (hasValidPath && pathData.includes('L')) {
+        html += `<path d="${pathData}" stroke="#007bff" stroke-width="2" fill="none"/>`;
+    }
+    
+    html += '</svg>';
+    
+    container.innerHTML = html;
+}
+
+function positionPhenotypeTrendTooltip(event, tooltip) {
+    const rect = event.target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Calculate available space
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Default positioning - try to show to the right of the cell
+    let left = rect.right + 15;
+    let top = rect.top - 50;
+    
+    // If tooltip would go off right edge, show on left
+    if (left + tooltipRect.width > viewportWidth - 10) {
+        left = rect.left - tooltipRect.width - 15;
+    }
+    
+    // If still not enough horizontal space, center above/below
+    if (left < 10) {
+        left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        top = rect.top - tooltipRect.height - 15;
+        
+        // If not enough space above, position below
+        if (top < 10) {
+            top = rect.bottom + 15;
+        }
+    }
+    
+    // Ensure boundaries
+    left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
+    
+    if (top < 10) {
+        top = 10;
+    } else if (top + tooltipRect.height > viewportHeight - 10) {
+        top = viewportHeight - tooltipRect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
 }
 </script>
 {% endblock %} 

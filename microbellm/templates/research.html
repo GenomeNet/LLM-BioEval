@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block title %}Research - LLM-BioEval{% endblock %}
+
+{% block extra_head %}
+<style>
+/* Research Page Styles */
+.research-page {
+    padding: 32px 0;
+}
+
+/* Research Projects Grid */
+.research-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.research-project {
+    background: var(--bg-primary);
+    border: 1px solid var(--gray-200);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.research-project:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.project-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.06;
+    z-index: 0;
+}
+
+.project-header {
+    padding: 24px 24px 0;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.project-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.project-status.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+.project-status.development {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.project-status.published {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+.project-date {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.project-content {
+    padding: 16px 24px 0;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+}
+
+.project-title {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 12px;
+    color: var(--gray-900);
+}
+
+.project-description {
+    font-size: 14px;
+    color: var(--gray-600);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.project-authors {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+    font-style: italic;
+}
+
+.project-doi {
+    font-size: 11px;
+    color: var(--gray-400);
+    font-family: monospace;
+    margin-bottom: 20px;
+}
+
+.project-footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--gray-100);
+    background: var(--gray-50);
+    position: relative;
+    z-index: 1;
+}
+
+.read-link {
+    color: var(--gray-700);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.read-link:hover {
+    color: var(--primary);
+}
+
+.read-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.read-link svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s;
+}
+
+.read-link:hover svg {
+    transform: translateX(4px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .project-header,
+    .project-content,
+    .project-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="research-page">
+        <!-- Research Projects -->
+        <div class="research-grid">
+            <!-- Phenotype Project -->
+            <article class="research-project">
+                <canvas id="phenotype-canvas" class="project-canvas"></canvas>
+                <div class="project-header">
+                    <span class="project-status active">Phenotype Analysis</span>
+                    <span class="project-date">Updated regularly</span>
+                </div>
+                <div class="project-content">
+                    <h3 class="project-title">
+                        Evaluating LLM performance on fundamental microbial phenotype prediction
+                    </h3>
+                    <p class="project-description">
+                        Comprehensive analysis of how language models predict broad microbial characteristics,
+                        from gram staining to pathogenicity, across thousands of species.
+                    </p>
+                    <div class="project-authors">
+                        P. C. Münch, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy
+                    </div>
+                    <div class="project-doi">
+                        DOI: COMING SOON
+                    </div>
+                </div>
+                <div class="project-footer">
+                    <a href="/phenotype_analysis" class="read-link">
+                        Explore Analysis
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
+                        </svg>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Growth Conditions Project -->
+            <article class="research-project">
+                <canvas id="growth-canvas" class="project-canvas"></canvas>
+                <div class="project-header">
+                    <span class="project-status development">Coming Soon</span>
+                    <span class="project-date">In development</span>
+                </div>
+                <div class="project-content">
+                    <h3 class="project-title">
+                        Predicting bacterial growth conditions and metabolic flexibility
+                    </h3>
+                    <p class="project-description">
+                        Upcoming evaluation framework for testing LLM understanding of environmental
+                        factors, nutrient requirements, and metabolic pathways in bacteria.
+                    </p>
+                    <div class="project-authors">
+                        P. C. Münch, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy
+                    </div>
+                    <div class="project-doi">
+                        DOI: COMING SOON (preprint)
+                    </div>
+                </div>
+                <div class="project-footer">
+                    <a href="#" class="read-link disabled">
+                        Coming Soon
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
+                        </svg>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Knowledge Track Project -->
+            <article class="research-project">
+                <canvas id="knowledge-canvas" class="project-canvas"></canvas>
+                <div class="project-header">
+                    <span class="project-status published">Knowledge analysis</span>
+                    <span class="project-date">Updated regularly</span>
+                </div>
+                <div class="project-content">
+                    <h3 class="project-title">
+                        Testing LLM knowledge on real and artificial bacterial species                    </h3>
+                    <p class="project-description">
+                        Evaluating how much LLMs claim to know about bacteria by comparing their responses 
+                        to internet data, revealing how frequently they generate unfounded claims about 
+                        unknown species.
+                    </p>
+                    <div class="project-authors">
+                        S. Kumar, E. Johansson, T. Brown, Y. Liu, A. Martinez
+                    </div>
+                    <div class="project-doi">
+                        DOI: COMING SOON
+                    </div>
+                </div>
+                <div class="project-footer">
+                    <a href="/artificial_dataset" class="read-link">
+                        View Results
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
+                        </svg>
+                    </a>
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+
+<script>
+// Reuse animation functions from index page
+// Bacteria animation for phenotype card
+function initPhenotypeAnimation() {
+    const canvas = document.getElementById('phenotype-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let bacteria = [];
+    
+    const colors = [
+        { r: 147, g: 51, b: 234 },   // Purple
+        { r: 236, g: 72, b: 153 },   // Pink
+    ];
+    
+    function resizeCanvas() {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+        initBacteria();
+    }
+    
+    function initBacteria() {
+        bacteria = [];
+        const numBacteria = 25;
+        
+        for (let i = 0; i < numBacteria; i++) {
+            bacteria.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                length: 20 + Math.random() * 30,
+                width: 6 + Math.random() * 6,
+                angle: Math.random() * Math.PI * 2,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                speed: 0.1 + Math.random() * 0.2,
+                rotationSpeed: (Math.random() - 0.5) * 0.01,
+                shape: Math.random() > 0.3 ? 'bacillus' : 'coccus'
+            });
+        }
+    }
+    
+    function drawBacterium(bacterium) {
+        ctx.save();
+        ctx.translate(bacterium.x, bacterium.y);
+        ctx.rotate(bacterium.angle);
+        
+        ctx.fillStyle = `rgba(${bacterium.color.r}, ${bacterium.color.g}, ${bacterium.color.b}, 0.4)`;
+        
+        if (bacterium.shape === 'bacillus') {
+            ctx.beginPath();
+            ctx.moveTo(-bacterium.length/2 + bacterium.width/2, 0);
+            ctx.lineTo(bacterium.length/2 - bacterium.width/2, 0);
+            ctx.arc(bacterium.length/2 - bacterium.width/2, 0, bacterium.width/2, -Math.PI/2, Math.PI/2);
+            ctx.lineTo(-bacterium.length/2 + bacterium.width/2, bacterium.width);
+            ctx.arc(-bacterium.length/2 + bacterium.width/2, bacterium.width/2, bacterium.width/2, Math.PI/2, Math.PI * 1.5);
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.arc(0, 0, bacterium.width, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
+    }
+    
+    let frame = 0;
+    function animate() {
+        if (frame % 3 === 0) {  // Update every 3rd frame for consistent performance
+            ctx.clearRect(0, 0, width, height);
+            
+            bacteria.forEach(bacterium => {
+                bacterium.x += Math.cos(bacterium.angle) * bacterium.speed;
+                bacterium.y += Math.sin(bacterium.angle) * bacterium.speed;
+                bacterium.angle += bacterium.rotationSpeed;
+                
+                if (bacterium.x < -50) bacterium.x = width + 50;
+                if (bacterium.x > width + 50) bacterium.x = -50;
+                if (bacterium.y < -50) bacterium.y = height + 50;
+                if (bacterium.y > height + 50) bacterium.y = -50;
+                
+                drawBacterium(bacterium);
+            });
+        }
+        
+        frame++;
+        requestAnimationFrame(animate);
+    }
+    
+    resizeCanvas();
+    animate();
+    
+    window.addEventListener('resize', () => {
+        setTimeout(resizeCanvas, 250);
+    });
+}
+
+// DNA animation for knowledge card
+function initKnowledgeAnimation() {
+    const canvas = document.getElementById('knowledge-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let columns = [];
+    
+    const colors = [
+        { r: 99, g: 102, b: 241 },
+        { r: 168, g: 85, b: 247 },
+        { r: 59, g: 130, b: 246 },
+    ];
+    
+    function resizeCanvas() {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+        initColumns();
+    }
+    
+    function initColumns() {
+        columns = [];
+        const columnWidth = 8;
+        const gap = 4;
+        const totalWidth = columnWidth + gap;
+        const numColumns = Math.ceil(width / totalWidth);
+        
+        for (let i = 0; i < numColumns; i++) {
+            const segments = [];
+            const numSegments = 25;
+            
+            for (let j = 0; j < numSegments; j++) {
+                segments.push({
+                    height: 4 + Math.random() * 8,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    offset: Math.random() * height,
+                    alpha: 0.3 + Math.random() * 0.4
+                });
+            }
+            
+            columns.push({
+                x: i * totalWidth,
+                segments: segments,
+                speed: 0.5 + Math.random() * 0.5
+            });
+        }
+    }
+    
+    let frameCount = 0;
+    function animate() {
+        if (frameCount % 6 === 0) {  // Update every 6th frame for slower animation
+            ctx.clearRect(0, 0, width, height);
+            
+            columns.forEach(column => {
+                column.segments.forEach((segment, index) => {
+                    const y = (segment.offset + frameCount * column.speed * 0.2) % (height + 50);
+                    
+                    ctx.fillStyle = `rgba(${segment.color.r}, ${segment.color.g}, ${segment.color.b}, ${segment.alpha * 0.3})`;
+                    ctx.fillRect(column.x, y, 8, segment.height);
+                });
+            });
+        }
+        
+        frameCount++;
+        requestAnimationFrame(animate);
+    }
+    
+    resizeCanvas();
+    animate();
+    
+    window.addEventListener('resize', () => {
+        setTimeout(resizeCanvas, 250);
+    });
+}
+
+// Cell growth animation
+function initGrowthAnimation() {
+    const canvas = document.getElementById('growth-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let cells = [];
+    
+    const colors = [
+        { r: 34, g: 197, b: 94 },
+        { r: 132, g: 204, b: 22 },
+        { r: 250, g: 204, b: 21 },
+    ];
+    
+    function resizeCanvas() {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+        initCells();
+    }
+    
+    function initCells() {
+        cells = [];
+        const numCells = 20;
+        
+        for (let i = 0; i < numCells; i++) {
+            cells.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: 10 + Math.random() * 10,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                growth: 0.998 + Math.random() * 0.004,
+                alpha: 0.6 + Math.random() * 0.4
+            });
+        }
+    }
+    
+    let animFrame = 0;
+    function animate() {
+        if (animFrame % 4 === 0) {  // Update every 4th frame for slower, smoother animation
+            ctx.clearRect(0, 0, width, height);
+            
+            cells.forEach(cell => {
+                cell.x += cell.vx;
+                cell.y += cell.vy;
+                cell.radius *= cell.growth;
+                
+                if (cell.radius > 25) {
+                    // Cell division
+                    if (cells.length < 40) {
+                        cells.push({
+                            x: cell.x + (Math.random() - 0.5) * 20,
+                            y: cell.y + (Math.random() - 0.5) * 20,
+                            radius: 10,
+                            color: cell.color,
+                            vx: (Math.random() - 0.5) * 0.5,
+                            vy: (Math.random() - 0.5) * 0.5,
+                            growth: 0.998 + Math.random() * 0.004,
+                            alpha: 0.6 + Math.random() * 0.4
+                        });
+                    }
+                    cell.radius = 12;
+                }
+                
+                if (cell.x < 0 || cell.x > width) cell.vx *= -1;
+                if (cell.y < 0 || cell.y > height) cell.vy *= -1;
+                
+                ctx.fillStyle = `rgba(${cell.color.r}, ${cell.color.g}, ${cell.color.b}, ${cell.alpha * 0.6})`;
+                ctx.beginPath();
+                ctx.arc(cell.x, cell.y, cell.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Remove cells that are too small
+            cells = cells.filter(cell => cell.radius > 5);
+            
+            // Maintain population
+            while (cells.length < 15) {
+                cells.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: 10,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    growth: 0.998 + Math.random() * 0.004,
+                    alpha: 0.6 + Math.random() * 0.4
+                });
+            }
+        }
+        
+        animFrame++;
+        requestAnimationFrame(animate);
+    }
+    
+    resizeCanvas();
+    animate();
+    
+    window.addEventListener('resize', () => {
+        setTimeout(resizeCanvas, 250);
+    });
+}
+
+// Initialize all animations
+document.addEventListener('DOMContentLoaded', function() {
+    initPhenotypeAnimation();
+    initKnowledgeAnimation();
+    initGrowthAnimation();
+});
+</script>
+{% endblock %} 
