@@ -1,0 +1,478 @@
+/* =====================================================
+   LLM-BioEval Global Layout System
+   ===================================================== */
+
+/* Layout Variables */
+:root {
+    /* Container Widths */
+    --container-standard: 1500px;
+    --container-article: 850px;
+    --container-wide: 1800px;
+    
+    /* Consistent Spacing */
+    --spacing-page-top: 60px;
+    --spacing-section: 48px;
+    --spacing-component: 32px;
+    --spacing-element: 24px;
+    --spacing-small: 16px;
+    
+    /* Consistent Padding */
+    --padding-container: 48px;
+    --padding-container-mobile: 24px;
+    
+    /* Header Heights */
+    --navbar-height: 64px;
+    --hero-padding-top: 120px;
+    --hero-padding-bottom: 80px;
+}
+
+/* =====================================================
+   Base Container System
+   ===================================================== */
+
+/* Standard Container - Used for most content */
+.container-standard {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* Article Container - Used for readable content */
+.container-article {
+    max-width: var(--container-article);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* Wide Container - Used for dashboards/tables */
+.container-wide {
+    max-width: var(--container-wide);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* Full Width Container - Edge to edge with padding */
+.container-full {
+    width: 100%;
+    padding: 0 var(--padding-container);
+}
+
+/* =====================================================
+   Page Layout Structure
+   ===================================================== */
+
+/* Main Content Area - Ensures consistent spacing from navbar */
+.page-content {
+    padding-top: var(--spacing-page-top);
+    min-height: calc(100vh - var(--navbar-height));
+}
+
+/* Page Header - Consistent across all pages */
+.page-header {
+    margin-bottom: var(--spacing-section);
+}
+
+.page-header h1 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+}
+
+.page-header .subtitle {
+    font-size: 20px;
+    color: var(--gray-600);
+    line-height: 1.6;
+    max-width: 700px;
+}
+
+/* =====================================================
+   Hero Headers (Full Width)
+   ===================================================== */
+
+.hero-header {
+    width: 100%;
+    padding: var(--hero-padding-top) 0 var(--hero-padding-bottom);
+    background: linear-gradient(135deg, 
+        #f8fafc 0%, 
+        #f1f5f9 25%, 
+        #e2e8f0 50%, 
+        #cbd5e1 100%);
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 0;
+}
+
+.hero-header .hero-content {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* =====================================================
+   Article Layout (Two Column)
+   ===================================================== */
+
+.article-container {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: var(--spacing-section) var(--padding-container);
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: var(--spacing-component);
+    align-items: start;
+}
+
+.article-main {
+    /* No max-width here, let the content define it */
+}
+
+.article-content {
+    max-width: var(--container-article);
+}
+
+.article-sidebar {
+    position: relative;
+    top: auto;
+    height: auto;
+    max-height: none;
+    overflow-y: visible;
+}
+
+/* =====================================================
+   Section Layouts
+   ===================================================== */
+
+/* Standard Section */
+.section {
+    margin-bottom: var(--spacing-section);
+}
+
+.section-header {
+    margin-bottom: var(--spacing-component);
+}
+
+/* Full Width Section Break */
+.section-full {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding: var(--spacing-section) 0;
+    margin-bottom: var(--spacing-section);
+}
+
+.section-full .section-content {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* =====================================================
+   Alignment Utilities
+   ===================================================== */
+
+/* Ensure navbar brand aligns with page content */
+.navbar-inner {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+    height: var(--navbar-height);
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gray-900);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    line-height: 1;
+}
+
+/* Align footer with page content */
+.footer .footer-content {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* =====================================================
+   Responsive Adjustments
+   ===================================================== */
+
+@media (max-width: 1200px) {
+    .article-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .article-sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --padding-container: var(--padding-container-mobile);
+        --spacing-page-top: 40px;
+        --spacing-section: 32px;
+        --spacing-component: 24px;
+        --hero-padding-top: 80px;
+        --hero-padding-bottom: 60px;
+    }
+    
+    .page-header h1 {
+        font-size: 36px;
+    }
+    
+    .page-header .subtitle {
+        font-size: 18px;
+    }
+    
+    .hero-header .hero-title {
+        font-size: 40px;
+    }
+}
+
+/* =====================================================
+   Migration Helpers
+   ===================================================== */
+
+/* Map old container class to new system */
+.container {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: var(--spacing-component) var(--padding-container);
+}
+
+/* Ensure main-content respects new spacing */
+.main-content {
+    min-height: calc(100vh - var(--navbar-height));
+    padding: 0; /* Remove default padding, use page-content instead */
+}
+
+/* =============================
+   Sidebar Footnotes
+   ============================= */
+.footnotes {
+  font-size: 13px;
+  color: var(--gray-600);
+  border-left: 2px solid var(--gray-200);
+  padding-left: 16px;
+}
+.footnote {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.footnote-number {
+  font-weight: bold;
+  color: var(--primary);
+  margin-right: 4px;
+}
+.footnote-ref {
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 0.85em;
+  vertical-align: super;
+  margin-left: 2px;
+}
+.footnote-ref:hover {
+  text-decoration: underline;
+}
+.footnote.active, .footnote-ref.active {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+/* Modern Form Controls and Dropdowns */
+.modern-form-control {
+    position: relative;
+    display: inline-block;
+    min-width: 200px;
+}
+
+.modern-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: var(--bg-primary);
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 12px 16px;
+    padding-right: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+.modern-select:hover {
+    border-color: var(--gray-300);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.modern-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+}
+
+.modern-select option {
+    background: var(--bg-primary);
+    color: var(--gray-700);
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.modern-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Modern Button Group */
+.modern-button-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.modern-button {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 2px solid var(--gray-200);
+    background: var(--bg-primary);
+    color: var(--gray-600);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.modern-button:hover {
+    border-color: var(--gray-300);
+    background: var(--gray-50);
+    color: var(--gray-700);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.modern-button.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.modern-button.active:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* Modern Form Container */
+.modern-form-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--gray-50);
+    border-radius: 16px;
+    border: 1px solid var(--gray-200);
+}
+
+.modern-form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+    display: block;
+}
+
+/* Modern Select Wrapper */
+.modern-select-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.modern-select-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--gray-400);
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+.modern-select-wrapper:hover::after {
+    border-top-color: var(--gray-500);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .modern-form-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .modern-form-control {
+        min-width: 100%;
+    }
+    
+    .modern-button-group {
+        justify-content: center;
+    }
+    
+    .modern-select {
+        padding: 14px 16px;
+        padding-right: 40px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+/* Loading state for dropdowns */
+.modern-select.loading {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.modern-select.loading::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--gray-200);
+    border-top: 2px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+} 

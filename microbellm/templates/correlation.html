@@ -17,24 +17,24 @@
     </a>
 </div>
 
-<div class="correlation-controls">
-    <div class="filter-group">
-        <label for="datasetSelector">Dataset:</label>
-        <select id="datasetSelector" class="form-control" onchange="switchDataset()">
+<div class="correlation-controls modern-form-container">
+    <div class="modern-form-control">
+        <label for="datasetSelector" class="modern-form-label">Dataset</label>
+        <select id="datasetSelector" class="modern-select" onchange="switchDataset()">
             <option value="">Select a dataset with search counts...</option>
         </select>
     </div>
     
-    <div class="filter-group">
-        <label for="templateSelector">Template:</label>
-        <select id="templateSelector" class="form-control" onchange="updateCorrelationView()">
+    <div class="modern-form-control">
+        <label for="templateSelector" class="modern-form-label">Template</label>
+        <select id="templateSelector" class="modern-select" onchange="updateCorrelationView()">
             <option value="">All Templates</option>
         </select>
     </div>
     
-    <div class="filter-group">
-        <label for="sortingMethod">Sort Models By:</label>
-        <select id="sortingMethod" class="form-control" onchange="updateCorrelationView()">
+    <div class="modern-form-control">
+        <label for="sortingMethod" class="modern-form-label">Sort Models By</label>
+        <select id="sortingMethod" class="modern-select" onchange="updateCorrelationView()">
             <option value="correlation">Correlation Coefficient (Highest first)</option>
             <option value="correlation_abs">Absolute Correlation (Strongest first)</option>
             <option value="species_count">Number of Species (Most data first)</option>
@@ -49,26 +49,7 @@
 
 <style>
     .correlation-controls {
-        display: flex;
-        gap: 15px;
         margin-bottom: 25px;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        flex-wrap: wrap;
-    }
-    
-    .filter-group {
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .filter-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: 600;
-        color: #495057;
-        font-size: 14px;
     }
     
     .correlation-overview {

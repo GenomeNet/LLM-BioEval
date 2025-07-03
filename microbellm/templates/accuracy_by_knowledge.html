@@ -51,34 +51,32 @@
 
 <div class="row mb-4">
     <div class="col-md-12">
-        <div class="p-3" style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
-            <div class="row align-items-end">
-                <div class="col-md-3">
-                    <label for="groundTruthDataset">Ground Truth Dataset</label>
-                    <select class="form-control" id="groundTruthDataset">
-                        <option value="">Loading datasets...</option>
-                    </select>
-                    <small class="text-muted mt-1 d-block" id="datasetInfo"></small>
-                </div>
-                <div class="col-md-3">
-                    <label for="phenotypeTemplate">Phenotype Template Run</label>
-                    <select class="form-control" id="phenotypeTemplate">
-                        <option value="">Loading templates...</option>
-                    </select>
-                    <small class="text-muted mt-1 d-block" id="phenotypeTemplateInfo"></small>
-                </div>
-                <div class="col-md-3">
-                    <label for="knowledgeTemplate">Knowledge Template Run</label>
-                    <select class="form-control" id="knowledgeTemplate">
-                        <option value="">Loading templates...</option>
-                    </select>
-                    <small class="text-muted mt-1 d-block" id="knowledgeTemplateInfo"></small>
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-primary btn-block" onclick="analyzeAccuracyByKnowledge()" id="analyzeBtn" disabled>
-                        <i class="fas fa-chart-line"></i> Analyze Accuracy by Knowledge
-                    </button>
-                </div>
+        <div class="modern-form-container">
+            <div class="modern-form-control">
+                <label for="groundTruthDataset" class="modern-form-label">Ground Truth Dataset</label>
+                <select class="modern-select" id="groundTruthDataset">
+                    <option value="">Loading datasets...</option>
+                </select>
+                <small class="text-muted mt-1 d-block" id="datasetInfo"></small>
+            </div>
+            <div class="modern-form-control">
+                <label for="phenotypeTemplate" class="modern-form-label">Phenotype Template Run</label>
+                <select class="modern-select" id="phenotypeTemplate">
+                    <option value="">Loading templates...</option>
+                </select>
+                <small class="text-muted mt-1 d-block" id="phenotypeTemplateInfo"></small>
+            </div>
+            <div class="modern-form-control">
+                <label for="knowledgeTemplate" class="modern-form-label">Knowledge Template Run</label>
+                <select class="modern-select" id="knowledgeTemplate">
+                    <option value="">Loading templates...</option>
+                </select>
+                <small class="text-muted mt-1 d-block" id="knowledgeTemplateInfo"></small>
+            </div>
+            <div class="modern-form-control">
+                <button class="btn btn-primary" onclick="analyzeAccuracyByKnowledge()" id="analyzeBtn" disabled>
+                    <i class="fas fa-chart-line"></i> Analyze Accuracy by Knowledge
+                </button>
             </div>
         </div>
     </div>

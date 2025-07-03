@@ -22,7 +22,7 @@ from microbellm.utils import (
     normalize_value
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 

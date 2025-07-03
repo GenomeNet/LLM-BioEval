@@ -4,29 +4,9 @@
 
 {% block extra_head %}
 <style>
-/* Override container width for wider layout */
-.container {
-    max-width: 1800px !important; /* Increased from 1400px */
-    padding: 32px 48px !important; /* Slightly more horizontal padding */
-}
-
-/* Responsive adjustments for wider layout */
-@media (max-width: 1200px) {
-    .container {
-        max-width: 1400px !important;
-        padding: 32px !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 16px !important;
-    }
-}
-
-/* Hero Section */
+/* Hero Section - Using new layout system */
 .hero-section {
-    padding: 120px 0 80px;
+    padding: var(--hero-padding-top) 0 var(--hero-padding-bottom);
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -59,8 +39,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 32px;
-    padding-top: 80px;
+    margin-bottom: var(--spacing-component);
+    padding-top: var(--spacing-section);
 }
 
 .section-header h2 {
@@ -296,7 +276,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="main-content page-content">
+    <div class="container-standard">
     <!-- Hero Section -->
     <section class="hero-section">
         <h1 class="hero-title">Measuring AI's grasp of biology</h1>
@@ -410,9 +391,10 @@
     </section>
 </div>
 
+    </div>
+
 <!-- Footer -->
 <footer class="footer">
-    <div class="container">
         <div class="footer-content">
             <div class="footer-text">
                 © 2024 LLM-BioEval. Open-source research project.
@@ -424,8 +406,8 @@
                 <a href="/privacy" class="footer-link">Privacy</a>
             </div>
         </div>
+    </footer>
     </div>
-</footer>
 
 <script>
 // Bacteria animation for phenotype card

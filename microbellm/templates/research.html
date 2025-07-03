@@ -6,14 +6,14 @@
 <style>
 /* Research Page Styles */
 .research-page {
-    padding: 32px 0;
+    padding-top: var(--spacing-page-top);
 }
 
 /* Research Projects Grid */
 .research-grid {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: var(--spacing-component);
     max-width: 800px;
     margin: 0 auto;
 }
@@ -174,7 +174,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="main-content page-content">
+    <div class="container-standard">
     <div class="research-page">
         <!-- Research Projects -->
         <div class="research-grid">
@@ -273,6 +274,7 @@
                     </a>
                 </div>
             </article>
+            </div>
         </div>
     </div>
 </div>

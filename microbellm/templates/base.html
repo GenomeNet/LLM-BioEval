@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LLM-BioEval{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <style>
         :root {
             /* Modern color palette */
@@ -70,16 +71,6 @@
             z-index: 40;
             backdrop-filter: blur(8px);
             background-color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .navbar-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 32px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
         }
         
         .navbar-brand {
@@ -756,7 +747,9 @@
                 <a href="/" class="logo">LLM-BioEval</a>
             </div>
             
-            <div class="navbar-nav">
+            <!-- Hide navigation for now -->
+            <div class="navbar-nav" style="display: none;">
+                <!-- Research Dropdown -->
                 <div class="nav-item dropdown">
                     <a href="#" class="nav-link dropdown-toggle">
                         Research
@@ -764,28 +757,30 @@
                     <div class="dropdown-menu">
                         <a href="/research" class="dropdown-item">All Projects</a>
                         <div class="dropdown-divider"></div>
-                        <a href="/artificial_dataset" class="dropdown-item">Hallucination Test</a>
-                        <a href="/search_correlation" class="dropdown-item">Knowledge Alignment</a>
-                        <a href="/accuracy_by_knowledge" class="dropdown-item">Accuracy Analysis</a>
-                        <div class="dropdown-divider"></div>
                         <a href="/phenotype_analysis" class="dropdown-item">Phenotype Analysis</a>
-                        <a href="/model_accuracy" class="dropdown-item">Model Accuracy</a>
+                        <a href="/artificial_dataset" class="dropdown-item">Knowledge Calibration</a>
+                        <a href="#" class="dropdown-item" style="opacity: 0.5;">Growth Conditions</a>
                     </div>
                 </div>
                 
+                <!-- Data Dropdown -->
                 <div class="nav-item dropdown">
                     <a href="#" class="nav-link dropdown-toggle">
                         Data
                     </a>
                     <div class="dropdown-menu">
-                        <a href="/ground_truth" class="dropdown-item">Ground Truth</a>
-                        <a href="/templates" class="dropdown-item">Templates</a>
                         <a href="/import" class="dropdown-item">Import Data</a>
                         <a href="/export" class="dropdown-item">Export Results</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/ground_truth" class="dropdown-item">Ground Truth</a>
+                        <a href="/templates" class="dropdown-item">Templates</a>
                     </div>
                 </div>
                 
+                <!-- Dashboard -->
+                <div class="nav-item">
                 <a href="/dashboard" class="nav-link">Dashboard</a>
+                </div>
             </div>
         </div>
     </nav>
