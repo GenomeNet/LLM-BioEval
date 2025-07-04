@@ -5769,21 +5769,23 @@
     }
     .histogram-legend {
         display: flex;
-        justify-content: center;
-        gap: 24px;
-        margin-top: 16px;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
     }
     .histogram-legend-item {
         display: flex;
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        color: var(--gray-600);
+        color: var(--gray-700);
     }
     .histogram-legend-color {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         border-radius: 4px;
+        border: 1px solid rgba(0,0,0,0.1);
     }
 
     /* Experimental Flow Breakout (inside article) */
@@ -6771,6 +6773,33 @@ document.addEventListener('DOMContentLoaded', function() {
     animateSet(set3Examples, 'set4-species', 'set4-label', 'set4-miniboxes', 'genus');
     // --- End Species Generation Animation ---
     
+    function createBarChartLegend() {
+        return `
+            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px; margin-top: 4px; padding-left: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                    <span>Extensive</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                    <span>Moderate</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                    <span>Limited</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                    <span>NA</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                    <span>Failed</span>
+                </div>
+            </div>
+        `;
+    }
+    
     // --- Knowledge Analysis Data Fetch and Render (Using Working Version Logic) ---
     function formatTypeName(typeName) {
         // Format type names for display
@@ -7007,6 +7036,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="top-performers-section">
                     <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Performing Models</h3>
                     <p class="article-text" style="margin-bottom: 24px;">To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores.</p>
+                    ${createBarChartLegend()}
                     <div class="performers-list">
             `;
             top4Models.forEach((model, index) => {
@@ -7179,8 +7209,10 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `<h3 class="template-section-title">`;
             html += `<a href="/templates" class="template-header-link" onclick="scrollToTemplate('${templateName}')">${templateName}</a>`;
             html += `</h3>`;
-            html += `<p class="template-section-description">${templateDescriptions[templateName] || 'Template for model evaluation'}</p>`;
+            html += `<p class="template-section-description">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
             html += `</div>`;
+            
+            html += createBarChartLegend();
             
             html += `<div class="table-fade" id="table-fade-${templateIndex}">`;
             html += `<table class="knowledge-analysis-table">`;
@@ -7591,7 +7623,8 @@ function renderCorrelationStatsAndTable(data, container) {
 
     // Table
     let html = `<div class="knowledge-analysis-table-wrapper">`;
-    html += `<div class="template-section-header"><h3 class="template-section-title">Knowledge-Web Alignment Table</h3><p class="template-section-description">Correlation between LLM knowledge claims and web presence for real species.</p></div>`;
+    html += `<div class="template-section-header"><h3 class="template-section-title">Knowledge-Web Alignment Table</h3><p class="template-section-description">Correlation between LLM knowledge claims and web presence for real species. The bar charts below show the distribution of self-reported knowledge levels for each model.</p></div>`;
+    html += createBarChartLegend();
     html += `<table class="knowledge-analysis-table">`;
     html += `<thead><tr><th>Model</th><th>Template</th><th>Knowledge Distribution</th><th>Species</th><th>Correlation</th></tr></thead><tbody>`;
     modelResults.forEach(m => {
@@ -7622,6 +7655,33 @@ function renderKnowledgeDistBar(dist, total) {
     });
     html += '</div></div>';
     return html;
+}
+
+function createBarChartLegend() {
+    return `
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px; margin-top: 4px; padding-left: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                <span>Extensive</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                <span>Moderate</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                <span>Limited</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                <span>NA</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                <span>Failed</span>
+            </div>
+        </div>
+    `;
 }
 </script>
 
