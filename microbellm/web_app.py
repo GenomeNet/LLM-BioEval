@@ -1907,7 +1907,7 @@ def artificial_dataset_page():
     except Exception as e:
         print(f"Error reading annotation file: {e}")
     
-    return render_template('artificial_dataset.html', annotations=annotation_data)
+    return render_template('knowledge_calibration.html', annotations=annotation_data)
 
 @app.route('/search_correlation')
 def search_correlation_page():
