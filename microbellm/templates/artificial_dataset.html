@@ -6434,7 +6434,10 @@
             </p>
             
         </div>
-
+        
+        <div id="dynamic-summary-for-correlation" class="dynamic-stats" style="display: none;">
+            <!-- Populated by JavaScript -->
+        </div>
 
     </div>
 </section>
@@ -7572,12 +7575,52 @@ function loadCorrelationData() {
                 container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
                 return;
             }
+            renderCorrelationSummary(data);
             renderCorrelationStatsAndTable(data, container);
         })
         .catch(error => {
             console.error('Error loading correlation data:', error);
             container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
         });
+}
+
+function renderCorrelationSummary(data) {
+    const selectedDataset = data.files_with_search_counts[0];
+    const fileData = data.correlation_data[selectedDataset];
+    let modelResults = [];
+    Object.entries(fileData).forEach(([templateName, models]) => {
+        Object.entries(models).forEach(([modelName, d]) => {
+            if (d.species_count < 2) return;
+            modelResults.push({
+                modelName,
+                templateName,
+                correlation: d.correlation_coefficient,
+            });
+        });
+    });
+    // Sort by correlation descending
+    modelResults.sort((a, b) => b.correlation - a.correlation);
+    
+    const totalModels = new Set(modelResults.map(r => r.modelName)).size;
+    const totalTemplates = Object.keys(fileData).length;
+    const maxCorrelation = modelResults.length ? Math.max(...modelResults.map(m => m.correlation)) : 0;
+    const minCorrelation = modelResults.length ? Math.min(...modelResults.map(m => m.correlation)) : 0;
+    const bestModelResult = modelResults.length ? modelResults.find(m => m.correlation === maxCorrelation) : null;
+    const worstModelResult = modelResults.length ? modelResults.find(m => m.correlation === minCorrelation) : null;
+    
+    const bestModel = bestModelResult ? bestModelResult.modelName.split('/').pop() : 'N/A';
+    const worstModel = worstModelResult ? worstModelResult.modelName.split('/').pop() : 'N/A';
+    
+    const dynamicStatsText =
+        `Our analysis of web-aligned knowledge across <span class="stat-value">${totalModels}</span> models and <span class="stat-value">${totalTemplates}</span> templates shows how well each model's confidence is calibrated. ` +
+        `The best alignment was seen in <span class="model-highlight">${bestModel}</span>, with a correlation score of <span class="stat-value">${maxCorrelation.toFixed(3)}</span>. ` +
+        (worstModel && bestModel !== worstModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> showed the weakest alignment with a correlation of <span class="stat-value">${minCorrelation.toFixed(3)}</span>, indicating its knowledge claims are less reflective of real-world information availability.` : '');
+
+    const summaryDiv = document.getElementById('dynamic-summary-for-correlation');
+    if (summaryDiv) {
+        summaryDiv.innerHTML = `<p>${dynamicStatsText}</p>`;
+        summaryDiv.style.display = 'block';
+    }
 }
 
 function renderCorrelationStatsAndTable(data, container) {
@@ -7601,28 +7644,24 @@ function renderCorrelationStatsAndTable(data, container) {
     // Sort by correlation descending
     modelResults.sort((a, b) => b.correlation - a.correlation);
     
-    // --- NEW: Generate dynamic stats text instead of cards ---
-    const totalModels = new Set(modelResults.map(r => r.modelName)).size;
-    const totalTemplates = Object.keys(fileData).length;
-    const maxCorrelation = modelResults.length ? Math.max(...modelResults.map(m => m.correlation)) : 0;
-    const minCorrelation = modelResults.length ? Math.min(...modelResults.map(m => m.correlation)) : 0;
-    const bestModelResult = modelResults.length ? modelResults.find(m => m.correlation === maxCorrelation) : null;
-    const worstModelResult = modelResults.length ? modelResults.find(m => m.correlation === minCorrelation) : null;
-    
-    const bestModel = bestModelResult ? bestModelResult.modelName.split('/').pop() : 'N/A';
-    const worstModel = worstModelResult ? worstModelResult.modelName.split('/').pop() : 'N/A';
-    
-    const dynamicStatsContainer = document.getElementById('correlationDynamicStats');
-    if (dynamicStatsContainer) {
-        const dynamicStatsText =
-            `Our analysis of web-aligned knowledge across <span class="stat-value">${totalModels}</span> models and <span class="stat-value">${totalTemplates}</span> templates shows how well each model's confidence is calibrated. ` +
-            `The best alignment was seen in <span class="model-highlight">${bestModel}</span>, with a correlation score of <span class="stat-value">${maxCorrelation.toFixed(3)}</span>. ` +
-            (worstModel && bestModel !== worstModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> showed the weakest alignment with a correlation of <span class="stat-value">${minCorrelation.toFixed(3)}</span>, indicating its knowledge claims are less reflective of real-world information availability.` : '');
-        dynamicStatsContainer.innerHTML = `<p>${dynamicStatsText}</p>`;
+    // ========================
+    // NEW: Top performers call-out (Correlation)
+    // ========================
+    const top4CorrModels = modelResults.slice(0, 4);
+    let corrTopPerformersHtml = "";
+    if (top4CorrModels.length > 0) {
+        corrTopPerformersHtml += `\n            <div class="top-performers-section" style="margin-bottom: 32px;">\n                <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n                <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n                ${createBarChartLegend()}\n                <div class="performers-list">`;
+
+        top4CorrModels.forEach((m, idx) => {
+            const displayName = m.modelName.split('/').pop();
+            corrTopPerformersHtml += `\n                    <div class="performer-card">\n                        <div class="performer-rank">${idx + 1}</div>\n                        <div style="flex: 1;">\n                            <div class="performer-name">${displayName}</div>\n                            <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>\n                            <div class="performer-dist-chart" style="margin-top: 12px;">\n                                ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}\n                            </div>\n                        </div>\n                    </div>`;
+        });
+
+        corrTopPerformersHtml += `\n                </div>\n            </div>`;
     }
 
     // Table
-    let html = `<div class="knowledge-analysis-table-wrapper">`;
+    let html = corrTopPerformersHtml + `<div class="knowledge-analysis-table-wrapper">`;
     html += `<div class="template-section-header"><h3 class="template-section-title">Knowledge-Web Alignment Table</h3><p class="template-section-description">Correlation between LLM knowledge claims and web presence for real species. The bar charts below show the distribution of self-reported knowledge levels for each model.</p></div>`;
     html += createBarChartLegend();
     html += `<table class="knowledge-analysis-table">`;
