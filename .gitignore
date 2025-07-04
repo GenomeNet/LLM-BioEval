@@ -2,8 +2,9 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.db
 *.egg-info/
 .DS_Store
 .env
 *.log
+# Allow the main database with data
+!microbellm_jobs.db
