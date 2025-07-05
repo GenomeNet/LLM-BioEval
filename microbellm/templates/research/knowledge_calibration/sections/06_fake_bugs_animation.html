@@ -27,12 +27,35 @@
     100% { background-position: -200% 0; }
 }
 
+.genus-part, .species-part {
+    transition: color 0.3s ease, transform 0.3s ease;
+    display: inline-block;
+}
+
+.genus-part.transforming, .species-part.transforming {
+    transform: scale(0.95);
+    filter: blur(2px);
+}
+
 .genus-part.fictional {
     color: #dc2626 !important;
 }
 
 .species-part.fictional {
     color: #dc2626 !important;
+}
+
+/* Glitch effect for transformation */
+@keyframes glitch {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-2px); }
+    40% { transform: translateX(2px); }
+    60% { transform: translateX(-1px); }
+    80% { transform: translateX(1px); }
+}
+
+.transforming-text {
+    animation: glitch 0.3s ease-out;
 }
 </style>
 

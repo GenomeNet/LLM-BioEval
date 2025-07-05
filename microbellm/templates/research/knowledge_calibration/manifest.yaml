@@ -5,6 +5,12 @@ page_config:
   project_id: "knowledge_calibration"
 
 sections:
+  # Hero animation canvas only
+  - id: "hero_animation"
+    type: "raw"
+    file: "sections/00_hero_animation.html"
+    title: "Hero Animation Canvas"
+    
   # Hero header with animation
   - id: "hero_header"
     type: "hero"

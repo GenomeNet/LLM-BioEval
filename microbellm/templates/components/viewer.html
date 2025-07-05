@@ -73,7 +73,7 @@
     }
     
     .viewer-content {
-        padding: 40px 0;
+        padding: 0;
         min-height: calc(100vh - 200px);
     }
     
@@ -166,8 +166,8 @@
     
     /* Full-width component container */
     .full-width-component-container {
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
+        width: 100%;
+        margin: 0;
         position: relative;
     }
     
@@ -177,15 +177,36 @@
         max-width: none;
     }
     
+    .viewer-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
     /* Fix alignment for section callouts in viewer */
     .viewer-content .section-callout {
         margin-left: 0;
         margin-right: 0;
+        width: 100%;
+    }
+    
+    /* Fix hero header alignment */
+    .viewer-content .hero-header {
+        margin: 0;
+        width: 100%;
     }
     
     /* Ensure proper centering */
     body {
         overflow-x: hidden;
+    }
+    
+    /* Remove padding from main content when viewing components */
+    .main-content.page-content {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
     }
     
     /* Hide boundaries when toggled */
@@ -349,15 +370,13 @@
             {% include 'research/' + page + '/' + section.file %}
             
         {% elif section.type == 'hero' %}
-            <div class="full-width-component-container">
-                <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
-                    <span class="component-label">Hero Header</span>
-                    <div class="component-boundaries" style="padding: 0;">
-                        <div class="component-boundaries-sides left"></div>
-                        <div class="component-boundaries-sides right"></div>
-                        <div class="component-content-area">
-                            {% include 'research/' + page + '/' + section.file %}
-                        </div>
+            <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
+                <span class="component-label">Hero Header</span>
+                <div class="component-boundaries" style="padding: 0;">
+                    <div class="component-boundaries-sides left"></div>
+                    <div class="component-boundaries-sides right"></div>
+                    <div class="component-content-area" style="padding: 0;">
+                        {% include 'research/' + page + '/' + section.file %}
                     </div>
                 </div>
             </div>

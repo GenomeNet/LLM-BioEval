@@ -1,0 +1,167 @@
+<!-- Hero Animation Canvas Only -->
+<div class="hero-animation-container">
+    <canvas id="{{ project.id if project else 'knowledge_calibration' }}-hero-canvas" class="hero-canvas"></canvas>
+</div>
+
+<script>
+// Initialize hero animation
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('{{ project.id if project else "knowledge_calibration" }}-hero-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let animationId;
+    
+    // Color configurations based on project theme
+    const colorThemes = {
+        purple: {
+            colors: [
+                { r: 99, g: 102, b: 241 },   // Blue
+                { r: 168, g: 85, b: 247 },   // Purple
+                { r: 147, g: 51, b: 234 },   // Deep Purple
+                { r: 59, g: 130, b: 246 },   // Light Blue
+            ],
+            particleCount: 60,
+            particleSpeed: 0.3,
+            particleSize: { min: 2, max: 4 }
+        },
+        green: {
+            colors: [
+                { r: 34, g: 197, b: 94 },    // Green
+                { r: 132, g: 204, b: 22 },   // Lime
+                { r: 16, g: 185, b: 129 },   // Emerald
+                { r: 5, g: 150, b: 105 },    // Teal
+            ],
+            particleCount: 50,
+            particleSpeed: 0.4,
+            particleSize: { min: 3, max: 6 }
+        },
+        yellow: {
+            colors: [
+                { r: 250, g: 204, b: 21 },   // Yellow
+                { r: 251, g: 146, b: 60 },   // Orange
+                { r: 254, g: 215, b: 102 },  // Light Yellow
+                { r: 251, g: 191, b: 36 },   // Amber
+            ],
+            particleCount: 40,
+            particleSpeed: 0.5,
+            particleSize: { min: 2, max: 5 }
+        }
+    };
+    
+    const theme = colorThemes['{{ project.color_theme if project else "purple" }}'] || colorThemes.purple;
+    let particles = [];
+    
+    function resizeCanvas() {
+        // Get container dimensions
+        const container = canvas.parentElement;
+        width = canvas.width = container.offsetWidth;
+        height = canvas.height = 400; // Fixed height for consistency
+        initParticles();
+    }
+    
+    function initParticles() {
+        particles = [];
+        for (let i = 0; i < theme.particleCount; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * theme.particleSpeed,
+                vy: (Math.random() - 0.5) * theme.particleSpeed,
+                size: theme.particleSize.min + Math.random() * (theme.particleSize.max - theme.particleSize.min),
+                color: theme.colors[Math.floor(Math.random() * theme.colors.length)],
+                opacity: 0.3 + Math.random() * 0.4
+            });
+        }
+    }
+    
+    function drawParticle(particle) {
+        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.opacity})`;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Update and draw particles
+        particles.forEach(particle => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            
+            // Wrap around edges
+            if (particle.x < -10) particle.x = width + 10;
+            if (particle.x > width + 10) particle.x = -10;
+            if (particle.y < -10) particle.y = height + 10;
+            if (particle.y > height + 10) particle.y = -10;
+            
+            drawParticle(particle);
+        });
+        
+        // Draw connections between nearby particles
+        ctx.strokeStyle = `rgba(${theme.colors[0].r}, ${theme.colors[0].g}, ${theme.colors[0].b}, 0.1)`;
+        ctx.lineWidth = 1;
+        
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        animationId = requestAnimationFrame(animate);
+    }
+    
+    // Initialize
+    resizeCanvas();
+    animate();
+    
+    // Handle resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(resizeCanvas, 250);
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+    });
+});
+</script>
+
+<style>
+.hero-animation-container {
+    width: 100%;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.03) 0%,
+        rgba(168, 85, 247, 0.02) 25%,
+        rgba(59, 130, 246, 0.03) 50%,
+        rgba(147, 51, 234, 0.02) 75%,
+        rgba(79, 172, 254, 0.03) 100%);
+}
+
+.hero-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+}
+</style>
