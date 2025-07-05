@@ -1,0 +1,139 @@
+<div class="flow-diagram-wrapper">
+<div class="flow-diagram">
+    <!-- Input Box -->
+    <div class="flow-box flow-input">
+        <div class="flow-species">Pseudobacterium imaginarius</div>
+        <div class="flow-label">Completely fictional species</div>
+    </div>
+    
+    <!-- Arrow 1 -->
+    <div class="flow-arrow">
+        <svg width="60" height="40" viewBox="0 0 60 40" fill="none">
+            <path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    
+    <!-- Query Box -->
+    <div class="flow-box flow-query">
+        <div class="query-title">LLM Query</div>
+        <div class="output-description">Fictional species embedded in queries<br>asking models to assess their knowledge level</div>
+        <div class="query-templates">
+            <div class="query-template" data-query="1">
+                <span class="template-number">Q1</span>
+                <span class="template-type">no NA option</span>
+            </div>
+            <div class="query-template" data-query="2">
+                <span class="template-number">Q2</span>
+                <span class="template-type">with NA option short query</span>
+            </div>
+            <div class="query-template" data-query="3">
+                <span class="template-number">Q3</span>
+                <span class="template-type">with NA verbose query</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Arrow 2 -->
+    <div class="flow-arrow">
+        <svg width="60" height="40" viewBox="0 0 60 40" fill="none">
+            <path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    
+    <!-- Output Box -->
+    <div class="flow-box flow-output">
+        <div class="output-title">LLM Response</div>
+        <div class="output-description">LLM response of the knowledge level<br>based on the query</div>
+        <div class="output-options">
+            <div class="output-option caution" data-level="limited">
+                <span>Limited</span>
+                <div class="expectation-indicator">
+                    <span class="expect-q1">✓</span>
+                </div>
+            </div>
+            <div class="output-option bad" data-level="moderate">
+                <span>Moderate</span>
+                <div class="expectation-indicator">
+                    <span class="expect-none">✗</span>
+                </div>
+            </div>
+            <div class="output-option worst" data-level="extensive">
+                <span>Extensive</span>
+                <div class="expectation-indicator">
+                    <span class="expect-none">✗</span>
+                </div>
+            </div>
+            <div class="output-option good" data-level="na">
+                <span>NA</span>
+                <div class="expectation-indicator">
+                    <span class="expect-q2 expect-q3">✓</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="flow-legend">
+    <div class="legend-item">
+        <span class="legend-symbol">Q1, Q2, Q3</span> = Query types
+    </div>
+    <div class="legend-item">
+        <span class="legend-symbol">✓</span> = Expected best response
+    </div>
+    <div class="legend-item">
+        <span class="legend-symbol">✗</span> = Hallucination (bad response)
+    </div>
+</div>
+</div>
+
+<style>
+/* Interactive hover effects */
+.flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.query-template {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.query-template:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.2);
+}
+
+.output-option {
+    transition: all 0.3s ease;
+}
+
+/* Hover interactions */
+.query-template[data-query="1"]:hover ~ * .output-option .expect-q1,
+.query-template[data-query="2"]:hover ~ * .output-option .expect-q2,
+.query-template[data-query="3"]:hover ~ * .output-option .expect-q3 {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.flow-legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-symbol {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+</style>

@@ -222,3 +222,184 @@ Created a reusable footer partial similar to the hero header implementation.
 3. **Complete Coverage**: All main pages now have footers
 4. **DRY Principle**: Eliminated code duplication
 5. **Responsive Design**: Footer adapts properly on mobile devices
+
+## Research Pages File-Based Sections
+
+### Problem
+Research pages (knowledge_calibration.html, phenotype_analysis.html) were monolithic templates with 8000+ lines of mixed HTML, CSS, and JavaScript. This made them difficult to maintain and edit. Content sections couldn't be reordered easily, and finding specific sections required scrolling through thousands of lines.
+
+### Solution
+Created a file-based system where each page has:
+- A folder containing individual section files
+- A manifest.yaml defining section order and metadata
+- Reusable wrapper partials for common structures
+- Page-specific CSS in separate files
+
+### Implementation
+
+#### 1. Folder Structure
+```
+templates/research/
+├── knowledge_calibration/
+│   ├── manifest.yaml
+│   ├── sections/
+│   │   ├── 01_purpose_intro.html
+│   │   ├── 02_definition_binomial.html
+│   │   ├── 03_ai_hallucination.html
+│   │   └── ... (28 section files total)
+└── phenotype_analysis/
+    ├── manifest.yaml
+    └── sections/
+```
+
+#### 2. Created Reusable Wrapper Partials
+
+**section_callout_wrapper.html**
+- Wraps full-width gradient sections
+- Takes: color_theme, title, text, content
+- Provides consistent structure for major result sections
+
+**callout_box_wrapper.html**  
+- Wraps inline callout boxes (definitions, examples)
+- Takes: type, header, content, compact
+- Ensures consistent styling for all callout boxes
+
+**article_section_wrapper.html**
+- Wraps standard article sections
+- Takes: section_id, title, content, sidebar_content
+- Manages article container structure
+
+**section_wide_wrapper.html**
+- Wraps full-width white sections
+- Takes: content, constrain_text
+- For wide tables and visualizations
+
+#### 3. Manifest System
+
+Each page has a manifest.yaml defining:
+```yaml
+page_config:
+  title: "Hallucination Test"
+  color_theme: "purple"
+  
+sections:
+  - id: "purpose_intro"
+    type: "article"
+    file: "sections/01_purpose_intro.html"
+    title: "Hallucination Check: Fictional Strain Names"
+    include_sidebar: true
+    
+  - id: "hallucination_process"
+    type: "section_callout"
+    file: "sections/07_process_flow.html"
+    title: "Hallucination Detection Process"
+    text: "Our systematic approach..."
+```
+
+#### 4. Updated Web App
+
+- Added `load_page_manifest()` function to web_app.py
+- Modified routes to check for manifest files
+- Falls back to original template if no manifest exists
+- Passes manifest data to new template
+
+#### 5. New Template Structure
+
+Created knowledge_calibration_new.html that:
+- Iterates through manifest sections
+- Applies appropriate wrappers based on section type
+- Handles nested content (callouts within articles)
+- Manages article open/close states
+- Includes page-specific CSS
+
+### Benefits
+
+1. **Independent Editing**: Each section can be edited without affecting others
+2. **Easy Reordering**: Just update the manifest file
+3. **Clear Organization**: Sections are numbered and named descriptively
+4. **Reusable Structures**: Common patterns use shared wrappers
+5. **Flexible Content**: Each section can contain any HTML/JS needed
+6. **Version Control**: Changes to sections are isolated
+7. **Easier Navigation**: No more scrolling through 8000+ lines
+
+### Status
+
+- ✅ Knowledge calibration page fully converted (28 sections)
+- ⏳ Phenotype analysis page pending conversion
+- ✅ All wrapper partials created
+- ✅ Manifest system implemented
+- ✅ Web app updated to support manifests
+- ✅ Component viewer system created
+- ✅ JavaScript functionality extracted and implemented
+- ⏳ Testing with dynamic content in progress
+
+## Component Viewer System
+
+### Problem
+After splitting research pages into individual section files, there was no easy way to test and view individual components in isolation. Developers had to load the entire page to see changes to a single section.
+
+### Solution
+Created a component viewer system that allows:
+- Viewing all available components in a library-style interface
+- Testing individual sections in isolation
+- Seeing component metadata and structure
+
+### Implementation
+
+1. **Created Component Routes**
+   - `/components` - Shows index of all available components
+   - `/components/<page>/<section_id>` - Shows individual component
+
+2. **Component Index Page** (`templates/components/index.html`)
+   - Lists all pages with manifest files
+   - Shows sections organized by page
+   - Color-coded badges for each project
+   - Grid layout for easy browsing
+   - Links to view individual components
+
+3. **Component Viewer** (`templates/components/viewer.html`)
+   - Shows components with proper wrappers applied
+   - Displays metadata (type, file, title)
+   - Includes necessary scripts for dynamic content
+   - Back navigation to component index
+   - Link to view full page
+
+4. **Added Components Link to Footer**
+   - Easy access from any page
+   - Helps developers quickly find component viewer
+
+### JavaScript Implementation
+
+1. **Created Modular Scripts**
+   - Moved inline JavaScript to structured functions
+   - Created `/static/js/knowledge_content.js` for dynamic loaders
+   - Updated `sections/99_scripts.html` with full implementations
+
+2. **Implemented Data Loading Functions**
+   - `loadKnowledgeAnalysisData()` - Main data loader
+   - `renderTopPerformers()` - Top models section
+   - `renderWorstPerformers()` - Worst models section
+   - `loadCorrelationData()` - Correlation analysis
+   - `renderScoreExample()` - Score calculation examples
+
+3. **Added Missing CSS Classes**
+   - Knowledge distribution bar colors
+   - Loading states and animations
+   - Performer cards styling
+   - Statistical highlights
+   - Responsive adjustments
+
+### Benefits
+
+1. **Isolated Testing**: Test components without loading entire pages
+2. **Quick Navigation**: Find and edit specific sections easily
+3. **Visual Documentation**: See all components at a glance
+4. **Faster Development**: No need to scroll through large files
+5. **Better Debugging**: Test dynamic content in isolation
+
+### Technical Details
+
+- Component viewer respects section types and applies correct wrappers
+- Dynamic content sections are properly initialized
+- All necessary CSS and JS dependencies are loaded
+- Responsive design maintained in component view

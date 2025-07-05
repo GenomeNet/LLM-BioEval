@@ -1,0 +1,139 @@
+<!-- Loading state -->
+<div id="templateLoadingState" style="text-align:center;padding:20px;color:var(--gray-600);">
+    <div style="margin-bottom:8px;">Loading templates...</div>
+    <div style="width:100px;height:4px;background:var(--gray-200);margin:0 auto;border-radius:2px;overflow:hidden;">
+        <div style="width:30%;height:100%;background:var(--primary,#6366f1);animation:loadingMove 2s infinite;"></div>
+    </div>
+</div>
+
+<!-- Controls (hidden initially) -->
+<div id="templateControls" class="modern-form-container" style="display:none;">
+    <!-- Template selector -->
+    <div class="modern-form-control">
+        <label class="modern-form-label">
+            Template
+        </label>
+        <select id="templateSelect" class="modern-select">
+            <!-- Options will be populated by JavaScript -->
+        </select>
+    </div>
+
+    <!-- Part selector -->
+    <div class="modern-form-control">
+        <label class="modern-form-label">
+            Template Part
+        </label>
+        <div id="partButtons" class="modern-button-group">
+            <button data-part="system"     class="modern-button active">System</button>
+            <button data-part="user"       class="modern-button">User</button>
+            <button data-part="validation" class="modern-button">Validation</button>
+        </div>
+    </div>
+</div>
+
+<!-- Content pane (hidden initially) -->
+<pre id="templatePane"
+     style="display:none;background:#f8f9fa;border:1px solid var(--gray-200);
+            padding:16px;max-height:320px;overflow-y:auto;
+            font-size:12px;line-height:1.45;
+            font-family:'Menlo','Monaco','Ubuntu Mono',monospace;"></pre>
+
+<!-- Error state (hidden initially) -->
+<div id="templateErrorState" style="display:none;text-align:center;padding:20px;color:var(--gray-600);">
+    <div style="margin-bottom:8px;color:#dc3545;">Failed to load templates</div>
+    <div style="font-size:13px;">Please check if knowledge templates are configured in your system.</div>
+</div>
+
+<script>
+/* ------- Real template viewer data loader ------- */
+let knowledgeTemplates = {};
+let templateNames = [];
+
+// Load real knowledge templates from the API
+async function loadKnowledgeTemplates() {
+    try {
+        const response = await fetch('/api/available_knowledge_templates');
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load templates');
+        }
+
+        knowledgeTemplates = data.templates;
+        templateNames = Object.keys(knowledgeTemplates);
+
+        // Hide loading, show controls
+        document.getElementById('templateLoadingState').style.display = 'none';
+        document.getElementById('templateControls').style.display = 'block';
+        document.getElementById('templatePane').style.display = 'block';
+
+        // Populate the select
+        const sel = document.getElementById('templateSelect');
+        sel.innerHTML = templateNames.map(name => 
+            `<option value="${name}">${name}</option>`
+        ).join('');
+
+        // Initialize display
+        initButtons();
+        render();
+
+    } catch (error) {
+        console.error('Failed to load templates:', error);
+        // Show error state
+        document.getElementById('templateLoadingState').style.display = 'none';
+        document.getElementById('templateErrorState').style.display = 'block';
+    }
+}
+
+function initButtons() {
+    const buttons = document.querySelectorAll('#partButtons .modern-button');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            render();
+        });
+    });
+}
+
+function render() {
+    const sel = document.getElementById('templateSelect');
+    const pane = document.getElementById('templatePane');
+    const activeButton = document.querySelector('#partButtons .modern-button.active');
+
+    if (!sel.value || !knowledgeTemplates[sel.value] || !activeButton) {
+        return;
+    }
+
+    const template = knowledgeTemplates[sel.value];
+    const activePart = activeButton.dataset.part;
+
+    let content = '';
+
+    switch (activePart) {
+        case 'system':
+            content = template.system.content;
+            break;
+        case 'user':
+            content = template.user.content;
+            break;
+        case 'validation':
+            if (template.validation && template.validation.content) {
+                content = template.validation.content;
+            } else {
+                content = '// No validation configuration found for this template\n// Add a validation config file to enable response validation';
+            }
+            break;
+        default:
+            content = 'Unknown template part';
+    }
+
+    pane.textContent = content;
+}
+
+// Load templates when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure other scripts have initialized
+    setTimeout(loadKnowledgeTemplates, 100);
+});
+</script>

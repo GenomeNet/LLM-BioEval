@@ -939,3 +939,220 @@
         text-align: center;
     }
 }
+
+/* =====================================================
+   Knowledge Calibration Specific Styles
+   ===================================================== */
+
+/* Knowledge distribution bar colors */
+.bar-segment.knowledge-na,
+.knowledge-na { 
+    background: #e2e3e5; 
+    color: #6b7280; 
+}
+
+.bar-segment.knowledge-limited,
+.knowledge-limited { 
+    background: #fff3cd; 
+    color: #92400e; 
+}
+
+.bar-segment.knowledge-moderate,
+.knowledge-moderate { 
+    background: #d1ecf1; 
+    color: #1e40af; 
+}
+
+.bar-segment.knowledge-extensive,
+.knowledge-extensive { 
+    background: #d4edda; 
+    color: #065f46; 
+}
+
+/* Loading states */
+.loading-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    width: 30%;
+    height: 100%;
+    background: var(--primary, #6366f1);
+    animation: loading-move 2s infinite;
+}
+
+@keyframes loading-move {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+
+.loading-text {
+    color: var(--gray-600);
+    font-size: 14px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-600);
+}
+
+.empty-state h3 {
+    color: var(--gray-900);
+    margin-bottom: 8px;
+}
+
+/* Knowledge analysis table styles */
+.knowledge-analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+    font-size: 14px;
+}
+
+.knowledge-analysis-table th,
+.knowledge-analysis-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-200);
+    text-align: left;
+}
+
+.knowledge-analysis-table th {
+    background: #FAFAFA;
+    font-weight: 600;
+}
+
+/* Model name cell styling */
+.model-name-cell {
+    background-color: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-700);
+    text-align: left;
+    padding-left: 10px;
+    font-size: 11px;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.chart-cell {
+    padding: 4px 8px;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--gray-500);
+    font-style: italic;
+    font-size: 11px;
+}
+
+/* Performer cards */
+.performers-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-top: 16px;
+}
+
+.performer-card {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.performer-rank {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700);
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+}
+
+.performer-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+}
+
+.performer-score {
+    font-size: 14px;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+}
+
+.performer-dist-chart {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.performer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.performer-card.worst .performer-rank {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+/* Highlight classes */
+.stat-value {
+    display: inline-block;
+    font-weight: 700;
+    color: var(--gray-900);
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 6px;
+    margin: 0 2px;
+    padding: 2px 8px;
+    font-size: inherit;
+}
+
+.model-highlight {
+    font-weight: 600;
+    color: #7c3aed;
+}
+
+.model-lowlight {
+    font-weight: 600;
+    color: #dc2626;
+}
+
+/* Top performers section */
+.top-performers-section {
+    margin: 32px 0;
+}
+
+.worst-performer-section {
+    margin: 32px 0;
+}
+
+/* Responsive performer cards */
+@media (max-width: 768px) {
+    .performers-list {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}

@@ -1,0 +1,4 @@
+recursive-include microbellm/templates *.html *.yaml
+recursive-include microbellm/static *.css *.js *.png *.jpg *.svg
+include microbellm/*.py
+include microbellm/*.txt

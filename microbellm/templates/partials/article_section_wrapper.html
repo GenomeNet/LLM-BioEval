@@ -1,0 +1,30 @@
+{# Article Section Wrapper Partial
+   
+   Parameters:
+   - section_id: Optional section ID for anchoring
+   - title: Optional section title (h1)
+   - content: The main content (passed as a variable)
+   - sidebar_content: Optional sidebar content
+   - full_width: Boolean to skip article-text wrapper
+#}
+<div class="article-container">
+    <div class="article-main">
+        <article class="article-content">
+            {% if section_id %}<section id="{{ section_id }}" class="article-section">{% endif %}
+            {% if title %}<h1 class="main-section-title">{{ title }}</h1>{% endif %}
+            {% if not full_width %}
+            <div class="article-text">
+                {{ content | safe }}
+            </div>
+            {% else %}
+                {{ content | safe }}
+            {% endif %}
+            {% if section_id %}</section>{% endif %}
+        </article>
+    </div>
+    {% if sidebar_content %}
+    <aside class="article-sidebar">
+        {{ sidebar_content | safe }}
+    </aside>
+    {% endif %}
+</div>

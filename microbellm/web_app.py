@@ -24,10 +24,23 @@ from microbellm.utils import (
 from microbellm.research_config import (
     RESEARCH_PROJECTS, get_project_by_id, get_project_by_route, get_projects_for_page
 )
+import yaml
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+def load_page_manifest(page_name):
+    """Load manifest file for a research page"""
+    manifest_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'templates', 'research', page_name, 'manifest.yaml'
+    )
+    
+    if os.path.exists(manifest_path):
+        with open(manifest_path, 'r') as f:
+            return yaml.safe_load(f)
+    return None
 
 # Global variables for job management
 processing_manager = None
@@ -1928,11 +1941,73 @@ def artificial_dataset_page():
         print(f"Error reading annotation file: {e}")
     
     project = get_project_by_id('knowledge_calibration')
-    return render_template('knowledge_calibration.html', annotations=annotation_data, project=project)
+    
+    # Load manifest if it exists
+    manifest = load_page_manifest('knowledge_calibration')
+    if manifest:
+        # Use new manifest-based template
+        return render_template('research/knowledge_calibration_new.html', 
+                             annotations=annotation_data, 
+                             project=project,
+                             manifest=manifest)
+    else:
+        # Fall back to original template
+        return render_template('knowledge_calibration.html', annotations=annotation_data, project=project)
 
 @app.route('/search_correlation')
 def search_correlation_page():
     return render_template('search_correlation.html')
+
+@app.route('/components')
+def components_index():
+    """List all available components for testing"""
+    components = {}
+    
+    # Scan research directories for manifests
+    research_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'templates', 'research'
+    )
+    
+    if os.path.exists(research_dir):
+        for page_name in os.listdir(research_dir):
+            page_dir = os.path.join(research_dir, page_name)
+            if os.path.isdir(page_dir):
+                manifest = load_page_manifest(page_name)
+                if manifest:
+                    components[page_name] = {
+                        'title': manifest['page_config']['title'],
+                        'sections': manifest['sections'],
+                        'color_theme': manifest['page_config'].get('color_theme', 'purple')
+                    }
+    
+    return render_template('components/index.html', components=components)
+
+@app.route('/components/<page>/<section_id>')
+def view_component(page, section_id):
+    """View a single component in isolation"""
+    manifest = load_page_manifest(page)
+    if not manifest:
+        return "Page not found", 404
+        
+    # Find the section
+    section = None
+    for s in manifest['sections']:
+        if s['id'] == section_id:
+            section = s
+            break
+    
+    if not section:
+        return "Section not found", 404
+    
+    # Get project data
+    project = get_project_by_id(manifest['page_config'].get('project_id', page))
+    
+    return render_template('components/viewer.html', 
+                         page=page,
+                         section=section,
+                         manifest=manifest,
+                         project=project)
 
 @app.route('/phenotype_analysis')
 def phenotype_analysis_page():

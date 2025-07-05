@@ -1,0 +1,188 @@
+# Knowledge Calibration Page Manifest
+page_config:
+  title: "Hallucination Test"
+  color_theme: "purple"
+  project_id: "knowledge_calibration"
+
+sections:
+  # Purpose/Introduction section with sidebar
+  - id: "purpose_intro"
+    type: "article"
+    file: "sections/01_purpose_intro.html"
+    title: "Hallucination Check: Fictional Strain Names"
+    section_id: "purpose"
+    include_sidebar: true
+    
+  # Binomial names definition
+  - id: "binomial_definition"
+    type: "callout_inline"
+    file: "sections/02_definition_binomial.html"
+    callout_type: "definition"
+    header: "Definition"
+    parent_type: "article"  # This callout is inside the article section
+    
+  # AI hallucination text
+  - id: "ai_hallucination"
+    type: "article_content"
+    file: "sections/03_ai_hallucination.html"
+    parent_type: "article"  # Continues within same article section
+    
+  # Hallucination definition
+  - id: "hallucination_definition"
+    type: "callout_inline"
+    file: "sections/04_definition_hallucination.html"
+    callout_type: "definition"
+    header: "Definition"
+    parent_type: "article"
+    
+  # Understanding fabrication text
+  - id: "understanding_fabrication"
+    type: "article_content"
+    file: "sections/05_understanding_fabrication.html"
+    parent_type: "article"
+    
+  # Fake bugs animation callout
+  - id: "fake_bugs_animation"
+    type: "callout_inline"
+    file: "sections/06_fake_bugs_animation.html"
+    callout_type: "definition"
+    compact: true
+    parent_type: "article"
+    
+  # Name minting process text
+  - id: "name_minting_process"
+    type: "article_content"
+    file: "sections/07_name_minting_process.html"
+    parent_type: "article"
+    
+  # Template sets animation
+  - id: "template_sets_animation"
+    type: "callout_inline"
+    file: "sections/08_template_sets_animation.html"
+    callout_type: "template"
+    parent_type: "article"
+    
+  # Gauge knowledge text
+  - id: "gauge_knowledge"
+    type: "article_content"
+    file: "sections/09_gauge_knowledge.html"
+    parent_type: "article"
+    
+  # Query template definition
+  - id: "query_template_definition"
+    type: "callout_inline"
+    file: "sections/10_query_template_definition.html"
+    callout_type: "definition"
+    compact: true
+    parent_type: "article"
+    
+  # Machine readable labels text
+  - id: "machine_readable_labels"
+    type: "article_content"
+    file: "sections/11_machine_readable_labels.html"
+    parent_type: "article"
+    
+  # Knowledge level keys
+  - id: "knowledge_level_keys"
+    type: "callout_inline"
+    file: "sections/12_knowledge_level_keys.html"
+    callout_type: "definition"
+    header: "Knowledge-level keys"
+    parent_type: "article"
+    
+  # Query template bundle text
+  - id: "query_template_bundle"
+    type: "article_content"
+    file: "sections/13_query_template_bundle.html"
+    parent_type: "article"
+    
+  # Query template browser
+  - id: "query_template_browser"
+    type: "callout_inline"
+    file: "sections/14_query_template_browser.html"
+    callout_type: "template"
+    header: "Browse Knowledge Templates"
+    parent_type: "article"
+    close_article: true  # This ends the article section
+    
+  # Hallucination detection process
+  - id: "hallucination_detection_process"
+    type: "section_callout"
+    file: "sections/15_hallucination_detection_flow.html"
+    title: "Hallucination Detection Process"
+    text: "Our systematic approach to testing whether language models can distinguish between real and fictional bacterial species by analyzing their responses to carefully crafted queries."
+    
+  # Score calculation section
+  - id: "score_calculation"
+    type: "article"
+    file: "sections/16_score_calculation.html"
+    include_sidebar: false
+    
+  # Dynamic stats
+  - id: "dynamic_stats"
+    type: "article_content"
+    file: "sections/17_dynamic_stats.html"
+    parent_type: "article"
+    close_article: true
+    
+  # Top performers
+  - id: "top_performers"
+    type: "section_callout_dynamic"
+    file: "sections/18_top_performers.html"
+    container_id: "topPerformersContainer"
+    
+  # Transition text
+  - id: "transition_text"
+    type: "article"
+    file: "sections/19_transition_text.html"
+    
+  # Worst performers (dynamic)
+  - id: "worst_performers"
+    type: "raw"
+    file: "sections/20_worst_performers.html"
+    
+  # Conclusion text
+  - id: "conclusion_text"
+    type: "article"
+    file: "sections/21_conclusion_text.html"
+    
+  # Full results intro
+  - id: "full_results_intro"
+    type: "article"
+    file: "sections/22_full_results_intro.html"
+    
+  # Knowledge analysis content (dynamic tables)
+  - id: "knowledge_analysis_content"
+    type: "raw"
+    file: "sections/23_knowledge_analysis_content.html"
+    
+  # Web-aligned knowledge intro
+  - id: "web_aligned_intro"
+    type: "article"
+    file: "sections/24_web_aligned_intro.html"
+    
+  # Web alignment flow diagram
+  - id: "web_alignment_flow"
+    type: "section_callout"
+    file: "sections/25_web_alignment_flow.html"
+    title: "Knowledge-Web Alignment Process"
+    text: "Methodology for measuring how well language model knowledge claims correlate with actual information availability on the web for real bacterial species."
+    
+  # Top models web alignment
+  - id: "top_models_web_alignment"
+    type: "section_callout"
+    file: "sections/26_top_models_web_alignment.html"
+    title: "Top Models - Web-Alignment"
+    text: "Language models that demonstrate the best alignment between their knowledge claims and actual web presence of bacterial species, showing superior calibration abilities."
+    
+  # Correlation transition text
+  - id: "correlation_transition"
+    type: "article"
+    file: "sections/27_correlation_transition.html"
+    
+  # Correlation visualization (dynamically added)
+  - id: "correlation_visualization"
+    type: "section_callout_dynamic"
+    file: "sections/28_correlation_visualization.html"
+    title: "Correlation Visualization: Google Search vs. Knowledge Level"
+    text: "This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts for bacterial species. Each point represents a species, with the x-axis showing log10 of Google search results and the y-axis showing the knowledge level (1=Limited, 2=Moderate, 3=Extensive)."

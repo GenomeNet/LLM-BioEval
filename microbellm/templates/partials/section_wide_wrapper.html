@@ -1,0 +1,17 @@
+{# Section Wide Wrapper Partial
+   
+   Parameters:
+   - content: The main content (passed as a variable)
+   - constrain_text: Boolean to constrain text width to 850px
+#}
+<section class="section-wide">
+    <div class="section-wide__content">
+        {% if constrain_text %}
+        <div class="article-text">
+            {{ content | safe }}
+        </div>
+        {% else %}
+            {{ content | safe }}
+        {% endif %}
+    </div>
+</section>

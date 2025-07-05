@@ -1,0 +1,114 @@
+<!-- Animated Species Generation Visualization -->
+<div class="flow-diagram-wrapper">
+  <div class="flow-diagram" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; justify-items: center;">
+    <!-- Set 1: Two English Words -->
+    <div class="flow-box" style="width: 280px; text-align: center;">
+      <div class="query-title">Set 1</div>
+      <div class="output-description">2 random English words</div>
+      <div class="mini-boxes" id="set1-miniboxes" style="display:flex;justify-content:center;gap:2px;margin-bottom:8px;"></div>
+      <div class="species-animated" id="set1-species" style="font-size: 18px;">Blue Apple</div>
+      <div class="animation-label" id="set1-label">1/50</div>
+    </div>
+    <!-- Set 2: Two Latin Words -->
+    <div class="flow-box" style="width: 280px; text-align: center;">
+      <div class="query-title">Set 2</div>
+      <div class="output-description">2 random Latin words</div>
+      <div class="mini-boxes" id="set2-miniboxes" style="display:flex;justify-content:center;gap:2px;margin-bottom:8px;"></div>
+      <div class="species-animated" id="set2-species" style="font-size: 18px;">Corpus magnum</div>
+      <div class="animation-label" id="set2-label">1/50</div>
+    </div>
+    <!-- Set 3: Real genus + artificial species -->
+    <div class="flow-box" style="width: 280px; text-align: center;">
+      <div class="query-title">Set 3</div>
+      <div class="output-description">Real genus + artificial (Latin) species</div>
+      <div class="mini-boxes" id="set3-miniboxes" style="display:flex;justify-content:center;gap:2px;margin-bottom:8px;"></div>
+      <div class="species-animated" id="set3-species" style="font-size: 18px;">Escherichia phantasmus</div>
+      <div class="animation-label" id="set3-label">1/50</div>
+    </div>
+    <!-- Set 4: Artificial genus + real species -->
+    <div class="flow-box" style="width: 280px; text-align: center;">
+      <div class="query-title">Set 4</div>
+      <div class="output-description">Artificial genus + real (Latin) species</div>
+      <div class="mini-boxes" id="set4-miniboxes" style="display:flex;justify-content:center;gap:2px;margin-bottom:8px;"></div>
+      <div class="species-animated" id="set4-species" style="font-size: 18px;">Pseudobacterium coli</div>
+      <div class="animation-label" id="set4-label">1/50</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: var(--spacing-element);">
+  <strong>200 total transformations</strong> — 50 for each set. The animation above demonstrates how we systematically combine real and artificial genus/species names to create a gradient of believability, from completely real bacteria to entirely fictional ones.
+</div>
+
+<script>
+// Template sets animation
+(function() {
+    // Example species for each set
+    const set1Examples = [
+        "Blue Apple", "Silver Pine", "Crimson Horizon", "Golden River", "Crystal Mountain"
+    ];
+    const set2Examples = [
+        "Corpus magnum", "Lumina splendens", "Vitae fortis", "Terra nova", "Aqua pura"
+    ];
+    const set3Examples = [
+        "Escherichia phantasmus", "Bacillus imaginarius", "Staphylococcus fictus", 
+        "Pseudomonas falsus", "Clostridium spurius"
+    ];
+    const set4Examples = [
+        "Pseudobacterium coli", "Imaginococcus aureus", "Fictimonas aeruginosa",
+        "Falsibacillus subtilis", "Spuriella pneumoniae"
+    ];
+
+    let indices = [0, 0, 0, 0];
+    
+    function updateSet(setNum, examples) {
+        const speciesEl = document.getElementById(`set${setNum}-species`);
+        const labelEl = document.getElementById(`set${setNum}-label`);
+        const miniboxes = document.getElementById(`set${setNum}-miniboxes`);
+        
+        if (speciesEl && labelEl) {
+            const idx = indices[setNum - 1];
+            speciesEl.style.opacity = '0';
+            
+            setTimeout(() => {
+                speciesEl.textContent = examples[idx];
+                labelEl.textContent = `${idx + 1}/50`;
+                speciesEl.style.opacity = '1';
+            }, 300);
+            
+            // Update miniboxes
+            if (miniboxes && miniboxes.children.length === 0) {
+                for (let i = 0; i < 50; i++) {
+                    const box = document.createElement('div');
+                    box.style.width = '4px';
+                    box.style.height = '12px';
+                    box.style.background = 'var(--gray-300)';
+                    box.style.borderRadius = '1px';
+                    miniboxes.appendChild(box);
+                }
+            }
+            
+            // Highlight current box
+            if (miniboxes) {
+                Array.from(miniboxes.children).forEach((box, i) => {
+                    box.style.background = i <= idx ? 'var(--primary)' : 'var(--gray-300)';
+                });
+            }
+            
+            indices[setNum - 1] = (idx + 1) % examples.length;
+        }
+    }
+    
+    // Stagger the animations
+    setInterval(() => updateSet(1, set1Examples), 4000);
+    setTimeout(() => setInterval(() => updateSet(2, set2Examples), 4000), 1000);
+    setTimeout(() => setInterval(() => updateSet(3, set3Examples), 4000), 2000);
+    setTimeout(() => setInterval(() => updateSet(4, set4Examples), 4000), 3000);
+    
+    // Initialize
+    updateSet(1, set1Examples);
+    updateSet(2, set2Examples);
+    updateSet(3, set3Examples);
+    updateSet(4, set4Examples);
+})();
+</script>

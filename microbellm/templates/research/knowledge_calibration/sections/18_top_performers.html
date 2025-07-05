@@ -1,0 +1,150 @@
+<div id="topPerformersContainer">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading top performing models...</div>
+    </div>
+</div>
+
+<script>
+// Load top performers dynamically
+async function loadTopPerformers() {
+    try {
+        const response = await fetch('/api/knowledge_top_performers');
+        const data = await response.json();
+        
+        if (data.success && data.performers) {
+            const container = document.getElementById('topPerformersContainer');
+            if (container) {
+                let html = `
+                    <div class="section-callout__header">
+                        <h3 class="section-callout__title">Top Performing Models</h3>
+                        <p class="section-callout__text">Models demonstrating superior ability to recognize fictional taxonomy and avoid hallucination when presented with non-existent bacterial species.</p>
+                    </div>
+                    <div class="performers-grid">
+                `;
+                
+                data.performers.forEach((model, index) => {
+                    html += `
+                        <div class="performer-card performer-card--top">
+                            <div class="performer-rank">#${index + 1}</div>
+                            <div class="performer-model">${model.name}</div>
+                            <div class="performer-score">
+                                <div class="score-label">Score</div>
+                                <div class="score-value">${model.score.toFixed(2)}</div>
+                            </div>
+                            <div class="performer-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">NA Rate:</span>
+                                    <span class="detail-value">${model.na_rate}%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Queries:</span>
+                                    <span class="detail-value">${model.query_count}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load top performers:', error);
+        const container = document.getElementById('topPerformersContainer');
+        if (container) {
+            container.innerHTML = '<div class="error-message">Failed to load top performing models. Please try again later.</div>';
+        }
+    }
+}
+
+// Load when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadTopPerformers();
+});
+</script>
+
+<style>
+.performers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+}
+
+.performer-card {
+    background: var(--bg-primary);
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+}
+
+.performer-card--top {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.02);
+}
+
+.performer-rank {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-300);
+}
+
+.performer-model {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--gray-900);
+}
+
+.performer-score {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.score-label {
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+.score-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.performer-details {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+}
+
+.detail-item {
+    display: flex;
+    gap: 6px;
+}
+
+.detail-label {
+    color: var(--gray-600);
+}
+
+.detail-value {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.error-message {
+    text-align: center;
+    padding: 40px;
+    color: var(--gray-600);
+}
+</style>

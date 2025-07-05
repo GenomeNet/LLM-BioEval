@@ -1,0 +1,14 @@
+{# Callout Box Wrapper Partial
+   
+   Parameters:
+   - type: The callout type ('definition', 'template', 'phenotype', 'methodology')
+   - header: Optional header text
+   - content: The main content (passed as a variable)
+   - compact: Boolean for compact variant
+#}
+<div class="callout callout-{{ type }}{% if compact %} callout-compact{% endif %}">
+    {% if header %}<div class="callout-header">{{ header }}</div>{% endif %}
+    <div class="callout-content">
+        {{ content | safe }}
+    </div>
+</div>

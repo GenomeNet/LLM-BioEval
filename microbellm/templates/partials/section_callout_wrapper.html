@@ -1,0 +1,20 @@
+{# Section Callout Wrapper Partial
+   
+   Parameters:
+   - color_theme: The color theme ('purple', 'green', 'yellow')
+   - title: Optional section title
+   - text: Optional descriptive text
+   - content: The main content (passed as a variable)
+   - full_width: Boolean to use full-width content variant
+#}
+<section class="section-callout section-callout--{{ color_theme }}">
+    <div class="section-callout__content{% if full_width %} section-callout__content--full-width{% endif %}">
+        {% if title or text %}
+        <div class="section-callout__header">
+            {% if title %}<h3 class="section-callout__title">{{ title }}</h3>{% endif %}
+            {% if text %}<p class="section-callout__text">{{ text }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {{ content | safe }}
+    </div>
+</section>

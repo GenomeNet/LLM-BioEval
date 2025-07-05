@@ -1,0 +1,127 @@
+<div class="flow-diagram-wrapper">
+    <!-- Grid correlation diagram -->
+    <div class="flow-grid">
+        <!-- Species input spanning rows -->
+        <div class="flow-box flow-input grid-species">
+            <div class="flow-species">Bacillus subtilis</div>
+            <div class="flow-label">Real species</div>
+        </div>
+
+        <!-- Row 1: LLM Query path -->
+        <div class="flow-arrow" style="grid-row:1; grid-column:2;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 30 L35 10 M35 10 L25 10 M35 10 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="flow-box flow-query" style="grid-row:1; grid-column:3;">
+            <div class="query-title">LLM Query</div>
+            <div class="output-description">Ask model for knowledge level</div>
+        </div>
+        <div class="flow-arrow" style="grid-row:1; grid-column:4;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="flow-result-box" id="corr-llm-box" style="grid-row:1; grid-column:5;">
+            <div style="font-size: 10px; color: var(--gray-600); margin-bottom: 2px;">knowledge group</div>
+            <span class="output-option caution">Limited</span>
+        </div>
+        <div class="flow-arrow" style="grid-row:1; grid-column:6;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 10 L35 30 M35 30 L25 30 M35 30 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Row 2: Web Search path -->
+        <div class="flow-arrow" style="grid-row:2; grid-column:2;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 10 L35 30 M35 30 L25 30 M35 30 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="flow-box flow-query" style="grid-row:2; grid-column:3;">
+            <div class="query-title">Web Search</div>
+            <div class="output-description">Count Google search results</div>
+        </div>
+        <div class="flow-arrow" style="grid-row:2; grid-column:4;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="flow-result-box" id="corr-web-box" style="grid-row:2; grid-column:5;">1.5&nbsp;M</div>
+        <div class="flow-arrow" style="grid-row:2; grid-column:6;">
+            <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 30 L35 10 M35 10 L25 10 M35 10 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Shared Correlation box -->
+        <div class="flow-box flow-output grid-correlation">
+            <div class="output-title">Correlation Analysis</div>
+            <div class="output-description">
+                Measure alignment between<br>model knowledge claims and<br>web presence
+            </div>
+            <div class="correlation-value" id="correlation-value">r = 0.42</div>
+            <div class="correlation-label" id="correlation-label">Moderate alignment</div>
+        </div>
+    </div>
+
+    <!-- Floating examples at the bottom -->
+    <div class="flow-legend flow-legend--centered" style="margin-top: 32px;">
+        <div class="legend-item">Limited + Low web presence = Good alignment</div>
+        <div class="legend-item">Extensive + High web presence = Good alignment</div>
+        <div class="legend-item">Extensive + Low web presence = Poor alignment</div>
+    </div>
+</div>
+
+<script>
+// Animate the correlation flow
+document.addEventListener('DOMContentLoaded', function() {
+    const species = [
+        { name: 'Escherichia coli', llm: 'Extensive', web: '5.2 M', correlation: 0.78, label: 'Strong alignment' },
+        { name: 'Bacillus subtilis', llm: 'Extensive', web: '1.5 M', correlation: 0.65, label: 'Good alignment' },
+        { name: 'Thermus aquaticus', llm: 'Moderate', web: '89 K', correlation: 0.42, label: 'Moderate alignment' },
+        { name: 'Deinococcus radiodurans', llm: 'Moderate', web: '43 K', correlation: 0.38, label: 'Moderate alignment' },
+        { name: 'Haloferax volcanii', llm: 'Limited', web: '12 K', correlation: 0.31, label: 'Weak alignment' }
+    ];
+    
+    let currentIndex = 0;
+    
+    function updateFlow() {
+        const current = species[currentIndex];
+        const speciesEl = document.querySelector('.grid-species .flow-species');
+        const llmBox = document.getElementById('corr-llm-box');
+        const webBox = document.getElementById('corr-web-box');
+        const corrValue = document.getElementById('correlation-value');
+        const corrLabel = document.getElementById('correlation-label');
+        
+        if (speciesEl && llmBox && webBox && corrValue && corrLabel) {
+            // Fade out
+            [speciesEl, llmBox, webBox, corrValue, corrLabel].forEach(el => {
+                el.style.opacity = '0';
+            });
+            
+            setTimeout(() => {
+                speciesEl.textContent = current.name;
+                
+                // Update LLM box
+                const span = llmBox.querySelector('span');
+                span.textContent = current.llm;
+                span.className = 'output-option ' + 
+                    (current.llm === 'Extensive' ? 'worst' : 
+                     current.llm === 'Moderate' ? 'bad' : 'caution');
+                
+                webBox.textContent = current.web;
+                corrValue.textContent = `r = ${current.correlation}`;
+                corrLabel.textContent = current.label;
+                
+                // Color code correlation
+                if (current.correlation >= 0.6) {
+                    corrValue.style.color = '#059669';
+                } else if (current.correlation >= 0.4) {
+                    corrValue.style.color = '#f59e0b';
+                } else {
+                    corrValue.style.color = '#dc2626';
+                }
+                
+                // Fade in
+                [speciesEl, llmBox, webBox, corrValue, corrLabel].forEach(el => {
+                    el.style.opacity = '1';
+                });
+            }, 300);
+        }
+        
+        currentIndex = (currentIndex + 1) % species.length;
+    }
+    
+    // Start animation
+    setInterval(updateFlow, 4000);
+});
+</script>

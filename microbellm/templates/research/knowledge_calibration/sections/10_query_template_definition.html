@@ -1,0 +1,15 @@
+A <strong>query template</strong> is a fixed question format used to test a language model's knowledge, where only the <span style="background:var(--gray-200);border-radius:3px;padding:1px 5px;font-family:monospace;">species name</span> is replaced each time. For example:
+<div class="template-skeleton" style="margin:12px 0 0 0;padding:10px 14px;background:var(--gray-50);border-radius:5px;display:inline-block;min-width:320px;">
+  <span style="color:var(--gray-600);">"What do you know about</span>
+  <span class="skeleton species-skeleton" style="display:inline-block;width:110px;height:1.1em;background:linear-gradient(90deg,#e0e7ff 30%,#f3f4f6 60%,#e0e7ff 100%);border-radius:3px;vertical-align:middle;animation:skeleton-loading 1.2s infinite linear;">&nbsp;</span>
+  <span style="color:var(--gray-600);">?"</span>
+</div>
+<style>
+  @keyframes skeleton-loading {
+    0% { background-position: -120px 0; }
+    100% { background-position: 120px 0; }
+  }
+  .template-skeleton .species-skeleton {
+    background-size: 220px 100%;
+  }
+</style>

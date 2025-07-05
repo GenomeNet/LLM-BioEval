@@ -1,0 +1,72 @@
+<b>How we minted our "fake bugs":</b> We programmatically stitched together Latin roots and taxonomic endings to forge binomial names that look legitimate but are absent from NCBI, LPSN, ATCC, and every other recognised database. This synthetic, ground-truth negative set lets us ask: can an LLM tell an authentic species from a skilfully fabricated one?
+<div class="species-animation-container">
+    <div class="species-animated">
+        <span class="genus-part" id="genus-text">Escherichia</span>
+        <span class="species-part" id="species-text">coli</span>
+    </div>
+    <div class="animation-label" id="animation-label">Real bacterial species</div>
+</div>
+
+<script>
+// Species name animation
+(function() {
+    const realSpecies = [
+        { genus: 'Escherichia', species: 'coli', type: 'Real bacterial species' },
+        { genus: 'Staphylococcus', species: 'aureus', type: 'Real bacterial species' },
+        { genus: 'Bacillus', species: 'subtilis', type: 'Real bacterial species' },
+        { genus: 'Pseudomonas', species: 'aeruginosa', type: 'Real bacterial species' }
+    ];
+    
+    const fakeSpecies = [
+        { genus: 'Luminaricella', species: 'splendens', type: 'Fictional species (looks real)' },
+        { genus: 'Pseudobacterium', species: 'imaginarius', type: 'Fictional species (looks real)' },
+        { genus: 'Thermococcus', species: 'fictus', type: 'Fictional species (mixed real/fake)' },
+        { genus: 'Crimson', species: 'Horizon', type: 'Fictional species (obviously fake)' }
+    ];
+    
+    const allSpecies = [...realSpecies, ...fakeSpecies];
+    let currentIndex = 0;
+    
+    function updateSpecies() {
+        const current = allSpecies[currentIndex];
+        const genusEl = document.getElementById('genus-text');
+        const speciesEl = document.getElementById('species-text');
+        const labelEl = document.getElementById('animation-label');
+        
+        if (genusEl && speciesEl && labelEl) {
+            // Fade out
+            genusEl.style.opacity = '0';
+            speciesEl.style.opacity = '0';
+            labelEl.style.opacity = '0';
+            
+            setTimeout(() => {
+                genusEl.textContent = current.genus;
+                speciesEl.textContent = current.species;
+                labelEl.textContent = current.type;
+                
+                // Update color based on type
+                if (current.type.includes('Real')) {
+                    genusEl.style.color = '#059669';
+                    speciesEl.style.color = '#059669';
+                } else if (current.type.includes('looks real')) {
+                    genusEl.style.color = '#dc2626';
+                    speciesEl.style.color = '#dc2626';
+                } else {
+                    genusEl.style.color = '#7c3aed';
+                    speciesEl.style.color = '#7c3aed';
+                }
+                
+                // Fade in
+                genusEl.style.opacity = '1';
+                speciesEl.style.opacity = '1';
+                labelEl.style.opacity = '1';
+            }, 300);
+        }
+        
+        currentIndex = (currentIndex + 1) % allSpecies.length;
+    }
+    
+    // Start animation
+    setInterval(updateSpecies, 3000);
+})();
+</script>
