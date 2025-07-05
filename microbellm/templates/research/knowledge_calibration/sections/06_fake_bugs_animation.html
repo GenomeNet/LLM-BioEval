@@ -7,66 +7,96 @@
     <div class="animation-label" id="animation-label">Real bacterial species</div>
 </div>
 
+<style>
+/* Skeleton loading effect for transformation */
+.skeleton-word {
+    display: inline-block;
+    background: linear-gradient(90deg, 
+        rgba(147, 51, 234, 0.08) 25%, 
+        rgba(99, 102, 241, 0.12) 50%, 
+        rgba(147, 51, 234, 0.08) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+    height: 1.2em;
+    vertical-align: middle;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.genus-part.fictional {
+    color: #dc2626 !important;
+}
+
+.species-part.fictional {
+    color: #dc2626 !important;
+}
+</style>
+
 <script>
-// Species name animation
+// Species name animation with transformation
 (function() {
-    const realSpecies = [
-        { genus: 'Escherichia', species: 'coli', type: 'Real bacterial species' },
-        { genus: 'Staphylococcus', species: 'aureus', type: 'Real bacterial species' },
-        { genus: 'Bacillus', species: 'subtilis', type: 'Real bacterial species' },
-        { genus: 'Pseudomonas', species: 'aeruginosa', type: 'Real bacterial species' }
-    ];
+    const genusElement = document.getElementById('genus-text');
+    const speciesElement = document.getElementById('species-text');
+    const labelElement = document.getElementById('animation-label');
     
-    const fakeSpecies = [
-        { genus: 'Luminaricella', species: 'splendens', type: 'Fictional species (looks real)' },
-        { genus: 'Pseudobacterium', species: 'imaginarius', type: 'Fictional species (looks real)' },
-        { genus: 'Thermococcus', species: 'fictus', type: 'Fictional species (mixed real/fake)' },
-        { genus: 'Crimson', species: 'Horizon', type: 'Fictional species (obviously fake)' }
-    ];
-    
-    const allSpecies = [...realSpecies, ...fakeSpecies];
-    let currentIndex = 0;
-    
-    function updateSpecies() {
-        const current = allSpecies[currentIndex];
-        const genusEl = document.getElementById('genus-text');
-        const speciesEl = document.getElementById('species-text');
-        const labelEl = document.getElementById('animation-label');
+    if (genusElement && speciesElement && labelElement) {
+        const animationSteps = [
+            { genus: 'Escherichia', species: 'coli', label: 'Real bacterial species', genusClass: '', speciesClass: '' },
+            { genus: 'Escherichia', species: '<div class="skeleton-word" style="width: 80px;"></div>', label: 'Transforming species...', genusClass: '', speciesClass: '' },
+            { genus: 'Escherichia', species: 'phantasmus', label: 'Real genus + fictional species', genusClass: '', speciesClass: 'fictional' },
+            { genus: '<div class="skeleton-word" style="width: 120px;"></div>', species: 'phantasmus', label: 'Transforming genus...', genusClass: '', speciesClass: 'fictional' },
+            { genus: 'Pseudobacterium', species: 'imaginarius', label: 'Completely fictional species', genusClass: 'fictional', speciesClass: 'fictional' },
+            { genus: 'Staphylococcus', species: 'aureus', label: 'Real bacterial species', genusClass: '', speciesClass: '' },
+            { genus: 'Staphylococcus', species: '<div class="skeleton-word" style="width: 90px;"></div>', label: 'Transforming species...', genusClass: '', speciesClass: '' },
+            { genus: 'Staphylococcus', species: 'fictitius', label: 'Real genus + fictional species', genusClass: '', speciesClass: 'fictional' },
+            { genus: '<div class="skeleton-word" style="width: 100px;"></div>', species: 'fictitius', label: 'Transforming genus...', genusClass: '', speciesClass: 'fictional' },
+            { genus: 'Luminaricella', species: 'splendens', label: 'Completely fictional species', genusClass: 'fictional', speciesClass: 'fictional' }
+        ];
         
-        if (genusEl && speciesEl && labelEl) {
+        let currentStep = 0;
+        
+        function animateSpecies() {
+            const step = animationSteps[currentStep];
+            
             // Fade out
-            genusEl.style.opacity = '0';
-            speciesEl.style.opacity = '0';
-            labelEl.style.opacity = '0';
+            genusElement.style.opacity = '0';
+            speciesElement.style.opacity = '0';
+            labelElement.style.opacity = '0';
             
             setTimeout(() => {
-                genusEl.textContent = current.genus;
-                speciesEl.textContent = current.species;
-                labelEl.textContent = current.type;
+                genusElement.innerHTML = step.genus;
+                speciesElement.innerHTML = step.species;
+                labelElement.textContent = step.label;
                 
-                // Update color based on type
-                if (current.type.includes('Real')) {
-                    genusEl.style.color = '#059669';
-                    speciesEl.style.color = '#059669';
-                } else if (current.type.includes('looks real')) {
-                    genusEl.style.color = '#dc2626';
-                    speciesEl.style.color = '#dc2626';
-                } else {
-                    genusEl.style.color = '#7c3aed';
-                    speciesEl.style.color = '#7c3aed';
+                genusElement.className = 'genus-part ' + step.genusClass;
+                speciesElement.className = 'species-part ' + step.speciesClass;
+                
+                // Reset color for non-fictional parts
+                if (!step.genusClass.includes('fictional')) {
+                    genusElement.style.color = '#059669';
+                }
+                if (!step.speciesClass.includes('fictional')) {
+                    speciesElement.style.color = '#059669';
                 }
                 
                 // Fade in
-                genusEl.style.opacity = '1';
-                speciesEl.style.opacity = '1';
-                labelEl.style.opacity = '1';
+                genusElement.style.opacity = '1';
+                speciesElement.style.opacity = '1';
+                labelElement.style.opacity = '1';
             }, 300);
+            
+            currentStep = (currentStep + 1) % animationSteps.length;
         }
         
-        currentIndex = (currentIndex + 1) % allSpecies.length;
+        // Start animation after a delay
+        setTimeout(() => {
+            animateSpecies();
+            setInterval(animateSpecies, 3000);
+        }, 1500);
     }
-    
-    // Start animation
-    setInterval(updateSpecies, 3000);
 })();
 </script>
