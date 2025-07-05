@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Imprint - LLM-BioEval{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<style>
+/* Imprint page specific styles */
+.imprint-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-section);
+    color: var(--gray-900);
+}
+
+.imprint-section {
+    margin-bottom: var(--spacing-section);
+}
+
+.imprint-section h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+.imprint-section h3 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+.contact-details {
+    background: var(--gray-50);
+    padding: var(--spacing-element);
+    border-radius: 12px;
+    margin-bottom: var(--spacing-element);
+}
+
+.contact-details p {
+    margin-bottom: calc(var(--spacing-small) * 0.5);
+    line-height: 1.6;
+}
+
+.contact-details p:last-child {
+    margin-bottom: 0;
+}
+
+.legal-list {
+    list-style: disc;
+    margin-left: 24px;
+    margin-bottom: var(--spacing-element);
+}
+
+.legal-list li {
+    margin-bottom: calc(var(--spacing-small) * 0.5);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content page-content">
+    <article class="article-container">
+        <div class="article-content">
+            <h1 class="imprint-title">Imprint</h1>
+
+            <!-- Publisher -->
+            <section class="imprint-section">
+                <h2 class="section-title">Publisher</h2>
+                <div class="contact-details">
+                    <p><strong>Helmholtz-Zentrum für Infektionsforschung GmbH</strong></p>
+                    <p>Inhoffenstraße 7 | 38124 Braunschweig</p>
+                    <p>Phone: 0531 6181-0</p>
+                    <p>Fax: 0531 6181-2655</p>
+                    <p>Email: info@helmholtz-hzi.de</p>
+                    <p>Website: <a href="http://www.helmholtz-hzi.de/">http://www.helmholtz-hzi.de/</a></p>
+                </div>
+            </section>
+
+            <!-- Legal Form -->
+            <section class="imprint-section">
+                <h2 class="section-title">Legal Form</h2>
+                <ul class="legal-list">
+                    <li>Limited liability company (GmbH)</li>
+                    <li>Commercial Register Braunschweig</li>
+                    <li>Registration Number: HRB 477</li>
+                </ul>
+            </section>
+
+            <!-- Authorized Representatives -->
+            <section class="imprint-section">
+                <h2 class="section-title">Authorized Representatives</h2>
+                <p class="article-text">
+                    Prof Dr Dr h. c. Dirk Heinz, Executive Director<br>
+                    Christian Scherf, Administrative Director
+                </p>
+            </section>
+
+            <!-- Tax Information -->
+            <section class="imprint-section">
+                <h2 class="section-title">Tax Information</h2>
+                <p class="article-text">VAT Identification Number: DE 114815244</p>
+            </section>
+
+            <!-- Content Responsibility -->
+            <section class="imprint-section">
+                <h2 class="section-title">Content Responsibility</h2>
+                <div class="contact-details">
+                    <p><strong>Prof Dr Alice McHardy</strong></p>
+                    <p>Leader of Computational Biology of Infection Research</p>
+                    <p>Inhoffentraße 7</p>
+                    <p>D-38124 Braunschweig</p>
+                </div>
+            </section>
+
+            <!-- Corporate Governance -->
+            <section class="imprint-section">
+                <h2 class="section-title">Corporate Governance</h2>
+                <p class="article-text">
+                    The Helmholtz-Zentrum für Infektionsforschung follows the "Public Corporate Governance Code (PCGC)". 
+                    Annual reports are available covering the period from 2011 to 2021.
+                </p>
+            </section>
+
+            <!-- Copyright -->
+            <section class="imprint-section">
+                <h2 class="section-title">Copyright</h2>
+                <p class="article-text">
+                    The content of this web page is copyright protected. Image use is restricted without permission. 
+                    Limited use is allowed with proper HZI citation.
+                </p>
+            </section>
+
+            <!-- Disclaimer -->
+            <section class="imprint-section">
+                <h2 class="section-title">Disclaimer</h2>
+                <p class="article-text">
+                    We accept no responsibility for damages arising from the use of this website. Content is 
+                    reviewed regularly, however we cannot guarantee absolute correctness of all information.
+                </p>
+            </section>
+
+            <!-- External Links -->
+            <section class="imprint-section">
+                <h2 class="section-title">External Links</h2>
+                <p class="article-text">
+                    We accept no liability for the content of external sites linked from this website.
+                </p>
+            </section>
+
+            <!-- Implementation -->
+            <section class="imprint-section">
+                <h2 class="section-title">Implementation</h2>
+                <p class="article-text">
+                    Computational Biology of Infection Research, Helmholtz Centre for Infection Research
+                </p>
+            </section>
+        </div>
+    </article>
+</div>
+{% endblock %}

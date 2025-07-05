@@ -1,6 +1,13 @@
 /* =====================================================
    LLM-BioEval Article Styles
    Reusable components for all article pages
+   
+   CONTENT PLACEMENT RULES:
+   1. Text-only content: Use standard article sections with white background
+   2. Non-text content (animations, charts, etc.): Place in callout sections
+   3. Major result showcases: Use full-width callout sections
+   4. Text width: Constrained to 850px max for readability
+   5. Callout sections: Full viewport width with gradient backgrounds
    ===================================================== */
 
 /* =====================================================
@@ -75,6 +82,11 @@
 
 /* =====================================================
    Callout Boxes (Indented)
+   
+   Usage Guidelines:
+   - Use for supplementary information, definitions, examples
+   - Use for animations and interactive elements
+   - NOT for main content sections (use full-width callouts instead)
    ===================================================== */
 
 /* Base callout style */
@@ -182,6 +194,12 @@
 
 /* =====================================================
    Full-Page Sections
+   
+   Usage Guidelines:
+   - Use section-callout for major results, top performers, key findings
+   - Use section-wide for tables and data that need more horizontal space
+   - Major result showcases should use gradient backgrounds
+   - Regular content stays in standard article sections
    ===================================================== */
 
 /* Base full-width section */

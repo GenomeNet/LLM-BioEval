@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - LLM-BioEval{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<style>
+/* Privacy page specific styles */
+.privacy-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-section);
+    color: var(--gray-900);
+}
+
+.privacy-section {
+    margin-bottom: var(--spacing-section);
+}
+
+.privacy-section h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+.privacy-section h3 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+.privacy-highlight {
+    background: var(--gray-50);
+    padding: var(--spacing-element);
+    border-radius: 12px;
+    margin-bottom: var(--spacing-element);
+    border-left: 4px solid var(--primary);
+}
+
+.privacy-list {
+    list-style: disc;
+    margin-left: 24px;
+    margin-bottom: var(--spacing-element);
+}
+
+.privacy-list li {
+    margin-bottom: calc(var(--spacing-small) * 0.5);
+    line-height: 1.6;
+}
+
+.contact-info-privacy {
+    background: var(--gray-50);
+    padding: var(--spacing-element);
+    border-radius: 12px;
+    margin-bottom: var(--spacing-element);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content page-content">
+    <article class="article-container">
+        <div class="article-content">
+            <h1 class="privacy-title">Privacy Policy</h1>
+
+            <!-- Overview -->
+            <section class="privacy-section">
+                <h2 class="section-title">1. Overview of Data Protection</h2>
+                
+                <h3>General Information</h3>
+                <p class="article-text">
+                    This privacy policy provides an overview of how we handle your personal data when you visit 
+                    our website. We explain what data we collect, how we process it, and for what purposes.
+                </p>
+
+                <h3>Data Recording</h3>
+                <p class="article-text">
+                    Data is collected in the following ways:
+                </p>
+                <ul class="privacy-list">
+                    <li>When you actively share information with us (e.g., contact forms)</li>
+                    <li>Automatic recording of technical information when you visit our website</li>
+                    <li>For website provision and analysis of user patterns</li>
+                </ul>
+
+                <h3>Your Rights</h3>
+                <div class="privacy-highlight">
+                    <p class="article-text">You have the following rights regarding your personal data:</p>
+                    <ul class="privacy-list">
+                        <li>Right to receive information about archived personal data</li>
+                        <li>Right to data rectification or deletion</li>
+                        <li>Option to revoke consent for data processing</li>
+                        <li>Right to restrict data processing</li>
+                        <li>Ability to file complaints with supervisory agencies</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Hosting -->
+            <section class="privacy-section">
+                <h2 class="section-title">2. Hosting</h2>
+                <p class="article-text">
+                    This website is hosted by Helmholtz-Zentrum für Infektionsforschung GmbH. External hosting 
+                    serves contract fulfillment and service provision. Our hosting providers process data only 
+                    as necessary for website operation.
+                </p>
+            </section>
+
+            <!-- Mandatory Information -->
+            <section class="privacy-section">
+                <h2 class="section-title">3. Mandatory Information</h2>
+
+                <h3>Data Protection Principles</h3>
+                <p class="article-text">
+                    Personal data is treated confidentially and in compliance with statutory data protection 
+                    regulations. We process data only for the purposes outlined in this policy.
+                </p>
+
+                <h3>Controller Information</h3>
+                <div class="contact-info-privacy">
+                    <p><strong>Helmholtz-Zentrum für Infektionsforschung GmbH</strong></p>
+                    <p>Contact: bifo-software@helmholtz-hzi.de</p>
+                </div>
+
+                <h3>Key Policies</h3>
+                <ul class="privacy-list">
+                    <li>Data storage duration is based on processing purpose</li>
+                    <li>Legal basis for data processing is clearly defined</li>
+                    <li>Data protection officer contact information is available upon request</li>
+                    <li>Potential international data transfers are disclosed</li>
+                </ul>
+
+                <h3>User Consent and Rights</h3>
+                <p class="article-text">
+                    You have the ability to:
+                </p>
+                <ul class="privacy-list">
+                    <li>Revoke consent for data processing at any time</li>
+                    <li>Object to data collection under certain circumstances</li>
+                    <li>Request data portability</li>
+                    <li>Request processing restrictions</li>
+                </ul>
+
+                <h3>Technical Security</h3>
+                <p class="article-text">
+                    We use SSL/TLS encryption for secure data transmission between your browser and our servers.
+                </p>
+            </section>
+
+            <!-- Data Recording Methods -->
+            <section class="privacy-section">
+                <h2 class="section-title">4. Data Recording Methods</h2>
+                <p class="article-text">
+                    Contact requests via email, phone, or fax are processed for inquiry management. Data retention 
+                    is based on request status and legal requirements. We process only the data necessary to 
+                    respond to your inquiries.
+                </p>
+            </section>
+
+            <!-- Plugins and Tools -->
+            <section class="privacy-section">
+                <h2 class="section-title">5. Plugins and Tools</h2>
+                <p class="article-text">
+                    This website uses Font Awesome for font representation. Font Awesome may process certain 
+                    technical data according to their privacy policy. For more information about Font Awesome's 
+                    data processing, please refer to their privacy policy.
+                </p>
+            </section>
+
+            <!-- Contact for Privacy Matters -->
+            <section class="privacy-section">
+                <h2 class="section-title">6. Contact</h2>
+                <div class="contact-info-privacy">
+                    <p>For questions about data protection and privacy:</p>
+                    <p><strong>Email:</strong> bifo-software@helmholtz-hzi.de</p>
+                    <p><strong>Address:</strong> Helmholtz-Zentrum für Infektionsforschung GmbH<br>
+                    Inhoffenstraße 7<br>
+                    38124 Braunschweig, Germany</p>
+                </div>
+            </section>
+
+            <!-- Legal Notice -->
+            <div class="privacy-highlight">
+                <p class="article-text">
+                    <strong>Note:</strong> This is a general privacy policy template. For specific legal requirements 
+                    and compliance with current data protection regulations, please consult with legal professionals.
+                </p>
+            </div>
+        </div>
+    </article>
+</div>
+{% endblock %}

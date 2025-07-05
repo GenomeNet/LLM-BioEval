@@ -1,13 +1,25 @@
 # Standard Workflow
 
 First, think through the problem, read the codebase for relevant files, and write a plan to [PROJECTPLAN.md](PROJECTPLAN.md).
-The plan should have a list of todo items that you can check off as you complete them.
-Before you begin working, check in with me and I will verify the plan.
-Then, begin working on the todo items, marking them as complete as you go.
-Please, at every step of the way, just give me a high-level explanation of what changes you made.
-Make every task and code change as simple as possible. We want to avoid making any massive or complex changes. Every change should impact as little code as possible. Everything is about simplicity.
-Finally, add a review section to the [PROJECTPLAN.md](PROJECTPLAN.md) file with a summary of the changes you made and any other relevant information.
+The plan should have a list of todo items that you can check off as you complete them. Before you begin working, check in with me and I will verify the plan. Then, begin working on the todo items, marking them as complete as you go. Please, at every step of the way, just give me a high-level explanation of what changes you made. Make every task and code change as simple as possible. We want to avoid making any massive or complex changes. Every change should impact as little code as possible. Everything is about simplicity. Finally, add a review section to the [PROJECTPLAN.md](PROJECTPLAN.md) file with a summary of the changes you made and any other relevant information.
 
+## High-level architecture
+- **Frontend**: Flask web application, serving HTML templates and static assets. Main entry point is `microbellm/web_app.py`.
+- **Database**: Uses SQLite (`microbebench.db`) to store results, metadata, and user data. The database is created and managed automatically on first run.
+- **Environment & Installation**: Setup is managed via `install.sh`, which:
+    - Checks for conda and creates a `microbellm` conda environment using `environment.yml`.
+    - Installs the package in editable mode (`pip install -e .`).
+    - Provides instructions for activating the environment and running the CLI/web interface.
+- **Python Packaging**: Defined in `setup.py`:
+    - Uses `setuptools` for packaging.
+    - Declares dependencies (Flask, pandas, numpy, etc.).
+    - Provides console scripts:
+        - `microbellm` for CLI tasks (main entry: `microbellm/microbellm.py`)
+        - `microbellm-web` for launching the web interface (main entry: `microbellm/web_app.py`)
+    - Includes all necessary Python and text/template files as package data.
+- **API Key Management**: Requires the `OPENROUTER_API_KEY` environment variable to be set for prediction features. This is checked at runtime (see `server.log` warnings).
+- **Server Startup**: The web interface is started with `microbellm-web` (or `microbellm-web --debug --port 5050` for development). The port should be 5050, but can be changed if in use. Access is via `http://localhost:5050`.
+- **Logging**: Startup and error messages (such as missing API key or port conflicts) are logged to `server.log`.
 
 ## Style guide
 
@@ -17,6 +29,40 @@ Finally, add a review section to the [PROJECTPLAN.md](PROJECTPLAN.md) file with 
 - Only callout boxes should have colored or gradient backgrounds; all other sections remain white.
 - All pages are fully responsive, with grid and flex layouts adapting to smaller screens.
 - Animations (e.g., canvas-based bacteria, DNA, or cell growth) are used for visual interest but do not interfere with content readability.
+
+### Content Organization Guidelines
+
+#### What Goes Where
+1. **Standard Article Sections** (white background):
+   - Main text content, paragraphs, and explanations
+   - Regular headings and subheadings
+   - Inline images and simple figures
+   - Basic lists and text-based content
+
+2. **Indented Callout Boxes** (`.callout`):
+   - Definitions and terminology explanations
+   - Small animations or interactive examples
+   - Supplementary information and asides
+   - Notes, tips, or warnings
+   - Brief summaries (e.g., "200 total transformations")
+
+3. **Full-Width Callout Sections** (`.section-callout`):
+   - Major results and key findings (e.g., "Top Performing Models")
+   - Performance showcases and rankings
+   - Important visualizations that deserve emphasis
+   - Hero-style content blocks with gradient backgrounds
+
+4. **Full-Width Standard Sections** (`.section-wide`):
+   - Large tables that need horizontal space
+   - Complex data visualizations
+   - Multi-column layouts
+   - Content that benefits from extra width but doesn't need emphasis
+
+#### Text Width Rules
+- Article text should always be constrained to 850px maximum width for readability
+- Even in full-width sections, wrap text content in a container with `max-width: 850px`
+- Only tables, charts, and visualizations should extend beyond this width
+- Use `margin: 0 auto` to center constrained content within wide sections
 
 ### Spacing System
 Spacing between sections and components is managed with CSS variables for consistent vertical rhythm:

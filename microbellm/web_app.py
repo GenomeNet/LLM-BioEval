@@ -1738,6 +1738,21 @@ def research():
     """Research projects page"""
     return render_template('research.html')
 
+@app.route('/about')
+def about():
+    """About page"""
+    return render_template('about.html')
+
+@app.route('/imprint')
+def imprint():
+    """Imprint page"""
+    return render_template('imprint.html')
+
+@app.route('/privacy')
+def privacy():
+    """Privacy policy page"""
+    return render_template('privacy.html')
+
 @app.route('/dashboard')
 def dashboard():
     """Technical dashboard for managing processing jobs"""

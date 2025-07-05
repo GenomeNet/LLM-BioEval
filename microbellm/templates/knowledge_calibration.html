@@ -5837,10 +5837,12 @@
                 </p>
 
 
-<!-- Animated Species Generation Visualization -->
-<section class="species-generation-section" style="width:100%;padding:40px 0 0 0;">
-    <div class="flow-diagram-wrapper">
-            <div class="flow-diagram" style="justify-content: flex-start; gap: 32px;">
+  <!-- Animation Summary Callout with Animation -->
+  <div class="callout callout-template">
+    <div class="callout-content">
+      <!-- Animated Species Generation Visualization -->
+      <div class="flow-diagram-wrapper">
+        <div class="flow-diagram" style="justify-content: flex-start; gap: 32px;">
           <!-- Set 1: Two English Words -->
           <div class="flow-box" style="width: 320px; text-align: center;">
             <div class="query-title">Set 1</div>
@@ -5873,12 +5875,14 @@
             <div class="species-animated" id="set4-species" style="font-size: 20px;">Pseudobacterium coli</div>
             <div class="animation-label" id="set4-label">1/50</div>
           </div>
+        </div>
+      </div>
+      
+      <div style="margin-top: var(--spacing-element);">
+        <strong>200 total transformations</strong> — 50 for each set. The animation above demonstrates how we systematically combine real and artificial genus/species names to create a gradient of believability, from completely real bacteria to entirely fictional ones.
       </div>
     </div>
-    <div style="text-align:center;margin-top:18px;font-size:14px;color:var(--gray-600);">
-      <span style="font-weight:600;">200 total transformations</span> &mdash; 50 for each set
-    </div>
-  </section>
+  </div>
 
   <p>
     To gauge how much an LLM "knows" about each invented microbe, we run the same handful of questions against every name in the library. Because the wording never changes—only the species placeholder—the answers are directly comparable. For each reply we record whether the model offers concrete details, hedges with uncertainty, or immediately admits it has no information. Summarising those outcomes across our realism gradient tells us exactly when the model starts hallucinating and when it sensibly says "I'm not sure."
@@ -6143,10 +6147,10 @@
 
 /* Top performers section - transparent background */
 .top-performers-section {
-    background: transparent !important;
-    border-radius: 12px;
-    padding: 24px !important;
-    margin: 32px 0 48px 0 !important;
+    padding: 0;
+    margin: 0;
+    position: relative;
+    z-index: 1;
 }
 
 /* Correlation performer cards - no background */
@@ -6207,21 +6211,14 @@
     
     <!-- Sidebar for the section above -->
     <aside class="article-sidebar">
-        <!-- Paper Info Card styled like TOC -->
-        <div class="toc-card paper-info-toc-card" style="margin-top: 24px;">
-            <div class="toc-header">
-                <h3 class="toc-title">Paper Info</h3>
-            </div>
-            <div class="toc-content">
-                <div class="paper-title" style="font-weight:600;color:#3730a3;margin-bottom:6px;">Comparative Assessment of Large Language Models for Microbial Phenotype Annotation
-</div>
-                <div class="paper-authors" style="font-size:13px;color:#6b7280;margin-bottom:10px;font-style:italic;">
-                    P. C. Münch*, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy*
-                </div>
-                <a href="https://doi.org/10.1234/llm-bioeval.2024" target="_blank" class="paper-doi-link" style="display:inline-block;background:#6366f1;color:#fff;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;text-decoration:none;transition:background 0.2s;">
-                    View DOI
-                </a>
-            </div>
+        <!-- Paper Info Card -->
+        <div class="paper-info-card">
+            <h3>Paper Info</h3>
+            <ul class="paper-info-list">
+                <li><strong>Title:</strong> Comparative Assessment of Large Language Models for Microbial Phenotype Annotation</li>
+                <li><strong>Authors:</strong> P. C. Münch*, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy*</li>
+                <li><strong>DOI:</strong> <a href="https://doi.org/10.1234/llm-bioeval.2024" target="_blank">10.1234/llm-bioeval.2024</a></li>
+            </ul>
         </div>
     </aside>
 </div>
@@ -6320,21 +6317,12 @@
         </div>
     </div>
     </div>
-
-
-
 </section>
 
 <!-- Resume article layout -->
 <div class="article-container" style="padding-top: 0;">
     <div class="article-main">
         <article class="article-content">
-
-    
-
-
-          
-
             <div>
                 <!-- Score calculation example will be inserted here by JavaScript -->
                 <div id="scoreExampleContainer" style="float: right; width: calc(50% + 37px); margin: 0 -75px 24px 24px; clear: right;"></div>
@@ -6345,10 +6333,23 @@
             </div>
 
             <div id="dynamicStatsText" class="article-text"></div>
+            
+            <!-- Clear float before section end -->
+            <div style="clear: both;"></div>
+        </article>
+    </div>
+</div>
 
-            <!-- Placeholder for Top Performers -->
-            <div id="topPerformersContainer"></div>
+<!-- Top Performing Models Callout Section -->
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
+        <div id="topPerformersContainer"></div>
+    </div>
+</section>
 
+<div class="article-container">
+    <div class="article-main">
+        <article class="article-content">
             <!-- Placeholder for Worst Performer -->
             <div id="worstPerformerContainer"></div>
 
@@ -6360,30 +6361,27 @@
     </div>
 </div>
 
-
-
-<!-- Knowledge Analysis Results (Full-width breakout) -->
-<section class="section-wide">
-    <div class="section-wide__content">
-        <div class="article-text" style="margin-bottom: 48px;">
-             
+<!-- Full Results of the Artificial Hallucination Test -->
+<div class="article-container">
+    <div class="article-main">
+        <article class="article-content">
             <h2 class="section-title">Full Results of the Artificial Hallucination Test</h2>
-            </h2>
-
-            <p> Below, you can explore the complete results for all evaluated models across each of the three knowledge query templates. These tables allow you to compare every model's performance in detail, see how their responses are distributed, and examine their average quality scores for each template. Use this section to identify trends, outliers, and the overall calibration of each language model when faced with artificial species. </p>
             
-        </div>
-        <div id="knowledgeAnalysisContent">
-            <div class="loading-container">
-                <div class="loading-progress">
-                    <div class="loading-progress-bar"></div>
-                </div>
-                <div class="loading-text">Loading knowledge analysis data...</div>
+            <div class="article-text">
+                <p>Below, you can explore the complete results for all evaluated models across each of the three knowledge query templates. These tables allow you to compare every model's performance in detail, see how their responses are distributed, and examine their average quality scores for each template. Use this section to identify trends, outliers, and the overall calibration of each language model when faced with artificial species.</p>
             </div>
-        </div>
+            
+            <div id="knowledgeAnalysisContent">
+                <div class="loading-container">
+                    <div class="loading-progress">
+                        <div class="loading-progress-bar"></div>
+                    </div>
+                    <div class="loading-text">Loading knowledge analysis data...</div>
+                </div>
+            </div>
+        </article>
     </div>
-</section>
-
+</div>
 
 <!-- Knowledge Analysis Results (Full-width breakout) -->
 <section class="section-wide">
@@ -6486,8 +6484,12 @@
                 
             </div>
         </div>
-       
-        <!-- Stats and Results -->
+    </div>
+</section>
+
+<!-- Top Models Web-Alignment Callout Section -->
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
         <div id="correlationContent">
             <div class="loading-container">
                 <div class="loading-progress">
@@ -6496,6 +6498,11 @@
                 <div class="loading-text">Loading knowledge-web alignment data...</div>
             </div>
         </div>
+    </div>
+</section>
+
+<section class="section-wide">
+    <div class="section-wide__content">
     </div>
 </section>
 
@@ -6814,7 +6821,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function createBarChartLegend() {
         return `
-            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px; margin-top: 4px; padding-left: 4px;">
+            <div class="legend">
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
                     <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
                     <span>Extensive</span>
@@ -7186,11 +7193,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 let totalScore = 0;
                 let totalSamples = 0;
                 
-                scoreExampleHtml += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;border-bottom:1.5px solid var(--gray-200);">';
-                scoreExampleHtml += '<thead><tr style="background:var(--gray-100);font-size:12px;border-top:1.5px solid var(--gray-200);border-bottom:1.5px solid var(--gray-200);">';
-                scoreExampleHtml += '<th style="text-align:left;padding:4px 8px;border-bottom:1.5px solid var(--gray-200);">Type</th>';
-                scoreExampleHtml += '<th style="text-align:right;padding:4px 8px;border-bottom:1.5px solid var(--gray-200);">Score</th>';
-                scoreExampleHtml += '<th style="text-align:right;padding:4px 8px;border-bottom:1.5px solid var(--gray-200);">Subtotal</th>';
+                scoreExampleHtml += '<div class="table-responsive"><table class="table">';
+                scoreExampleHtml += '<thead><tr>';
+                scoreExampleHtml += '<th>Type</th>';
+                scoreExampleHtml += '<th style="text-align:right;">Score</th>';
+                scoreExampleHtml += '<th style="text-align:right;">Subtotal</th>';
                 scoreExampleHtml += '</tr></thead>';
                 scoreExampleHtml += '<tbody>';
                 
@@ -7208,18 +7215,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         const typeName = formatTypeName(inputType);
                         scoreExampleHtml += `<tr>`;
-                        scoreExampleHtml += `<td style="padding:4px 8px;color:var(--gray-800);">${typeName}</td>`;
-                        scoreExampleHtml += `<td style="padding:4px 8px;text-align:right;">`;
+                        scoreExampleHtml += `<td>${typeName}</td>`;
+                        scoreExampleHtml += `<td style="text-align:right;">`;
                         if (naFailedCount > 0) scoreExampleHtml += `<span style="color:#059669;font-weight:600;">3×${naFailedCount}</span> `;
                         if (limitedCount > 0) scoreExampleHtml += `<span style="color:#d97706;font-weight:600;">2×${limitedCount}</span> `;
                         if (moderateCount > 0) scoreExampleHtml += `<span style="color:#dc2626;font-weight:600;">1×${moderateCount}</span> `;
                         if (extensiveCount > 0) scoreExampleHtml += `<span style="color:#991b1b;font-weight:600;">0×${extensiveCount}</span>`;
                         scoreExampleHtml += `</td>`;
-                        scoreExampleHtml += `<td style="padding:4px 8px;text-align:right;font-family:monospace;">${typeScore}</td>`;
+                        scoreExampleHtml += `<td style="text-align:right;font-family:monospace;">${typeScore}</td>`;
                         scoreExampleHtml += `</tr>`;
                     }
                 });
-                scoreExampleHtml += '</tbody></table>';
+                scoreExampleHtml += '</tbody></table></div>';
                 
                 const averageScore = totalSamples > 0 ? totalScore / totalSamples : 0;
                 scoreExampleHtml += `<div style="text-align:right;font-size:13px;margin-bottom:2px;"><strong>Final:</strong> <span style="font-family:monospace;">${totalScore} ÷ ${totalSamples} = <span style='color:#7c3aed;font-weight:700;font-size:15px;'>${averageScore.toFixed(2)}</span></span></div>`;
@@ -7367,22 +7374,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         </table>
                         
                         <!-- Legend below table -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 20px; font-size: 13px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 16px; height: 16px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 3px;"></div>
-                                <span style="color: var(--gray-700);">Extensive Knowledge</span>
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #d4edda; border-color: #c3e6cb;"></div>
+                                <span>Extensive Knowledge</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 16px; height: 16px; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 3px;"></div>
-                                <span style="color: var(--gray-700);">Moderate Knowledge</span>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #d1ecf1; border-color: #bee5eb;"></div>
+                                <span>Moderate Knowledge</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 16px; height: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px;"></div>
-                                <span style="color: var(--gray-700);">Limited Knowledge</span>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #fff3cd; border-color: #ffeaa7;"></div>
+                                <span>Limited Knowledge</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 16px; height: 16px; background: #e2e3e5; border: 1px solid #d6d8db; border-radius: 3px;"></div>
-                                <span style="color: var(--gray-700);">No Information (NA)</span>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #e2e3e5; border-color: #d6d8db;"></div>
+                                <span>No Information (NA)</span>
                             </div>
                         </div>
                     </div>
@@ -7538,7 +7545,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="article-text" style="margin-bottom: 24px;">This chart shows how well each model's knowledge claims align with web presence of species. Higher correlations indicate better calibration. Hover over bars to see the correlation scatter plot.</p>
             
             <!-- Legend -->
-            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+            <div class="legend legend--centered legend--boxed">
         `;
         
         templateNames.forEach((template, idx) => {
@@ -8007,11 +8014,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let html = `
         <div class="quality-score-chart-container" style="margin-top: 48px; margin-bottom: 48px;">
-            <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Quality Score Distribution by Template</h3>
-            <p class="article-text" style="margin-bottom: 24px;">This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown.</p>
+            <div style="max-width: 850px; margin: 0 auto;">
+                <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Quality Score Distribution by Template</h3>
+                <p class="article-text" style="margin-bottom: 24px;">This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown.</p>
+            </div>
             
             <!-- Legend -->
-            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+            <div class="legend">
         `;
         
         templateArray.forEach((template, idx) => {
@@ -8042,11 +8051,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const displayName = modelName.split('/').pop();
             
             html += `
-                <div class="score-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '16px'}; padding: 8px 0;">
+                <div class="score-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '4px'}; padding: 4px 0;">
                     <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
                         ${displayName}
                     </div>
-                    <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: center;">
+                    <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: center;">
             `;
             
             templateArray.forEach((template, idx) => {
@@ -8560,7 +8569,7 @@ function renderKnowledgeDistBar(dist, total) {
 
 function createBarChartLegend() {
     return `
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px; margin-top: 4px; padding-left: 4px;">
+        <div class="legend">
             <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
                 <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
                 <span>Extensive</span>

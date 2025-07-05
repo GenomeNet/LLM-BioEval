@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}About - LLM-BioEval{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<style>
+/* About page specific styles */
+.about-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-section);
+    color: var(--gray-900);
+}
+
+/* Mission section */
+.mission-section {
+    margin-bottom: var(--spacing-section);
+}
+
+.mission-section h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+/* Contact section */
+.contact-section {
+    background: var(--gray-50);
+    padding: var(--spacing-component);
+    border-radius: 16px;
+    margin-top: var(--spacing-section);
+}
+
+.contact-section h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+}
+
+.contact-info {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing-small) * 0.5);
+}
+
+.contact-info a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.contact-info a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content page-content">
+    <article class="article-container">
+        <div class="article-content">
+            <h1 class="about-title">About</h1>
+
+            <!-- Mission Section -->
+            <section class="mission-section">
+                <h2 class="section-title">Our Mission</h2>
+                <p class="article-text">
+                    As language models become increasingly integrated into biological research and clinical 
+                    applications, understanding their capabilities and limitations is crucial. LLM-BioEval 
+                    provides the life sciences community with standardized benchmarks to evaluate how well 
+                    AI systems understand microbiology, from bacterial taxonomy to phenotypic characteristics.
+                </p>
+                <p class="article-text">
+                    Our continuously updated benchmarks help researchers, developers, and practitioners make 
+                    informed decisions about deploying AI in biological contexts, ensuring both innovation 
+                    and scientific rigor.
+                </p>
+            </section>
+
+            <!-- Contact Section -->
+            <div id="contact" class="contact-section">
+                <h2>Contact</h2>
+                <div class="contact-info">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    <a href="mailto:philipp.muench@helmholtz-hzi.de">philipp.muench@helmholtz-hzi.de</a>
+                </div>
+            </div>
+        </div>
+    </article>
+</div>
+{% endblock %}
