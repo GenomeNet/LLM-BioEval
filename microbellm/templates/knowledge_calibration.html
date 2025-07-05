@@ -6561,20 +6561,8 @@
 
 
         
-        <div id="correlationDynamicStats" class="dynamic-stats">
+        <div id="correlationDynamicStats" class="article-text" style="margin-bottom: 48px;">
             <!-- Dynamic text for correlation analysis will be injected here -->
-        </div>
-
-
-        
-        <div class="article-text" style="margin-bottom: 48px;">
-             
-          
-
-            <p>
-               Blabla
-            </p>
-            
         </div>
         
         <div id="dynamic-summary-for-correlation" class="dynamic-stats" style="display: none;">
@@ -7843,10 +7831,18 @@ function renderCorrelationSummary(data) {
     const worstModel = worstModelResult ? worstModelResult.modelName.split('/').pop() : 'N/A';
     
     const dynamicStatsText =
-        `Our analysis of web-aligned knowledge across <span class="stat-value">${totalModels}</span> models and <span class="stat-value">${totalTemplates}</span> templates shows how well each model's confidence is calibrated. ` +
-        `The best alignment was seen in <span class="model-highlight">${bestModel}</span>, with a correlation score of <span class="stat-value">${maxCorrelation.toFixed(3)}</span>. ` +
-        (worstModel && bestModel !== worstModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> showed the weakest alignment with a correlation of <span class="stat-value">${minCorrelation.toFixed(3)}</span>, indicating its knowledge claims are less reflective of real-world information availability.` : '');
+        `Our analysis of web-aligned knowledge across <span class="stat-value">${totalModels}</span> models and <span class="stat-value">${totalTemplates}</span> templates reveals how well each model's confidence aligns with real-world information availability. ` +
+        `Models with higher correlation scores demonstrate better calibration—they claim extensive knowledge for well-documented bacteria and limited knowledge for obscure species. ` +
+        (bestModelResult ? `The best alignment was achieved by <span class="model-highlight">${bestModel}</span> with a correlation coefficient of <span class="stat-value">${maxCorrelation.toFixed(3)}</span>, ` +
+        `indicating its knowledge claims closely match the actual web presence of bacterial species. ` : '') +
+        (worstModel && bestModel !== worstModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> showed the weakest alignment with a correlation of <span class="stat-value">${minCorrelation.toFixed(3)}</span>, ` +
+        `suggesting its confidence assessments are less reflective of real-world information availability.` : '');
 
+    const correlationStatsDiv = document.getElementById('correlationDynamicStats');
+    if (correlationStatsDiv) {
+        correlationStatsDiv.innerHTML = `<p>${dynamicStatsText}</p>`;
+    }
+    
     const summaryDiv = document.getElementById('dynamic-summary-for-correlation');
     if (summaryDiv) {
         summaryDiv.innerHTML = `<p>${dynamicStatsText}</p>`;
