@@ -177,6 +177,21 @@
         margin-bottom: 24px;
     }
     
+    /* correlation special layout */
+    .corr-legacy { display: none !important; }
+    .flow-result-box { background: var(--bg-primary); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; min-width: 120px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}    
+    /* Grid for correlation demo */
+    .flow-grid { display: grid; grid-template-columns: auto 60px auto 60px auto 60px auto; grid-template-rows: auto auto; align-items: center; gap: 20px; }
+    .grid-species { grid-row: 1 / span 2; grid-column: 1; }
+    .grid-correlation { grid-row: 1 / span 2; grid-column: 7; }
+    
+    /* Column wrapper to stack boxes */
+    .flow-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
     .flow-box {
         background: var(--bg-primary);
         border: 1px solid var(--gray-200);
@@ -422,6 +437,14 @@
     .legend-symbol {
         font-weight: 600;
         color: var(--gray-700);
+    }
+    
+    .legend-symbol.success {
+        color: #10b981;
+    }
+    
+    .legend-symbol.caution {
+        color: #f59e0b;
     }
     
     /* Arrows */
@@ -794,6 +817,79 @@
         margin-bottom: 8px;
         line-height: 1.5;
         letter-spacing: 0.02em;
+    }
+    
+    /* NEW: Animated flow result text */
+    .flow-result {
+        font-size: 18px;
+        font-weight: 600;
+        margin-top: 6px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* NEW: container for downward arrow + result */
+    .flow-down {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 8px;
+    }
+    .down-arrow {
+        color: var(--gray-400);
+        margin-bottom: 4px;
+    }
+
+    /* Correlation Flow Grid Styles */
+    .flow-grid {
+        display: grid;
+        grid-template-columns: auto 60px auto 60px auto 60px auto;
+        grid-template-rows: auto auto;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .grid-species { 
+        grid-row: 1 / span 2; 
+        grid-column: 1; 
+    }
+    
+    .grid-correlation { 
+        grid-row: 1 / span 2; 
+        grid-column: 7; 
+    }
+
+    .flow-result-box {
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 16px 24px;
+        min-width: 120px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--gray-900);
+        transition: all 0.3s ease;
+    }
+
+    .flow-result-box.highlight {
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 6px 20px rgba(0, 0, 0, 0.15);
+        transform: scale(1.03);
+    }
+
+    /* Arrow styling for correlation flow */
+    .flow-arrow svg {
+        color: var(--gray-400);
+        transition: all 0.3s ease;
+    }
+
+    .flow-arrow.active svg {
+        color: var(--primary);
+        filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.3));
     }
 
     .output-description {
@@ -5803,7 +5899,7 @@
 <header class="hero-header">
     <canvas id="hero-canvas" class="hero-canvas"></canvas>
     <div class="hero-content">
-        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial Taxonomy</h1>
+        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial Taxonomxxxxx</h1>
             <div class="hero-author">by Philipp C. Münch</div>
         <p class="hero-subtitle">
             A dual test set of synthetic species and verified bacteria reveals when the model invents and when it defers.
@@ -5823,28 +5919,47 @@
             
             <div class="article-text">
                 <p>
-                    <strong>Binomial names</strong> are the universal "first&nbsp;and&nbsp;last names" of every micro-organism, inherited from Linnaean taxonomy. 
-                    The first word (the <em>genus</em>) is always capitalised and groups together species that share a close evolutionary lineage—<em>Escherichia</em>, for example, gathers gut-dwelling rods such as <em>E.&nbsp;coli</em> and <em>E.&nbsp;albertii</em>. 
-                    The second word (the <em>species epithet</em>) is lowercase and distinguishes one member of the genus from another. 
-                    Written in italics and fixed in Latin-style form, the pair becomes a legally recognised label once it is published in the <em>International Journal of Systematic and Evolutionary Microbiology</em> and entered into registries such as NCBI or LPSN. 
-                    Because the format is rigid and globally standardised, even a newly coined species should "look right" at a glance; that visual regularity is exactly what makes it possible for an LLM—and sometimes a human reader—to mistake a well-crafted fiction for an authentic taxon.
-                </p>
-                <p>
-                    Large-language models can write with convincing authority, but that polish hides a weakness: when the underlying evidence is thin, the model may simply invent it. Researchers call this behaviour hallucination. It appears most often after the RLHF (Reinforcement Learning from Human Feedback) stage of training, where the system is rewarded for sounding helpful and confident—even if the safest reply would have been "I don't know." In domains that depend on verifiable facts, such as microbiology, a confident fabrication can be worse than silence.
-                </p>
+                    <p>Microbial information—like whether Pseudomonas putida degrades specific chemicals—is dispersed across many databases, research papers, and supplemental documents. There's no single comprehensive source, making it difficult and time-consuming to compile accurate annotations for microbial databases.
+                    </p>
 
-                <div class="callout callout-definition">
-                    <div class="callout-header">Definition</div>
-                    <div class="callout-content">
-                         <b> Hallucination (LLM):</b> A response that looks plausible and is delivered with full confidence, yet is wholly or partly fabricated and unsupported by any real source. This is especially problematic in scientific settings, where downstream decisions rely on accuracy.
+                    <p> 
+                        In practice, microbiologists gather strain-level details from a fragmented landscape: taxonomic registries (NCBI, LPSN), commercial culture collections (ATCC, DSMZ), hidden genome annotations, and thousands of scientific papers. With no centralized, consistently formatted repository, even routine checks—such as verifying antibiotic resistance or metabolic traits—require extensive manual cross-referencing.
+                    </p>
+
+
+               
+                
+                    <div class="callout callout-definition">
+                        <div class="callout-header">Definition</div>
+                        <div class="callout-content">
+                            <strong>Binomial names</strong> are the universal "first&nbsp;and&nbsp;last names" of every micro-organism, inherited from Linnaean taxonomy. 
+                            The first word (the <em>genus</em>) is always capitalised and groups together species that share a close evolutionary lineage—<em>Escherichia</em>, for example, gathers gut-dwelling rods such as <em>E.&nbsp;coli</em> and <em>E.&nbsp;albertii</em>. 
+                            The second word (the <em>species epithet</em>) is lowercase and distinguishes one member of the genus from another. 
+                            Written in italics and fixed in Latin-style form, the pair becomes a legally recognised label once it is published in the <em>International Journal of Systematic and Evolutionary Microbiology</em> and entered into registries such as NCBI or LPSN. 
+                            Because the format is rigid and globally standardised, even a newly coined species should "look right" at a glance; that visual regularity is exactly what makes it possible for an LLM—and sometimes a human reader—to mistake a well-crafted fiction for an authentic taxon.
+                        </div>
                     </div>
-                </div>
-                
-                
-                <p>
-                    In practice, microbiologists piece together strain-level facts from a patchwork of sources: taxonomic registries such as NCBI and LPSN, commercial culture-collection sheets from ATCC or DSMZ, genome annotations buried in supplementary tables, and thousands of papers dispersed across journals. Because no single repository is complete or consistently formatted, even routine tasks—confirming an antibiotic-resistance gene or a metabolic quirk—can involve hours of manual cross-checking. It is tempting to let an LLM act as a "single front door" to that literature, summarising scattered annotations on demand; yet if the model's summaries are salted with hallucinated details, the apparent convenience becomes a liability. Knowing how often an LLM fabricates traits for organisms that do not exist is therefore a prerequisite for trusting its answers about organisms that do.
+    
+
+
+                    <p>AI language models have absorbed extensive scientific literature and could potentially streamline this consolidation process. However, they often write with convincing authority even when evidence is thin, risking the introduction of incorrect details—a phenomenon known as hallucination. This frequently occurs after Reinforcement Learning from Human Feedback (RLHF) training, where models are rewarded for sounding helpful and confident, even if "I don't know" would be more accurate. In microbiology, confident fabrications can be more harmful than no answer at all.
+                    </p>
+
+                    <div class="callout callout-definition">
+                        <div class="callout-header">Definition</div>
+                        <div class="callout-content">
+                             <b> Hallucination (LLM):</b> A response that looks plausible and is delivered with full confidence, yet is wholly or partly fabricated and unsupported by any real source. This is especially problematic in scientific settings, where downstream decisions rely on accuracy.
+                        </div>
+                    </div>
+
+
+                    <p> Understanding how often a model fabricates traits for nonexistent organisms is crucial before relying on its summaries for real-world microbial annotation
+                    </p>
+    
+                 
+                    
                 </p>
-                
+            
                 <p>
                     To probe where certainty ends and storytelling begins, we built a library of 200 wholly invented strain names, arranged along a realism gradient. At the playful end sit English mash-ups such as Crimson Horizon or Silver Pine—labels no taxonomist would buy. At the serious end are Latin-looking binomials like Luminaricella splendens that follow every rule of bacterial nomenclature. By asking the same set of questions across this spectrum, we can see exactly when an LLM's confidence tips into hallucination.
                 </p>
@@ -6201,6 +6316,8 @@
     </aside>
 </div>
 
+
+
 <!-- Experimental Flow Diagram (Full-width breakout) -->
 <section class="experimental-flow-section">
     <div class="flow-diagram-wrapper">
@@ -6296,19 +6413,15 @@
 
 </section>
 
-
-
 <!-- Resume article layout -->
 <div class="article-container" style="padding-top: 0;">
     <div class="article-main">
         <article class="article-content">
 
-            <div class="article-text">
-                <p>The following analysis shows how different language models respond when asked about completely fictional bacterial species. Models that correctly identify these as non-existent (by responding <code>NA</code> or failing to generate a response) demonstrate better scientific integrity.</p>
-            </div>
+    
 
 
-            <div id="dynamicStatsText" class="article-text"></div>
+          
 
             <div style="overflow: auto;">
                 <!-- Score calculation example will be inserted here by JavaScript -->
@@ -6318,6 +6431,8 @@
                     <p>To compare models on a single scale we devised a "hallucination-avoidance" score. Each response earns three points if the model refuses or returns <code>NA</code>, two points for a self-declared limited answer, one point for intermediate, and zero when it claims extensive knowledge. We then sum those points for every fictional name and divide by the number of prompts, yielding an average that ranges from 0 (pure fantasy) to 3 (perfect restraint). Thus a model that usually says "I don't know" or "limited" on fake species will hover near the high end of the scale, while one that invents rich detail will drift toward zero.</p>
                 </div>
             </div>
+
+            <div id="dynamicStatsText" class="article-text"></div>
 
             <!-- Placeholder for Top Performers -->
             <div id="topPerformersContainer"></div>
@@ -6329,7 +6444,7 @@
             <div id="qualityScoreHistogramContainer"></div>
 
             <div class="article-text">
-                <p>TODO text placeholder</p>
+                <p>This scoring system allows us to quantify a model's tendency to assert knowledge about non-existent subjects. The visualizations above highlight the top and bottom performers in this test, revealing which models are more likely to falsely claim familiarity with artificial species. The histogram provides an overall look at the distribution of these 'hallucination-avoidance' scores across all tested models. These results help identify which models are better calibrated to admit the limits of their knowledge, a crucial characteristic for trustworthy scientific AI.</p>
             </div>
         
         </article>
@@ -6380,41 +6495,68 @@
          <!-- Animated Flow (optional, static for now) -->
          <div class="experimental-flow-section" style="margin-bottom: 40px;">
             <div class="flow-diagram-wrapper">
-                <div class="flow-diagram">
-                    <div class="flow-box flow-input">
+                <!-- Grid correlation diagram -->
+                <div class="flow-grid">
+                    <!-- Species input spanning rows -->
+                    <div class="flow-box flow-input grid-species">
                         <div class="flow-species">Bacillus subtilis</div>
                         <div class="flow-label">Real species</div>
                     </div>
-                    <div class="flow-arrow">
-                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none">
-                            <path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+
+                    <!-- Row 1: LLM Query path -->
+                    <div class="flow-arrow" style="grid-row:1; grid-column:2;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 30 L35 10 M35 10 L25 10 M35 10 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
-                    <div class="flow-box flow-query">
+                    <div class="flow-box flow-query" style="grid-row:1; grid-column:3;">
                         <div class="query-title">LLM Query</div>
                         <div class="output-description">Ask model for knowledge level</div>
                     </div>
-                    <div class="flow-arrow">
-                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none">
-                            <path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                    <div class="flow-arrow" style="grid-row:1; grid-column:4;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
-                    <div class="flow-box flow-query">
+                    <div class="flow-result-box" id="corr-llm-box" style="grid-row:1; grid-column:5;">
+                        <div style="font-size: 10px; color: var(--gray-600); margin-bottom: 2px;">knowledge group</div>
+                        <span class="output-option caution">Limited</span>
+                    </div>
+                    <div class="flow-arrow" style="grid-row:1; grid-column:6;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 10 L35 30 M35 30 L25 30 M35 30 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <!-- Row 2: Web Search path -->
+                    <div class="flow-arrow" style="grid-row:2; grid-column:2;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 10 L35 30 M35 30 L25 30 M35 30 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="flow-box flow-query" style="grid-row:2; grid-column:3;">
                         <div class="query-title">Web Search</div>
                         <div class="output-description">Count Google search results</div>
                     </div>
-                    <div class="flow-arrow">
-                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none">
-                            <path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                    <div class="flow-arrow" style="grid-row:2; grid-column:4;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 20 L45 20 M45 20 L38 13 M45 20 L38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
-                    <div class="flow-box flow-output">
+                    <div class="flow-result-box" id="corr-web-box" style="grid-row:2; grid-column:5;">1.5&nbsp;M</div>
+                    <div class="flow-arrow" style="grid-row:2; grid-column:6;">
+                        <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><path d="M5 30 L35 10 M35 10 L25 10 M35 10 L35 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <!-- Shared Correlation box -->
+                    <div class="flow-box flow-output grid-correlation">
                         <div class="output-title">Correlation Analysis</div>
-                        <div class="output-description">Compare LLM knowledge to web presence</div>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="flow-legend">
+                    <div class="legend-item">
+                        <span class="legend-symbol success">Extensive</span> + <span class="legend-symbol">High count</span> = Good calibration
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-symbol caution">Limited</span> + <span class="legend-symbol">Low count</span> = Good calibration
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-symbol">Pearson correlation</span> = Measures alignment
                     </div>
                 </div>
             </div>
-
         </div>
 
 
@@ -6711,7 +6853,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Arboribacter melitensis', 'Siderosoma enteritidis', 'Fluminibacter meningitidis', 'Glaeciabacter megaterium', 'Ferrivibrio vulnificus',
         'Temporibacter coli', 'Radiobacillus difficile', 'Ignispirillum jirovecii', 'Niveococcus pneumoniae', 'Heliosoma epidermidis',
         'Aquaspira mirabilis', 'Glaciigenium thermoglucosidasius', 'Caelumcoccus sporogenes', 'Lunabacter monocytogenes', 'Terrafermentum diphtheriae',
-        'Phosphoribacter salmonis', 'Oralevi gingivalis', 'Aestusbacter haemolyticus', 'Nubibacter suis', 'Calorella botulinum',
+        'Phosphoribacter salmonis', 'Oralevi oralis', 'Aestusbacter haemolyticus', 'Nubibacter suis', 'Calorella botulinum',
         'Tenebrisoma palustris', 'Polarisfermentum maltophilia', 'Salumispira marcescens', 'Nocticella legionellae', 'Firmamentibacter cloacae'
     ];
     function createMiniBoxes(miniBoxId, totalBoxes) {
@@ -6978,9 +7120,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add dynamic statistics text
         const dynamicStatsText =
-            `We analyzed <span class="stat-value">${totalModels}</span> language models across ` +
-            `<span class="stat-value">${totalTemplates}</span> different query templates. ` +
-            (bestModel ? `The best performing model was <span class="model-highlight">${bestModel}</span> ` +
+            `In total, we analyzed <span class="stat-value">${totalModels}</span> language models across ` +
+            `<span class="stat-value">${totalTemplates}</span> different query templates and calculated for each model this score. ` +
+            (bestModel ? `The top performers are those that consistently identified fictional species as unknown, achieving the highest scores. Under all evaluated models, the best one was <span class="model-highlight">${bestModel}</span> ` +
                 `with an average quality score of <span class="stat-value">${bestScore.toFixed(2)}</span>, ` +
                 `correctly identifying most artificial species as non-existent. ` : '') +
             (worstModel && worstModel !== bestModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> ` +
@@ -7512,6 +7654,95 @@ document.addEventListener('DOMContentLoaded', function() {
             animateFlowDiagram(diagram);
         });
     }, 1000);
+    
+    // Correlation Flow Animation
+    function animateCorrelationFlow() {
+        const flowGrid = document.querySelector('.flow-grid');
+        if (!flowGrid) return;
+        
+        const speciesBox = flowGrid.querySelector('.flow-species');
+        const llmBox = flowGrid.querySelector('#corr-llm-box');
+        const webBox = flowGrid.querySelector('#corr-web-box');
+        const arrows = flowGrid.querySelectorAll('.flow-arrow');
+        const correlationBox = flowGrid.querySelector('.grid-correlation');
+        
+        const species = [
+            { name: 'Bacillus subtilis', knowledge: 'Limited', webCount: '1.5 M' },
+            { name: 'Escherichia coli', knowledge: 'Extensive', webCount: '45.2 M' },
+            { name: 'Streptococcus pyogenes', knowledge: 'Moderate', webCount: '8.7 M' },
+            { name: 'Mycobacterium tuberculosis', knowledge: 'Extensive', webCount: '23.1 M' }
+        ];
+        
+        let currentIndex = 0;
+        
+        function resetHighlights() {
+            arrows.forEach(arrow => arrow.classList.remove('active'));
+            llmBox.classList.remove('highlight');
+            webBox.classList.remove('highlight');
+            correlationBox.classList.remove('highlight');
+        }
+        
+        function animateStep() {
+            resetHighlights();
+            const current = species[currentIndex];
+            
+            // Update species name
+            speciesBox.textContent = current.name;
+            
+            // Step 1: Highlight species to LLM path
+            setTimeout(() => {
+                arrows[0].classList.add('active'); // Top left arrow
+                arrows[1].classList.add('active'); // Top middle arrow
+                llmBox.classList.add('highlight');
+                
+                // Update LLM result
+                const knowledgeSpan = llmBox.querySelector('.output-option');
+                if (knowledgeSpan) {
+                    knowledgeSpan.textContent = current.knowledge;
+                    knowledgeSpan.className = 'output-option';
+                    
+                    // Add the appropriate background styling based on knowledge level
+                    if (current.knowledge === 'Limited') {
+                        knowledgeSpan.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
+                        knowledgeSpan.style.color = '#856404';
+                        knowledgeSpan.style.borderColor = 'rgba(255, 193, 7, 0.3)';
+                    } else if (current.knowledge === 'Moderate') {
+                        knowledgeSpan.style.background = 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)';
+                        knowledgeSpan.style.color = '#0c5460';
+                        knowledgeSpan.style.borderColor = 'rgba(23, 162, 184, 0.3)';
+                    } else if (current.knowledge === 'Extensive') {
+                        knowledgeSpan.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)';
+                        knowledgeSpan.style.color = '#155724';
+                        knowledgeSpan.style.borderColor = 'rgba(40, 167, 69, 0.3)';
+                    }
+                }
+            }, 300);
+            
+            // Step 2: Highlight species to web search path
+            setTimeout(() => {
+                arrows[3].classList.add('active'); // Bottom left arrow
+                arrows[4].classList.add('active'); // Bottom middle arrow
+                webBox.classList.add('highlight');
+                webBox.textContent = current.webCount;
+            }, 800);
+            
+            // Step 3: Highlight correlation
+            setTimeout(() => {
+                arrows[2].classList.add('active'); // Top right arrow
+                arrows[5].classList.add('active'); // Bottom right arrow
+                correlationBox.classList.add('highlight');
+            }, 1300);
+            
+            currentIndex = (currentIndex + 1) % species.length;
+            setTimeout(animateStep, 4000);
+        }
+        
+        // Start animation
+        setTimeout(animateStep, 1500);
+    }
+    
+    // Initialize correlation animation
+    setTimeout(animateCorrelationFlow, 1200);
 });
 
 // Function to scroll to template on templates page
