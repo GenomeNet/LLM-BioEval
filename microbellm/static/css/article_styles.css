@@ -1,0 +1,597 @@
+/* =====================================================
+   LLM-BioEval Article Styles
+   Reusable components for all article pages
+   ===================================================== */
+
+/* =====================================================
+   Article Text Styles
+   ===================================================== */
+
+/* Main article text - constrained width for readability */
+.article-text {
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--gray-700);
+    margin-bottom: var(--spacing-element);
+}
+
+.article-text p {
+    margin-bottom: calc(var(--spacing-element) * 0.833);
+}
+
+/* Full-width variant for text in wide sections */
+.section-wide .article-text,
+.section-callout .article-text {
+    max-width: none;
+    width: 100%;
+}
+
+.section-wide .article-text p,
+.section-callout .article-text p {
+    max-width: none;
+}
+
+/* =====================================================
+   Title Styles
+   ===================================================== */
+
+/* Main section title (h1) */
+.main-section-title {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: var(--spacing-element);
+    letter-spacing: -0.02em;
+    color: var(--gray-900);
+    border-bottom: 2px solid var(--gray-100);
+    padding-bottom: var(--spacing-small);
+}
+
+/* Secondary section title (h2) */
+.section-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-element);
+    color: var(--gray-900);
+    letter-spacing: -0.01em;
+}
+
+/* Section headers with uppercase text */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-element);
+}
+
+.section-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gray-600);
+    margin: 0;
+}
+
+/* =====================================================
+   Callout Boxes (Indented)
+   ===================================================== */
+
+/* Base callout style */
+.callout {
+    position: relative;
+    margin: var(--spacing-component) 0;
+    margin-left: calc(var(--spacing-section) * 2.5);
+    padding: var(--spacing-element) calc(var(--spacing-element) * 1.167);
+    background: var(--bg-primary);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    width: calc(100% - calc(var(--spacing-section) * 2.5) + 75px);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Callout with purple gradient background */
+.callout-definition {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.08) 0%,
+        rgba(168, 85, 247, 0.06) 25%,
+        rgba(59, 130, 246, 0.08) 50%,
+        rgba(147, 51, 234, 0.06) 75%,
+        rgba(79, 172, 254, 0.08) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Alternative gradient style */
+.callout-template {
+    background: linear-gradient(135deg, 
+        rgba(147, 51, 234, 0.08) 0%,
+        rgba(79, 172, 254, 0.06) 25%,
+        rgba(99, 102, 241, 0.08) 50%,
+        rgba(168, 85, 247, 0.06) 75%,
+        rgba(59, 130, 246, 0.08) 100%);
+    border: 1px solid rgba(147, 51, 234, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Green gradient for phenotype content */
+.callout-phenotype {
+    background: linear-gradient(135deg, 
+        rgba(34, 197, 94, 0.08) 0%,
+        rgba(132, 204, 22, 0.06) 25%,
+        rgba(16, 185, 129, 0.08) 50%,
+        rgba(5, 150, 105, 0.06) 75%,
+        rgba(34, 197, 94, 0.08) 100%);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Green to yellow gradient for methodology */
+.callout-methodology {
+    background: linear-gradient(135deg, 
+        rgba(16, 185, 129, 0.08) 0%,
+        rgba(34, 197, 94, 0.06) 25%,
+        rgba(132, 204, 22, 0.08) 50%,
+        rgba(250, 204, 21, 0.06) 75%,
+        rgba(16, 185, 129, 0.08) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Callout content styling */
+.callout-header {
+    display: none;
+}
+
+.callout-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--gray-700);
+    font-style: italic;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.callout-content strong {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* Special cases for callout headers */
+.callout-definition .callout-header {
+    color: #6366f1;
+    font-weight: 700;
+}
+
+.callout-template .callout-header {
+    color: #9333ea;
+    font-weight: 700;
+}
+
+.callout-phenotype .callout-header {
+    color: #10b981;
+    font-weight: 700;
+}
+
+.callout-methodology .callout-header {
+    color: #14b8a6;
+    font-weight: 700;
+}
+
+/* =====================================================
+   Full-Page Sections
+   ===================================================== */
+
+/* Base full-width section */
+.section-wide {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding: var(--spacing-section) 0;
+    margin-bottom: var(--spacing-section);
+}
+
+/* Full-width section with callout background */
+.section-callout {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding: var(--spacing-section) 0;
+    margin-top: var(--spacing-component);
+    margin-bottom: var(--spacing-section);
+    backdrop-filter: blur(8px);
+}
+
+/* Purple gradient for knowledge/hallucination themes */
+.section-callout--purple {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.08) 0%,
+        rgba(168, 85, 247, 0.06) 25%,
+        rgba(59, 130, 246, 0.08) 50%,
+        rgba(147, 51, 234, 0.06) 75%,
+        rgba(79, 172, 254, 0.08) 100%);
+    border-top: 1px solid rgba(99, 102, 241, 0.2);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Green gradient for phenotype themes */
+.section-callout--green {
+    background: linear-gradient(135deg, 
+        rgba(34, 197, 94, 0.08) 0%,
+        rgba(132, 204, 22, 0.06) 25%,
+        rgba(16, 185, 129, 0.08) 50%,
+        rgba(5, 150, 105, 0.06) 75%,
+        rgba(34, 197, 94, 0.08) 100%);
+    border-top: 1px solid rgba(34, 197, 94, 0.2);
+    border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* Content wrapper for wide sections */
+.section-wide__content,
+.section-callout__content {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* =====================================================
+   Article Structure
+   ===================================================== */
+
+/* Standard article section */
+.article-section {
+    margin-bottom: var(--spacing-section);
+    scroll-margin-top: 100px;
+}
+
+/* =====================================================
+   Responsive Design
+   ===================================================== */
+
+@media (max-width: 1024px) {
+    .callout {
+        margin-left: calc(var(--spacing-component) * 1.5);
+        width: calc(100% - calc(var(--spacing-component) * 1.5) + 40px);
+    }
+}
+
+@media (max-width: 768px) {
+    .main-section-title {
+        font-size: 36px;
+    }
+    
+    .section-title {
+        font-size: 28px;
+    }
+    
+    .article-text {
+        font-size: 16px;
+    }
+    
+    .callout {
+        margin-left: var(--spacing-small);
+        width: calc(100% - var(--spacing-small));
+        padding: var(--spacing-small) calc(var(--spacing-small) * 1.25);
+    }
+    
+    .section-callout,
+    .section-wide {
+        padding: calc(var(--spacing-section) * 0.833) 0;
+    }
+    
+    .section-wide__content,
+    .section-callout__content {
+        padding: 0 var(--padding-container-mobile);
+    }
+}
+
+/* =====================================================
+   Utility Classes
+   ===================================================== */
+
+/* Force full width for specific content */
+.content-full-width {
+    max-width: none !important;
+    width: 100% !important;
+}
+
+/* Author attribution styling */
+.hero-author {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: calc(var(--spacing-small) * 0.625);
+    margin-top: calc(var(--spacing-small) * -0.625);
+}
+
+/* Purple author for knowledge themes */
+.hero-author--purple {
+    color: #6366f1;
+}
+
+/* Green author for phenotype themes */
+.hero-author--green {
+    color: #10b981;
+}
+
+/* =====================================================
+   Bar Chart Styles
+   ===================================================== */
+
+/* Standard bar chart container - used in tables */
+.bar-chart-container {
+    width: 100%;
+    height: 24px;
+    background: var(--gray-100);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.bar-chart-segments {
+    display: flex;
+    height: 100%;
+    width: 100%;
+}
+
+.bar-segment {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    position: relative;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.bar-segment:hover {
+    filter: brightness(0.95);
+}
+
+/* Bar segment colors */
+.bar-segment.na { background: #e5e7eb; color: #6b7280; }
+.bar-segment.limited { background: #fef3c7; color: #92400e; }
+.bar-segment.moderate { background: #dbeafe; color: #1e40af; }
+.bar-segment.extensive { background: #d1fae5; color: #065f46; }
+.bar-segment.no-result { background: #f3f4f6; color: #6b7280; }
+.bar-segment.inference-failed { background: #fee2e2; color: #991b1b; }
+
+/* Template distribution bars - less rounded */
+.template-bar-wrapper {
+    position: relative;
+    background: var(--gray-100);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: calc(var(--spacing-small) / 2);
+}
+
+.template-bar {
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: white;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Correlation bars - minimal rounding */
+.correlation-bar {
+    width: 100%;
+    height: 16px;
+    display: flex;
+    border: 1px solid var(--gray-300);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--gray-50);
+}
+
+.correlation-bar-segment {
+    height: 100%;
+    font-size: 10px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =====================================================
+   Legend Styles
+   ===================================================== */
+
+/* Base legend style - left aligned by default */
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-element);
+    margin-top: var(--spacing-small);
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+/* Centered legend variant */
+.legend--centered {
+    justify-content: center;
+}
+
+/* Legend with background */
+.legend--boxed {
+    padding: var(--spacing-small);
+    background: var(--gray-50);
+    border-radius: 8px;
+    margin-bottom: calc(var(--spacing-element) * 1.167);
+}
+
+/* Legend item */
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing-small) / 2);
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Legend with border separator (for flow diagrams) */
+.legend--separated {
+    padding-top: var(--spacing-element);
+    border-top: 1px solid var(--gray-200);
+}
+
+/* =====================================================
+   Table Styles
+   ===================================================== */
+
+/* Responsive table wrapper */
+.table-responsive {
+    overflow-x: auto;
+    margin-bottom: var(--spacing-component);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+}
+
+/* Modern table styling */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table thead {
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table caption/title */
+.table-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-small);
+}
+
+/* =====================================================
+   Paper Info Section
+   ===================================================== */
+
+/* Paper info card - styled like TOC */
+.paper-info-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: var(--spacing-element);
+    margin-top: var(--spacing-element);
+}
+
+.paper-info-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-small);
+}
+
+.paper-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.paper-info-list li {
+    padding: calc(var(--spacing-small) / 2) 0;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+.paper-info-list li:last-child {
+    border-bottom: none;
+}
+
+.paper-info-list strong {
+    color: var(--gray-700);
+    font-weight: 500;
+}
+
+/* =====================================================
+   Figure and Chart Containers
+   ===================================================== */
+
+/* Figure wrapper with consistent spacing */
+.figure {
+    margin-bottom: var(--spacing-section);
+}
+
+.figure-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-small);
+}
+
+.figure-caption {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-top: var(--spacing-small);
+    line-height: 1.6;
+}
+
+/* Chart container for interactive elements */
+.chart-container {
+    background: var(--bg-primary);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: var(--spacing-element);
+    margin-bottom: var(--spacing-component);
+}
+
+/* =====================================================
+   Responsive Adjustments
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .legend {
+        gap: var(--spacing-small);
+        font-size: 12px;
+    }
+    
+    .legend-color {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .table {
+        font-size: 13px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px 12px;
+    }
+}

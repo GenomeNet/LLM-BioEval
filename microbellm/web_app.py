@@ -1879,7 +1879,7 @@ def compare_page():
 def correlation_page():
     return render_template('correlation.html')
 
-@app.route('/artificial_dataset')
+@app.route('/knowledge_calibration')
 @app.route('/hallucination_test')  # Alternative route name
 def artificial_dataset_page():
     """Page for testing LLM hallucination with artificial species names"""

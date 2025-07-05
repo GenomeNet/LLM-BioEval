@@ -3,6 +3,7 @@
 {% block title %}Hallucination Test - LLM-BioEval{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
 <style>
     /* Remove main content padding override - let layout.css handle it */
 
@@ -74,18 +75,12 @@
         font-size: 48px;
         font-weight: 800;
         line-height: 1.1;
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-element);
         letter-spacing: -0.02em;
         color: var(--gray-900);
     }
 
-    .hero-author {
-        font-size: 15px;
-        color: #6366f1;
-        font-weight: 500;
-        margin-bottom: 10px;
-        margin-top: -10px;
-    }
+    /* Hero author styling moved to article_styles.css - using .hero-author--purple */
 
     .hero-subtitle {
         font-size: 20px;
@@ -110,63 +105,23 @@
         z-index: 0;
     }
     
-    /* Article content */
-    .article-section {
-        margin-bottom: var(--spacing-section);
-        scroll-margin-top: 100px;
-    }
+    /* Article section styling moved to article_styles.css */
     
-    .section-title {
-        font-size: 32px;
-        font-weight: 700;
-        margin-bottom: 24px;
-        color: var(--gray-900);
-        letter-spacing: -0.01em;
-    }
-    
-    .article-text {
-        font-size: 18px;
-        line-height: 1.7;
-        color: var(--gray-700);
-        margin-bottom: 24px;
-    }
-    
-    .article-text p {
-        margin-bottom: 20px;
+    /* Title and text styles moved to article_styles.css */
+
+    /* Ensure article-text inside section-full uses full width */
+    .section-full .article-text {
+        max-width: none;
+        width: 100%;
     }
 
-    /* Experimental Flow Diagram - Full width section with callout background */
-    .experimental-flow-section {
-        /* Use section-full from layout.css */
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        padding: var(--spacing-section) 0;
-        margin-top: var(--spacing-component);
-        margin-bottom: var(--spacing-section);
-        background: linear-gradient(135deg, 
-            rgba(99, 102, 241, 0.08) 0%,
-            rgba(168, 85, 247, 0.06) 25%,
-            rgba(59, 130, 246, 0.08) 50%,
-            rgba(147, 51, 234, 0.06) 75%,
-            rgba(79, 172, 254, 0.08) 100%);
-        backdrop-filter: blur(8px);
-        border-top: 1px solid rgba(99, 102, 241, 0.2);
-        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    .section-full .article-text p {
+        max-width: none;
     }
 
-    /* Knowledge Analysis Section - Full width WITHOUT background */
-    .knowledge-analysis-section {
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        padding: var(--spacing-section) 0;
-    }
+    /* Experimental Flow section uses section-callout--purple from article_styles.css */
 
-    /* Correlation Analysis Section - Full width WITHOUT background */
-    .correlation-analysis-section {
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        padding: var(--spacing-section) 0;
-    }
+    /* Wide sections use section-wide from article_styles.css */
     
     .flow-diagram-wrapper {
         max-width: var(--container-standard);
@@ -175,9 +130,6 @@
     }
 
     @media (max-width: 768px) {
-        .experimental-flow-section {
-            padding: 40px 0;
-        }
         .flow-diagram-wrapper {
             padding: 0 20px;
         }
@@ -187,16 +139,16 @@
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        gap: 20px;
+        gap: calc(var(--spacing-element) * 0.833);
         flex-wrap: wrap;
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-element);
     }
     
     /* correlation special layout */
     .corr-legacy { display: none !important; }
-    .flow-result-box { background: var(--bg-primary); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; min-width: 120px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}    
+    .flow-result-box { background: var(--bg-primary); border: 1px solid var(--gray-200); border-radius: 12px; padding: var(--spacing-small); min-width: 120px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}    
     /* Grid for correlation demo */
-    .flow-grid { display: grid; grid-template-columns: auto 60px auto 60px auto 60px auto; grid-template-rows: auto auto; align-items: center; gap: 20px; }
+    .flow-grid { display: grid; grid-template-columns: auto 60px auto 60px auto 60px auto; grid-template-rows: auto auto; align-items: center; gap: calc(var(--spacing-element) * 0.833); }
     .grid-species { grid-row: 1 / span 2; grid-column: 1; }
     .grid-correlation { grid-row: 1 / span 2; grid-column: 7; }
     
@@ -204,14 +156,14 @@
     .flow-column {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: calc(var(--spacing-element) * 0.833);
     }
     
     .flow-box {
         background: var(--bg-primary);
         border: 1px solid var(--gray-200);
         border-radius: 12px;
-        padding: 24px;
+        padding: var(--spacing-element);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         transition: all 0.3s ease;
         flex-shrink: 0;
@@ -233,7 +185,7 @@
         font-style: italic;
         font-weight: 300;
         color: #7c3aed;
-        margin-bottom: 8px;
+        margin-bottom: calc(var(--spacing-small) / 2);
     }
     
     .flow-label {
@@ -250,23 +202,23 @@
         font-size: 16px;
         font-weight: 600;
         color: var(--gray-900);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-small);
         text-align: center;
     }
     
     .query-templates {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: calc(var(--spacing-small) / 2);
     }
     
     .query-template {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: calc(var(--spacing-small) * 0.625);
         font-size: 13px;
         color: var(--gray-600);
-        padding: 4px 8px;
+        padding: calc(var(--spacing-small) / 4) calc(var(--spacing-small) / 2);
         border-radius: 6px;
         transition: all 0.3s ease;
         cursor: pointer;
@@ -313,21 +265,21 @@
         font-size: 16px;
         font-weight: 600;
         color: var(--gray-900);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-small);
         text-align: center;
     }
     
     .output-options {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-        gap: 8px;
+        gap: calc(var(--spacing-small) / 2);
         justify-content: center;
         max-width: 400px;
         position: relative;
     }
     
     .output-option {
-        padding: 6px 12px;
+        padding: calc(var(--spacing-small) * 0.375) calc(var(--spacing-small) * 0.75);
         border-radius: 6px;
         font-size: 13px;
         font-weight: 500;
@@ -339,7 +291,7 @@
         text-align: center;
         border: 1px solid transparent;
         min-height: 32px;
-        gap: 6px;
+        gap: calc(var(--spacing-small) * 0.375);
     }
     
     .output-option.good {
@@ -435,16 +387,16 @@
     .flow-legend {
         display: flex;
         justify-content: center;
-        gap: 32px;
-        margin-top: 24px;
-        padding-top: 24px;
+        gap: var(--spacing-component);
+        margin-top: var(--spacing-element);
+        padding-top: var(--spacing-element);
         border-top: 1px solid rgba(0, 0, 0, 0.1);
     }
     
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: calc(var(--spacing-small) / 2);
         font-size: 13px;
         color: var(--gray-600);
     }
@@ -474,12 +426,12 @@
     /* Responsive adjustments */
     @media (max-width: 1024px) {
         .flow-diagram {
-            gap: 12px;
-            padding: 10px 20px;
+            gap: calc(var(--spacing-small) * 0.75);
+            padding: calc(var(--spacing-small) * 0.625) calc(var(--spacing-element) * 0.833);
         }
         
         .flow-box {
-            padding: 20px;
+            padding: calc(var(--spacing-element) * 0.833);
         }
         
         .flow-arrow svg {
@@ -488,17 +440,17 @@
         
         .flow-legend {
             flex-wrap: wrap;
-            gap: 16px;
+            gap: var(--spacing-small);
         }
         
         .output-options {
             grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-            gap: 6px;
+            gap: calc(var(--spacing-small) * 0.375);
             max-width: 320px;
         }
         
         .output-option {
-            padding: 8px 10px;
+            padding: calc(var(--spacing-small) / 2) calc(var(--spacing-small) * 0.625);
             font-size: 12px;
             min-height: 28px;
         }
@@ -601,69 +553,10 @@
         color: #7c3aed;
     }
 
-    /* Callout boxes */
-    .callout {
-        position: relative;
-        margin: 32px 0;
-        margin-left: 120px;
-        padding: 24px 28px;
-        background: var(--bg-primary);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-        box-shadow: var(--shadow-sm);
-        width: calc(100% - 120px + 75px);
-        font-size: 13px;
-        line-height: 1.5;
-    }
-    
-    .callout-definition {
-        background: linear-gradient(135deg, 
-            rgba(99, 102, 241, 0.08) 0%,
-            rgba(168, 85, 247, 0.06) 25%,
-            rgba(59, 130, 246, 0.08) 50%,
-            rgba(147, 51, 234, 0.06) 75%,
-            rgba(79, 172, 254, 0.08) 100%);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        backdrop-filter: blur(8px);
-    }
-    
-    .callout-template {
-        background: linear-gradient(135deg, 
-            rgba(147, 51, 234, 0.08) 0%,
-            rgba(79, 172, 254, 0.06) 25%,
-            rgba(99, 102, 241, 0.08) 50%,
-            rgba(168, 85, 247, 0.06) 75%,
-            rgba(59, 130, 246, 0.08) 100%);
-        border: 1px solid rgba(147, 51, 234, 0.2);
-        backdrop-filter: blur(8px);
-    }
-    
-    .callout-header {
-        display: none;
-    }
-    
-    .callout-content {
-        font-size: 13px;
-        line-height: 1.6;
-        color: var(--gray-700);
-        font-style: italic;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    }
-
-    .callout-content strong {
-        font-style: normal;
-        font-weight: 600;
-        color: var(--gray-900);
-    }
-    
-    .callout-definition .callout-header {
-        color: #6366f1;
-        font-weight: 700;
-    }
-    
-    .callout-template .callout-header {
-        color: #9333ea;
-        font-weight: 700;
+    /* Score example container callout fix */
+    #scoreExampleContainer .callout {
+        width: 100%;
+        margin: 0;
     }
     
     /* Template showcase */
@@ -795,27 +688,18 @@
             max-width: 100%;
         }
 
-        .callout {
-            float: none;
-            margin: 24px 0;
-            margin-right: 0;
-            width: 100%;
-            position: relative;
-        }
-
-        .callout::before {
-            left: -8px;
-        }
         
         #scoreExampleContainer {
             float: none !important;
             width: 100% !important;
             margin: 24px 0 !important;
         }
+        
+        #scoreExampleContainer .callout {
+            width: 100%;
+            margin-left: 0;
+        }
     }
-
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -1608,12 +1492,6 @@
         height: 180px;
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -1635,30 +1513,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -1676,9 +1538,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -1710,8 +1576,6 @@
         border-radius: 4px;
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .performers-list {
         display: grid;
@@ -1761,8 +1625,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -2449,12 +2311,6 @@
         }
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -2476,30 +2332,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -2517,9 +2357,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -2551,8 +2395,6 @@
         border-radius: 4px;
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .performers-list {
         display: grid;
@@ -2602,8 +2444,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -3290,12 +3130,6 @@
         }
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -3313,30 +3147,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -3354,9 +3172,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -3388,8 +3210,6 @@
         border-radius: 4px;
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .performers-list {
         display: grid;
@@ -3439,8 +3259,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -4122,12 +3940,6 @@
         }
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -4149,30 +3961,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -4190,9 +3986,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -4224,8 +4024,6 @@
         border-radius: 4px;
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .performers-list {
         display: grid;
@@ -4275,8 +4073,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -4963,12 +4759,6 @@
         }
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -4990,30 +4780,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -5031,9 +4805,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -5065,8 +4843,6 @@
         border-radius: 4px;
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .performers-list {
         display: grid;
@@ -5116,8 +4892,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 
     .output-option.hide {
         opacity: 0;
@@ -5799,12 +5573,6 @@
         }
     }
 
-    .experimental-flow-section {
-        margin-top: 12px !important;
-        margin-bottom: 48px;
-        padding-top: 32px !important;
-        padding-bottom: 60px;
-    }
     .article-container > .article-main > article > p:last-of-type {
         margin-bottom: 10px !important;
     }
@@ -5822,30 +5590,14 @@
         color: #dc2626;
     }
 
-    .histogram-section {
-        margin: 48px 0;
-        padding: 24px;
-        background: var(--gray-50);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-    }
-    .histogram-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .histogram-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        margin-bottom: 24px;
-    }
     .histogram-chart {
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 120px;
+        height: 200px;
         border-bottom: 2px solid var(--gray-300);
         padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .histogram-bin {
         flex: 1;
@@ -5863,9 +5615,13 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.5;
-        padding-top: 4px;
+        padding: 4px 2px;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .histogram-bar.bad { background: linear-gradient(to top, #ef4444, #f87171); }
     .histogram-bar.moderate { background: linear-gradient(to top, #f59e0b, #fcd34d); }
@@ -5892,15 +5648,97 @@
         font-size: 13px;
         color: var(--gray-700);
     }
-    .histogram-legend-color {ge
+    .histogram-legend-color {
         width: 14px;
         height: 14px;
         border-radius: 4px;
         border: 1px solid rgba(0,0,0,0.1);
     }
+    
+    /* Correlation bar chart styles from search_correlation */
+    .single-bar-chart {
+        width: 100%;
+        height: 16px;
+    }
+    
+    .single-stacked-bar {
+        width: 100%;
+        height: 16px;
+        display: flex;
+        border: 1px solid #dee2e6;
+        border-radius: 2px;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
+    
+    .bar-segment {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        position: relative;
+        min-width: 16px;
+    }
+    
+    .bar-number {
+        font-size: 11px;
+        font-weight: 700;
+        text-shadow: 0 0 2px rgba(255,255,255,0.8);
+        z-index: 1;
+        pointer-events: none;
+    }
+    
+    .bar-segment.knowledge-limited {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .bar-segment.knowledge-moderate {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .bar-segment.knowledge-extensive {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .bar-segment.knowledge-na {
+        background-color: #e2e3e5;
+        color: #6c757d;
+    }
+    
+    .correlation-value-cell {
+        text-align: center;
+        font-weight: 700;
+        font-size: 11px;
+        width: 80px;
+        padding: 4px;
+    }
+    
+    .correlation-value.strong-positive {
+        color: #28a745;
+    }
+    
+    .correlation-value.moderate-positive {
+        color: #17a2b8;
+    }
+    
+    .correlation-value.weak {
+        color: #6c757d;
+    }
+    
+    .correlation-value.moderate-negative {
+        color: #fd7e14;
+    }
+    
+    .correlation-value.strong-negative {
+        color: #dc3545;
+    }
+    
 
-    /* Experimental Flow Breakout (inside article) */
-    .experimental-flow-breakout { }
 </style>
 {% endblock %}
 
@@ -5914,8 +5752,8 @@
 <header class="hero-header">
     <canvas id="hero-canvas" class="hero-canvas"></canvas>
     <div class="hero-content">
-        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial TaxonomyC</h1>
-            <div class="hero-author">by Philipp C. Münch</div>
+        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial Taxonomy</h1>
+            <div class="hero-author hero-author--purple">by Philipp C. Münch</div>
         <p class="hero-subtitle">
             A dual test set of synthetic species and verified bacteria reveals when the model invents and when it defers.
         </p>
@@ -5929,8 +5767,7 @@
         <article class="article-content">
         <!-- Purpose Section -->
         <section id="purpose" class="article-section">
-            <h2 class="section-title">Hallucination Check: Fictional Strain Names
-            </h2>
+            <h1 class="main-section-title">Hallucination Check: Fictional Strain Names</h1>
             
             <div class="article-text">
                 <p>
@@ -6036,10 +5873,10 @@
             <div class="species-animated" id="set4-species" style="font-size: 20px;">Pseudobacterium coli</div>
             <div class="animation-label" id="set4-label">1/50</div>
           </div>
-          <div style="text-align:center;margin-top:18px;font-size:14px;color:var(--gray-600);">
-          <span style="font-weight:600;">200 total transformations</span> &mdash; 50 for each set
-        </div>
       </div>
+    </div>
+    <div style="text-align:center;margin-top:18px;font-size:14px;color:var(--gray-600);">
+      <span style="font-weight:600;">200 total transformations</span> &mdash; 50 for each set
     </div>
   </section>
 
@@ -6116,8 +5953,8 @@
 
 
 <!--  Wide interactive template viewer  -->
-<div class="callout callout-template" id="tinyTemplateBrowser" style="max-width:900px;margin:24px auto;">
-    <div class="callout-header" style="font-size:15px;font-weight:600;margin-bottom:10px;">
+<div class="callout callout-template" id="tinyTemplateBrowser">
+    <div class="callout-header">
         Browse Knowledge Templates
     </div>
 
@@ -6392,7 +6229,8 @@
 
 
 <!-- Experimental Flow Diagram (Full-width breakout) -->
-<section class="experimental-flow-section">
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
     <div class="flow-diagram-wrapper">
         <div class="flow-diagram">
             <!-- Input Box -->
@@ -6481,6 +6319,7 @@
             </div>
         </div>
     </div>
+    </div>
 
 
 
@@ -6496,12 +6335,12 @@
 
           
 
-            <div style="overflow: auto;">
+            <div>
                 <!-- Score calculation example will be inserted here by JavaScript -->
-                <div id="scoreExampleContainer" style="float: right; width: 400px; margin: 0 0 24px 32px; clear: right;"></div>
+                <div id="scoreExampleContainer" style="float: right; width: calc(50% + 37px); margin: 0 -75px 24px 24px; clear: right;"></div>
 
                 <div class="article-text">
-                    <p>To compare models on a single scale we devised a "hallucination-avoidance" score. Each response earns three points if the model refuses or returns <code>NA</code>, two points for a self-declared limited answer, one point for intermediate, and zero when it claims extensive knowledge. We then sum those points for every fictional name and divide by the number of prompts, yielding an average that ranges from 0 (pure fantasy) to 3 (perfect restraint). Thus a model that usually says "I don't know" or "limited" on fake species will hover near the high end of the scale, while one that invents rich detail will drift toward zero.</p>
+                    <p style="margin-right: calc(50% + 24px);">To compare models on a single scale we devised a "hallucination-avoidance" score. Each response earns three points if the model refuses or returns <code>NA</code>, two points for a self-declared limited answer, one point for intermediate, and zero when it claims extensive knowledge. We then sum those points for every fictional name and divide by the number of prompts, yielding an average that ranges from 0 (pure fantasy) to 3 (perfect restraint). Thus a model that usually says "I don't know" or "limited" on fake species will hover near the high end of the scale, while one that invents rich detail will drift toward zero.</p>
                 </div>
             </div>
 
@@ -6513,11 +6352,8 @@
             <!-- Placeholder for Worst Performer -->
             <div id="worstPerformerContainer"></div>
 
-            <!-- Placeholder for Histogram -->
-            <div id="qualityScoreHistogramContainer"></div>
-
             <div class="article-text">
-                <p>This scoring system allows us to quantify a model's tendency to assert knowledge about non-existent subjects. The visualizations above highlight the top and bottom performers in this test, revealing which models are more likely to falsely claim familiarity with artificial species. The histogram provides an overall look at the distribution of these 'hallucination-avoidance' scores across all tested models. These results help identify which models are better calibrated to admit the limits of their knowledge, a crucial characteristic for trustworthy scientific AI.</p>
+                <p>This scoring system allows us to quantify a model's tendency to assert knowledge about non-existent subjects. The visualizations above highlight the top and bottom performers in this test, revealing which models are more likely to falsely claim familiarity with artificial species. These results help identify which models are better calibrated to admit the limits of their knowledge, a crucial characteristic for trustworthy scientific AI.</p>
             </div>
         
         </article>
@@ -6527,8 +6363,8 @@
 
 
 <!-- Knowledge Analysis Results (Full-width breakout) -->
-<section class="section-full knowledge-analysis-section">
-    <div class="section-content">
+<section class="section-wide">
+    <div class="section-wide__content">
         <div class="article-text" style="margin-bottom: 48px;">
              
             <h2 class="section-title">Full Results of the Artificial Hallucination Test</h2>
@@ -6550,13 +6386,11 @@
 
 
 <!-- Knowledge Analysis Results (Full-width breakout) -->
-<section class="section-full knowledge-analysis-section">
-    <div class="section-content">
+<section class="section-wide">
+    <div class="section-wide__content">
         <div class="article-text" style="margin-bottom: 48px;">
              
-            <h2 class="section-title">Web-Aligned Knowledge: Real Bacterial names vs. Google Counts
-            </h2>
-            </h2>
+            <h1 class="main-section-title">Web-Aligned Knowledge: Real Bacterial Names vs. Google Counts</h1>
 
             <p>
                 To assess how closely LLMs' self-reported knowledge matches the actual availability of information online, we conducted an analysis using thousands of real bacterial species (such as E. coli and Bacillus subtilis). For each species, we asked LLMs to indicate their knowledge level (Limited, Moderate, or Extensive), then measured how many Google search results exist for that species. By calculating the correlation between the models' confidence and the species' web presence, we can determine how well each model's knowledge claims are calibrated to real-world information. Models that report greater knowledge for well-documented species—and less for obscure ones—demonstrate better alignment with the information landscape.
@@ -6566,7 +6400,7 @@
         
 
          <!-- Animated Flow (optional, static for now) -->
-         <div class="experimental-flow-section" style="margin-bottom: 40px;">
+         <div class="callout callout-definition" style="margin-bottom: 40px;">
             <div class="flow-diagram-wrapper">
                 <!-- Grid correlation diagram -->
                 <div class="flow-grid">
@@ -6637,13 +6471,16 @@
         <div id="correlationDynamicStats" class="article-text" style="margin-bottom: 48px;">
             <!-- Dynamic text for correlation analysis will be injected here -->
         </div>
+        
+        <!-- Placeholder for Correlation Score Distribution -->
+        <div id="qualityScoreHistogramContainer"></div>
 
     </div>
 </section>
 
 <!-- Real Species Correlation Section -->
-<section id="knowledge-web-alignment" class="section-full correlation-analysis-section">
-    <div class="section-content">
+<section id="knowledge-web-alignment" class="section-wide">
+    <div class="section-wide__content">
         <div class="explanation-section">
             <div class="explanation-grid">
                 
@@ -7200,23 +7037,27 @@ document.addEventListener('DOMContentLoaded', function() {
             let totalSamples = 0;
             let dist = { NA: 0, limited: 0, moderate: 0, extensive: 0, no_result: 0, inference_failed: 0, total: 0 };
 
-            Object.values(templates).forEach(templateData => {
-                Object.values(templateData).forEach(stats => {
-                    const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
-                    const limitedCount = stats.limited || 0;
-                    const moderateCount = stats.moderate || 0;
-                    const extensiveCount = stats.extensive || 0;
-                    totalScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
-                    totalSamples += stats.total || 0;
+            // Only use templates that are in templateArray
+            templateArray.forEach(templateName => {
+                if (templates[templateName]) {
+                    const templateData = templates[templateName];
+                    Object.values(templateData).forEach(stats => {
+                        const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
+                        const limitedCount = stats.limited || 0;
+                        const moderateCount = stats.moderate || 0;
+                        const extensiveCount = stats.extensive || 0;
+                        totalScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                        totalSamples += stats.total || 0;
 
-                    dist.NA += stats.NA || 0;
-                    dist.limited += stats.limited || 0;
-                    dist.moderate += stats.moderate || 0;
-                    dist.extensive += stats.extensive || 0;
-                    dist.no_result += stats.no_result || 0;
-                    dist.inference_failed += stats.inference_failed || 0;
-                    dist.total += stats.total || 0;
-                });
+                        dist.NA += stats.NA || 0;
+                        dist.limited += stats.limited || 0;
+                        dist.moderate += stats.moderate || 0;
+                        dist.extensive += stats.extensive || 0;
+                        dist.no_result += stats.no_result || 0;
+                        dist.inference_failed += stats.inference_failed || 0;
+                        dist.total += stats.total || 0;
+                    });
+                }
             });
             if (totalSamples > 0) {
                 overallModelScores[modelName] = {
@@ -7235,30 +7076,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const top4Models = sortedModels.slice(0, 4);
         if (top4Models.length > 0) {
             let topPerformersHtml = `
-                <div class="top-performers-section">
-                    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Performing Models</h3>
-                    <p class="article-text" style="margin-bottom: 24px;">To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores.</p>
-                    ${createBarChartLegend()}
-                    <div class="performers-list">
+<div class="top-performers-section">
+    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Performing Models</h3>
+    <p class="article-text" style="margin-bottom: 24px;">To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores.</p>
+    ${createBarChartLegend()}
+    <div class="performers-list">
             `;
             top4Models.forEach((model, index) => {
                 const displayName = model.modelName.split('/').pop();
                 topPerformersHtml += `
-                    <div class="performer-card">
-                        <div class="performer-rank">${index + 1}</div>
-                        <div style="flex: 1;">
-                            <div class="performer-name">${displayName}</div>
-                            <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
-                            <div class="performer-dist-chart" style="margin-top: 12px;">
-                                ${createKnowledgeBarChart(model.distribution)}
-                            </div>
-                        </div>
-                    </div>
+        <div class="performer-card">
+            <div class="performer-rank">${index + 1}</div>
+            <div style="flex: 1;">
+                <div class="performer-name">${displayName}</div>
+                <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
+                <div class="performer-dist-chart" style="margin-top: 12px;">
+                    ${createKnowledgeBarChart(model.distribution)}
+                </div>
+            </div>
+        </div>
                 `;
             });
             topPerformersHtml += `
-                    </div>
-                </div>
+    </div>
+</div>
             `;
             
             const container = document.getElementById('topPerformersContainer');
@@ -7301,6 +7142,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        // Add quality score bar chart after performers sections
+        const qualityChartContainer = document.createElement('div');
+        qualityChartContainer.innerHTML = createQualityScoreBarChart(sortedModels, modelData, templateArray);
+        const knowledgeContent = document.getElementById('knowledgeAnalysisContent');
+        if (knowledgeContent) {
+            knowledgeContent.appendChild(qualityChartContainer);
+        }
+
+        // Generate Correlation Score Distribution
+        generateQualityScoreHistogram(overallModelScores);
         
         // Finally, render the score example box
         renderScoreExample(modelData, templateArray, inputTypeArray);
@@ -7316,7 +7167,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const firstTemplate = templateArray[0];
             
                              if (randomModel && randomModel[firstTemplate]) {
-                scoreExampleHtml += '<div class="callout callout-template" style="width: 100%; margin: 0;">';
+                scoreExampleHtml += '<div class="callout callout-template">';
                 
                 // Header with reload button
                 scoreExampleHtml += `
@@ -7389,6 +7240,583 @@ document.addEventListener('DOMContentLoaded', function() {
         const reloadButton = document.getElementById('reloadScoreExampleBtn');
         if (reloadButton) {
             reloadButton.onclick = () => renderScoreExample(modelData, templateArray, inputTypeArray);
+        }
+    }
+    
+    function generateQualityScoreHistogram(overallModelScores) {
+        const container = document.getElementById('qualityScoreHistogramContainer');
+        if (!container) return;
+        
+        // Generate horizontal bar chart for correlation scores
+        generateCorrelationScoreBarChart(container, overallModelScores);
+    }
+    
+    // Create horizontal bar chart for correlation scores
+    function generateCorrelationScoreBarChart(container, overallModelScores) {
+        // Load correlation data
+        fetch('/api/search_count_correlation')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error || !data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                // Get the first dataset with search counts
+                const dataset = data.files_with_search_counts[0];
+                const correlationData = data.correlation_data[dataset];
+                
+                if (!correlationData) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                // Collect all model correlations
+                const modelCorrelations = [];
+                
+                Object.entries(correlationData).forEach(([templateName, models]) => {
+                    Object.entries(models).forEach(([modelName, modelData]) => {
+                        if (modelData.species_count >= 2) {
+                            // Find existing model or create new entry
+                            let modelEntry = modelCorrelations.find(m => m.modelName === modelName);
+                            if (!modelEntry) {
+                                modelEntry = {
+                                    modelName: modelName,
+                                    templateData: {},
+                                    avgCorrelation: 0,
+                                    validTemplates: 0
+                                };
+                                modelCorrelations.push(modelEntry);
+                            }
+                            modelEntry.templateData[templateName] = {
+                                correlation: modelData.correlation_coefficient,
+                                knowledgeDist: modelData.knowledge_distribution,
+                                speciesCount: modelData.species_count,
+                                dataPoints: modelData.data_points
+                            };
+                        }
+                    });
+                });
+                
+                // Calculate average correlations
+                modelCorrelations.forEach(model => {
+                    const correlations = Object.values(model.templateData).map(t => t.correlation);
+                    model.validTemplates = correlations.length;
+                    model.avgCorrelation = correlations.reduce((a, b) => a + b, 0) / correlations.length;
+                });
+                
+                // Sort by average correlation
+                modelCorrelations.sort((a, b) => b.avgCorrelation - a.avgCorrelation);
+                
+                // Create horizontal bar chart visualization following style guide
+                let html = `
+                <div class="knowledge-analysis-table-wrapper">
+                    <h3 class="section-title" style="font-size: 20px; margin-bottom: 16px;">Correlation Score Distribution</h3>
+                    <p class="article-text" style="margin-bottom: 24px;">
+                        This chart shows the distribution of knowledge-web alignment correlations across all models. 
+                        Models that claim more knowledge about well-documented species (and less about obscure ones) have higher positive correlations.
+                    </p>
+                    <table class="knowledge-analysis-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Model</th>
+                                <th style="text-align: center; width: 500px;">Knowledge Distribution (Real Species)</th>
+                                <th style="text-align: center; width: 150px;">Avg. Correlation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                // Show top models with correlations
+                modelCorrelations.slice(0, 15).forEach(model => {
+                    const displayName = formatModelName(model.modelName);
+                    
+                    // Calculate aggregated knowledge distribution
+                    let totalDist = { limited: 0, moderate: 0, extensive: 0, NA: 0, total: 0 };
+                    Object.values(model.templateData).forEach(data => {
+                        if (data.knowledgeDist) {
+                            totalDist.limited += data.knowledgeDist.limited || 0;
+                            totalDist.moderate += data.knowledgeDist.moderate || 0;
+                            totalDist.extensive += data.knowledgeDist.extensive || 0;
+                            totalDist.NA += data.knowledgeDist.NA || 0;
+                            totalDist.total += data.speciesCount || 0;
+                        }
+                    });
+                    
+                    const correlationClass = getCorrelationClass(model.avgCorrelation);
+                    const interpretation = getCorrelationInterpretation(model.avgCorrelation);
+                    
+                    html += `
+                        <tr>
+                            <td class="model-name-cell">${displayName}</td>
+                            <td class="chart-cell">
+                                ${renderKnowledgeDistributionBar(totalDist, totalDist.total)}
+                            </td>
+                            <td class="correlation-value-cell" style="text-align: center;">
+                                <span class="${correlationClass}" style="font-weight: 600;">
+                                    ${model.avgCorrelation.toFixed(3)}
+                                </span><br>
+                                <span style="font-size: 9px; color: #6c757d;">(${interpretation})</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                        
+                        <!-- Legend below table -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 20px; font-size: 13px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 16px; height: 16px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 3px;"></div>
+                                <span style="color: var(--gray-700);">Extensive Knowledge</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 16px; height: 16px; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 3px;"></div>
+                                <span style="color: var(--gray-700);">Moderate Knowledge</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 16px; height: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px;"></div>
+                                <span style="color: var(--gray-700);">Limited Knowledge</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 16px; height: 16px; background: #e2e3e5; border: 1px solid #d6d8db; border-radius: 3px;"></div>
+                                <span style="color: var(--gray-700);">No Information (NA)</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading correlation data:', error);
+                container.innerHTML = '';
+            });
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) {
+            return modelName;
+        }
+        
+        const [provider, model] = modelName.split('/');
+        const providerMap = {
+            'anthropic': 'Anthropic',
+            'openai': 'OpenAI',
+            'google': 'Google',
+            'meta-llama': 'Meta',
+            'mistralai': 'Mistral',
+            'cohere': 'Cohere',
+            'x-ai': 'xAI'
+        };
+        
+        const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+        return `${displayProvider} ${model}`;
+    }
+    
+    function getCorrelationClass(correlation) {
+        if (correlation >= 0.7) return 'strong-positive';
+        if (correlation >= 0.3) return 'moderate-positive';
+        if (correlation <= -0.7) return 'strong-negative';
+        if (correlation <= -0.3) return 'moderate-negative';
+        return 'weak';
+    }
+    
+    function getCorrelationInterpretation(correlation) {
+        if (correlation >= 0.7) return 'Excellent';
+        if (correlation >= 0.5) return 'Good';
+        if (correlation >= 0.3) return 'Moderate';
+        if (correlation >= 0.1) return 'Weak +';
+        if (correlation >= -0.1) return 'None';
+        if (correlation >= -0.3) return 'Weak -';
+        if (correlation >= -0.5) return 'Inverse';
+        return 'Strong -';
+    }
+    
+    function renderKnowledgeDistributionBar(dist, total) {
+        if (total === 0) {
+            return '<div class="no-data">No data</div>';
+        }
+        
+        // Calculate percentages
+        const limitedPct = ((dist.limited || 0) / total * 100);
+        const moderatePct = ((dist.moderate || 0) / total * 100);
+        const extensivePct = ((dist.extensive || 0) / total * 100);
+        const naPct = ((dist.NA || 0) / total * 100);
+        
+        // Calculate minimum visible width
+        const minVisiblePct = 2;
+        const segments = [
+            { type: 'limited', count: dist.limited || 0, pct: limitedPct, class: 'knowledge-limited' },
+            { type: 'moderate', count: dist.moderate || 0, pct: moderatePct, class: 'knowledge-moderate' },
+            { type: 'extensive', count: dist.extensive || 0, pct: extensivePct, class: 'knowledge-extensive' },
+            { type: 'na', count: dist.NA || 0, pct: naPct, class: 'knowledge-na' }
+        ].filter(seg => seg.count > 0);
+        
+        // Calculate adjusted widths
+        let totalAdjustedPct = 0;
+        const adjustedSegments = segments.map(seg => {
+            const minWidth = minVisiblePct;
+            const adjustedPct = seg.pct < minWidth && seg.count > 0 ? minWidth : seg.pct;
+            totalAdjustedPct += adjustedPct;
+            return { ...seg, adjustedPct };
+        });
+        
+        // Scale down if total exceeds 100%
+        const scaleFactor = totalAdjustedPct > 100 ? 100 / totalAdjustedPct : 1;
+        
+        let html = '<div class="single-bar-chart">';
+        html += '<div class="single-stacked-bar">';
+        
+        adjustedSegments.forEach((seg, index) => {
+            const finalWidth = seg.adjustedPct * scaleFactor;
+            
+            html += `<div class="bar-segment ${seg.class}" style="width: ${finalWidth}%">`;
+            
+            // Show number for larger segments
+            if (finalWidth > 4 || seg.count >= 10) {
+                html += `<span class="bar-number">${seg.count}</span>`;
+            }
+            
+            html += `</div>`;
+        });
+        
+        html += '</div>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    // Create correlation visualization
+    function generateCorrelationVisualization(container) {
+        // This function is no longer used but kept for compatibility
+        return;
+    }
+    
+    function createCorrelationChart(modelCorrelations) {
+        // Filter models that have correlations for all templates
+        const completeModels = {};
+        const templateNames = ['template1_knowlege', 'template2_knowlege', 'template3_knowlege'];
+        
+        Object.entries(modelCorrelations).forEach(([modelName, data]) => {
+            const hasAllTemplates = templateNames.every(template => 
+                data.correlations[template] !== undefined
+            );
+            
+            if (hasAllTemplates) {
+                // Calculate average correlation
+                const correlations = Object.values(data.correlations);
+                const avgCorrelation = correlations.reduce((a, b) => a + b, 0) / correlations.length;
+                
+                completeModels[modelName] = {
+                    ...data,
+                    averageCorrelation: avgCorrelation
+                };
+            }
+        });
+        
+        // Sort by average correlation
+        const sortedModels = Object.entries(completeModels)
+            .sort((a, b) => b[1].averageCorrelation - a[1].averageCorrelation);
+        
+        if (sortedModels.length === 0) {
+            return '';
+        }
+        
+        // Template colors matching the quality score chart
+        const templateColors = {
+            0: '#8b5cf6', // Purple
+            1: '#06b6d4', // Cyan
+            2: '#f59e0b'  // Amber
+        };
+        
+        let html = `
+        <div class="correlation-chart-container" style="margin-top: 48px; margin-bottom: 48px;">
+            <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Knowledge-Web Alignment Correlation by Template</h3>
+            <p class="article-text" style="margin-bottom: 24px;">This chart shows how well each model's knowledge claims align with web presence of species. Higher correlations indicate better calibration. Hover over bars to see the correlation scatter plot.</p>
+            
+            <!-- Legend -->
+            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+        `;
+        
+        templateNames.forEach((template, idx) => {
+            html += `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
+                    <span style="font-size: 13px; color: var(--gray-700); font-weight: 500;">${template}</span>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+            <div style="display: flex; gap: 24px;">
+                <div class="correlation-score-chart" style="flex: 1; background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+        `;
+        
+        // Find max absolute correlation for scaling
+        let maxAbsCorrelation = 0;
+        sortedModels.forEach(([modelName, data]) => {
+            templateNames.forEach(template => {
+                const absCorr = Math.abs(data.correlations[template] || 0);
+                if (absCorr > maxAbsCorrelation) {
+                    maxAbsCorrelation = absCorr;
+                }
+            });
+        });
+        
+        sortedModels.forEach(([modelName, data], modelIndex) => {
+            const displayName = modelName.split('/').pop();
+            
+            html += `
+                <div class="correlation-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '16px'}; padding: 8px 0;">
+                    <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
+                        ${displayName}
+                    </div>
+                    <div class="correlation-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: center;">
+            `;
+            
+            templateNames.forEach((template, idx) => {
+                const correlation = data.correlations[template] || 0;
+                const percentage = maxAbsCorrelation > 0 ? (Math.abs(correlation) / maxAbsCorrelation) * 100 : 0;
+                const isNegative = correlation < 0;
+                const dataPoints = data.dataPoints[template] || [];
+                
+                html += `
+                    <div class="template-correlation-wrapper" style="position: relative; background: var(--gray-100); border-radius: 4px; overflow: visible;">
+                        <div class="template-correlation-bar" style="
+                            width: ${percentage}%;
+                            height: 24px;
+                            background: ${isNegative ? '#dc3545' : templateColors[idx]};
+                            position: relative;
+                            transition: all 0.3s ease;
+                            min-width: ${correlation !== 0 ? '45px' : '0'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 6px;
+                            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+                            cursor: pointer;
+                        " 
+                        title="${template}: ${correlation.toFixed(3)}"
+                        data-model="${modelName}"
+                        data-template="${template}"
+                        data-correlation="${correlation}"
+                        data-points='${JSON.stringify(dataPoints)}'
+                        onmouseover="showCorrelationPlot(event, this)"
+                        onmouseout="hideCorrelationPlot()">
+                            <span style="
+                                color: white;
+                                font-size: 11px;
+                                font-weight: 600;
+                                white-space: nowrap;
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                            ">${correlation !== 0 ? correlation.toFixed(3) : ''}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                <!-- Placeholder for correlation plot -->
+                <div id="correlationPlotContainer" style="width: 300px; display: none;">
+                    <div style="background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+                        <h4 id="correlationPlotTitle" style="font-size: 14px; margin-bottom: 12px; color: var(--gray-800);"></h4>
+                        <canvas id="correlationPlotCanvas" width="268" height="200"></canvas>
+                        <div id="correlationPlotStats" style="margin-top: 12px; font-size: 12px; color: var(--gray-600);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        
+        return html;
+    }
+    
+    // Correlation plot functions
+    let correlationPlotTimeout = null;
+    
+    function showCorrelationPlot(event, element) {
+        // Clear any existing timeout
+        if (correlationPlotTimeout) {
+            clearTimeout(correlationPlotTimeout);
+        }
+        
+        const model = element.getAttribute('data-model');
+        const template = element.getAttribute('data-template');
+        const correlation = parseFloat(element.getAttribute('data-correlation'));
+        const dataPoints = JSON.parse(element.getAttribute('data-points'));
+        
+        // Show the plot container
+        const container = document.getElementById('correlationPlotContainer');
+        if (container) {
+            container.style.display = 'block';
+            
+            // Update title
+            const title = document.getElementById('correlationPlotTitle');
+            if (title) {
+                const displayName = model.split('/').pop();
+                title.textContent = `${displayName} - ${template}`;
+            }
+            
+            // Update stats
+            const stats = document.getElementById('correlationPlotStats');
+            if (stats) {
+                stats.innerHTML = `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Correlation: <strong>${correlation.toFixed(3)}</strong></span>
+                        <span>n = ${dataPoints.length}</span>
+                    </div>
+                `;
+            }
+            
+            // Draw the plot
+            drawCorrelationScatterPlot(dataPoints, correlation);
+        }
+    }
+    
+    function hideCorrelationPlot() {
+        // Add a small delay to prevent flicker when moving between bars
+        correlationPlotTimeout = setTimeout(() => {
+            const container = document.getElementById('correlationPlotContainer');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }, 100);
+    }
+    
+    function drawCorrelationScatterPlot(dataPoints, correlation) {
+        const canvas = document.getElementById('correlationPlotCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = 268;
+        const height = 200;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        if (!dataPoints || dataPoints.length === 0) return;
+        
+        // Calculate bounds
+        const xValues = dataPoints.map(p => Math.log10(p.search_count || 1));
+        const yValues = dataPoints.map(p => p.knowledge_score);
+        
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        const yMin = 0.5;
+        const yMax = 3.5;
+        
+        const padding = 30;
+        const plotWidth = width - 2 * padding;
+        const plotHeight = height - 2 * padding;
+        
+        // Draw axes
+        ctx.strokeStyle = '#dee2e6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+        
+        // Draw grid lines
+        ctx.strokeStyle = '#f0f0f0';
+        ctx.lineWidth = 0.5;
+        
+        // Y grid lines (knowledge levels)
+        [1, 2, 3].forEach(level => {
+            const y = height - padding - ((level - yMin) / (yMax - yMin)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+        });
+        
+        // Plot points
+        dataPoints.forEach(point => {
+            const x = padding + ((Math.log10(point.search_count || 1) - xMin) / (xMax - xMin)) * plotWidth;
+            const y = height - padding - ((point.knowledge_score - yMin) / (yMax - yMin)) * plotHeight;
+            
+            // Color based on knowledge level
+            switch(point.knowledge_score) {
+                case 1: ctx.fillStyle = '#fff3cd'; break;
+                case 2: ctx.fillStyle = '#d1ecf1'; break;
+                case 3: ctx.fillStyle = '#d4edda'; break;
+                default: ctx.fillStyle = '#e2e3e5';
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        });
+        
+        // Draw trend line if significant correlation
+        if (Math.abs(correlation) > 0.1) {
+            // Simple linear regression
+            const n = xValues.length;
+            const sumX = xValues.reduce((a, b) => a + b, 0);
+            const sumY = yValues.reduce((a, b) => a + b, 0);
+            const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+            const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            ctx.strokeStyle = correlation > 0 ? '#28a745' : '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            
+            const x1 = padding;
+            const y1 = height - padding - ((slope * xMin + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            const x2 = width - padding;
+            const y2 = height - padding - ((slope * xMax + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // Add axis labels
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Log(Search Count)', width / 2, height - 5);
+        
+        ctx.save();
+        ctx.translate(10, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Knowledge', 0, 0);
+        ctx.restore();
+    }
+    
+    function setupCorrelationHoverEffects() {
+        // Keep plot visible when hovering over it
+        const plotContainer = document.getElementById('correlationPlotContainer');
+        if (plotContainer) {
+            plotContainer.addEventListener('mouseenter', () => {
+                if (correlationPlotTimeout) {
+                    clearTimeout(correlationPlotTimeout);
+                }
+            });
+            
+            plotContainer.addEventListener('mouseleave', () => {
+                hideCorrelationPlot();
+            });
         }
     }
     
@@ -7515,6 +7943,153 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `</div>`;
         });
+        
+        return html;
+    }
+    
+    // Create quality score bar chart
+    function createQualityScoreBarChart(modelScores, modelData, templateArray) {
+        // Calculate scores per template for each model
+        const modelScoresPerTemplate = {};
+        
+        Object.entries(modelData).forEach(([modelName, templates]) => {
+            modelScoresPerTemplate[modelName] = {};
+            let totalScore = 0;
+            let totalSamples = 0;
+            let hasAllTemplates = true;
+            
+            templateArray.forEach(templateName => {
+                if (templates[templateName]) {
+                    let templateScore = 0;
+                    let templateSamples = 0;
+                    
+                    Object.values(templates[templateName]).forEach(stats => {
+                        const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
+                        const limitedCount = stats.limited || 0;
+                        const moderateCount = stats.moderate || 0;
+                        const extensiveCount = stats.extensive || 0;
+                        templateScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                        templateSamples += stats.total || 0;
+                    });
+                    
+                    if (templateSamples > 0) {
+                        modelScoresPerTemplate[modelName][templateName] = templateScore / templateSamples;
+                        totalScore += templateScore;
+                        totalSamples += templateSamples;
+                    } else {
+                        hasAllTemplates = false;
+                    }
+                } else {
+                    hasAllTemplates = false;
+                }
+            });
+            
+            if (totalSamples > 0 && hasAllTemplates) {
+                modelScoresPerTemplate[modelName].average = totalScore / totalSamples;
+                modelScoresPerTemplate[modelName].hasAllTemplates = true;
+            } else {
+                // Remove models that don't have all templates
+                delete modelScoresPerTemplate[modelName];
+            }
+        });
+        
+        // Sort models by average score, only including those with all templates
+        const sortedModels = Object.entries(modelScoresPerTemplate)
+            .filter(([_, scores]) => scores.average !== undefined && scores.hasAllTemplates)
+            .sort((a, b) => b[1].average - a[1].average);
+        
+        // Define colors for each template - matching the page's color scheme
+        const templateColors = {
+            0: '#8b5cf6', // Purple (matching the gradient colors)
+            1: '#06b6d4', // Cyan
+            2: '#f59e0b'  // Amber
+        };
+        
+        let html = `
+        <div class="quality-score-chart-container" style="margin-top: 48px; margin-bottom: 48px;">
+            <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Quality Score Distribution by Template</h3>
+            <p class="article-text" style="margin-bottom: 24px;">This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown.</p>
+            
+            <!-- Legend -->
+            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+        `;
+        
+        templateArray.forEach((template, idx) => {
+            html += `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
+                    <span style="font-size: 13px; color: var(--gray-700); font-weight: 500;">${template}</span>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+            <div class="quality-score-chart" style="position: relative; background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+        `;
+        
+        // Find max score for scaling
+        let maxScore = 0;
+        sortedModels.forEach(([modelName, scores]) => {
+            templateArray.forEach(template => {
+                if (scores[template] && scores[template] > maxScore) {
+                    maxScore = scores[template];
+                }
+            });
+        });
+        
+        sortedModels.forEach(([modelName, scores], modelIndex) => {
+            const displayName = modelName.split('/').pop();
+            
+            html += `
+                <div class="score-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '16px'}; padding: 8px 0;">
+                    <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
+                        ${displayName}
+                    </div>
+                    <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: center;">
+            `;
+            
+            templateArray.forEach((template, idx) => {
+                const score = scores[template] || 0;
+                const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                
+                html += `
+                    <div class="template-bar-wrapper" style="position: relative; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
+                        <div class="template-bar" style="
+                            width: ${percentage}%;
+                            height: 24px;
+                            background: ${templateColors[idx]};
+                            position: relative;
+                            transition: all 0.3s ease;
+                            min-width: ${score > 0 ? '45px' : '0'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 6px;
+                            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+                        " title="${template}: ${score.toFixed(2)}">
+                            <span style="
+                                color: white;
+                                font-size: 11px;
+                                font-weight: 600;
+                                white-space: nowrap;
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                            ">${score > 0 ? score.toFixed(2) : ''}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+        </div>
+        `;
         
         return html;
     }
@@ -7704,7 +8279,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Flow Diagram Animation - Run after a delay to ensure DOM is ready
     setTimeout(function() {
-        const diagrams = document.querySelectorAll('.experimental-flow-section .flow-diagram');
+        const diagrams = document.querySelectorAll('.section-callout--purple .flow-diagram, .callout-definition .flow-diagram');
         console.log(`Found ${diagrams.length} flow diagrams to animate.`);
         diagrams.forEach((diagram, index) => {
             console.log(`Initializing animation for diagram ${index + 1}.`);
@@ -7863,8 +8438,16 @@ function loadCorrelationData() {
                 container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
                 return;
             }
+            // Store data globally for scatter plot
+            window.correlationData = data;
             renderCorrelationSummary(data);
             renderCorrelationStatsAndTable(data, container);
+            
+            // Add scatter plot section after data is loaded
+            setTimeout(() => {
+                addCorrelationScatterPlotSection();
+                renderCorrelationScatterPlot(data);
+            }, 100);
         })
         .catch(error => {
             console.error('Error loading correlation data:', error);
@@ -7883,6 +8466,9 @@ function renderCorrelationSummary(data) {
                 modelName,
                 templateName,
                 correlation: d.correlation_coefficient,
+                speciesCount: d.species_count,
+                knowledgeDist: d.knowledge_distribution,
+                dataPoints: d.data_points
             });
         });
     });
@@ -7913,6 +8499,7 @@ function renderCorrelationSummary(data) {
     }
 }
 
+
 function renderCorrelationStatsAndTable(data, container) {
     // Use the first dataset with search counts
     const selectedDataset = data.files_with_search_counts[0];
@@ -7940,33 +8527,18 @@ function renderCorrelationStatsAndTable(data, container) {
     const top4CorrModels = modelResults.slice(0, 4);
     let corrTopPerformersHtml = "";
     if (top4CorrModels.length > 0) {
-        corrTopPerformersHtml += `\n            <div class="top-performers-section">\n                <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n                <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n                ${createBarChartLegend()}\n                <div class="performers-list">`;
+        corrTopPerformersHtml += `\n<div class="top-performers-section">\n    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n    <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n    ${createBarChartLegend()}\n    <div class="performers-list">`;
 
         top4CorrModels.forEach((m, idx) => {
             const displayName = m.modelName.split('/').pop();
-            corrTopPerformersHtml += `\n                    <div class="performer-card-simple">\n                        <div class="performer-rank">${idx + 1}</div>\n                        <div style="flex: 1;">\n                            <div class="performer-name">${displayName}</div>\n                            <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>\n                            <div class="performer-dist-chart" style="margin-top: 12px;">\n                                ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}\n                            </div>\n                        </div>\n                    </div>`;
+            corrTopPerformersHtml += `\n        <div class="performer-card">\n            <div class="performer-rank">${idx + 1}</div>\n            <div style="flex: 1;">\n                <div class="performer-name">${displayName}</div>\n                <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>\n                <div class="performer-dist-chart" style="margin-top: 12px;">\n                    ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}\n                </div>\n            </div>\n        </div>`;
         });
 
-        corrTopPerformersHtml += `\n                </div>\n            </div>`;
+        corrTopPerformersHtml += `\n    </div>\n</div>`;
     }
 
-    // Table
-    let html = corrTopPerformersHtml + `<div class="knowledge-analysis-table-wrapper">`;
-    html += `<div class="template-section-header"><h3 class="template-section-title">Knowledge-Web Alignment Table</h3><p class="template-section-description">Correlation between LLM knowledge claims and web presence for real species. The bar charts below show the distribution of self-reported knowledge levels for each model.</p></div>`;
-    html += createBarChartLegend();
-    html += `<table class="knowledge-analysis-table">`;
-    html += `<thead><tr><th>Model</th><th>Template</th><th>Knowledge Distribution</th><th>Species</th><th>Correlation</th></tr></thead><tbody>`;
-    modelResults.forEach(m => {
-        html += `<tr>`;
-        html += `<td class="model-name-cell">${m.modelName.split('/').pop()}</td>`;
-        html += `<td>${m.templateName}</td>`;
-        html += `<td class="chart-cell" data-model="${m.modelName}" data-correlation="${m.correlation}" data-points='${JSON.stringify(m.dataPoints)}' onmouseover="showDistributionTooltip(event, this)" onmouseout="hideDistributionTooltip()">${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}</td>`;
-        html += `<td style="text-align:center;">${m.speciesCount}</td>`;
-        html += `<td style="text-align:center;font-weight:600;">${m.correlation.toFixed(3)}</td>`;
-        html += `</tr>`;
-    });
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
+    // Only display the top performers section
+    container.innerHTML = corrTopPerformersHtml;
 }
 
 function renderKnowledgeDistBar(dist, total) {
@@ -8012,6 +8584,299 @@ function createBarChartLegend() {
         </div>
     `;
 }
+// Add scatter plot visualization section
+function addCorrelationScatterPlotSection() {
+    // Find the last section and add after it
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+    
+    // Create new section for scatter plot
+    const scatterSection = document.createElement('section');
+    scatterSection.className = 'section-wide';
+    scatterSection.id = 'correlation-scatter-plot';
+    scatterSection.style.marginTop = '60px';
+    
+    scatterSection.innerHTML = `
+        <div class="section-wide__content">
+            <h2 class="main-section-title">Correlation Visualization: Google Search vs. Knowledge Level</h2>
+            <p class="article-text">
+                This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts 
+                for bacterial species. Each point represents a species, with the x-axis showing log10 of Google search 
+                results and the y-axis showing the knowledge level (1=Limited, 2=Moderate, 3=Extensive).
+            </p>
+            <div id="scatter-plot-container" style="margin-top: 40px;">
+                <!-- Scatter plot will be rendered here -->
+            </div>
+        </div>
+    `;
+    
+    mainContent.appendChild(scatterSection);
+}
+
+// Function to render the scatter plot grid
+function renderCorrelationScatterPlot(data) {
+    const container = document.getElementById('scatter-plot-container');
+    if (!container) return;
+    
+    // Get the first dataset with search counts
+    const selectedDataset = data.files_with_search_counts[0];
+    const fileData = data.correlation_data[selectedDataset];
+    
+    // Collect and aggregate data by model and knowledge level
+    let aggregatedData = {};
+    
+    Object.entries(fileData).forEach(([templateName, models]) => {
+        Object.entries(models).forEach(([modelName, modelInfo]) => {
+            if (modelInfo.data_points && modelInfo.data_points.length > 0) {
+                const shortName = modelName.split('/').pop();
+                
+                if (!aggregatedData[shortName]) {
+                    aggregatedData[shortName] = {
+                        correlation: modelInfo.correlation_coefficient,
+                        byLevel: { 1: [], 2: [], 3: [] },
+                        rawPoints: modelInfo.data_points
+                    };
+                }
+                
+                // Group by knowledge level
+                modelInfo.data_points.forEach(point => {
+                    const level = point.knowledge_score;
+                    if (level >= 1 && level <= 3) {
+                        aggregatedData[shortName].byLevel[level].push(Math.log10(point.search_count || 1));
+                    }
+                });
+            }
+        });
+    });
+    
+    // Calculate statistics for each model and level
+    const modelStats = Object.entries(aggregatedData).map(([modelName, data]) => {
+        const stats = {};
+        [1, 2, 3].forEach(level => {
+            const values = data.byLevel[level];
+            if (values.length > 0) {
+                const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                const sd = Math.sqrt(variance);
+                stats[level] = { mean, sd, count: values.length, values };
+            }
+        });
+        return { 
+            modelName, 
+            correlation: data.correlation, 
+            stats,
+            rawPoints: data.rawPoints 
+        };
+    }).filter(m => Object.keys(m.stats).length > 0);
+    
+    if (modelStats.length === 0) {
+        container.innerHTML = '<p class="no-data">No data available for visualization</p>';
+        return;
+    }
+    
+    // Sort models by correlation for consistent ordering
+    modelStats.sort((a, b) => b.correlation - a.correlation);
+    
+    // Calculate average statistics for all models (for background reference)
+    const avgStats = {};
+    [1, 2, 3].forEach(level => {
+        const allMeans = [];
+        const allSDs = [];
+        modelStats.forEach(model => {
+            if (model.stats[level]) {
+                allMeans.push(model.stats[level].mean);
+                allSDs.push(model.stats[level].sd);
+            }
+        });
+        if (allMeans.length > 0) {
+            avgStats[level] = {
+                mean: allMeans.reduce((a, b) => a + b, 0) / allMeans.length,
+                sd: allSDs.reduce((a, b) => a + b, 0) / allSDs.length
+            };
+        }
+    });
+    
+    // Create grid layout
+    const plotsPerRow = 4;
+    const plotWidth = 280;
+    const plotHeight = 220;
+    const margin = { top: 35, right: 20, bottom: 45, left: 50 };
+    const innerWidth = plotWidth - margin.left - margin.right;
+    const innerHeight = plotHeight - margin.top - margin.bottom;
+    
+    // Calculate global bounds for consistent scaling across all plots
+    let allXValues = [];
+    modelStats.forEach(model => {
+        Object.values(model.stats).forEach(stat => {
+            allXValues.push(...stat.values);
+        });
+    });
+    const globalXMin = Math.min(...allXValues) - 0.3;
+    const globalXMax = Math.max(...allXValues) + 0.3;
+    
+    // Create grid container with legend
+    let html = `
+        <div style="background: var(--bg-primary); border: 1px solid var(--gray-200); border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <!-- Legend -->
+            <div style="display: flex; justify-content: center; gap: 32px; margin-bottom: 24px; padding: 16px; background: white; border: 1px solid var(--gray-200); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="40" height="20">
+                        <circle cx="20" cy="10" r="6" fill="#6366f1" stroke="#6366f1" stroke-width="2"/>
+                    </svg>
+                    <span style="font-size: 13px; color: var(--gray-700);">Current Model</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="40" height="20">
+                        <line x1="20" y1="0" x2="20" y2="20" stroke="#9ca3af" stroke-width="2" stroke-dasharray="4,2"/>
+                    </svg>
+                    <span style="font-size: 13px; color: var(--gray-700);">All Models (avg)</span>
+                </div>
+                <div style="border-left: 1px solid var(--gray-300); margin: 0 16px;"></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 13px; color: var(--gray-700);"><strong>E</strong> = Extensive knowledge</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 13px; color: var(--gray-700);"><strong>M</strong> = Moderate knowledge</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 13px; color: var(--gray-700);"><strong>L</strong> = Limited knowledge</span>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(${plotsPerRow}, 1fr); gap: 24px; max-width: 100%; margin: 0 auto;">`;
+    
+    // Create individual plot for each model
+    modelStats.slice(0, 16).forEach((model, modelIdx) => {
+        const color = '#6366f1'; // Consistent color for each model's plot
+        
+        html += `
+            <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px;">
+                <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900); text-align: center;">
+                    ${model.modelName}
+                </h4>
+                <p style="font-size: 12px; color: var(--gray-600); margin: 0 0 12px 0; text-align: center;">
+                    r = ${model.correlation.toFixed(3)}
+                </p>
+                <svg width="${plotWidth}" height="${plotHeight}" style="display: block;">
+                    <!-- Background -->
+                    <rect x="${margin.left}" y="${margin.top}" width="${innerWidth}" height="${innerHeight}" 
+                          fill="white" stroke="var(--gray-300)" stroke-width="1"/>
+                    
+                    <!-- Grid lines -->
+                    <g class="grid-lines">`;
+    
+        // Y-axis grid lines for knowledge levels
+        [1, 2, 3].forEach(level => {
+            const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+            html += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + innerWidth}" y2="${y}" 
+                         stroke="var(--gray-200)" stroke-width="1" stroke-dasharray="2,2"/>`;
+        });
+        
+        // X-axis grid lines
+        for (let x = Math.ceil(globalXMin); x <= Math.floor(globalXMax); x++) {
+            const xPos = margin.left + ((x - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+            html += `<line x1="${xPos}" y1="${margin.top}" x2="${xPos}" y2="${margin.top + innerHeight}" 
+                         stroke="var(--gray-200)" stroke-width="1" stroke-dasharray="2,2"/>`;
+        }
+        
+        html += `</g>`;
+        
+        // Plot average of all other models as background reference
+        html += `<g class="other-models-reference">`;
+        
+        [1, 2, 3].forEach(level => {
+            if (avgStats[level]) {
+                const x = margin.left + ((avgStats[level].mean - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+                
+                // Vertical dashed line for average position
+                html += `<line x1="${x}" y1="${y - 15}" x2="${x}" y2="${y + 15}" 
+                             stroke="#9ca3af" stroke-width="2" stroke-dasharray="4,2" opacity="0.8"/>`;
+                
+                // Horizontal line showing SD range
+                const sdWidth = (avgStats[level].sd / (globalXMax - globalXMin)) * innerWidth;
+                html += `<line x1="${x - sdWidth}" y1="${y}" x2="${x + sdWidth}" y2="${y}" 
+                             stroke="#d1d5db" stroke-width="1" opacity="0.5"/>`;
+            }
+        });
+        
+        html += `</g>`;
+        
+        // Plot data for this model
+        html += `<g class="model-data">`;
+        
+        // Plot each knowledge level
+        [1, 2, 3].forEach(level => {
+            if (model.stats[level]) {
+                const stat = model.stats[level];
+                const x = margin.left + ((stat.mean - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+                
+                // Error bars (horizontal for x-axis SD)
+                const sdWidth = (stat.sd / (globalXMax - globalXMin)) * innerWidth;
+                html += `<line x1="${x - sdWidth}" y1="${y}" x2="${x + sdWidth}" y2="${y}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                
+                // End caps for error bars
+                html += `<line x1="${x - sdWidth}" y1="${y - 3}" x2="${x - sdWidth}" y2="${y + 3}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                html += `<line x1="${x + sdWidth}" y1="${y - 3}" x2="${x + sdWidth}" y2="${y + 3}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                
+                // Mean point
+                html += `<circle cx="${x}" cy="${y}" r="6" 
+                             fill="${color}" fill-opacity="0.9" 
+                             stroke="${color}" stroke-width="2"/>`;
+            }
+        });
+        
+        html += `</g>`;
+        
+        // Add axes labels
+        html += `
+            <!-- Y-axis labels -->
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (0.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">L</text>
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (1.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">M</text>
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (2.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">E</text>
+            
+            <!-- X-axis labels -->`;
+        
+        // X-axis labels (simplified for small plots)
+        for (let x = Math.ceil(globalXMin); x <= Math.floor(globalXMax); x++) {
+            if (x % 2 === 0) { // Only show even numbers to avoid crowding
+                const xPos = margin.left + ((x - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                html += `<text x="${xPos}" y="${margin.top + innerHeight + 15}" 
+                             text-anchor="middle" font-size="10" fill="var(--gray-600)">${x}</text>`;
+            }
+        }
+        
+        // Simplified axis titles
+        html += `
+            <text x="${margin.left + innerWidth / 2}" y="${plotHeight - 5}" 
+                  text-anchor="middle" font-size="11" fill="var(--gray-700)">
+                  log₁₀ Search Count
+            </text>
+        `;
+        
+        html += `
+                </svg>
+            </div>`;
+    });
+    
+    // Close grid container
+    html += `
+            </div>
+            <p class="article-text" style="margin-top: 32px; text-align: center; font-size: 14px; color: var(--gray-600);">
+                Each plot shows the mean log₁₀ Google search count (with ± 1 SD error bars) for species at each knowledge level (L=Limited, M=Moderate, E=Extensive).
+                Models with positive correlation (r) show higher search counts for species they claim extensive knowledge about.
+            </p>
+        </div>`;
+    
+    container.innerHTML = html;
+}
+
 </script>
 
 </div> <!-- Close main-content -->
