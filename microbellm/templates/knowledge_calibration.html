@@ -6291,26 +6291,29 @@
 
 /* Correlation performer cards - no background */
 .performer-card-simple {
-    background: transparent;
-    border: 1px solid var(--gray-200);
+    background: transparent !important;
+    border: 1px solid var(--gray-200) !important;
     border-radius: 8px;
     padding: 16px;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 16px;
+    box-shadow: none !important;
 }
 
 .performer-card-simple:hover {
-    border-color: var(--gray-300);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    background: transparent !important;
+    border-color: var(--gray-300) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    transform: none !important;
 }
 
 .performer-card-simple .performer-rank {
     font-size: 14px;
     font-weight: 600;
     color: var(--gray-700);
-    background: var(--gray-100);
+    background: var(--gray-100) !important;
     border-radius: 4px;
     padding: 4px 8px;
     margin-bottom: 8px;
@@ -6327,6 +6330,13 @@
     font-size: 14px;
     color: var(--gray-700);
     margin-bottom: 8px;
+}
+
+.performer-card-simple .performer-dist-chart {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 </style>
            
