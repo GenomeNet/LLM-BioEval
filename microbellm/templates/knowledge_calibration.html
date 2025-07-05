@@ -6289,6 +6289,14 @@
     100% { transform: translateX(400%); }
 }
 
+/* Top performers section - override parent grey background */
+.top-performers-section {
+    background: white !important;
+    border-radius: 12px;
+    padding: 24px !important;
+    margin: 32px 0 48px 0 !important;
+}
+
 /* Correlation performer cards - no background */
 .performer-card-simple {
     background: transparent !important;
@@ -7917,7 +7925,7 @@ function renderCorrelationStatsAndTable(data, container) {
     const top4CorrModels = modelResults.slice(0, 4);
     let corrTopPerformersHtml = "";
     if (top4CorrModels.length > 0) {
-        corrTopPerformersHtml += `\n            <div class="top-performers-section" style="margin-bottom: 48px; margin-top: 32px;">\n                <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n                <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n                ${createBarChartLegend()}\n                <div class="performers-list">`;
+        corrTopPerformersHtml += `\n            <div class="top-performers-section">\n                <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n                <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n                ${createBarChartLegend()}\n                <div class="performers-list">`;
 
         top4CorrModels.forEach((m, idx) => {
             const displayName = m.modelName.split('/').pop();
