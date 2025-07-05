@@ -5,6 +5,12 @@ page_config:
   project_id: "knowledge_calibration"
 
 sections:
+  # Hero header with animation
+  - id: "hero_header"
+    type: "hero"
+    file: "sections/00_hero_header.html"
+    title: "Hero Header"
+    
   # Purpose/Introduction section with sidebar
   - id: "purpose_intro"
     type: "article"
@@ -124,6 +130,7 @@ sections:
     file: "sections/17_dynamic_stats.html"
     parent_type: "article"
     close_article: true
+    dynamic: true
     
   # Top performers
   - id: "top_performers"

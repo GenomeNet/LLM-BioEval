@@ -81,7 +81,7 @@
         background: var(--bg-primary);
         border: 2px dashed var(--gray-300);
         border-radius: 8px;
-        padding: 20px;
+        padding: 0;
         margin-bottom: 20px;
         position: relative;
     }
@@ -96,6 +96,117 @@
         font-weight: 600;
         color: var(--gray-500);
         text-transform: uppercase;
+        z-index: 10;
+    }
+    
+    /* Component boundaries visualization */
+    .component-boundaries {
+        position: relative;
+        background: repeating-linear-gradient(
+            45deg,
+            rgba(255, 0, 0, 0.1),
+            rgba(255, 0, 0, 0.1) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+        padding: 20px;
+        margin: 0;
+    }
+    
+    .component-boundaries::before,
+    .component-boundaries::after {
+        content: '';
+        position: absolute;
+        background: rgba(255, 0, 0, 0.3);
+        pointer-events: none;
+    }
+    
+    .component-boundaries::before {
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        border-bottom: 2px solid rgba(255, 0, 0, 0.5);
+    }
+    
+    .component-boundaries::after {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        border-top: 2px solid rgba(255, 0, 0, 0.5);
+    }
+    
+    /* Side boundaries */
+    .component-boundaries-sides {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 20px;
+        background: rgba(255, 0, 0, 0.3);
+        pointer-events: none;
+    }
+    
+    .component-boundaries-sides.left {
+        left: 0;
+        border-right: 2px solid rgba(255, 0, 0, 0.5);
+    }
+    
+    .component-boundaries-sides.right {
+        right: 0;
+        border-left: 2px solid rgba(255, 0, 0, 0.5);
+    }
+    
+    /* Actual component content area */
+    .component-content-area {
+        position: relative;
+        background: var(--bg-primary);
+        min-height: 100px;
+    }
+    
+    /* Full-width component container */
+    .full-width-component-container {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        position: relative;
+    }
+    
+    /* Override main-content styles for component viewer */
+    .viewer-content .main-content {
+        padding: 0;
+        max-width: none;
+    }
+    
+    /* Fix alignment for section callouts in viewer */
+    .viewer-content .section-callout {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    /* Ensure proper centering */
+    body {
+        overflow-x: hidden;
+    }
+    
+    /* Hide boundaries when toggled */
+    .hide-boundaries .component-boundaries {
+        background: none;
+        padding: 0;
+    }
+    
+    .hide-boundaries .component-boundaries::before,
+    .hide-boundaries .component-boundaries::after,
+    .hide-boundaries .component-boundaries-sides {
+        display: none;
+    }
+    
+    .hide-boundaries .component-wrapper {
+        border: none;
+        padding: 0;
+    }
+    
+    .hide-boundaries .component-label {
+        display: none;
     }
     
     .info-box {
@@ -131,6 +242,13 @@
             </div>
         </div>
         <div class="viewer-actions">
+            <button id="toggle-boundaries" class="viewer-action" onclick="toggleBoundaries()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                </svg>
+                <span id="boundary-toggle-text">Hide Boundaries</span>
+            </button>
             <a href="{{ url_for('components_index') }}" class="viewer-action">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z"/>
@@ -159,40 +277,69 @@
         {% if section.type == 'article' %}
             <div class="component-wrapper">
                 <span class="component-label">Article Section</span>
-                {% set section_content %}
-                    {% include 'research/' + page + '/' + section.file %}
-                {% endset %}
-                {% with section_id=section.section_id, title=section.title, content=section_content, sidebar_content=none, full_width=section.full_width %}
-                    {% include 'partials/article_section_wrapper.html' %}
-                {% endwith %}
+                <div class="component-boundaries">
+                    <div class="component-boundaries-sides left"></div>
+                    <div class="component-boundaries-sides right"></div>
+                    <div class="component-content-area">
+                        {% set section_content %}
+                            {% include 'research/' + page + '/' + section.file %}
+                        {% endset %}
+                        {% with section_id=section.section_id, title=section.title, content=section_content, sidebar_content=none, full_width=section.full_width %}
+                            {% include 'partials/article_section_wrapper.html' %}
+                        {% endwith %}
+                    </div>
+                </div>
             </div>
             
         {% elif section.type == 'callout_inline' %}
             <div class="component-wrapper">
                 <span class="component-label">Inline Callout</span>
-                {% set callout_content %}
-                    {% include 'research/' + page + '/' + section.file %}
-                {% endset %}
-                {% with type=section.callout_type, header=section.header, content=callout_content, compact=section.compact %}
-                    {% include 'partials/callout_box_wrapper.html' %}
-                {% endwith %}
+                <div class="component-boundaries">
+                    <div class="component-boundaries-sides left"></div>
+                    <div class="component-boundaries-sides right"></div>
+                    <div class="component-content-area">
+                        {% set callout_content %}
+                            {% include 'research/' + page + '/' + section.file %}
+                        {% endset %}
+                        {% with type=section.callout_type, header=section.header, content=callout_content, compact=section.compact %}
+                            {% include 'partials/callout_box_wrapper.html' %}
+                        {% endwith %}
+                    </div>
+                </div>
             </div>
             
         {% elif section.type == 'article_content' %}
             <div class="component-wrapper">
                 <span class="component-label">Article Content</span>
-                <div class="article-text">
-                    {% include 'research/' + page + '/' + section.file %}
+                <div class="component-boundaries">
+                    <div class="component-boundaries-sides left"></div>
+                    <div class="component-boundaries-sides right"></div>
+                    <div class="component-content-area">
+                        <div class="article-text">
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
                 </div>
             </div>
             
         {% elif section.type == 'section_callout' %}
-            {% set section_content %}
-                {% include 'research/' + page + '/' + section.file %}
-            {% endset %}
-            {% with color_theme=manifest.page_config.color_theme, title=section.title, text=section.text, content=section_content, full_width=section.full_width %}
-                {% include 'partials/section_callout_wrapper.html' %}
-            {% endwith %}
+            <div class="full-width-component-container">
+                <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
+                    <span class="component-label">Full-Width Section Callout</span>
+                    <div class="component-boundaries" style="padding: 0;">
+                        <div class="component-boundaries-sides left"></div>
+                        <div class="component-boundaries-sides right"></div>
+                        <div class="component-content-area">
+                            {% set section_content %}
+                                {% include 'research/' + page + '/' + section.file %}
+                            {% endset %}
+                            {% with color_theme=manifest.page_config.color_theme, title=section.title, text=section.text, content=section_content, full_width=section.full_width %}
+                                {% include 'partials/section_callout_wrapper.html' %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </div>
+            </div>
             
         {% elif section.type == 'section_callout_dynamic' %}
             <div class="info-box">
@@ -201,10 +348,30 @@
             </div>
             {% include 'research/' + page + '/' + section.file %}
             
+        {% elif section.type == 'hero' %}
+            <div class="full-width-component-container">
+                <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
+                    <span class="component-label">Hero Header</span>
+                    <div class="component-boundaries" style="padding: 0;">
+                        <div class="component-boundaries-sides left"></div>
+                        <div class="component-boundaries-sides right"></div>
+                        <div class="component-content-area">
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
         {% elif section.type == 'raw' %}
             <div class="component-wrapper">
                 <span class="component-label">Raw Include</span>
-                {% include 'research/' + page + '/' + section.file %}
+                <div class="component-boundaries">
+                    <div class="component-boundaries-sides left"></div>
+                    <div class="component-boundaries-sides right"></div>
+                    <div class="component-content-area">
+                        {% include 'research/' + page + '/' + section.file %}
+                    </div>
+                </div>
             </div>
             
         {% else %}
@@ -220,21 +387,51 @@
 
 <!-- Load any necessary scripts for dynamic content -->
 <script src="{{ url_for('static', filename='js/knowledge_content.js') }}"></script>
+<!-- Load the main scripts if this is a knowledge calibration page -->
+{% if page == 'knowledge_calibration' %}
+    {% include 'research/knowledge_calibration/sections/99_scripts.html' %}
+{% endif %}
+
 <script>
 // Initialize any dynamic content if this is a dynamic section
-{% if section.type == 'section_callout_dynamic' %}
+{% if section.type == 'section_callout_dynamic' or section.type == 'hero' %}
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize hero animation if viewing hero section
+    {% if section.type == 'hero' %}
+        if (typeof initParticleAnimation !== 'undefined') {
+            initParticleAnimation('hero-canvas-{{ project.id }}', '{{ project.color_theme }}');
+        }
+    {% endif %}
+    
     // Call initialization functions based on section id
     {% if section.id == 'top_performers' %}
-        if (typeof loadTopPerformers !== 'undefined') {
-            loadTopPerformers();
+        if (typeof loadKnowledgeAnalysisData !== 'undefined') {
+            loadKnowledgeAnalysisData();
         }
     {% elif section.id == 'top_models_web_alignment' %}
         if (typeof loadCorrelationData !== 'undefined') {
             loadCorrelationData();
         }
+    {% elif section.id == 'dynamic_stats' %}
+        if (typeof loadKnowledgeAnalysisData !== 'undefined') {
+            loadKnowledgeAnalysisData();
+        }
     {% endif %}
 });
 {% endif %}
+
+// Toggle boundaries function
+function toggleBoundaries() {
+    const viewerContent = document.querySelector('.viewer-content');
+    const toggleText = document.getElementById('boundary-toggle-text');
+    
+    if (viewerContent.classList.contains('hide-boundaries')) {
+        viewerContent.classList.remove('hide-boundaries');
+        toggleText.textContent = 'Hide Boundaries';
+    } else {
+        viewerContent.classList.add('hide-boundaries');
+        toggleText.textContent = 'Show Boundaries';
+    }
+}
 </script>
 {% endblock %}

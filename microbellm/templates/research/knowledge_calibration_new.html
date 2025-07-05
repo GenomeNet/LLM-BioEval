@@ -13,12 +13,15 @@
 
 <!-- Main Content with proper spacing -->
 <div class="main-content page-content">
-{% include 'partials/hero_header.html' %}
 
 {% set article_open = false %}
 {% set sidebar_html = "" %}
 
 {% for section in manifest.sections %}
+    {# Handle hero section #}
+    {% if section.type == 'hero' %}
+        {% include 'research/knowledge_calibration/' + section.file %}
+    {% endif %}
     {# Handle article sections #}
     {% if section.type == 'article' %}
         {% if article_open %}
