@@ -681,3 +681,261 @@
         padding: 8px 12px;
     }
 }
+
+/* =========================
+   Hero Header Styles
+   ========================= */
+
+/* Base hero header */
+.hero-header {
+    position: relative;
+    overflow: hidden;
+    padding: calc(var(--spacing-section) * 2) 0;
+    margin-bottom: var(--spacing-section);
+}
+
+/* Hero animation canvas */
+.hero-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.15;
+    z-index: 1;
+}
+
+/* Hero content */
+.hero-content {
+    position: relative;
+    z-index: 3;
+    text-align: left;
+    color: var(--gray-900);
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-element);
+}
+
+.hero-title {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: var(--spacing-element);
+    letter-spacing: -0.02em;
+    color: var(--gray-900);
+}
+
+.hero-subtitle {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--gray-600);
+    max-width: 700px;
+    margin: 0;
+}
+
+/* Hero author styles */
+.hero-author {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: var(--spacing-element);
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+}
+
+.hero-author--purple {
+    background: rgba(147, 51, 234, 0.1);
+    color: rgb(107, 33, 168);
+}
+
+.hero-author--green {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgb(5, 150, 105);
+}
+
+.hero-author--yellow {
+    background: rgba(250, 204, 21, 0.1);
+    color: rgb(180, 83, 9);
+}
+
+/* Color transition overlays for each theme */
+.hero-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    animation: colorShift 15s ease-in-out infinite;
+}
+
+/* Purple theme gradient */
+.hero-header--purple::before {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.1) 0%,
+        rgba(168, 85, 247, 0.08) 25%,
+        rgba(59, 130, 246, 0.1) 50%,
+        rgba(147, 51, 234, 0.08) 75%,
+        rgba(79, 172, 254, 0.1) 100%);
+}
+
+/* Green theme gradient */
+.hero-header--green::before {
+    background: linear-gradient(135deg, 
+        rgba(34, 197, 94, 0.1) 0%,
+        rgba(132, 204, 22, 0.08) 25%,
+        rgba(16, 185, 129, 0.1) 50%,
+        rgba(5, 150, 105, 0.08) 75%,
+        rgba(34, 197, 94, 0.1) 100%);
+}
+
+/* Yellow theme gradient */
+.hero-header--yellow::before {
+    background: linear-gradient(135deg, 
+        rgba(250, 204, 21, 0.1) 0%,
+        rgba(251, 191, 36, 0.08) 25%,
+        rgba(251, 146, 60, 0.1) 50%,
+        rgba(245, 158, 11, 0.08) 75%,
+        rgba(250, 204, 21, 0.1) 100%);
+}
+
+/* Color shift animations for each theme */
+@keyframes colorShift {
+    /* Animation keyframes are defined in the specific theme classes below */
+}
+
+.hero-header--purple::before {
+    animation-name: colorShiftPurple;
+}
+
+.hero-header--green::before {
+    animation-name: colorShiftGreen;
+}
+
+.hero-header--yellow::before {
+    animation-name: colorShiftYellow;
+}
+
+@keyframes colorShiftPurple {
+    0%, 100% { 
+        background: linear-gradient(135deg, 
+            rgba(99, 102, 241, 0.1) 0%,
+            rgba(168, 85, 247, 0.08) 25%,
+            rgba(59, 130, 246, 0.1) 50%,
+            rgba(147, 51, 234, 0.08) 75%,
+            rgba(79, 172, 254, 0.1) 100%);
+    }
+    50% { 
+        background: linear-gradient(135deg, 
+            rgba(147, 51, 234, 0.12) 0%,
+            rgba(79, 172, 254, 0.1) 25%,
+            rgba(99, 102, 241, 0.08) 50%,
+            rgba(168, 85, 247, 0.1) 75%,
+            rgba(59, 130, 246, 0.12) 100%);
+    }
+}
+
+@keyframes colorShiftGreen {
+    0%, 100% { 
+        background: linear-gradient(135deg, 
+            rgba(34, 197, 94, 0.1) 0%,
+            rgba(132, 204, 22, 0.08) 25%,
+            rgba(16, 185, 129, 0.1) 50%,
+            rgba(5, 150, 105, 0.08) 75%,
+            rgba(34, 197, 94, 0.1) 100%);
+    }
+    50% { 
+        background: linear-gradient(135deg, 
+            rgba(5, 150, 105, 0.12) 0%,
+            rgba(34, 197, 94, 0.1) 25%,
+            rgba(132, 204, 22, 0.08) 50%,
+            rgba(16, 185, 129, 0.1) 75%,
+            rgba(250, 204, 21, 0.12) 100%);
+    }
+}
+
+@keyframes colorShiftYellow {
+    0%, 100% { 
+        background: linear-gradient(135deg, 
+            rgba(250, 204, 21, 0.1) 0%,
+            rgba(251, 191, 36, 0.08) 25%,
+            rgba(251, 146, 60, 0.1) 50%,
+            rgba(245, 158, 11, 0.08) 75%,
+            rgba(250, 204, 21, 0.1) 100%);
+    }
+    50% { 
+        background: linear-gradient(135deg, 
+            rgba(245, 158, 11, 0.12) 0%,
+            rgba(250, 204, 21, 0.1) 25%,
+            rgba(251, 191, 36, 0.08) 50%,
+            rgba(251, 146, 60, 0.1) 75%,
+            rgba(254, 215, 102, 0.12) 100%);
+    }
+}
+
+/* Responsive hero styles */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 36px;
+    }
+    
+    .hero-subtitle {
+        font-size: 18px;
+    }
+    
+    .hero-header {
+        padding: var(--spacing-section) 0;
+    }
+}
+
+/* =====================================================
+   Footer Styles
+   ===================================================== */
+
+.footer {
+    padding: 48px 0;
+    border-top: 1px solid var(--gray-200);
+    margin-top: 80px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+.footer-text {
+    color: var(--gray-500);
+    font-size: 14px;
+}
+
+.footer-links {
+    display: flex;
+    gap: 24px;
+}
+
+.footer-link {
+    color: var(--gray-600);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.footer-link:hover {
+    color: var(--gray-900);
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        gap: 24px;
+        text-align: center;
+    }
+}

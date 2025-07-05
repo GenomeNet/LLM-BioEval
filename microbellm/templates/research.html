@@ -179,111 +179,54 @@
     <div class="research-page">
         <!-- Research Projects -->
         <div class="research-grid">
-            <!-- Phenotype Project -->
+            {% for project in projects %}
             <article class="research-project">
-                <canvas id="phenotype-canvas" class="project-canvas"></canvas>
+                <canvas id="{{ project.id }}-canvas" class="project-canvas"></canvas>
                 <div class="project-header">
-                    <span class="project-status active">Phenotype Analysis</span>
-                    <span class="project-date">Updated regularly</span>
+                    <span class="project-status {{ project.status }}">{{ project.status_label }}</span>
+                    <span class="project-date">{{ project.date_text }}</span>
                 </div>
                 <div class="project-content">
                     <h3 class="project-title">
-                        Evaluating LLM performance on fundamental microbial phenotype prediction
+                        {{ project.title }}
                     </h3>
                     <p class="project-description">
-                        Comprehensive analysis of how language models predict broad microbial characteristics,
-                        from gram staining to pathogenicity, across thousands of species.
+                        {{ project.description }}
                     </p>
                     <div class="project-authors">
-                        P. C. Münch, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy
+                        {{ project.authors }}
                     </div>
                     <div class="project-doi">
-                        DOI: COMING SOON
+                        {% if project.doi %}
+                        DOI: {{ project.doi }}
+                        {% else %}
+                        DOI: COMING SOON{% if project.status == 'development' %} (preprint){% endif %}
+                        {% endif %}
                     </div>
                 </div>
                 <div class="project-footer">
-                    <a href="/phenotype_analysis" class="read-link">
-                        Explore Analysis
+                    <a href="{{ project.route if project.route else '#' }}" class="read-link{% if not project.route %} disabled{% endif %}">
+                        {{ project.link_text }}
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
                         </svg>
                     </a>
                 </div>
             </article>
-
-            <!-- Growth Conditions Project -->
-            <article class="research-project">
-                <canvas id="growth-canvas" class="project-canvas"></canvas>
-                <div class="project-header">
-                    <span class="project-status development">Coming Soon</span>
-                    <span class="project-date">In development</span>
-                </div>
-                <div class="project-content">
-                    <h3 class="project-title">
-                        Predicting bacterial growth conditions and metabolic flexibility
-                    </h3>
-                    <p class="project-description">
-                        Upcoming evaluation framework for testing LLM understanding of environmental
-                        factors, nutrient requirements, and metabolic pathways in bacteria.
-                    </p>
-                    <div class="project-authors">
-                        P. C. Münch, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy
-                    </div>
-                    <div class="project-doi">
-                        DOI: COMING SOON (preprint)
-                    </div>
-                </div>
-                <div class="project-footer">
-                    <a href="#" class="read-link disabled">
-                        Coming Soon
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
-                        </svg>
-                    </a>
-                </div>
-            </article>
-
-            <!-- Knowledge Track Project -->
-            <article class="research-project">
-                <canvas id="knowledge-canvas" class="project-canvas"></canvas>
-                <div class="project-header">
-                    <span class="project-status published">Knowledge analysis</span>
-                    <span class="project-date">Updated regularly</span>
-                </div>
-                <div class="project-content">
-                    <h3 class="project-title">
-                        Testing LLM knowledge on real and artificial bacterial species                    </h3>
-                    <p class="project-description">
-                        Evaluating how much LLMs claim to know about bacteria by comparing their responses 
-                        to internet data, revealing how frequently they generate unfounded claims about 
-                        unknown species.
-                    </p>
-                    <div class="project-authors">
-                        S. Kumar, E. Johansson, T. Brown, Y. Liu, A. Martinez
-                    </div>
-                    <div class="project-doi">
-                        DOI: COMING SOON
-                    </div>
-                </div>
-                <div class="project-footer">
-                    <a href="/knowledge_calibration" class="read-link">
-                        View Results
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
-                        </svg>
-                    </a>
-                </div>
-            </article>
+            {% endfor %}
             </div>
         </div>
     </div>
 </div>
 
+<!-- Footer -->
+{% include 'partials/footer.html' %}
+
 <script>
 // Reuse animation functions from index page
 // Bacteria animation for phenotype card
-function initPhenotypeAnimation() {
-    const canvas = document.getElementById('phenotype-canvas');
+function initPhenotypeAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'phenotype-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -377,8 +320,8 @@ function initPhenotypeAnimation() {
 }
 
 // DNA animation for knowledge card
-function initKnowledgeAnimation() {
-    const canvas = document.getElementById('knowledge-canvas');
+function initKnowledgeAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'knowledge-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -453,8 +396,8 @@ function initKnowledgeAnimation() {
 }
 
 // Cell growth animation
-function initGrowthAnimation() {
-    const canvas = document.getElementById('growth-canvas');
+function initGrowthAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'growth-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -557,11 +500,29 @@ function initGrowthAnimation() {
     });
 }
 
-// Initialize all animations
+// Map animation types to initialization functions
+const animationInitializers = {
+    'bacteria': initPhenotypeAnimation,
+    'dna': initKnowledgeAnimation,
+    'growth': initGrowthAnimation
+};
+
+// Initialize animations for each project
 document.addEventListener('DOMContentLoaded', function() {
-    initPhenotypeAnimation();
-    initKnowledgeAnimation();
-    initGrowthAnimation();
+    {% for project in projects %}
+    // Initialize {{ project.id }} animation
+    const {{ project.id }}_canvas = document.getElementById('{{ project.id }}-canvas');
+    if ({{ project.id }}_canvas) {
+        // Call the appropriate animation based on project type
+        {% if project.animation_type == 'bacteria' %}
+        initPhenotypeAnimation('{{ project.id }}-canvas');
+        {% elif project.animation_type == 'dna' %}
+        initKnowledgeAnimation('{{ project.id }}-canvas');
+        {% elif project.animation_type == 'growth' %}
+        initGrowthAnimation('{{ project.id }}-canvas');
+        {% endif %}
+    }
+    {% endfor %}
 });
 </script>
 {% endblock %} 

@@ -7,89 +7,7 @@
 <style>
     /* Remove main content padding override - let layout.css handle it */
 
-    /* Hero Header Section - Using layout system */
-    .hero-header {
-        /* Remove custom positioning, use layout.css defaults */
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* Header animation canvas */
-    .hero-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        opacity: 0.15;
-        z-index: 1;
-    }
-
-    /* Color transition overlay */
-    .hero-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, 
-            rgba(99, 102, 241, 0.1) 0%,
-            rgba(168, 85, 247, 0.08) 25%,
-            rgba(59, 130, 246, 0.1) 50%,
-            rgba(147, 51, 234, 0.08) 75%,
-            rgba(79, 172, 254, 0.1) 100%);
-        z-index: 2;
-        animation: colorShift 15s ease-in-out infinite;
-    }
-
-    @keyframes colorShift {
-        0%, 100% { 
-            background: linear-gradient(135deg, 
-                rgba(99, 102, 241, 0.1) 0%,
-                rgba(168, 85, 247, 0.08) 25%,
-                rgba(59, 130, 246, 0.1) 50%,
-                rgba(147, 51, 234, 0.08) 75%,
-                rgba(79, 172, 254, 0.1) 100%);
-        }
-        50% { 
-            background: linear-gradient(135deg, 
-                rgba(147, 51, 234, 0.12) 0%,
-                rgba(79, 172, 254, 0.1) 25%,
-                rgba(99, 102, 241, 0.08) 50%,
-                rgba(168, 85, 247, 0.1) 75%,
-                rgba(59, 130, 246, 0.12) 100%);
-        }
-    }
-
-    /* Hero content uses layout system alignment */
-    .hero-content {
-        position: relative;
-        z-index: 3;
-        text-align: left;
-        color: var(--gray-900);
-    }
-
-    .hero-title {
-        font-size: 48px;
-        font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: var(--spacing-element);
-        letter-spacing: -0.02em;
-        color: var(--gray-900);
-    }
-
-    /* Hero author styling moved to article_styles.css - using .hero-author--purple */
-
-    .hero-subtitle {
-        font-size: 20px;
-        font-weight: 400;
-        line-height: 1.6;
-        color: var(--gray-600);
-        max-width: 700px;
-        margin: 0;
-    }
+    /* Hero header styles moved to article_styles.css */
 
     /* Article layout already handled by layout.css */
     
@@ -5759,18 +5677,9 @@
 <canvas id="background-canvas" class="background-canvas"></canvas>
 
 <!-- Main Content with proper spacing -->
-<div class="main-content">
-<!-- Hero Header - Full Width -->
-<header class="hero-header">
-    <canvas id="hero-canvas" class="hero-canvas"></canvas>
-    <div class="hero-content">
-        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial Taxonomy</h1>
-            <div class="hero-author hero-author--purple">by Philipp C. Münch</div>
-        <p class="hero-subtitle">
-            A dual test set of synthetic species and verified bacteria reveals when the model invents and when it defers.
-        </p>
-    </div>
-</header>
+<div class="main-content page-content">
+<!-- Hero Header -->
+{% include 'partials/hero_header.html' %}
 
 <div class="article-container">
     <!-- Main Content -->
@@ -6225,9 +6134,13 @@
         <div class="paper-info-card">
             <h3>Paper Info</h3>
             <ul class="paper-info-list">
-                <li><strong>Title:</strong> Comparative Assessment of Large Language Models for Microbial Phenotype Annotation</li>
-                <li><strong>Authors:</strong> P. C. Münch*, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy*</li>
-                <li><strong>DOI:</strong> <a href="https://doi.org/10.1234/llm-bioeval.2024" target="_blank">10.1234/llm-bioeval.2024</a></li>
+                <li><strong>Title:</strong> {{ project.title }}</li>
+                <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
+                {% if project.doi %}
+                <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
+                {% else %}
+                <li><strong>Status:</strong> Manuscript in preparation</li>
+                {% endif %}
             </ul>
         </div>
     </aside>
@@ -6426,7 +6339,7 @@
 </div>
 
 <!-- Web-Aligned Knowledge Flow Animation (Full-width Callout) -->
-<section class="section-callout section-callout--green">
+<section class="section-callout section-callout--purple">
     <div class="section-callout__content">
         <div class="section-callout__header">
             <h3 class="section-callout__title">Knowledge-Web Alignment Process</h3>
@@ -6543,7 +6456,7 @@
 </section>
 
 <!-- Top Models Web-Alignment Callout Section -->
-<section class="section-callout section-callout--green">
+<section class="section-callout section-callout--purple">
     <div class="section-callout__content">
         <div class="section-callout__header">
             <h3 class="section-callout__title">Top Models - Web-Alignment</h3>
@@ -7388,7 +7301,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Create horizontal bar chart visualization following style guide
                 let html = `
-                <section class="section-callout section-callout--green">
+                <section class="section-callout section-callout--purple">
                     <div class="section-callout__content section-callout__content--full-width">
                         <div class="section-callout__header">
                             <h3 class="section-callout__title">Correlation Score Distribution</h3>
@@ -8548,9 +8461,9 @@ window.hideBarTooltip = hideBarTooltip;
 
 // Toggle table expansion
 function toggleTableExpansion(button, templateIndex) {
-    const tableWrapper = button.closest('.knowledge-analysis-table-wrapper');
+    const tableWrapper = button.closest('.table-fade');
     const hiddenRows = tableWrapper.querySelectorAll('.hidden-row');
-    const fadeContainer = tableWrapper.querySelector(`#table-fade-${templateIndex}`);
+    const fadeContainer = document.querySelector(`#table-fade-${templateIndex}`);
     const isExpanded = button.classList.contains('expanded');
     
     if (isExpanded) {
@@ -8754,7 +8667,7 @@ function addCorrelationScatterPlotSection() {
     
     // Create new section for scatter plot
     const scatterSection = document.createElement('section');
-    scatterSection.className = 'section-callout section-callout--green';
+    scatterSection.className = 'section-callout section-callout--purple';
     scatterSection.id = 'correlation-scatter-plot';
     scatterSection.style.marginTop = '60px';
     
@@ -9043,4 +8956,8 @@ function renderCorrelationScatterPlot(data) {
 </script>
 
 </div> <!-- Close main-content -->
+
+<!-- Footer -->
+{% include 'partials/footer.html' %}
+
 {% endblock %} 

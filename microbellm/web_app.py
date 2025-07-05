@@ -21,6 +21,9 @@ from microbellm.utils import (
     get_ground_truth_data, calculate_model_accuracy, delete_ground_truth_dataset,
     normalize_value
 )
+from microbellm.research_config import (
+    RESEARCH_PROJECTS, get_project_by_id, get_project_by_route, get_projects_for_page
+)
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
@@ -1731,12 +1734,14 @@ def get_available_models_from_db():
 @app.route('/')
 def index():
     """Landing page"""
-    return render_template('index.html')
+    projects = get_projects_for_page('index')
+    return render_template('index.html', projects=projects)
 
 @app.route('/research')
 def research():
     """Research projects page"""
-    return render_template('research.html')
+    projects = get_projects_for_page('research')
+    return render_template('research.html', projects=projects)
 
 @app.route('/about')
 def about():
@@ -1922,7 +1927,8 @@ def artificial_dataset_page():
     except Exception as e:
         print(f"Error reading annotation file: {e}")
     
-    return render_template('knowledge_calibration.html', annotations=annotation_data)
+    project = get_project_by_id('knowledge_calibration')
+    return render_template('knowledge_calibration.html', annotations=annotation_data, project=project)
 
 @app.route('/search_correlation')
 def search_correlation_page():
@@ -1930,7 +1936,8 @@ def search_correlation_page():
 
 @app.route('/phenotype_analysis')
 def phenotype_analysis_page():
-    return render_template('phenotype_analysis.html')
+    project = get_project_by_id('phenotype_analysis')
+    return render_template('phenotype_analysis.html', project=project)
 
 @app.route('/settings')
 def settings_page():

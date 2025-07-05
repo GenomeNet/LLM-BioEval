@@ -3,6 +3,7 @@
 {% block title %}LLM-BioEval - Measuring AI's grasp of biology{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
 <style>
 /* Hero Section - Using new layout system */
 .hero-section {
@@ -213,39 +214,7 @@
     color: #2563eb;
 }
 
-/* Footer */
-.footer {
-    padding: 48px 0;
-    border-top: 1px solid var(--gray-200);
-    margin-top: 80px;
-}
-
-.footer-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.footer-text {
-    color: var(--gray-500);
-    font-size: 14px;
-}
-
-.footer-links {
-    display: flex;
-    gap: 24px;
-}
-
-.footer-link {
-    color: var(--gray-600);
-    text-decoration: none;
-    font-size: 14px;
-    transition: color 0.2s;
-}
-
-.footer-link:hover {
-    color: var(--gray-900);
-}
+/* Footer styles moved to article_styles.css */
 
 /* Responsive styles for smaller screens */
 @media (max-width: 768px) {
@@ -266,11 +235,7 @@
         grid-template-columns: 1fr;
     }
     
-    .footer-content {
-        flex-direction: column;
-        gap: 24px;
-        text-align: center;
-    }
+    /* Footer responsive styles moved to article_styles.css */
 }
 </style>
 {% endblock %}
@@ -309,111 +274,43 @@
         </div>
 
         <div class="publications-grid">
-            <!-- Knowledge Card -->
+            {% for project in projects %}
             <article class="publication-card">
-                <canvas id="knowledge-canvas" class="card-canvas"></canvas>
+                <canvas id="{{ project.id }}-canvas" class="card-canvas"></canvas>
                 <div class="card-header">
-                    <span class="card-type status-indicator blue">Knowledge analysis</span>
-                    <span class="card-date">Updated regularly</span>
+                    <span class="card-type status-indicator {{ project.status_class }}">{{ project.card_type }}</span>
+                    <span class="card-date">{{ project.date_text }}</span>
                 </div>
                 <div class="card-content">
                     <h3 class="card-title">
-                        Testing LLM knowledge on real and artificial bacterial species
+                        {{ project.title }}
                     </h3>
                     <p class="card-description">
-                        Evaluating how much LLMs claim to know about bacteria by comparing their responses 
-                        to internet data, revealing how frequently they generate unfounded claims about 
-                        unknown species.
+                        {{ project.description }}
                     </p>
                 </div>
                 <div class="card-footer">
-                    <a href="/knowledge_calibration" class="read-link">
-                        View Results
+                    <a href="{{ project.route if project.route else '#' }}" class="read-link"{% if not project.route %} style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                        {{ project.link_text }}
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
                         </svg>
                     </a>
                 </div>
             </article>
-
-            <!-- Phenotype Card -->
-            <article class="publication-card">
-                <canvas id="phenotype-canvas" class="card-canvas"></canvas>
-                <div class="card-header">
-                    <span class="card-type status-indicator green">Phenotype Analysis</span>
-                    <span class="card-date">Updated regularly</span>
-                </div>
-                <div class="card-content">
-                    <h3 class="card-title">
-                        Evaluating LLM performance on fundamental microbial phenotype prediction
-                    </h3>
-                    <p class="card-description">
-                        Comprehensive analysis of how language models predict broad microbial characteristics,
-                        from gram staining to pathogenicity, across thousands of species.
-                    </p>
-                </div>
-                <div class="card-footer">
-                    <a href="/phenotype_analysis" class="read-link">
-                        Explore Analysis
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
-                        </svg>
-                    </a>
-                </div>
-            </article>
-
-            <!-- Growth Card -->
-            <article class="publication-card">
-                <canvas id="growth-canvas" class="card-canvas"></canvas>
-                <div class="card-header">
-                    <span class="card-type status-indicator yellow">Phenotype analysis</span>
-                    <span class="card-date">In Development</span>
-                </div>
-                <div class="card-content">
-                    <h3 class="card-title">
-                        Predicting bacterial growth conditions and metabolic flexibility
-                    </h3>
-                    <p class="card-description">
-                        Upcoming evaluation framework for testing LLM understanding of environmental
-                        factors, nutrient requirements, and metabolic pathways in bacteria.
-                    </p>
-                </div>
-                <div class="card-footer">
-                    <a href="#" class="read-link" style="opacity: 0.5; cursor: not-allowed;">
-                        Coming Soon
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.44 8.5H2.75a.75.75 0 0 1 0-1.5h8.69L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
-                        </svg>
-                    </a>
-                </div>
-            </article>
+            {% endfor %}
         </div>
     </section>
+    </div>
 </div>
 
-    </div>
-
 <!-- Footer -->
-<footer class="footer">
-        <div class="footer-content">
-            <div class="footer-text">
-                © 2025 - LLM-BioEval Team
-            </div>
-            <div class="footer-links">
-                <a href="/about" class="footer-link">About</a>
-                <a href="/about#contact" class="footer-link">Contact</a>
-                <a href="https://github.com/GenomeNet/microbeLLM" class="footer-link">GitHub</a>
-                <a href="/imprint" class="footer-link">Imprint</a>
-                <a href="/privacy" class="footer-link">Privacy</a>
-            </div>
-        </div>
-    </footer>
-    </div>
+{% include 'partials/footer.html' %}
 
 <script>
 // Bacteria animation for phenotype card
-function initPhenotypeAnimation() {
-    const canvas = document.getElementById('phenotype-canvas');
+function initPhenotypeAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'phenotype-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -505,8 +402,8 @@ function initPhenotypeAnimation() {
 }
 
 // DNA animation for knowledge card
-function initKnowledgeAnimation() {
-    const canvas = document.getElementById('knowledge-canvas');
+function initKnowledgeAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'knowledge-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -582,8 +479,8 @@ function initKnowledgeAnimation() {
 }
 
 // Cell growth animation
-function initGrowthAnimation() {
-    const canvas = document.getElementById('growth-canvas');
+function initGrowthAnimation(canvasId) {
+    const canvas = document.getElementById(canvasId || 'growth-canvas');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -683,11 +580,22 @@ function initGrowthAnimation() {
     });
 }
 
-// Initialize all animations
+// Initialize animations for each project
 document.addEventListener('DOMContentLoaded', function() {
-    initPhenotypeAnimation();
-    initKnowledgeAnimation();
-    initGrowthAnimation();
+    {% for project in projects %}
+    // Initialize {{ project.id }} animation
+    const {{ project.id }}_canvas = document.getElementById('{{ project.id }}-canvas');
+    if ({{ project.id }}_canvas) {
+        // Call the appropriate animation based on project type
+        {% if project.animation_type == 'bacteria' %}
+        initPhenotypeAnimation('{{ project.id }}-canvas');
+        {% elif project.animation_type == 'dna' %}
+        initKnowledgeAnimation('{{ project.id }}-canvas');
+        {% elif project.animation_type == 'growth' %}
+        initGrowthAnimation('{{ project.id }}-canvas');
+        {% endif %}
+    }
+    {% endfor %}
 });
 </script>
 {% endblock %}

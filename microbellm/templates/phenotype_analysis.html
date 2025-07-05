@@ -5,89 +5,7 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
 <style>
-    /* Hero Header Section - inherits base styles from layout.css */
-    .hero-header {
-        position: relative;
-        overflow: hidden;
-        margin-bottom: 0; /* Reset margin since section-full handles spacing */
-    }
-
-    /* Header animation canvas */
-    .hero-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        opacity: 0.15;
-        z-index: 1;
-    }
-
-    /* Color transition overlay */
-    .hero-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, 
-            rgba(34, 197, 94, 0.1) 0%,
-            rgba(132, 204, 22, 0.08) 25%,
-            rgba(16, 185, 129, 0.1) 50%,
-            rgba(5, 150, 105, 0.08) 75%,
-            rgba(34, 197, 94, 0.1) 100%);
-        z-index: 2;
-        animation: colorShift 15s ease-in-out infinite;
-    }
-
-    @keyframes colorShift {
-        0%, 100% { 
-            background: linear-gradient(135deg, 
-                rgba(34, 197, 94, 0.1) 0%,
-                rgba(132, 204, 22, 0.08) 25%,
-                rgba(16, 185, 129, 0.1) 50%,
-                rgba(5, 150, 105, 0.08) 75%,
-                rgba(34, 197, 94, 0.1) 100%);
-        }
-        50% { 
-            background: linear-gradient(135deg, 
-                rgba(5, 150, 105, 0.12) 0%,
-                rgba(34, 197, 94, 0.1) 25%,
-                rgba(132, 204, 22, 0.08) 50%,
-                rgba(16, 185, 129, 0.1) 75%,
-                rgba(250, 204, 21, 0.12) 100%);
-        }
-    }
-
-    /* Hero content */
-    .hero-content {
-        position: relative;
-        z-index: 3;
-        text-align: left;
-        color: var(--gray-900);
-    }
-
-    .hero-title {
-        font-size: 48px;
-        font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: var(--spacing-element);
-        letter-spacing: -0.02em;
-        color: var(--gray-900);
-    }
-
-    /* Hero author styling moved to article_styles.css - using .hero-author--green */
-
-    .hero-subtitle {
-        font-size: 20px;
-        font-weight: 400;
-        line-height: 1.6;
-        color: var(--gray-600);
-        max-width: 700px;
-        margin: 0;
-    }
+    /* Hero header styles moved to article_styles.css */
 
     /* Background animation canvas */
     .background-canvas {
@@ -348,51 +266,14 @@
         background: #059669 !important;
     }
 
-    /* Footer */
-    .footer {
-        padding: 48px 0;
-        border-top: 1px solid var(--gray-200);
-        margin-top: 80px;
-        background: var(--gray-50);
-    }
-
-    .footer-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .footer-text {
-        color: var(--gray-500);
-        font-size: 14px;
-    }
-
-    .footer-links {
-        display: flex;
-        gap: 24px;
-    }
-
-    .footer-link {
-        color: var(--gray-600);
-        text-decoration: none;
-        font-size: 14px;
-        transition: color 0.2s;
-    }
-
-    .footer-link:hover {
-        color: var(--gray-900);
-    }
+    /* Footer styles moved to article_styles.css */
 
     @media (max-width: 768px) {
         :root {
             --padding-container: 24px;
         }
         
-        .footer-content {
-            flex-direction: column;
-            gap: 24px;
-            text-align: center;
-        }
+        /* Footer responsive styles moved to article_styles.css */
         
         .hero-title {
             font-size: 36px;
@@ -419,18 +300,8 @@
 
 {% block content %}
 <div class="main-content page-content">
-    <!-- Hero Header with Gradient -->
-    <section class="hero-header">
-        <canvas id="phenotype-hero-canvas" class="hero-canvas"></canvas>
-        <div class="hero-content">
-            <h1 class="hero-title">Phenotype Prediction Patterns</h1>
-            <p class="hero-author hero-author--green">by Philipp C. Münch</p>
-            <p class="hero-subtitle">
-                Comprehensive analysis of how language models predict fundamental microbial characteristics,
-                from gram staining to pathogenicity, revealing distinct prediction patterns across different models.
-            </p>
-        </div>
-    </section>
+    <!-- Hero Header -->
+    {% include 'partials/hero_header.html' %}
 
     <!-- Article Content -->
     <article class="article-container">
@@ -638,7 +509,7 @@
     </article>
 
     <!-- Model Analysis Section - Full Width Callout -->
-    <section class="section-callout section-callout--purple">
+    <section class="section-callout section-callout--green">
         <div class="section-callout__content">
             <div class="section-callout__header">
                 <h3 class="section-callout__title">Model Phenotype Predictions</h3>
@@ -683,19 +554,7 @@
 </div>
 
 <!-- Footer -->
-<footer class="footer">
-    <div class="footer-content">
-        <div class="footer-text">
-            © 2025 - LLM-BioEval Team
-        </div>
-        <div class="footer-links">
-                <a href="/about" class="footer-link">About</a>
-                <a href="/about#contact" class="footer-link">Contact</a>
-                <a href="https://github.com/GenomeNet/microbeLLM" class="footer-link">GitHub</a>
-                <a href="/privacy" class="footer-link">Privacy</a>
-            </div>
-        </div>
-    </footer>
+{% include 'partials/footer.html' %}
 </div>
 {% endblock %}
 
@@ -2754,7 +2613,7 @@
         html += '</section>';
         
         // Re-open the callout section
-        html += '<section class="section-callout section-callout--purple">';
+        html += '<section class="section-callout section-callout--green">';
         html += '<div class="section-callout__content">';
         
         return html;

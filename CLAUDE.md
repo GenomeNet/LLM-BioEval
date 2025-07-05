@@ -27,6 +27,7 @@ The plan should have a list of todo items that you can check off as you complete
 - All pages should use a consistent, modern layout as seen in `index.html` and `research.html`.
 - The default background for all main content sections is white (`background: var(--bg-primary)`), providing a clean and minimal look.
 - Only callout boxes should have colored or gradient backgrounds; all other sections remain white.
+- Each research project has a defined color theme (`purple`, `green`, etc.) in `research_config.py` - all callout sections within a project page MUST use only that project's color theme.
 - All pages are fully responsive, with grid and flex layouts adapting to smaller screens.
 - Animations (e.g., canvas-based bacteria, DNA, or cell growth) are used for visual interest but do not interfere with content readability.
 
@@ -93,11 +94,19 @@ Indented boxes for special content with consistent styling:
 - **Phenotype Callout** (`.callout-phenotype`): Green gradient for phenotype content
 - **Methodology Callout** (`.callout-methodology`): Green-to-yellow gradient
 
+**IMPORTANT: Color Theme Consistency Rules**
+- Each research project has a defined color theme in `research_config.py`
+- All callout sections within a project page MUST use only that project's color theme
+- Knowledge calibration pages: Use ONLY purple variants (`.section-callout--purple`, `.callout-definition`, `.callout-template`)
+- Phenotype analysis pages: Use ONLY green variants (`.section-callout--green`, `.callout-phenotype`, `.callout-methodology`)
+- Never mix color themes within a single page
+
 #### Full-Width Sections
 - **Wide Section** (`.section-wide`): Full viewport width with white background
 - **Callout Section** (`.section-callout`): Full viewport width with gradient background
   - Purple variant: `.section-callout--purple` for knowledge/hallucination themes
   - Green variant: `.section-callout--green` for phenotype themes
+  - **Color theme MUST match** the project's `color_theme` setting in `research_config.py`
 - **Content Wrapper**: Use `.section-wide__content` or `.section-callout__content` inside
 - **Section Header Structure**: All section-callout boxes should include:
   - `.section-callout__header` container
