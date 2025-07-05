@@ -6564,10 +6564,6 @@
         <div id="correlationDynamicStats" class="article-text" style="margin-bottom: 48px;">
             <!-- Dynamic text for correlation analysis will be injected here -->
         </div>
-        
-        <div id="dynamic-summary-for-correlation" class="dynamic-stats" style="display: none;">
-            <!-- Populated by JavaScript -->
-        </div>
 
     </div>
 </section>
@@ -7841,12 +7837,6 @@ function renderCorrelationSummary(data) {
     const correlationStatsDiv = document.getElementById('correlationDynamicStats');
     if (correlationStatsDiv) {
         correlationStatsDiv.innerHTML = `<p>${dynamicStatsText}</p>`;
-    }
-    
-    const summaryDiv = document.getElementById('dynamic-summary-for-correlation');
-    if (summaryDiv) {
-        summaryDiv.innerHTML = `<p>${dynamicStatsText}</p>`;
-        summaryDiv.style.display = 'block';
     }
 }
 
