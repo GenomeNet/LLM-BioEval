@@ -135,7 +135,7 @@
         margin-bottom: 20px;
     }
 
-    /* Experimental Flow Diagram - Full width section */
+    /* Experimental Flow Diagram - Full width section with callout background */
     .experimental-flow-section {
         /* Use section-full from layout.css */
         width: 100vw;
@@ -144,13 +144,28 @@
         margin-top: var(--spacing-component);
         margin-bottom: var(--spacing-section);
         background: linear-gradient(135deg, 
-            rgba(99, 102, 241, 0.05) 0%,
-            rgba(168, 85, 247, 0.03) 25%,
-            rgba(59, 130, 246, 0.05) 50%,
-            rgba(147, 51, 234, 0.03) 75%,
-            rgba(79, 172, 254, 0.05) 100%);
-        border-top: 1px solid var(--gray-200);
-        border-bottom: 1px solid var(--gray-200);
+            rgba(99, 102, 241, 0.08) 0%,
+            rgba(168, 85, 247, 0.06) 25%,
+            rgba(59, 130, 246, 0.08) 50%,
+            rgba(147, 51, 234, 0.06) 75%,
+            rgba(79, 172, 254, 0.08) 100%);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(99, 102, 241, 0.2);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    /* Knowledge Analysis Section - Full width WITHOUT background */
+    .knowledge-analysis-section {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        padding: var(--spacing-section) 0;
+    }
+
+    /* Correlation Analysis Section - Full width WITHOUT background */
+    .correlation-analysis-section {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        padding: var(--spacing-section) 0;
     }
     
     .flow-diagram-wrapper {
@@ -5877,7 +5892,7 @@
         font-size: 13px;
         color: var(--gray-700);
     }
-    .histogram-legend-color {
+    .histogram-legend-color {ge
         width: 14px;
         height: 14px;
         border-radius: 4px;
@@ -5899,7 +5914,7 @@
 <header class="hero-header">
     <canvas id="hero-canvas" class="hero-canvas"></canvas>
     <div class="hero-content">
-        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial Taxonomxxxxx</h1>
+        <h1 class="hero-title">Assessing LLM Knowledge Calibration for Microbial TaxonomyC</h1>
             <div class="hero-author">by Philipp C. Münch</div>
         <p class="hero-subtitle">
             A dual test set of synthetic species and verified bacteria reveals when the model invents and when it defers.
@@ -6289,9 +6304,9 @@
     100% { transform: translateX(400%); }
 }
 
-/* Top performers section - override parent grey background */
+/* Top performers section - transparent background */
 .top-performers-section {
-    background: white !important;
+    background: transparent !important;
     border-radius: 12px;
     padding: 24px !important;
     margin: 32px 0 48px 0 !important;
@@ -6535,7 +6550,7 @@
 
 
 <!-- Knowledge Analysis Results (Full-width breakout) -->
-<section class="section-full knowledge-analysis-section" style="background: linear-gradient(to bottom, #f8f9fa, #ffffff); border-top: 1px solid var(--gray-200);">
+<section class="section-full knowledge-analysis-section">
     <div class="section-content">
         <div class="article-text" style="margin-bottom: 48px;">
              
@@ -6627,7 +6642,7 @@
 </section>
 
 <!-- Real Species Correlation Section -->
-<section id="knowledge-web-alignment" class="section-full correlation-analysis-section" style="background: linear-gradient(to bottom, #f8f9fa, #ffffff); border-top: 1px solid var(--gray-200);">
+<section id="knowledge-web-alignment" class="section-full correlation-analysis-section">
     <div class="section-content">
         <div class="explanation-section">
             <div class="explanation-grid">
