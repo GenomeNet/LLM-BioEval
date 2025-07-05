@@ -87,7 +87,7 @@ Spacing between sections and components is managed with CSS variables for consis
 
 #### Callout Boxes
 Indented boxes for special content with consistent styling:
-- **Base Callout** (`.callout`): White background, indented 120px from left, with border and shadow
+- **Base Callout** (`.callout`): Off-white background (#FAFAFA), indented 120px from left, with border and shadow
 - **Definition Callout** (`.callout-definition`): Purple gradient background for definitions
 - **Template Callout** (`.callout-template`): Alternative purple gradient
 - **Phenotype Callout** (`.callout-phenotype`): Green gradient for phenotype content
@@ -99,6 +99,12 @@ Indented boxes for special content with consistent styling:
   - Purple variant: `.section-callout--purple` for knowledge/hallucination themes
   - Green variant: `.section-callout--green` for phenotype themes
 - **Content Wrapper**: Use `.section-wide__content` or `.section-callout__content` inside
+- **Section Header Structure**: All section-callout boxes should include:
+  - `.section-callout__header` container
+  - `.section-callout__title` for the main heading (24px, bold)
+  - `.section-callout__text` for descriptive text (18px, normal)
+- **Dynamic Content Rule**: All dynamic/interactive content (charts, visualizations, tables) should be placed in callout sections rather than standard article sections
+- **Full-Width Content**: For wide tables and data that need full page width, use `.section-callout__content--full-width` instead of `.section-callout__content`
 
 #### Bar Charts
 Consistent bar chart styling with three levels of rounding:
@@ -118,12 +124,13 @@ Flexible legend system with variants:
 #### Tables
 Modern responsive tables:
 - **Table Wrapper** (`.table-responsive`): Scrollable container with border
-- **Table** (`.table`): Base table with gray header and hover states
+- **Table** (`.table`): Base table with off-white background (#FAFAFA) and headers
 - **Table Title** (`.table-title`): 16px title above tables
+- **Tables in Callouts**: When placing tables inside `.section-callout`, borders and shadows are automatically removed to maintain clean integration with the gradient background
 
 #### Paper Info Section
 Consistent paper/article metadata display:
-- **Paper Info Card** (`.paper-info-card`): White card with border, like TOC
+- **Paper Info Card** (`.paper-info-card`): Off-white card (#FAFAFA) with border, like TOC
 - **Paper Info List** (`.paper-info-list`): Styled list with dividers
 - List items show metadata with subtle styling
 
@@ -131,7 +138,12 @@ Consistent paper/article metadata display:
 - **Figure** (`.figure`): Container with consistent spacing
 - **Figure Title** (`.figure-title`): 16px bold title
 - **Figure Caption** (`.figure-caption`): 14px gray caption text
-- **Chart Container** (`.chart-container`): White bordered container for interactive elements
+- **Chart Container** (`.chart-container`): Off-white background (#FAFAFA) container for interactive elements; avoid borders on chart areas to maintain clean visual separation
+
+#### Color Guidelines for Boxes and Containers
+- **Concept Boxes**: Use off-white (#FAFAFA) instead of pure white for animations, examples, and explanatory content
+- **Table Backgrounds**: Use off-white (#FAFAFA) for table body and header backgrounds
+- **Interactive Elements**: Use off-white (#FAFAFA) for chart containers and other interactive components
 
 ### Usage Examples
 
@@ -150,7 +162,11 @@ Consistent paper/article metadata display:
 
 <section class="section-callout section-callout--purple">
   <div class="section-callout__content">
-    <!-- Full-width callout content -->
+    <div class="section-callout__header">
+      <h3 class="section-callout__title">Section Title</h3>
+      <p class="section-callout__text">Descriptive text explaining the purpose and content of this section.</p>
+    </div>
+    <!-- Main callout content -->
   </div>
 </section>
 ```

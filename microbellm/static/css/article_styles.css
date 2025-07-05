@@ -95,7 +95,7 @@
     margin: var(--spacing-component) 0;
     margin-left: calc(var(--spacing-section) * 2.5);
     padding: var(--spacing-element) calc(var(--spacing-element) * 1.167);
-    background: var(--bg-primary);
+    background: #FAFAFA;
     border: 1px solid var(--gray-200);
     border-radius: 12px;
     box-shadow: var(--shadow-sm);
@@ -215,8 +215,8 @@
     width: 100vw;
     margin-left: calc(-50vw + 50%);
     padding: var(--spacing-section) 0;
-    margin-top: var(--spacing-component);
-    margin-bottom: var(--spacing-section);
+    margin-top: 20px;
+    margin-bottom: 20px;
     backdrop-filter: blur(8px);
 }
 
@@ -250,6 +250,74 @@
     max-width: var(--container-standard);
     margin: 0 auto;
     padding: 0 var(--padding-container);
+}
+
+/* Full-width variant for tables and wide content within section-callouts */
+.section-callout__content--full-width {
+    max-width: none;
+    width: 100%;
+    padding: 0 var(--padding-container);
+}
+
+/* Section-callout header structure */
+.section-callout__header {
+    margin-bottom: var(--spacing-element);
+}
+
+/* Table fade improvements for callout backgrounds */
+.section-callout--purple .table-fade::after {
+    background: linear-gradient(to bottom, transparent, 
+        rgba(99, 102, 241, 0.15)) !important;
+}
+
+.section-callout--green .table-fade::after {
+    background: linear-gradient(to bottom, transparent, 
+        rgba(34, 197, 94, 0.15)) !important;
+}
+
+/* Expand button improvements for callout backgrounds */
+.section-callout .expand-button {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+}
+
+.section-callout .expand-button:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Remove borders and shadows from tables in callout sections */
+.section-callout .knowledge-analysis-table {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    background: transparent;
+}
+
+.section-callout .knowledge-analysis-table th {
+    border-bottom: none;
+    background: transparent;
+}
+
+.section-callout .knowledge-analysis-table td {
+    border-bottom: none;
+}
+
+.section-callout__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 8px 0;
+    text-align: left;
+    letter-spacing: -0.01em;
+}
+
+.section-callout__text {
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--gray-700);
+    margin: 0 0 24px 0;
 }
 
 /* =====================================================
@@ -482,7 +550,7 @@
 }
 
 .table thead {
-    background: var(--gray-50);
+    background: #FAFAFA;
     border-bottom: 2px solid var(--gray-200);
 }
 
@@ -500,7 +568,7 @@
 }
 
 .table tbody tr:hover {
-    background: var(--gray-50);
+    background: #FAFAFA;
 }
 
 .table tbody tr:last-child td {
@@ -521,7 +589,7 @@
 
 /* Paper info card - styled like TOC */
 .paper-info-card {
-    background: var(--bg-primary);
+    background: #FAFAFA;
     border: 1px solid var(--gray-200);
     border-radius: 8px;
     padding: var(--spacing-element);
@@ -582,7 +650,7 @@
 
 /* Chart container for interactive elements */
 .chart-container {
-    background: var(--bg-primary);
+    background: #FAFAFA;
     border: 1px solid var(--gray-200);
     border-radius: 8px;
     padding: var(--spacing-element);

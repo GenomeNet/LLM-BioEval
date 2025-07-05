@@ -253,20 +253,20 @@
         color: var(--gray-700);
     }
 
-    /* Keep existing styles that match the guide */
+    /* Loading States */
     .loading-container {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
-        padding: 60px 40px;
+        gap: var(--spacing-element);
+        padding: calc(var(--spacing-section) * 1.25) var(--spacing-component);
     }
 
     .loading-spinner {
         width: 40px;
         height: 40px;
-        border: 4px solid #e9ecef;
-        border-top: 4px solid #10b981;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid var(--bg-primary);
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
@@ -274,7 +274,7 @@
     .loading-progress {
         width: 300px;
         height: 6px;
-        background-color: #e9ecef;
+        background-color: rgba(255, 255, 255, 0.2);
         border-radius: 3px;
         overflow: hidden;
         position: relative;
@@ -282,7 +282,7 @@
 
     .loading-progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, #10b981, #059669);
+        background: linear-gradient(90deg, var(--bg-primary), rgba(255, 255, 255, 0.8));
         border-radius: 3px;
         animation: progress-slide 2s ease-in-out infinite;
         width: 30%;
@@ -301,19 +301,19 @@
 
     .loading-text {
         font-size: 16px;
-        color: #495057;
+        color: var(--bg-primary);
         font-weight: 500;
     }
 
     .empty-state {
         text-align: center;
-        padding: 60px;
-        color: #6c757d;
+        padding: calc(var(--spacing-section) * 1.25);
+        color: var(--gray-600);
     }
 
     .empty-state h3 {
-        color: #495057;
-        margin-bottom: 10px;
+        color: var(--gray-900);
+        margin-bottom: calc(var(--spacing-small) * 0.625);
     }
 
     /* Sidebar and TOC styles */
@@ -437,7 +437,7 @@
         <div class="article-main">
             <div class="article-content">
 
-            <!-- Methodology Section -->
+            <!-- Introduction Section -->
             <section class="article-section">
                 <h2 class="main-section-title">Understanding Phenotype Predictions</h2>
                 
@@ -454,13 +454,106 @@
                     requirements and pathogenicity. Understanding how well language models predict these characteristics provides insights 
                     into their biological knowledge representation.
                 </p>
-
+            </section>
+            
+            <!-- Additional Research Context -->
+            <section class="article-section">
+                <h2 class="section-title">Research Applications</h2>
+                
                 <p class="article-text">
-                    <strong>Key Phenotype Categories:</strong> Our analysis evaluates model predictions across six essential microbial 
-                    characteristics that form the foundation of bacterial classification and identification in clinical and research settings: 
-                    Gram Staining, Motility, Temperature Range, Oxygen Requirements, Metabolism, and Pathogenicity.
+                    Understanding how language models predict bacterial phenotypes has significant implications for computational 
+                    microbiology and bioinformatics research. These predictions can accelerate initial bacterial characterization, 
+                    guide experimental design, and provide insights into knowledge gaps in current biological databases.
+                </p>
+                
+                <div class="callout callout-phenotype">
+                    <div class="callout-content">
+                        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--gray-900); font-size: 16px;">Clinical Relevance</h4>
+                        <p style="margin: 0; line-height: 1.6;">
+                            Accurate phenotype predictions are crucial for clinical microbiology, where rapid identification of 
+                            bacterial characteristics can inform treatment decisions. Models that excel at predicting pathogenicity 
+                            and antibiotic resistance markers could serve as valuable preliminary screening tools.
+                        </p>
+                    </div>
+                </div>
+                
+                <p class="article-text">
+                    Future research directions include fine-tuning models on curated microbiological datasets, developing 
+                    ensemble approaches that combine multiple model predictions, and creating specialized benchmarks for 
+                    evaluating biological prediction accuracy across diverse bacterial taxa.
                 </p>
             </section>
+            
+            </div>
+        </div>
+    </article>
+
+    <!-- Overview Section - Full Width Callout -->
+    <section class="section-callout section-callout--green">
+        <div class="section-callout__content">
+            <div class="section-callout__header">
+                <h3 class="section-callout__title">Key Phenotype Categories</h3>
+                <p class="section-callout__text">Our analysis evaluates model predictions across essential microbial characteristics that form the foundation of bacterial classification and identification in clinical and research settings.</p>
+            </div>
+            
+            <div class="overview-cards">
+                <div class="overview-card">
+                    <h4 class="overview-title">Gram Staining</h4>
+                    <p class="overview-description">Fundamental bacterial classification based on cell wall structure, determining staining properties and antibiotic susceptibility.</p>
+                </div>
+                <div class="overview-card">
+                    <h4 class="overview-title">Motility</h4>
+                    <p class="overview-description">Ability of bacteria to move independently using flagella, pili, or other mechanisms, affecting colonization and virulence.</p>
+                </div>
+                <div class="overview-card">
+                    <h4 class="overview-title">Oxygen Requirements</h4>
+                    <p class="overview-description">Metabolic relationship with oxygen, from obligate aerobes to anaerobes, determining growth conditions and habitat.</p>
+                </div>
+                <div class="overview-card">
+                    <h4 class="overview-title">Temperature Range</h4>
+                    <p class="overview-description">Optimal growth temperatures defining psychrophiles, mesophiles, and thermophiles, indicating environmental adaptations.</p>
+                </div>
+                <div class="overview-card">
+                    <h4 class="overview-title">Metabolism</h4>
+                    <p class="overview-description">Energy generation pathways including fermentation, respiration, and photosynthesis, defining nutritional requirements.</p>
+                </div>
+                <div class="overview-card">
+                    <h4 class="overview-title">Pathogenicity</h4>
+                    <p class="overview-description">Ability to cause disease in hosts, from harmless commensals to obligate pathogens, crucial for clinical applications.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Standard Article Section -->
+    <article class="article-container">
+        <div class="article-main">
+            <div class="article-content">
+                <section class="article-section">
+                    <p class="article-text">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+                        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                    </p>
+                    
+                    <div class="callout callout-phenotype">
+                        <div class="callout-content" id="dynamicStatsText">
+                            <!-- This will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <p class="article-text">
+                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+                        Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    </p>
+                </section>
+            </div>
+        </div>
+    </article>
+
+    <!-- Continue with article content -->
+    <article class="article-container">
+        <div class="article-main">
+            <div class="article-content">
 
             <!-- Analysis Methodology -->
             <section class="article-section">
@@ -474,9 +567,12 @@
 
                 <div class="callout callout-methodology">
                     <div class="callout-content">
-                        <strong>Prediction Distribution Analysis:</strong> The visualizations below reveal how each model balances between 
-                        making specific phenotype predictions and admitting uncertainty. Models with higher NA rates may be more conservative, 
-                        while those with specific predictions demonstrate either greater confidence or potential overconfidence in their biological knowledge.
+                        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--gray-900); font-size: 16px;">Prediction Distribution Analysis</h4>
+                        <p style="margin: 0; line-height: 1.6;">
+                            The visualizations below reveal how each model balances between making specific phenotype predictions and 
+                            admitting uncertainty. Models with higher NA rates may be more conservative, while those with specific 
+                            predictions demonstrate either greater confidence or potential overconfidence in their biological knowledge.
+                        </p>
                     </div>
                 </div>
 
@@ -485,49 +581,104 @@
                     microbiological research and which tend to be more cautious in their assessments. This balance between 
                     specificity and uncertainty is crucial for practical applications in microbiology.
                 </p>
-            </section>
-
-            <!-- Model Analysis Section -->
-            <section class="article-section model-analysis-section">
-                <h2 class="section-title">Model Phenotype Predictions</h2>
                 
-                <!-- Dynamic statistics text -->
-                <div class="dynamic-stats" id="dynamicStatsText">
-                    <!-- This will be populated by JavaScript -->
-                </div>
-                
-                <div id="phenotypeContent">
-                    <div class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-progress">
-                            <div class="loading-progress-bar"></div>
+                <div class="callout callout-phenotype">
+                    <div class="callout-content">
+                        <canvas id="phenotype-categories-canvas" style="width: 100%; height: 200px;"></canvas>
+                        <div class="phenotype-categories-animated">
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #10b981, #059669);"></div>
+                                <div>
+                                    <div class="phenotype-name">Gram Staining</div>
+                                    <div class="phenotype-values">Positive, Negative, Variable</div>
+                                </div>
+                            </div>
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #3b82f6, #2563eb);"></div>
+                                <div>
+                                    <div class="phenotype-name">Motility</div>
+                                    <div class="phenotype-values">Motile, Non-motile</div>
+                                </div>
+                            </div>
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #a855f7, #9333ea);"></div>
+                                <div>
+                                    <div class="phenotype-name">Oxygen Requirements</div>
+                                    <div class="phenotype-values">Aerobic, Anaerobic, Facultative</div>
+                                </div>
+                            </div>
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #f59e0b, #d97706);"></div>
+                                <div>
+                                    <div class="phenotype-name">Temperature Range</div>
+                                    <div class="phenotype-values">Psychrophile, Mesophile, Thermophile</div>
+                                </div>
+                            </div>
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #ef4444, #dc2626);"></div>
+                                <div>
+                                    <div class="phenotype-name">Metabolism</div>
+                                    <div class="phenotype-values">Fermentative, Respiratory, Mixed</div>
+                                </div>
+                            </div>
+                            <div class="phenotype-item">
+                                <div class="phenotype-category-indicator" style="background: linear-gradient(to bottom, #6366f1, #4f46e5);"></div>
+                                <div>
+                                    <div class="phenotype-name">Pathogenicity</div>
+                                    <div class="phenotype-values">Pathogenic, Non-pathogenic, Opportunistic</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="loading-text">Loading phenotype prediction data...</div>
                     </div>
                 </div>
             </section>
+
+            </div>
+        </div>
+    </article>
+
+    <!-- Model Analysis Section - Full Width Callout -->
+    <section class="section-callout section-callout--purple">
+        <div class="section-callout__content">
+            <div class="section-callout__header">
+                <h3 class="section-callout__title">Model Phenotype Predictions</h3>
+                <p class="section-callout__text">Comprehensive analysis of how different language models predict bacterial phenotypes, revealing patterns in biological knowledge representation.</p>
+            </div>
+            
+            <div id="phenotypeContent">
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-progress">
+                        <div class="loading-progress-bar"></div>
+                    </div>
+                    <div class="loading-text">Loading phenotype prediction data...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Standard Article Section for Hidden Phenotypes -->
+    <article class="article-container">
+        <div class="article-main">
+            <div class="article-content">
+                <section class="article-section">
+                    <p class="article-text">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+                        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                    </p>
+                    
+                    <div id="hiddenPhenotypesSection" style="margin: 24px 0;">
+                        <!-- This will be populated by JavaScript -->
+                    </div>
+                    
+                    <p class="article-text">
+                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+                        Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    </p>
+                </section>
             </div>
         </div>
         
-        <!-- Sidebar -->
-        <aside class="article-sidebar">
-            <!-- Paper Info Card styled like TOC -->
-            <div class="toc-card paper-info-toc-card" style="margin-top: 24px;">
-                <div class="toc-header">
-                    <h3 class="toc-title">Paper Info</h3>
-                </div>
-                <div class="toc-content">
-                    <div class="paper-title" style="font-weight:600;color:#059669;margin-bottom:6px;">Comparative Assessment of Large Language Models for Microbial Phenotype Annotation
-</div>
-                    <div class="paper-authors" style="font-size:13px;color:#6b7280;margin-bottom:10px;font-style:italic;">
-                        P. C. Münch*, N. Safaei, R. Mreches, M. Binder, Y. Han, G. Robertson, E. A. Franzosa, C. Huttenhower, A. C. McHardy*
-                    </div>
-                    <a href="https://doi.org/10.1234/llm-bioeval.2024" target="_blank" class="paper-doi-link" style="display:inline-block;background:#10b981;color:#fff;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;text-decoration:none;transition:background 0.2s;">
-                        View DOI
-                    </a>
-                </div>
-            </div>
-        </aside>
     </article>
 </div>
 
@@ -643,12 +794,67 @@
         });
     }
 
-    // Initialize animation on page load
+    // Initialize animations on page load
     document.addEventListener('DOMContentLoaded', function() {
         initPhenotypeAnimation();
+        initPhenotypeCategoriesAnimation();
     });
+    
+    // Phenotype categories animation
+    function initPhenotypeCategoriesAnimation() {
+        const canvas = document.getElementById('phenotype-categories-canvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        let particles = [];
+        const colors = [
+            'rgba(16, 185, 129, 0.6)',
+            'rgba(59, 130, 246, 0.6)',
+            'rgba(168, 85, 247, 0.6)',
+            'rgba(245, 158, 11, 0.6)',
+            'rgba(239, 68, 68, 0.6)',
+            'rgba(99, 102, 241, 0.6)'
+        ];
+        
+        // Create floating particles
+        for (let i = 0; i < 30; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 3 + 1,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5
+            });
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach(particle => {
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = particle.color;
+                ctx.fill();
+                
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                
+                // Bounce off edges
+                if (particle.x < 0 || particle.x > canvas.width) particle.vx = -particle.vx;
+                if (particle.y < 0 || particle.y > canvas.height) particle.vy = -particle.vy;
+            });
+            
+            requestAnimationFrame(animateParticles);
+        }
+        
+        animateParticles();
+    }
 
-    // The phenotype analysis variables and functions are defined later in the script
+    // The phenotype analysis variables and functions are defined below
 </script>
 
 <!-- Additional orphaned CSS styles that need to be properly wrapped -->
@@ -1197,20 +1403,20 @@
     /* Modern dropdown controls */
     .simple-controls {
         display: flex;
-        gap: 16px;
-        margin-bottom: 20px;
+        gap: var(--spacing-small);
+        margin-bottom: var(--spacing-element);
         align-items: center;
         flex-wrap: wrap;
-        padding: 16px;
-        background: var(--gray-50);
+        padding: var(--spacing-small);
+        background: #FAFAFA;
         border: 1px solid var(--gray-200);
-        border-radius: 16px;
+        border-radius: 12px;
     }
     
     .control-item {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: calc(var(--spacing-small) * 0.625);
     }
     
     .control-item label {
@@ -1232,18 +1438,22 @@
     
     /* Hidden phenotypes info */
     .hidden-phenotypes-info {
-        margin-bottom: 25px;
+        margin-bottom: calc(var(--spacing-element) * 1.04);
+        padding: var(--spacing-element);
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
     }
     
     .hidden-phenotypes-info h4 {
-        margin: 0 0 10px 0;
+        margin: 0 0 calc(var(--spacing-small) * 0.625) 0;
         color: var(--gray-700);
         font-size: 14px;
         font-weight: 600;
     }
     
     .hidden-phenotypes-info p {
-        margin: 0 0 10px 0;
+        margin: 0 0 calc(var(--spacing-small) * 0.625) 0;
         color: var(--gray-600);
         font-size: 14px;
         line-height: 1.6;
@@ -1251,12 +1461,12 @@
     
     .hidden-phenotypes-info ul {
         margin: 0;
-        padding-left: 20px;
+        padding-left: var(--spacing-element);
         color: var(--gray-600);
     }
     
     .hidden-phenotypes-info li {
-        margin-bottom: 5px;
+        margin-bottom: calc(var(--spacing-small) * 0.3125);
         font-size: 14px;
     }
     
@@ -2016,20 +2226,6 @@
         const statsTarget = document.getElementById('dynamicStatsText');
         if (statsTarget) statsTarget.innerHTML = dynamicStatsText;
         
-        // Show hidden phenotypes info
-        const hiddenPhenotypes = getHiddenPhenotypes();
-        if (hiddenPhenotypes.length > 0) {
-            html += '<div class="hidden-phenotypes-info">';
-            html += '<h4>Hidden Phenotype Fields</h4>';
-            html += '<p>The following phenotype fields are not shown because they are complex multi-select data types:</p>';
-            html += '<ul>';
-            hiddenPhenotypes.forEach(phenotype => {
-                html += `<li><strong>${phenotype.name}</strong> not shown since it is datatype ${phenotype.fieldType}</li>`;
-            });
-            html += '</ul>';
-            html += '</div>';
-        }
-        
         // Consensus Agreement Ranking
         html += renderConsensusRanking(consensusAnalysis);
         
@@ -2037,6 +2233,22 @@
         html += renderDistributionsView(modelResults);
         
         content.innerHTML = html;
+        
+        // Show hidden phenotypes info in the standard article section
+        const hiddenPhenotypes = getHiddenPhenotypes();
+        const hiddenSection = document.getElementById('hiddenPhenotypesSection');
+        if (hiddenSection && hiddenPhenotypes.length > 0) {
+            let hiddenHtml = '<div class="hidden-phenotypes-info">';
+            hiddenHtml += '<h4>Hidden Phenotype Fields</h4>';
+            hiddenHtml += '<p>The following phenotype fields are not shown because they are complex multi-select data types:</p>';
+            hiddenHtml += '<ul>';
+            hiddenPhenotypes.forEach(phenotype => {
+                hiddenHtml += `<li><strong>${phenotype.name}</strong> not shown since it is datatype ${phenotype.fieldType}</li>`;
+            });
+            hiddenHtml += '</ul>';
+            hiddenHtml += '</div>';
+            hiddenSection.innerHTML = hiddenHtml;
+        }
     }
     
     function generatePhenotypeLegend(phenotypeKey) {
@@ -2521,13 +2733,13 @@
     }
     
     function renderDistributionsView(modelResults) {
-        // Display results in a grid layout
-        let html = '<div class="phenotype-section">';
-        html += '<h2>Model Prediction Distributions by Phenotype</h2>';
+        // Display results in a grid layout with full-width section
+        let html = '</div></div>'; // Close section-callout__content and section-callout
         
-        // Break out of article-content constraint for the grid
-        html += '</div></div></div>'; // Close article-content, article-main, article-container
-        html += '<div class="phenotype-grid-container" style="max-width: var(--container-wide); margin: 0 auto; padding: 0 var(--padding-container);">';
+        // Create new full-width section for distributions
+        html += '<section class="section-wide">';
+        html += '<div class="section-wide__content">';
+        html += '<h2 class="section-title" style="text-align: center; margin-bottom: var(--spacing-section);">Model Prediction Distributions by Phenotype</h2>';
         html += '<div class="phenotype-grid">';
         
         // Filter phenotypes by visible field types
@@ -2539,7 +2751,11 @@
         
         html += '</div>';
         html += '</div>';
-        html += '<article class="article-container"><div class="article-main"><div class="article-content">'; // Re-open containers
+        html += '</section>';
+        
+        // Re-open the callout section
+        html += '<section class="section-callout section-callout--purple">';
+        html += '<div class="section-callout__content">';
         
         return html;
     }
