@@ -84,33 +84,56 @@
         
         function animateSpecies() {
             const step = animationSteps[currentStep];
+            const prevStep = currentStep > 0 ? animationSteps[currentStep - 1] : animationSteps[animationSteps.length - 1];
             
-            // Fade out
-            genusElement.style.opacity = '0';
-            speciesElement.style.opacity = '0';
+            // Check what's changing
+            const genusChanging = prevStep.genus !== step.genus && !step.genus.includes('skeleton-word');
+            const speciesChanging = prevStep.species !== step.species && !step.species.includes('skeleton-word');
+            const isSkeletonStep = step.genus.includes('skeleton-word') || step.species.includes('skeleton-word');
+            
+            // Update label with fade
             labelElement.style.opacity = '0';
-            
             setTimeout(() => {
+                labelElement.textContent = step.label;
+                labelElement.style.opacity = '1';
+            }, 150);
+            
+            if (isSkeletonStep) {
+                // Direct replacement for skeleton steps
                 genusElement.innerHTML = step.genus;
                 speciesElement.innerHTML = step.species;
-                labelElement.textContent = step.label;
-                
-                genusElement.className = 'genus-part ' + step.genusClass;
-                speciesElement.className = 'species-part ' + step.speciesClass;
-                
-                // Reset color for non-fictional parts
-                if (!step.genusClass.includes('fictional')) {
-                    genusElement.style.color = '#059669';
+            } else {
+                // Add transforming effect before changing
+                if (genusChanging) {
+                    genusElement.classList.add('transforming-text');
                 }
-                if (!step.speciesClass.includes('fictional')) {
-                    speciesElement.style.color = '#059669';
+                if (speciesChanging) {
+                    speciesElement.classList.add('transforming-text');
                 }
                 
-                // Fade in
-                genusElement.style.opacity = '1';
-                speciesElement.style.opacity = '1';
-                labelElement.style.opacity = '1';
-            }, 300);
+                // Change content after brief delay
+                setTimeout(() => {
+                    genusElement.innerHTML = step.genus;
+                    speciesElement.innerHTML = step.species;
+                    
+                    genusElement.className = 'genus-part ' + step.genusClass;
+                    speciesElement.className = 'species-part ' + step.speciesClass;
+                    
+                    // Reset color for non-fictional parts
+                    if (!step.genusClass.includes('fictional')) {
+                        genusElement.style.color = '#059669';
+                    }
+                    if (!step.speciesClass.includes('fictional')) {
+                        speciesElement.style.color = '#059669';
+                    }
+                    
+                    // Remove transforming effect
+                    setTimeout(() => {
+                        genusElement.classList.remove('transforming-text');
+                        speciesElement.classList.remove('transforming-text');
+                    }, 300);
+                }, 150);
+            }
             
             currentStep = (currentStep + 1) % animationSteps.length;
         }
