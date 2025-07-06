@@ -130,30 +130,33 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
     
     // Create compact table layout for each template
     templateArray.forEach((templateName, templateIndex) => {
-        html += `<section class="section-callout section-callout--purple">`;
-        html += `<div class="section-callout__content section-callout__content--full-width">`;
+        // Add spacing between templates
+        if (templateIndex > 0) {
+            html += '<div style="margin: 40px 0;"></div>';
+        }
+        
+        // Simple structure without section-callout wrapper
+        html += `<div class="template-analysis-section">`;
         
         // Section header with title and description
-        html += `<div class="section-callout__header">`;
-        html += `<h3 class="section-callout__title">`;
+        html += `<h3 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">`;
         html += `<a href="/templates" class="template-header-link" onclick="scrollToTemplate('${templateName}')" style="color: inherit; text-decoration: none;">${templateName}</a>`;
         html += `</h3>`;
-        html += `<p class="section-callout__text">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
-        html += `</div>`;
+        html += `<p style="font-size: 16px; color: #6b7280; line-height: 1.6; margin-bottom: 24px;">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
         
         html += createBarChartLegend();
         
-        html += `<div class="table-fade" id="table-fade-${templateIndex}">`;
-        html += `<table class="knowledge-analysis-table">`;
+        html += `<div class="table-fade" id="table-fade-${templateIndex}" style="margin-top: 16px;">`;
+        html += `<table class="knowledge-analysis-table" style="width: 100%; border-collapse: collapse;">`;
         
         // Header row
-        html += `<thead><tr>`;
-        html += `<th>Model</th>`;
+        html += `<thead><tr style="border-bottom: 1px solid #f3f4f6;">`;
+        html += `<th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">MODEL</th>`;
         inputTypeArray.forEach(inputType => {
             const displayType = formatTypeName(inputType);
-            html += `<th>${displayType}</th>`;
+            html += `<th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">${displayType.toUpperCase()}</th>`;
         });
-        html += `<th style="text-align: center; width: 120px;">Quality Score</th>`;
+        html += `<th style="padding: 12px 8px; text-align: center; width: 120px; font-weight: 500; color: #9ca3af; font-size: 13px;">QUALITY SCORE</th>`;
         html += `</tr></thead>`;
         
         // Data rows
@@ -202,25 +205,25 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         
         modelScores.forEach(({modelName, templates, averageQualityScore, qualityScore, totalSamples}, index) => {
             const isHidden = index >= 3;
-            html += `<tr class="${isHidden ? 'hidden-row' : ''}">`;
-            html += `<td class="model-name-cell">${modelName.split('/').pop()}</td>`;
+            html += `<tr class="${isHidden ? 'hidden-row' : ''}" style="border-bottom: 1px solid #fafafa;">`;
+            html += `<td style="padding: 16px 8px; font-weight: 500; color: #111827;">${modelName.split('/').pop()}</td>`;
             
             inputTypeArray.forEach(inputType => {
-                html += `<td class="chart-cell">`;
+                html += `<td style="padding: 16px 8px;">`;
                 if (templates[inputType]) {
                     html += createKnowledgeBarChart(templates[inputType]);
                 } else {
-                    html += '<div class="no-data">No data</div>';
+                    html += '<div style="text-align: center; color: #9ca3af; font-size: 13px;">No data</div>';
                 }
                 html += `</td>`;
             });
             
             // Add quality score column
-            html += `<td class="quality-score-cell">`;
+            html += `<td style="padding: 16px 8px; text-align: center;">`;
             if (totalSamples > 0) {
-                html += `<span class="quality-score-value">${averageQualityScore.toFixed(2)}</span>`;
+                html += `<span style="font-weight: 600; color: #7c3aed; font-size: 16px;">${averageQualityScore.toFixed(2)}</span>`;
             } else {
-                html += '<span style="color: #6c757d; font-style: italic; font-size: 11px;">No data</span>';
+                html += '<span style="color: #9ca3af; font-size: 13px;">No data</span>';
             }
             html += `</td>`;
             
@@ -230,10 +233,22 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         
         // Add expand/collapse button if there are more than 3 models
         if (modelScores.length > 3) {
-            html += `<div class="table-controls">`;
-            html += `<button class="expand-button" onclick="toggleTableExpansion(this, ${templateIndex})">`;
+            html += `<div style="text-align: center; margin-top: 24px;">`;
+            html += `<button onclick="toggleTableExpansion(this, ${templateIndex})" style="
+                background: transparent;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-size: 14px;
+                color: #6b7280;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.2s;
+            " onmouseover="this.style.borderColor='#d1d5db'; this.style.color='#4b5563';" onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#6b7280';">`;
             html += `<span>Show ${modelScores.length - 3} more models</span>`;
-            html += `<svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">`;
+            html += `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">`;
             html += `<path d="M6 9l6 6 6-6"/>`;
             html += `</svg>`;
             html += `</button>`;
@@ -242,7 +257,6 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         
         html += `</div>`;
         html += `</div>`;
-        html += `</section>`;
     });
     
     return html;
