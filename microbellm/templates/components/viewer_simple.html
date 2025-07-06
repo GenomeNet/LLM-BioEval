@@ -182,21 +182,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Strip section-callout wrapper from raw component if present
     const rawContainer = document.getElementById('raw-component-container');
     if (rawContainer) {
-        const sectionCallout = rawContainer.querySelector('.section-callout');
-        if (sectionCallout) {
-            console.log('Found section-callout in raw component, extracting inner content...');
-            const innerContent = sectionCallout.querySelector('.section-callout__content');
-            if (innerContent) {
-                // Clone the content first
-                const contentClone = innerContent.cloneNode(true);
-                // Extract just the content without the header
-                const header = contentClone.querySelector('.section-callout__header');
-                if (header) {
-                    header.remove();
+        // Check for multiple section-callouts (like in full_template_tables)
+        const sectionCallouts = rawContainer.querySelectorAll('.section-callout');
+        if (sectionCallouts.length > 0) {
+            console.log(`Found ${sectionCallouts.length} section-callout(s) in raw component, extracting inner content...`);
+            
+            // Collect all inner content without wrappers
+            let combinedContent = '';
+            sectionCallouts.forEach((sectionCallout, index) => {
+                const innerContent = sectionCallout.querySelector('.section-callout__content');
+                if (innerContent) {
+                    // Clone the content
+                    const contentClone = innerContent.cloneNode(true);
+                    // Remove headers if present
+                    const header = contentClone.querySelector('.section-callout__header');
+                    if (header) {
+                        header.remove();
+                    }
+                    // Add spacing between sections
+                    if (index > 0) {
+                        combinedContent += '<div style="margin: 20px 0;"></div>';
+                    }
+                    combinedContent += contentClone.innerHTML;
                 }
-                // Move the inner content directly to the container
-                rawContainer.innerHTML = contentClone.innerHTML;
-            }
+            });
+            
+            // Replace with combined content
+            rawContainer.innerHTML = combinedContent;
         }
     }
     
@@ -279,6 +291,16 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.error('initTopPerformers not found');
             }
+        {% elif section.id == 'worst_performers' %}
+            console.log('Initializing worst_performers...');
+            if (typeof window.initWorstPerformers === 'function') {
+                window.initWorstPerformers();
+            } else {
+                console.error('initWorstPerformers not found');
+            }
+        {% elif section.id == 'full_template_tables' %}
+            console.log('Initializing full_template_tables...');
+            // No specific init function needed, it auto-initializes on DOMContentLoaded
         {% endif %}
     {% endif %}
     
