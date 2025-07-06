@@ -159,7 +159,7 @@ Color Theme: {{ manifest.page_config.color_theme }}
     </div>
     
     <h2>Raw Component (No Background):</h2>
-    <div class="component-container">
+    <div class="component-container" id="raw-component-container">
         {% include 'research/' + page + '/' + section.file %}
     </div>
     
@@ -188,6 +188,25 @@ console.log('Simple viewer loaded for component:', '{{ section.id }}');
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM ready, checking for component initialization...');
+    
+    // Strip section-callout wrapper from raw component if present
+    const rawContainer = document.getElementById('raw-component-container');
+    if (rawContainer) {
+        const sectionCallout = rawContainer.querySelector('.section-callout');
+        if (sectionCallout) {
+            console.log('Found section-callout in raw component, extracting inner content...');
+            const innerContent = sectionCallout.querySelector('.section-callout__content');
+            if (innerContent) {
+                // Extract just the content without the header
+                const header = innerContent.querySelector('.section-callout__header');
+                if (header) {
+                    header.remove();
+                }
+                // Move the inner content directly to the container
+                rawContainer.innerHTML = innerContent.innerHTML;
+            }
+        }
+    }
     
     // For components with duplicate IDs, we need special handling
     {% if section.id == 'hello_world_dynamic' %}

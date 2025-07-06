@@ -25,7 +25,7 @@
 /* Loading animation styles */
 .loading-container {
     text-align: center;
-    padding: 60px 20px;
+    padding: 40px 20px;
 }
 
 .loading-progress {
@@ -259,10 +259,10 @@
         // Create overview section
         let html = `
         <div class="knowledge-analysis-overview">
-            <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Performance Overview</h3>
-            <p class="article-text" style="margin-bottom: 24px;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
+            <h3 class="section-title" style="font-size: 24px; margin-bottom: 12px;">Model Performance Overview</h3>
+            <p class="article-text" style="margin-bottom: 20px;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
             
-            <div class="summary-stats" style="display: flex; gap: 48px; margin-bottom: 32px;">
+            <div class="summary-stats" style="display: flex; gap: 48px; margin-bottom: 24px;">
                 <div style="text-align: center;">
                     <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${sortedModels.length}</div>
                     <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Models Tested</div>
@@ -280,17 +280,17 @@
         
         // Add model ranking table
         html += `
-            <div class="model-ranking-table">
-                <h4 style="font-size: 18px; margin-bottom: 16px; font-weight: 600;">Complete Model Ranking</h4>
-                <div class="table-wrapper" style="margin-top: 24px;">
+            <div class="model-ranking-table" style="margin-top: 32px;">
+                <h4 style="font-size: 18px; margin-bottom: 20px; font-weight: 600;">Complete Model Ranking</h4>
+                <div class="table-wrapper" style="background: transparent;">
                     <table class="ranking-table" style="width: 100%; border-collapse: collapse; background: transparent;">
                         <thead>
-                            <tr style="border-bottom: 2px solid #e5e7eb;">
-                                <th style="width: 60px; padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Rank</th>
-                                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Model</th>
-                                <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #6b7280;">Quality Score</th>
-                                <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #6b7280;">Total Samples</th>
-                                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Knowledge Distribution</th>
+                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                <th style="width: 60px; padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">RANK</th>
+                                <th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">MODEL</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">QUALITY SCORE</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">SAMPLES</th>
+                                <th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">KNOWLEDGE DISTRIBUTION</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -335,8 +335,10 @@
         </div>
         `;
         
-        // Add the template analysis tables
+        // Add the template analysis tables with spacing
+        html += '<div style="margin-top: 48px;">';
         html += renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData);
+        html += '</div>';
         
         container.innerHTML = html;
     }
@@ -355,16 +357,16 @@
         // Create compact table layout for each template
         templateArray.forEach((templateName, templateIndex) => {
             // Section header with title and description
-            html += `<div class="template-section-header" style="margin-top: 48px;">`;
-            html += `<h3 class="template-section-title">${templateName}</h3>`;
-            html += `<p class="template-section-description">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
+            html += `<div class="template-section-header" style="margin-top: 48px; margin-bottom: 24px;">`;
+            html += `<h3 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">${templateName}</h3>`;
+            html += `<p style="font-size: 16px; color: #6b7280; line-height: 1.6;">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
             html += `</div>`;
             
             html += createBarChartLegend();
             
-            html += `<div class="table-fade" id="table-fade-${templateIndex}">`;
-            html += `<div class="table-responsive">`;
-            html += `<table class="table">`;
+            html += `<div class="table-fade" id="table-fade-${templateIndex}" style="margin-top: 16px;">`;
+            html += `<div style="overflow-x: auto;">`;
+            html += `<table style="width: 100%; border-collapse: collapse; background: transparent;">`;
             
             // Header row
             html += `<thead><tr>`;
