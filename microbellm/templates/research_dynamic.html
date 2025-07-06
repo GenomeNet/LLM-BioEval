@@ -37,6 +37,19 @@ main.main-content {
     margin-bottom: var(--spacing-section);
     overflow: visible !important; /* Allow background to extend */
 }
+
+/* Reduce spacing when section-callout follows article content */
+.article-container + .section-callout,
+.article-content + .section-callout,
+.main-content + .section-callout,
+.article-section-spacing + .section-callout {
+    margin-top: 0;
+}
+
+/* Also reduce spacing between consecutive section-callouts */
+.section-callout + .section-callout {
+    margin-top: 0;
+}
 /* Ensure the content wrapper aligns with article content */
 .section-callout__content {
     max-width: 1500px; /* Same as article container */
