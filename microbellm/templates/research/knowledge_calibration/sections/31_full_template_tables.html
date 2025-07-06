@@ -2,6 +2,121 @@
     <!-- Full template analysis tables will be rendered here -->
 </div>
 
+<style>
+/* Loading animation styles */
+.loading-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background: #f3f4f6;
+    border-radius: 2px;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background: #7c3aed;
+    width: 30%;
+    border-radius: 2px;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+
+.loading-text {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* Bar chart styles for knowledge levels */
+.bar-chart-wrapper {
+    background: transparent;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #f3f4f6;
+}
+
+.bar-chart-segments {
+    display: flex;
+    height: 24px;
+    width: 100%;
+    font-size: 11px;
+    font-weight: 500;
+    color: white;
+    line-height: 24px;
+    text-align: center;
+}
+
+.bar-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.bar-segment:hover {
+    opacity: 0.9;
+}
+
+/* Knowledge level colors */
+.knowledge-na {
+    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+    color: #6b7280;
+}
+
+.knowledge-limited {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #806520;
+}
+
+.knowledge-moderate {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+.knowledge-extensive {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.knowledge-failed {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+/* Hide rows by default */
+.hidden-row {
+    display: none;
+}
+
+.hidden-row.show {
+    display: table-row;
+}
+
+/* Tooltip styles */
+.bar-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    display: none;
+}
+</style>
+
 <script>
 function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) {
     let html = '';
@@ -194,32 +309,143 @@ function toggleTableExpansion(button, templateIndex) {
     }
 }
 
+// Transform API data to expected format
+function transformKnowledgeData(knowledgeAnalysis) {
+    console.log('[FullTemplateTables] Transforming data...');
+    const modelData = {};
+    const templateSet = new Set();
+    const inputTypeSet = new Set();
+    
+    // Process only files with type columns
+    Object.entries(knowledgeAnalysis).forEach(([fileName, fileData]) => {
+        if (!fileData.has_type_column || !fileData.types) {
+            return;
+        }
+        
+        // Process each input type
+        Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+            inputTypeSet.add(inputType);
+            
+            // Process each template
+            Object.entries(templateData).forEach(([templateName, models]) => {
+                templateSet.add(templateName);
+                
+                // Process each model
+                Object.entries(models).forEach(([modelName, stats]) => {
+                    // Initialize model data structure if needed
+                    if (!modelData[modelName]) {
+                        modelData[modelName] = {};
+                    }
+                    if (!modelData[modelName][templateName]) {
+                        modelData[modelName][templateName] = {};
+                    }
+                    
+                    // Store the stats
+                    modelData[modelName][templateName][inputType] = stats;
+                });
+            });
+        });
+    });
+    
+    return {
+        modelData: modelData,
+        templateArray: Array.from(templateSet).sort(),
+        inputTypeArray: Array.from(inputTypeSet).sort()
+    };
+}
+
 // Load tables when knowledge data is available
 document.addEventListener('DOMContentLoaded', function() {
-    // Wait for knowledge data to be loaded
-    const checkDataInterval = setInterval(function() {
-        if (window.knowledgeData) {
-            clearInterval(checkDataInterval);
-            const container = document.getElementById('fullTemplateTablesContainer');
-            if (container && window.knowledgeData.templateArray && window.knowledgeData.inputTypeArray && window.knowledgeData.modelData) {
-                container.innerHTML = renderTemplateAnalysisTables(
-                    window.knowledgeData.templateArray,
-                    window.knowledgeData.inputTypeArray,
-                    window.knowledgeData.modelData
-                );
-            }
-        }
-    }, 100);
+    const container = document.getElementById('fullTemplateTablesContainer');
+    if (!container) return;
     
-    // Stop checking after 10 seconds
-    setTimeout(function() {
-        clearInterval(checkDataInterval);
-    }, 10000);
+    // Check if we're in component viewer context
+    const isComponentViewer = window.location.pathname.includes('/components/');
+    
+    if (isComponentViewer || !window.knowledgeData) {
+        // Fetch data directly if in component viewer or data not available
+        console.log('[FullTemplateTables] Fetching data directly...');
+        container.innerHTML = '<div class="loading-container"><div class="loading-progress"><div class="loading-progress-bar"></div></div><div class="loading-text">Loading template analysis data...</div></div>';
+        
+        fetch('/api/knowledge_analysis_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.knowledge_analysis) {
+                    const transformedData = transformKnowledgeData(data.knowledge_analysis);
+                    window.knowledgeData = transformedData; // Store globally
+                    container.innerHTML = renderTemplateAnalysisTables(
+                        transformedData.templateArray,
+                        transformedData.inputTypeArray,
+                        transformedData.modelData
+                    );
+                } else {
+                    container.innerHTML = '<div class="error-message">No knowledge analysis data available</div>';
+                }
+            })
+            .catch(error => {
+                console.error('[FullTemplateTables] Failed to load data:', error);
+                container.innerHTML = '<div class="error-message">Failed to load template analysis data</div>';
+            });
+    } else {
+        // Use existing data
+        const checkDataInterval = setInterval(function() {
+            if (window.knowledgeData) {
+                clearInterval(checkDataInterval);
+                if (window.knowledgeData.templateArray && window.knowledgeData.inputTypeArray && window.knowledgeData.modelData) {
+                    container.innerHTML = renderTemplateAnalysisTables(
+                        window.knowledgeData.templateArray,
+                        window.knowledgeData.inputTypeArray,
+                        window.knowledgeData.modelData
+                    );
+                }
+            }
+        }, 100);
+        
+        // Stop checking after 10 seconds
+        setTimeout(function() {
+            clearInterval(checkDataInterval);
+        }, 10000);
+    }
 });
 
 // Helper function to format type names
 function formatTypeName(typeName) {
-    return typeName.charAt(0).toUpperCase() + typeName.slice(1);
+    // Format type names for display
+    const typeDescriptions = {
+        'random_words': 'Random Words',
+        'latin_random_words': 'Fictional Latin',
+        'real_genus_latin_strain': 'Real Genus + Fake Species',
+        'latin_genus_real_strain': 'Fake Genus + Real Species'
+    };
+    return typeDescriptions[typeName] || typeName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Create bar chart legend
+function createBarChartLegend() {
+    return `
+        <div class="legend" style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                <span>Extensive</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                <span>Moderate</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                <span>Limited</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                <span>NA</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                <span>Failed</span>
+            </div>
+        </div>
+    `;
 }
 
 // Bar tooltip functions
