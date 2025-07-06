@@ -260,22 +260,7 @@
         let html = `
         <div class="knowledge-analysis-overview">
             <h3 class="section-title" style="font-size: 24px; margin-bottom: 12px;">Model Performance Overview</h3>
-            <p class="article-text" style="margin-bottom: 20px;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
-            
-            <div class="summary-stats" style="display: flex; gap: 48px; margin-bottom: 24px;">
-                <div style="text-align: center;">
-                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${sortedModels.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Models Tested</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${templateArray.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Query Templates</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${inputTypeArray.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Input Types</div>
-                </div>
-            </div>
+            <p class="article-text" style="margin-bottom: 0;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
         `;
         
         // Add model ranking table
