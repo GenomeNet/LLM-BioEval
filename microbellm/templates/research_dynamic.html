@@ -25,32 +25,33 @@ html, body {
     padding: 0;
 }
 
-/* Consistent section spacing */
+/* No spacing between sections - let content handle it */
 .page-section {
-    margin-bottom: 10px;
+    margin: 0;
+    padding: 0;
 }
 
-/* Remove margin from last section */
-.page-section:last-child {
-    margin-bottom: 0;
-}
-
-/* Full-width sections */
+/* Full-width sections with minimal padding */
 .section-callout {
     width: 100vw !important;
     position: relative !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    padding: 48px 0 !important;
+    padding: 24px 0 !important;
     margin: 0 !important;
     overflow: visible !important;
 }
 
-/* Article containers simplified */
+/* Article containers with minimal padding */
 .article-container {
     max-width: 1500px;
     margin: 0 auto;
-    padding: 48px;
+    padding: 16px 48px;
+}
+
+/* Small gap between consecutive sections */
+.page-section + .page-section {
+    margin-top: 8px;
 }
 
 /* Remove all component-specific margins */
