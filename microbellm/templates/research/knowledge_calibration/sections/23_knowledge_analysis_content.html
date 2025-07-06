@@ -16,6 +16,110 @@
     </div>
 </section>
 
+<style>
+/* Clean, plain table styling */
+.hidden-row {
+    display: none;
+}
+
+/* Loading animation styles */
+.loading-container {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background: #f3f4f6;
+    border-radius: 2px;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background: #7c3aed;
+    width: 30%;
+    border-radius: 2px;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+
+.loading-text {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* Bar chart styles */
+.bar-chart-container {
+    background: transparent;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #f3f4f6;
+}
+
+.bar-chart-segments {
+    display: flex;
+    height: 24px;
+    width: 100%;
+    font-size: 11px;
+    font-weight: 500;
+    color: white;
+}
+
+.bar-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.bar-segment:hover {
+    opacity: 0.9;
+}
+
+.bar-segment.na {
+    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+    color: #6b7280;
+}
+
+.bar-segment.limited {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #806520;
+}
+
+.bar-segment.moderate {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+.bar-segment.extensive {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.bar-segment.failed {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+.bar-number {
+    font-size: 10px;
+    display: none;
+}
+
+.bar-segment.show-number .bar-number {
+    display: inline;
+}
+</style>
+
 <script>
 // Self-contained script for knowledge analysis content
 (function() {
@@ -158,18 +262,18 @@
             <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Performance Overview</h3>
             <p class="article-text" style="margin-bottom: 24px;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
             
-            <div class="summary-stats" style="display: flex; gap: 24px; margin-bottom: 32px;">
-                <div style="background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; flex: 1; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: #7c3aed;">${sortedModels.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 4px;">Models Tested</div>
+            <div class="summary-stats" style="display: flex; gap: 48px; margin-bottom: 32px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${sortedModels.length}</div>
+                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Models Tested</div>
                 </div>
-                <div style="background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; flex: 1; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: #7c3aed;">${templateArray.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 4px;">Query Templates</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${templateArray.length}</div>
+                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Query Templates</div>
                 </div>
-                <div style="background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; flex: 1; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: #7c3aed;">${inputTypeArray.length}</div>
-                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 4px;">Input Types</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700; color: #7c3aed; line-height: 1;">${inputTypeArray.length}</div>
+                    <div style="font-size: 14px; color: var(--gray-600); margin-top: 8px;">Input Types</div>
                 </div>
             </div>
         `;
@@ -177,16 +281,16 @@
         // Add model ranking table
         html += `
             <div class="model-ranking-table">
-                <h4 style="font-size: 18px; margin-bottom: 16px;">Complete Model Ranking</h4>
-                <div class="table-responsive">
-                    <table class="table">
+                <h4 style="font-size: 18px; margin-bottom: 16px; font-weight: 600;">Complete Model Ranking</h4>
+                <div class="table-wrapper" style="margin-top: 24px;">
+                    <table class="ranking-table" style="width: 100%; border-collapse: collapse; background: transparent;">
                         <thead>
-                            <tr>
-                                <th style="width: 60px;">Rank</th>
-                                <th>Model</th>
-                                <th style="text-align: center;">Quality Score</th>
-                                <th style="text-align: center;">Total Samples</th>
-                                <th>Knowledge Distribution</th>
+                            <tr style="border-bottom: 2px solid #e5e7eb;">
+                                <th style="width: 60px; padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Rank</th>
+                                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Model</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #6b7280;">Quality Score</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #6b7280;">Total Samples</th>
+                                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #6b7280;">Knowledge Distribution</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -197,14 +301,14 @@
         sortedModels.slice(0, displayCount).forEach((model, index) => {
             const displayName = model.modelName.split('/').pop();
             html += `
-                <tr>
-                    <td style="text-align: center; font-weight: 600; color: var(--gray-600);">${index + 1}</td>
-                    <td class="model-name-cell">${displayName}</td>
-                    <td style="text-align: center;">
-                        <span class="quality-score-value">${model.averageQualityScore.toFixed(2)}</span>
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 16px 8px; text-align: center; font-weight: 600; color: #9ca3af;">${index + 1}</td>
+                    <td style="padding: 16px 8px; font-weight: 500; color: #111827;">${displayName}</td>
+                    <td style="padding: 16px 8px; text-align: center;">
+                        <span style="font-weight: 600; color: #7c3aed; font-size: 16px;">${model.averageQualityScore.toFixed(2)}</span>
                     </td>
-                    <td style="text-align: center; color: var(--gray-600);">${model.totalSamples}</td>
-                    <td>${createKnowledgeBarChart(model.distribution)}</td>
+                    <td style="padding: 16px 8px; text-align: center; color: #6b7280;">${model.totalSamples}</td>
+                    <td style="padding: 16px 8px;">${createKnowledgeBarChart(model.distribution)}</td>
                 </tr>
             `;
         });
@@ -549,20 +653,21 @@
 function toggleTableExpansion(button, tableIndex) {
     const tableFade = document.getElementById(`table-fade-${tableIndex}`);
     const hiddenRows = tableFade.querySelectorAll('.hidden-row');
-    const isExpanded = button.classList.contains('expanded');
+    const isExpanded = button.dataset.expanded === 'true';
     
     hiddenRows.forEach(row => {
         row.style.display = isExpanded ? 'none' : 'table-row';
     });
     
-    button.classList.toggle('expanded');
+    button.dataset.expanded = !isExpanded;
     const span = button.querySelector('span');
+    const svg = button.querySelector('svg');
     if (isExpanded) {
         span.textContent = `Show ${hiddenRows.length} more models`;
-        button.querySelector('.expand-icon').style.transform = 'rotate(0deg)';
+        svg.style.transform = 'rotate(0deg)';
     } else {
         span.textContent = 'Show less';
-        button.querySelector('.expand-icon').style.transform = 'rotate(180deg)';
+        svg.style.transform = 'rotate(180deg)';
     }
 }
 

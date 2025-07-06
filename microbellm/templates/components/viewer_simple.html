@@ -114,6 +114,26 @@
     .section-callout .flow-diagram {
         justify-content: flex-start !important; /* Align to start like header */
     }
+    
+    /* Remove extra margin from performer sections */
+    .top-performers-section,
+    .worst-performers-section {
+        margin-bottom: 0 !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Remove margins from the section title */
+    .top-performers-section .section-title,
+    .worst-performers-section .section-title {
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    
+    /* Tighten up spacing on article text */
+    .top-performers-section .article-text,
+    .worst-performers-section .article-text {
+        margin-bottom: 16px !important;
+    }
 </style>
 {% endblock %}
 

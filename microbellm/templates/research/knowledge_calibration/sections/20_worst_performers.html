@@ -15,7 +15,10 @@
     // Wait a bit for DOM to settle
     setTimeout(function() {
         console.log('[WorstPerformers] Looking for container...');
-        initializeWorstPerformers();
+        // Do not auto-init in component viewer context
+        if (!window.location.pathname.includes('/components/')) {
+            initializeWorstPerformers();
+        }
     }, 100);
     
     // Function to find container with fallback
@@ -43,6 +46,9 @@
         console.log('[WorstPerformers] Initializing...');
         loadWorstPerformers();
     }
+
+    // Expose initialization function for component viewer
+    window.initWorstPerformers = initializeWorstPerformers;
     // Transform knowledge data from API format to expected format
     function transformKnowledgeData(knowledgeAnalysis) {
         console.log('[WorstPerformers] Transforming data...');
@@ -164,6 +170,34 @@
         return html;
     }
     
+    // Create bar chart legend
+    function createBarChartLegend() {
+        return `
+            <div class="legend">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                    <span>Extensive</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                    <span>Moderate</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                    <span>Limited</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                    <span>NA</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                    <span>Failed</span>
+                </div>
+            </div>
+        `;
+    }
+    
     // Render worst performers
     function renderWorstPerformers(data) {
         console.log('[WorstPerformers] Rendering data...');
@@ -190,28 +224,33 @@
         }
         
         let worstPerformersHtml = `
-            <div class="performers-list">
-        `;
+<div class="worst-performers-section">
+    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Models Needing Improvement</h3>
+    <p class="article-text" style="margin-bottom: 24px;">These models showed the poorest performance in identifying fictional species, often claiming extensive knowledge about bacteria that don't exist. These models would benefit most from improved training on handling unknown entities.</p>
+    ${createBarChartLegend()}
+    <div class="performers-list">
+    `;
         
         worst2Models.reverse().forEach((model, index) => {
             const rank = sortedModels.length - index;
             const displayName = model.modelName.split('/').pop();
             worstPerformersHtml += `
-            <div class="performer-card worst">
-                <div class="performer-rank">${rank}</div>
-                <div style="flex: 1;">
-                    <div class="performer-name">${displayName}</div>
-                    <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
-                    <div class="performer-dist-chart" style="margin-top: 12px;">
-                        ${createKnowledgeBarChart(model.distribution)}
-                    </div>
+        <div class="performer-card worst">
+            <div class="performer-rank">${rank}</div>
+            <div style="flex: 1;">
+                <div class="performer-name">${displayName}</div>
+                <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
+                <div class="performer-dist-chart" style="margin-top: 12px;">
+                    ${createKnowledgeBarChart(model.distribution)}
                 </div>
             </div>
-            `;
+        </div>
+        `;
         });
         
         worstPerformersHtml += `
-            </div>
+    </div>
+</div>
         `;
         
         container.innerHTML = worstPerformersHtml;
@@ -253,7 +292,11 @@
         }
     }
     
-    // Don't auto-load, wait for initialization
-    // Component will be initialized by the setTimeout above
+    // The component is initialized by the setTimeout above or by the viewer
 })();
+
+// Call init function if it exists, for component viewer
+if (typeof window.initWorstPerformers === 'function') {
+    window.initWorstPerformers();
+}
 </script>
