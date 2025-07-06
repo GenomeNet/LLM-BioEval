@@ -10,72 +10,59 @@
 <link rel="stylesheet" href="{{ url_for('static', filename=page_specific_css) }}">
 {% endif %}
 <style>
-/* Fix for full-width sections */
+/* Simplified layout with consistent spacing */
 html, body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden !important; /* Prevent horizontal scroll */
+    overflow-x: hidden !important;
     width: 100%;
-    max-width: 100vw; /* Ensure no content exceeds viewport */
-    position: relative; /* Establish positioning context */
+    max-width: 100vw;
 }
-main.main-content {
-    overflow-x: hidden !important; /* Hide overflow on main */
+
+/* Main content wrapper with no spacing */
+.main-content {
     margin: 0;
     padding: 0;
 }
-/* Ensure section-callout breaks out properly */
+
+/* Consistent section spacing */
+.page-section {
+    margin-bottom: 10px;
+}
+
+/* Remove margin from last section */
+.page-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Full-width sections */
 .section-callout {
     width: 100vw !important;
     position: relative !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    padding: var(--spacing-section) 0 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    margin-top: var(--spacing-section);
-    margin-bottom: var(--spacing-section);
-    overflow: visible !important; /* Allow background to extend */
+    padding: 48px 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
 }
 
-/* Reduce spacing when section-callout follows article content */
-.article-container + .section-callout,
-.article-content + .section-callout,
-.main-content + .section-callout,
-.article-section-spacing + .section-callout {
-    margin-top: 0;
+/* Article containers simplified */
+.article-container {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 48px;
 }
 
-/* Also reduce spacing between consecutive section-callouts */
-.section-callout + .section-callout {
-    margin-top: 0;
-}
-
-/* Remove bottom padding from last article-container in main-content when followed by section-callout */
-.main-content .article-container:last-child {
-    padding-bottom: 0;
-}
-
-/* Ensure main-content itself has no bottom padding/margin */
-.main-content {
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-}
-
-/* Specific fix for the transition from dynamic_stats to top_performers */
-.main-content + .section-callout {
+/* Remove all component-specific margins */
+.top-performers-section,
+.worst-performers-section,
+.article-section-spacing,
+.article-content > *:first-child {
     margin-top: 0 !important;
 }
 
-/* Ensure article-section-spacing doesn't add extra margin at the end */
-.article-container .article-section-spacing:last-child {
+.article-section-spacing {
     margin-bottom: 0 !important;
-}
-
-/* Remove top margin from performers sections when inside section-callout */
-.section-callout .top-performers-section,
-.section-callout .worst-performers-section {
-    margin-top: 0 !important;
 }
 /* Ensure the content wrapper aligns with article content */
 .section-callout__content {
@@ -164,40 +151,17 @@ main.main-content {
 
 {% block content %}
 
-{% set article_open = false %}
-{% set sidebar_html = "" %}
-{% set in_main_content = false %}
+<!-- Main content wrapper -->
+<div class="main-content">
 
 {% for section in manifest.sections %}
-    {# Handle hero section - outside main content #}
+    <div class="page-section">
+    {# Handle hero section #}
     {% if section.type == 'hero' %}
-        {% if in_main_content %}
-            </div> <!-- Close main-content if open -->
-            {% set in_main_content = false %}
-        {% endif %}
         {% include project_path + '/' + section.file %}
     
-    {# Handle section callouts - outside main content #}
+    {# Handle section callouts #}
     {% elif section.type == 'section_callout' or section.type == 'section_callout_dynamic' %}
-        {% if article_open %}
-            {# Close article if open #}
-                    </article>
-                </div>
-                {% if sidebar_html %}
-                <aside class="article-sidebar">
-                    {{ sidebar_html | safe }}
-                </aside>
-                {% endif %}
-            </div>
-            {% set article_open = false %}
-            {% set sidebar_html = "" %}
-        {% endif %}
-        
-        {% if in_main_content %}
-            </div> <!-- Close main-content -->
-            {% set in_main_content = false %}
-        {% endif %}
-        
         <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
             <div class="section-callout__content{% if section.full_width %}--full-width{% endif %}">
                 {% if section.title or section.text %}
@@ -210,27 +174,8 @@ main.main-content {
             </div>
         </section>
     
-    {# Handle article sections - inside main content #}
+    {# Handle article sections #}
     {% elif section.type == 'article' %}
-        {% if not in_main_content %}
-            <div class="main-content page-content">
-            {% set in_main_content = true %}
-        {% endif %}
-        
-        {% if article_open %}
-            {# Close previous article if open #}
-                </article>
-            </div>
-            {% if sidebar_html %}
-            <aside class="article-sidebar">
-                {{ sidebar_html | safe }}
-            </aside>
-            {% endif %}
-        </div>
-        {% set sidebar_html = "" %}
-        {% endif %}
-        
-        {# Start new article section #}
         <div class="article-container">
             <div class="article-main">
                 <article class="article-content">
@@ -240,35 +185,30 @@ main.main-content {
                         {% include project_path + '/' + section.file %}
                     </div>
                     {% if section.section_id %}</section>{% endif %}
-        {% set article_open = true %}
-        
-        {# Handle sidebar if specified #}
-        {% if section.include_sidebar %}
-            {% set sidebar_html %}
-            <!-- Paper Info Card -->
-            <div class="paper-info-card">
-                <h3>Paper Info</h3>
-                <ul class="paper-info-list">
-                    <li><strong>Title:</strong> {{ project.title }}</li>
-                    <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
-                    {% if project.doi %}
-                    <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
-                    {% else %}
-                    <li><strong>Status:</strong> Manuscript in preparation</li>
-                    {% endif %}
-                </ul>
+                </article>
             </div>
-            {% endset %}
-        {% endif %}
+            {% if section.include_sidebar %}
+            <aside class="article-sidebar">
+                <!-- Paper Info Card -->
+                <div class="paper-info-card">
+                    <h3>Paper Info</h3>
+                    <ul class="paper-info-list">
+                        <li><strong>Title:</strong> {{ project.title }}</li>
+                        <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
+                        {% if project.doi %}
+                        <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
+                        {% else %}
+                        <li><strong>Status:</strong> Manuscript in preparation</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </aside>
+            {% endif %}
+        </div>
         
-    {# Handle inline callouts within article sections #}
-    {% elif section.type == 'callout_inline' and section.parent_type == 'article' %}
-        {% if not in_main_content %}
-            <div class="main-content page-content">
-            {% set in_main_content = true %}
-        {% endif %}
-        
-        <div class="article-section-spacing">
+    {# Handle inline callouts #}
+    {% elif section.type == 'callout_inline' %}
+        <div class="article-container">
             <div class="callout callout-{{ section.callout_type }}{% if section.compact %} callout-compact{% endif %}">
                 {% if section.header %}<div class="callout-header">{{ section.header }}</div>{% endif %}
                 <div class="callout-content">
@@ -277,54 +217,22 @@ main.main-content {
             </div>
         </div>
         
-    {# Handle article content continuation #}
-    {% elif section.type == 'article_content' and section.parent_type == 'article' %}
-        {% if not in_main_content %}
-            <div class="main-content page-content">
-            {% set in_main_content = true %}
-        {% endif %}
-        
-        <div class="article-section-spacing">
-            {% include project_path + '/' + section.file %}
-        </div>
-        
-        {# Close article if specified #}
-        {% if section.close_article %}
-                </article>
+    {# Handle article content #}
+    {% elif section.type == 'article_content' %}
+        <div class="article-container">
+            <div class="article-section-spacing">
+                {% include project_path + '/' + section.file %}
             </div>
-            {% if sidebar_html %}
-            <aside class="article-sidebar">
-                {{ sidebar_html | safe }}
-            </aside>
-            {% endif %}
         </div>
-            {% set article_open = false %}
-            {% set sidebar_html = "" %}
-        {% endif %}
         
     {# Handle raw includes #}
     {% elif section.type == 'raw' %}
         {% include project_path + '/' + section.file %}
-        
     {% endif %}
+    </div> <!-- Close page-section -->
 {% endfor %}
 
-{# Close article if still open #}
-{% if article_open %}
-        </article>
-    </div>
-    {% if sidebar_html %}
-    <aside class="article-sidebar">
-        {{ sidebar_html | safe }}
-    </aside>
-    {% endif %}
-</div>
-{% endif %}
-
-{# Close main-content if still open #}
-{% if in_main_content %}
 </div> <!-- Close main-content -->
-{% endif %}
 
 <!-- Footer -->
 {% include 'partials/footer.html' %}
