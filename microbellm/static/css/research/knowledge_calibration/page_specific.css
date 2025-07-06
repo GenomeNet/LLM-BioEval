@@ -5,17 +5,8 @@
 
     /* Article layout already handled by layout.css */
     
-    /* Background animation canvas */
-    .background-canvas {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 300px;
-        height: 100%;
-        pointer-events: none;
-        opacity: 0.03;
-        z-index: 0;
-    }
+    /* Background animation canvas - REMOVED to fix duplicate animation issue */
+    /* The hero header now contains the only animation on the page */
     
     /* Article section styling moved to article_styles.css */
     
@@ -60,7 +51,15 @@
     .corr-legacy { display: none !important; }
     .flow-result-box { background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 12px; padding: var(--spacing-small); min-width: 120px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}    
     /* Grid for correlation demo */
-    .flow-grid { display: grid; grid-template-columns: auto 60px auto 60px auto 60px auto; grid-template-rows: auto auto; align-items: center; gap: calc(var(--spacing-element) * 0.833); }
+    .flow-grid { 
+        display: grid; 
+        grid-template-columns: auto 60px auto 60px auto 60px auto; 
+        grid-template-rows: auto auto; 
+        align-items: center; 
+        gap: calc(var(--spacing-element) * 0.833); 
+        justify-content: center;
+        padding: 20px;
+    }
     .grid-species { grid-row: 1 / span 2; grid-column: 1; }
     .grid-correlation { grid-row: 1 / span 2; grid-column: 7; }
     
@@ -551,6 +550,97 @@
         color: var(--gray-600);
         font-style: italic;
         text-align: center;
+    }
+    
+    /* Template Section Styles */
+    .template-section-header {
+        margin-bottom: 24px;
+    }
+    
+    .template-section-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: 8px;
+    }
+    
+    .template-section-description {
+        font-size: 16px;
+        color: var(--gray-600);
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+    
+    /* Table Expansion Controls */
+    .table-fade {
+        position: relative;
+        margin-bottom: 32px;
+    }
+    
+    .table-fade .hidden-row {
+        display: none;
+    }
+    
+    .table-controls {
+        text-align: center;
+        margin-top: 16px;
+    }
+    
+    .expand-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray-700);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .expand-button:hover {
+        background: var(--gray-50);
+        border-color: var(--gray-400);
+    }
+    
+    .expand-icon {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.3s;
+    }
+    
+    .expand-button.expanded .expand-icon {
+        transform: rotate(180deg);
+    }
+    
+    /* Knowledge Analysis Overview */
+    .knowledge-analysis-overview {
+        margin-bottom: 48px;
+    }
+    
+    .model-ranking-table {
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 24px;
+    }
+    
+    .quality-score-value {
+        display: inline-block;
+        padding: 4px 12px;
+        background: rgba(124, 58, 237, 0.1);
+        color: #7c3aed;
+        border-radius: 16px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .model-name-cell {
+        font-family: monospace;
+        font-size: 14px;
     }
     
     /* Data visualization section */
@@ -5662,4 +5752,359 @@
     .section-callout .knowledge-analysis-table tbody tr:hover {
         background: rgba(99, 102, 241, 0.02) !important;
     }
+    
+    /* Fix for full-width sections in knowledge calibration page */
+    .main-content.page-content {
+        overflow-x: visible;
+    }
+    
+    /* Override section styles for proper full-width display */
+    .section-callout,
+    .section-wide {
+        /* For smaller screens, extend to edges */
+        margin-left: calc(-1 * var(--padding-container));
+        margin-right: calc(-1 * var(--padding-container));
+        width: calc(100% + 2 * var(--padding-container));
+    }
+    
+    /* For larger screens, use full viewport width */
+    @media (min-width: 1024px) {
+        .section-callout,
+        .section-wide {
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            margin-left: -50vw;
+            margin-right: 0;
+        }
+    }
+    
+    /* Missing CSS styles for new components */
+    
+    /* Quality score chart styles */
+    .quality-score-chart-container {
+        margin-top: 48px;
+        margin-bottom: 48px;
+    }
+    
+    .quality-score-chart {
+        position: relative;
+        background: #FAFAFA;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .score-bar-row {
+        display: flex;
+        align-items: center;
+        padding: 4px 0;
+    }
+    
+    .score-bar-container {
+        flex: 1;
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        align-items: center;
+    }
+    
+    /* Correlation chart styles */
+    .correlation-chart-container {
+        margin-top: 48px;
+        margin-bottom: 48px;
+    }
+    
+    .correlation-score-chart {
+        flex: 1;
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .correlation-bar-row {
+        display: flex;
+        align-items: center;
+        padding: 8px 0;
+    }
+    
+    .correlation-bar-container {
+        flex: 1;
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        align-items: center;
+    }
+    
+    .template-correlation-wrapper {
+        position: relative;
+        background: var(--gray-100);
+        border-radius: 4px;
+        overflow: visible;
+    }
+    
+    .template-correlation-bar {
+        cursor: pointer;
+    }
+    
+    /* Tooltip styles */
+    .bar-tooltip {
+        position: fixed;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        pointer-events: none;
+        white-space: nowrap;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Expandable table styles */
+    .table-fade {
+        position: relative;
+    }
+    
+    .hidden-row {
+        display: none;
+    }
+    
+    .hidden-row.show {
+        display: table-row;
+    }
+    
+    .table-controls {
+        text-align: center;
+        padding: 16px 0;
+        border-top: 1px solid var(--gray-200);
+    }
+    
+    .expand-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray-700);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .expand-button:hover {
+        background: var(--gray-50);
+        border-color: var(--gray-400);
+    }
+    
+    .expand-button.expanded .expand-icon {
+        transform: rotate(180deg);
+    }
+    
+    .expand-icon {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.2s ease;
+    }
+    
+    /* Knowledge bar chart styles for tables */
+    .bar-chart-wrapper {
+        width: 100%;
+        background: var(--gray-100);
+        border-radius: 8px;
+        overflow: hidden;
+        height: 24px;
+    }
+    
+    .bar-chart-segments {
+        display: flex;
+        height: 100%;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .bar-segment.knowledge-failed {
+        background-color: #f8d7da;
+        color: #721c24;
+        cursor: pointer;
+    }
+    
+    /* Quality score cell */
+    .quality-score-cell {
+        text-align: center;
+        width: 120px;
+    }
+    
+    .quality-score-value {
+        font-weight: 700;
+        color: #7c3aed;
+        font-size: 14px;
+    }
+    
+    /* Model name cell */
+    .model-name-cell {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
+    }
+    
+    /* Chart cell */
+    .chart-cell {
+        padding: 8px;
+    }
+    
+    /* No data indicator */
+    .no-data {
+        color: #6c757d;
+        font-style: italic;
+        font-size: 12px;
+        text-align: center;
+    }
+    
+    /* Flow legend styles for scatter plots */
+    .flow-legend {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 24px;
+        padding: 16px 24px;
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: var(--gray-700);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .legend-symbol {
+        font-weight: 600;
+    }
+    
+    /* Loading styles */
+    .loading-container {
+        text-align: center;
+        padding: 40px 20px;
+    }
+    
+    .loading-progress {
+        width: 200px;
+        height: 4px;
+        background: var(--gray-200);
+        border-radius: 2px;
+        margin: 0 auto 16px;
+        overflow: hidden;
+    }
+    
+    .loading-progress-bar {
+        height: 100%;
+        background: #7c3aed;
+        width: 30%;
+        animation: loading 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(400%); }
+    }
+    
+    .loading-text {
+        color: var(--gray-600);
+        font-size: 14px;
+    }
+    
+    /* Performer card styles */
+    .top-performers-section {
+        margin-bottom: 48px;
+    }
+    
+    .performers-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 24px;
+    }
+    
+    .performer-card {
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+    }
+    
+    .performer-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .performer-card.worst {
+        border-color: rgba(220, 53, 69, 0.3);
+        background: rgba(220, 53, 69, 0.02);
+    }
+    
+    .performer-rank {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--gray-300);
+        min-width: 50px;
+        text-align: center;
+    }
+    
+    .performer-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: 8px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .performer-score {
+        font-size: 14px;
+        color: var(--gray-600);
+        margin-bottom: 12px;
+    }
+    
+    .performer-score strong {
+        color: #7c3aed;
+        font-size: 16px;
+    }
+    
+    .performer-dist-chart {
+        width: 100%;
+    }
+    
+    /* Table Cell Styles for Knowledge Analysis */
+    .chart-cell {
+        padding: 8px 12px;
+        vertical-align: middle;
+    }
+    
+    .no-data {
+        text-align: center;
+        color: var(--gray-400);
+        font-style: italic;
+        font-size: 13px;
+    }
+</style>
 

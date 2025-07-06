@@ -1,0 +1,79 @@
+<div id="helloWorldContainer" style="border: 3px solid red; padding: 20px; background: white;">
+    <h1 style="color: red;">STATIC HELLO WORLD TEST</h1>
+    <p>If you can see this text, the component HTML is loading correctly.</p>
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading hello world data...</div>
+    </div>
+</div>
+
+<script>
+// Minimal hello world dynamic component for testing
+(function() {
+    console.log('[HelloWorld] Script loaded and starting...');
+    
+    // Function to render content
+    function renderHelloWorld() {
+        console.log('[HelloWorld] Rendering content...');
+        const container = document.getElementById('helloWorldContainer');
+        
+        if (!container) {
+            console.error('[HelloWorld] Container not found!');
+            return;
+        }
+        
+        console.log('[HelloWorld] Container found, updating HTML...');
+        
+        // Simple HTML content
+        const html = `
+            <div style="padding: 40px; text-align: center;">
+                <h2 style="font-size: 32px; color: #6366f1; margin-bottom: 16px;">Hello World!</h2>
+                <p style="font-size: 18px; color: #666;">This is a minimal dynamic section callout component.</p>
+                <p style="font-size: 16px; color: #999; margin-top: 24px;">
+                    Timestamp: ${new Date().toLocaleString()}<br>
+                    Container ID: ${container.id}<br>
+                    Path: ${window.location.pathname}
+                </p>
+                <div style="margin-top: 32px; padding: 20px; background: #f3f4f6; border-radius: 8px;">
+                    <h3 style="margin-bottom: 12px;">Debug Info:</h3>
+                    <p style="font-size: 14px; text-align: left; font-family: monospace;">
+                        Component initialized: ✓<br>
+                        Container found: ✓<br>
+                        Script execution: ✓<br>
+                        In component viewer: ${window.location.pathname.includes('/components/') ? 'Yes' : 'No'}
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        console.log('[HelloWorld] Content rendered successfully');
+    }
+    
+    // Initialize function
+    function initHelloWorld() {
+        console.log('[HelloWorld] Initializing component...');
+        // Simulate async loading with setTimeout
+        setTimeout(renderHelloWorld, 500);
+    }
+    
+    // Expose functions globally
+    window.initHelloWorld = initHelloWorld;
+    window.renderHelloWorld = renderHelloWorld;
+    
+    // Auto-initialize if not in component viewer
+    setTimeout(function() {
+        console.log('[HelloWorld] Checking for auto-init...');
+        if (!window.location.pathname.includes('/components/')) {
+            console.log('[HelloWorld] Not in component viewer, auto-initializing...');
+            initHelloWorld();
+        } else {
+            console.log('[HelloWorld] In component viewer, waiting for manual init...');
+        }
+    }, 100);
+    
+    console.log('[HelloWorld] Script setup complete');
+})();
+</script>

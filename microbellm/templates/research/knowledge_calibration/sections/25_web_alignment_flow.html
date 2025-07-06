@@ -1,6 +1,13 @@
-<div class="flow-diagram-wrapper">
-    <!-- Grid correlation diagram -->
-    <div class="flow-grid">
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
+        <div class="section-callout__header">
+            <h3 class="section-callout__title">Knowledge-Web Alignment Process</h3>
+            <p class="section-callout__text">Methodology for measuring how well language model knowledge claims correlate with actual information availability on the web for real bacterial species.</p>
+        </div>
+        
+        <div class="flow-diagram-wrapper">
+            <!-- Grid correlation diagram -->
+            <div class="flow-grid">
         <!-- Species input spanning rows -->
         <div class="flow-box flow-input grid-species">
             <div class="flow-species">Bacillus subtilis</div>
@@ -60,10 +67,14 @@
         <div class="legend-item">Extensive + Low web presence = Poor alignment</div>
     </div>
 </div>
+    </div>
+</section>
 
 <script>
 // Animate the correlation flow
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
+    function initFlowAnimation() {
+        console.log('[FlowDiagram] Initializing flow animation...');
     const species = [
         { name: 'Escherichia coli', llm: 'Extensive', web: '5.2 M', correlation: 0.78, label: 'Strong alignment' },
         { name: 'Bacillus subtilis', llm: 'Extensive', web: '1.5 M', correlation: 0.65, label: 'Good alignment' },
@@ -123,5 +134,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Start animation
     setInterval(updateFlow, 4000);
-});
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFlowAnimation);
+    } else {
+        // DOM is already ready, run init with a small delay
+        setTimeout(initFlowAnimation, 100);
+    }
+})();
 </script>

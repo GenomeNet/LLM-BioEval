@@ -1,15 +1,11 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
-{% block title %}Import Results - MicrobeBench{% endblock %}
+{% block title %}Import Results - MicrobeLLM Admin{% endblock %}
 
 {% block content %}
-<div class="page-header mb-3">
-    <h2>Import Results</h2>
-    <p class="text-muted">Import results from a CSV file</p>
-</div>
-
-<div class="nav-links mb-3">
-    <a href="/" class="btn btn-ghost btn-sm">← Back to Dashboard</a>
+<div class="page-header">
+    <h1 class="page-title">Import Results</h1>
+    <p class="page-subtitle">Import results from a CSV file</p>
 </div>
 
 <div class="card">
@@ -51,15 +47,6 @@
 </div>
 
 <style>
-    .page-header {
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 16px;
-    }
-    
-    .nav-links {
-        padding: 8px 0;
-    }
-    
     .import-controls {
         max-width: 600px;
     }
@@ -90,24 +77,29 @@
     }
     
     .upload-zone:hover {
-        border-color: var(--accent-primary);
-        background: var(--white);
+        border-color: var(--admin-primary);
+        background: var(--bg-primary);
     }
     
     .upload-zone.dragover {
-        border-color: var(--accent-secondary);
-        background: linear-gradient(135deg, var(--accent-primary) 0%, transparent 70%);
+        border-color: var(--status-success);
+        background: rgba(16, 185, 129, 0.05);
     }
     
     .upload-zone i {
         font-size: 48px;
-        color: var(--text-secondary);
+        color: var(--gray-400);
         margin-bottom: 16px;
     }
     
     .upload-zone p {
         margin: 0;
         font-weight: 500;
+        color: var(--gray-700);
+    }
+    
+    .upload-zone small {
+        font-size: 12px;
     }
     
     .file-info {
@@ -117,20 +109,28 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        font-size: 12px;
+        font-size: 14px;
+    }
+    
+    .mt-2 {
+        margin-top: 8px;
+    }
+    
+    .mt-3 {
+        margin-top: 16px;
     }
     
     #importStatus {
-        font-size: 12px;
+        font-size: 14px;
         line-height: 1.5;
     }
     
     #importStatus.success {
-        color: var(--accent-secondary);
+        color: var(--status-success);
     }
     
     #importStatus.error {
-        color: var(--accent-error);
+        color: var(--status-error);
     }
     
     .import-summary {
@@ -138,12 +138,12 @@
         padding: 12px;
         background: var(--bg-secondary);
         border-radius: 6px;
-        font-size: 11px;
+        font-size: 13px;
     }
     
     .import-summary h5 {
         margin: 0 0 8px 0;
-        font-size: 12px;
+        font-size: 14px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }

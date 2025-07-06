@@ -8,6 +8,252 @@
 </div>
 
 <script>
-// This content is populated dynamically by the knowledge results loading script
-// The worst performers section will be inserted here when data loads
+// Self-contained script for worst performers
+(function() {
+    console.log('[WorstPerformers] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[WorstPerformers] Looking for container...');
+        initializeWorstPerformers();
+    }, 100);
+    
+    // Function to find container with fallback
+    function findContainer() {
+        // Try direct ID first
+        let container = document.getElementById('worstPerformerContainer');
+        if (container) {
+            console.log('[WorstPerformers] Found container by ID');
+            return container;
+        }
+        
+        // Try to find any container in current context
+        container = document.querySelector('[id*="worstPerformerContainer"]');
+        if (container) {
+            console.log('[WorstPerformers] Found container by partial ID match');
+            return container;
+        }
+        
+        console.error('[WorstPerformers] Container not found!');
+        return null;
+    }
+    
+    // Initialize function
+    function initializeWorstPerformers() {
+        console.log('[WorstPerformers] Initializing...');
+        loadWorstPerformers();
+    }
+    // Transform knowledge data from API format to expected format
+    function transformKnowledgeData(knowledgeAnalysis) {
+        console.log('[WorstPerformers] Transforming data...');
+        const modelData = {};
+        const templateSet = new Set();
+        const inputTypeSet = new Set();
+        
+        // Process only files with type columns
+        // The data structure is: file -> types -> inputType -> template -> model -> stats
+        // We need to transform it to: model -> template -> inputType -> stats
+        
+        Object.entries(knowledgeAnalysis).forEach(([fileName, fileData]) => {
+            console.log('[WorstPerformers] Processing file:', fileName);
+            
+            // Only process files that have type columns
+            if (!fileData.has_type_column || !fileData.types) {
+                console.warn('[WorstPerformers] Skipping file (no type column):', fileName);
+                return;
+            }
+            
+            // Process each input type
+            Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+                inputTypeSet.add(inputType);
+                
+                // Process each template
+                Object.entries(templateData).forEach(([templateName, models]) => {
+                    templateSet.add(templateName);
+                    
+                    // Process each model
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        // Initialize model data structure if needed
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        
+                        // Store the stats
+                        modelData[modelName][templateName][inputType] = stats;
+                    });
+                });
+            });
+        });
+        
+        const result = {
+            modelData: modelData,
+            templateArray: Array.from(templateSet).sort(),
+            inputTypeArray: Array.from(inputTypeSet).sort()
+        };
+        
+        console.log('[WorstPerformers] Transformed data:', {
+            models: Object.keys(modelData).length,
+            templates: result.templateArray.length,
+            inputTypes: result.inputTypeArray.length,
+            firstModel: Object.keys(modelData)[0]
+        });
+        
+        return result;
+    }
+    
+    // Calculate overall model scores
+    function calculateOverallModelScores(modelData, templateArray) {
+        const overallModelScores = {};
+        Object.entries(modelData).forEach(([modelName, templates]) => {
+            let totalScore = 0;
+            let totalSamples = 0;
+            let dist = { NA: 0, limited: 0, moderate: 0, extensive: 0, no_result: 0, inference_failed: 0, total: 0 };
+
+            templateArray.forEach(templateName => {
+                if (templates[templateName]) {
+                    const templateData = templates[templateName];
+                    Object.values(templateData).forEach(stats => {
+                        const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
+                        const limitedCount = stats.limited || 0;
+                        const moderateCount = stats.moderate || 0;
+                        const extensiveCount = stats.extensive || 0;
+                        totalScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                        totalSamples += stats.total || 0;
+
+                        dist.NA += stats.NA || 0;
+                        dist.limited += stats.limited || 0;
+                        dist.moderate += stats.moderate || 0;
+                        dist.extensive += stats.extensive || 0;
+                        dist.no_result += stats.no_result || 0;
+                        dist.inference_failed += stats.inference_failed || 0;
+                        dist.total += stats.total || 0;
+                    });
+                }
+            });
+            if (totalSamples > 0) {
+                overallModelScores[modelName] = {
+                    averageQualityScore: totalScore / totalSamples,
+                    totalSamples: totalSamples,
+                    distribution: dist
+                };
+            }
+        });
+        return overallModelScores;
+    }
+    
+    // Create knowledge bar chart
+    function createKnowledgeBarChart(dist) {
+        if (!dist || dist.total === 0) return '<div class="no-data">No data</div>';
+        
+        const segments = [
+            { type: 'NA', count: (dist.NA || 0) + (dist.no_result || 0) + (dist.inference_failed || 0), class: 'na' },
+            { type: 'limited', count: dist.limited || 0, class: 'limited' },
+            { type: 'moderate', count: dist.moderate || 0, class: 'moderate' },
+            { type: 'extensive', count: dist.extensive || 0, class: 'extensive' }
+        ].filter(seg => seg.count > 0);
+        
+        let html = '<div class="bar-chart-container"><div class="bar-chart-segments">';
+        segments.forEach(seg => {
+            const pct = (seg.count / dist.total * 100).toFixed(1);
+            html += `<div class="bar-segment ${seg.class}" style="width:${pct}%">${pct > 10 ? seg.count : ''}</div>`;
+        });
+        html += '</div></div>';
+        return html;
+    }
+    
+    // Render worst performers
+    function renderWorstPerformers(data) {
+        console.log('[WorstPerformers] Rendering data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[WorstPerformers] Cannot render - no container found');
+            return;
+        }
+        
+        // Transform data
+        const transformedData = transformKnowledgeData(data.knowledge_analysis);
+        
+        // Calculate overall model scores
+        const overallModelScores = calculateOverallModelScores(transformedData.modelData, transformedData.templateArray);
+        const sortedModels = Object.entries(overallModelScores)
+            .map(([modelName, scores]) => ({ modelName, ...scores }))
+            .sort((a, b) => b.averageQualityScore - a.averageQualityScore);
+        
+        // Get worst 2 models
+        const worst2Models = sortedModels.length > 5 ? sortedModels.slice(-2) : [];
+        if (worst2Models.length === 0) {
+            container.innerHTML = ''; // No worst performers to show
+            return;
+        }
+        
+        let worstPerformersHtml = `
+            <div class="performers-list">
+        `;
+        
+        worst2Models.reverse().forEach((model, index) => {
+            const rank = sortedModels.length - index;
+            const displayName = model.modelName.split('/').pop();
+            worstPerformersHtml += `
+            <div class="performer-card worst">
+                <div class="performer-rank">${rank}</div>
+                <div style="flex: 1;">
+                    <div class="performer-name">${displayName}</div>
+                    <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
+                    <div class="performer-dist-chart" style="margin-top: 12px;">
+                        ${createKnowledgeBarChart(model.distribution)}
+                    </div>
+                </div>
+            </div>
+            `;
+        });
+        
+        worstPerformersHtml += `
+            </div>
+        `;
+        
+        container.innerHTML = worstPerformersHtml;
+    }
+    
+    // Load data and render
+    async function loadWorstPerformers() {
+        console.log('[WorstPerformers] Loading data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[WorstPerformers] Cannot load - no container found');
+            return;
+        }
+        
+        try {
+            console.log('[WorstPerformers] Fetching from /api/knowledge_analysis_data...');
+            const response = await fetch('/api/knowledge_analysis_data');
+            console.log('[WorstPerformers] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[WorstPerformers] Raw data received:', data);
+            
+            if (data.knowledge_analysis) {
+                console.log('[WorstPerformers] Found knowledge_analysis in response');
+                renderWorstPerformers(data);
+            } else {
+                console.error('[WorstPerformers] No knowledge_analysis in response');
+                throw new Error('Invalid data format');
+            }
+        } catch (error) {
+            console.error('[WorstPerformers] Failed to load data:', error);
+            if (container) {
+                container.innerHTML = '<div class="error-message">Failed to load models needing improvement. Please try again later.</div>';
+            }
+        }
+    }
+    
+    // Don't auto-load, wait for initialization
+    // Component will be initialized by the setTimeout above
+})();
 </script>

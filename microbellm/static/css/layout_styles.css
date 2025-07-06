@@ -1,0 +1,233 @@
+/* =====================================================
+   Layout Styles - Positioning and spacing only
+   
+   This file contains layout rules that position components
+   on the page. These are separate from component visual
+   styles to enable true component reusability.
+   ===================================================== */
+
+/* =====================================================
+   Article Layout
+   ===================================================== */
+
+/* These are now handled in article_styles.css for better consistency */
+/* Keeping empty section for compatibility */
+
+/* =====================================================
+   Callout Layout - Indented positioning
+   ===================================================== */
+
+/* Layout wrappers removed - callout spacing is handled by .callout class in article_styles.css */
+
+/* =====================================================
+   Section Layout - Full-width sections
+   ===================================================== */
+
+/* Full-width section layout removed - handled by .section-callout in article_styles.css */
+
+/* Content container within full-width sections */
+.section-content-container {
+    max-width: var(--container-standard);
+    margin: 0 auto;
+    padding: 0 var(--padding-container);
+}
+
+/* Full-width content variant */
+.section-content-container--full {
+    max-width: none;
+    padding: 0 calc(var(--padding-container) * 2);
+}
+
+/* =====================================================
+   Component Spacing
+   ===================================================== */
+
+/* Spacing between major sections */
+.layout-spacing-section {
+    margin-bottom: var(--spacing-section);
+}
+
+/* Spacing between components */
+.layout-spacing-component {
+    margin-bottom: var(--spacing-component);
+}
+
+/* Spacing between elements */
+.layout-spacing-element {
+    margin-bottom: var(--spacing-element);
+}
+
+/* Remove bottom margin on last child */
+.layout-spacing-section:last-child,
+.layout-spacing-component:last-child,
+.layout-spacing-element:last-child {
+    margin-bottom: 0;
+}
+
+/* =====================================================
+   Grid and Flex Layouts
+   ===================================================== */
+
+/* Flow diagram layout */
+.layout-flow-horizontal {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing-element) * 0.833);
+    flex-wrap: wrap;
+}
+
+/* Column layout for stacked items */
+.layout-flow-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-element) * 0.833);
+}
+
+/* Grid layout for correlation demo */
+.layout-flow-grid {
+    display: grid;
+    grid-template-columns: auto 60px auto 60px auto 60px auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: calc(var(--spacing-element) * 0.833);
+}
+
+/* Performers list layout */
+.layout-performers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* =====================================================
+   Table Layout
+   ===================================================== */
+
+/* Table wrapper layout */
+.layout-table-wrapper {
+    margin: var(--spacing-element) 0;
+}
+
+/* Wide table layout */
+.layout-table-wide {
+    margin-left: calc(-1 * var(--padding-container));
+    margin-right: calc(-1 * var(--padding-container));
+    padding: 0 var(--padding-container);
+    overflow-x: auto;
+}
+
+/* =====================================================
+   Responsive Layout Adjustments
+   ===================================================== */
+
+@media (max-width: 1024px) {
+    /* Responsive adjustments moved to article_styles.css */
+}
+
+@media (max-width: 768px) {
+    /* Responsive adjustments moved to article_styles.css */
+    
+    .section-content-container {
+        padding: 0 20px;
+    }
+    
+    .layout-flow-horizontal {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .layout-flow-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+}
+
+/* =====================================================
+   Component Viewer Overrides
+   ===================================================== */
+
+/* Component viewer overrides removed - no longer using layout wrapper classes */
+
+.component-viewer .section-content-container {
+    max-width: none;
+    padding: 0;
+}
+
+/* Component viewer shows pure components without layout */
+.component-viewer .layout-spacing-section,
+.component-viewer .layout-spacing-component,
+.component-viewer .layout-spacing-element {
+    margin-bottom: 0;
+}
+
+/* =====================================================
+   Page-Specific Layout Classes
+   ===================================================== */
+
+/* Knowledge calibration specific layouts */
+.layout-knowledge-template-browser {
+    margin: var(--spacing-component) 0;
+}
+
+.layout-knowledge-correlation {
+    margin-top: var(--spacing-section);
+    margin-bottom: var(--spacing-section);
+}
+
+/* Phenotype analysis specific layouts */
+.layout-phenotype-results {
+    margin: var(--spacing-section) 0;
+}
+
+.layout-phenotype-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-component);
+}
+
+@media (max-width: 768px) {
+    .layout-phenotype-comparison {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =====================================================
+   Utility Layout Classes
+   ===================================================== */
+
+/* Center content horizontally */
+.layout-center {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Constrain width for readability */
+.layout-constrain-text {
+    max-width: 850px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Remove all margins */
+.layout-no-margin {
+    margin: 0 !important;
+}
+
+/* Full width within container */
+.layout-full-width {
+    width: 100%;
+}
+
+/* Hidden on mobile */
+.layout-hide-mobile {
+    @media (max-width: 768px) {
+        display: none;
+    }
+}
+
+/* Hidden on desktop */
+.layout-hide-desktop {
+    @media (min-width: 769px) {
+        display: none;
+    }
+}

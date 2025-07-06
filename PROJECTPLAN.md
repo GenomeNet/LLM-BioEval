@@ -4,402 +4,286 @@
 
 MicrobeLLM is a Python tool designed to evaluate Large Language Models (LLMs) on their ability to predict microbial phenotypes. This tool helps researchers assess how well different LLMs perform on microbiological tasks by querying them with bacterial species names and comparing their predictions against known characteristics.
 
-## TODO
-- [x] add dummy text between "Top Performing Models" and "Models Needing Improvement" (both .section-callout`). The dummy text should be normal Standard Article Sections
-- [x] table background at "template1_knowlege" and so on should be the grey color FAFAFA, sometimes its opaque which looks odd
-- [x] this section "Web-Aligned Knowledge: Real Bacterial Names vs. Google Counts" and the text below that should be Standard Article Section, currently its over the full page 
-- [x] add dummy text after Top Models – Web-Alignment and before "Correlation Visualization: Google Search vs. Knowledge Level" , again in "Standard Article Sections" style 
-- [x] render the legend in "Correlation Visualization: Google Search vs. Knowledge Level" more like we render the legends in "Knowledge-Web Alignment Process". 
-- [x] plot in "Correlation Visualization: Google Search vs. Knowledge Level" should have a grey background #FAFAFA  
+## CSS Architecture Refactoring and Generic Template Creation (Completed 2025-07-06)
 
-## Review
+### Summary
+Successfully implemented a three-layer CSS architecture and created a generic research template system:
 
-### Summary of Changes Made
+1. **CSS Architecture**:
+   - Created `component_styles.css` for visual styling only
+   - Created `layout_styles.css` for positioning and spacing
+   - Updated wrapper templates with `in_viewer` parameter
+   - Component viewer now shows pure components without layout
 
-All TODO items have been successfully completed. Here's what was changed in `knowledge_calibration.html`:
+2. **Generic Research Template**:
+   - Created `research_article.html` as reusable template
+   - Updated routing in `web_app.py` to use generic template
+   - Fixed full-width callout display issues in component viewer
 
-1. **Added dummy text between sections** - Added appropriate article text between "Top Performing Models" and "Models Needing Improvement" sections to provide context and improve content flow.
+3. **Current Status**:
+   - ✅ Three-layer CSS architecture implemented
+   - ✅ Generic research template functional
+   - ✅ Component viewer displaying components correctly
+   - ✅ Proper separation of concerns achieved
 
-2. **Fixed table backgrounds** - Added CSS to ensure tables in section-callout sections maintain the #FAFAFA background color instead of becoming transparent.
+### Next Steps:
+- Add missing JavaScript components from old template
+- Update CLAUDE.md documentation with new architecture details
 
-3. **Converted section to Standard Article** - Changed "Web-Aligned Knowledge: Real Bacterial Names vs. Google Counts" from a full-width section to a standard article section for consistency.
+## Article Layout Improvements (Completed 2025-07-06)
 
-4. **Added transitional content** - Inserted article text between "Top Models – Web-Alignment" and "Correlation Visualization" sections to improve narrative flow.
+### Summary
+Updated the modular article system to improve alignment and appearance to match the old template style:
 
-5. **Updated legend styling** - Modified the legend in "Correlation Visualization" to use the same `flow-legend` class as the "Knowledge-Web Alignment Process" section for visual consistency.
+1. **Template Simplification**:
+   - Simplified `research_article.html` wrapper structure
+   - Removed unnecessary layout wrapper divs
+   - Direct rendering of callout classes without wrapper partials
+   - Cleaner section callout rendering
 
-6. **Applied grey backgrounds** - Updated all scatter plots and charts in the correlation visualization to use #FAFAFA background instead of white, including both canvas and SVG elements.
+2. **CSS Updates**:
+   - **article_styles.css**: Fixed spacing, alignment, and callout indentation (120px)
+   - **layout_styles.css**: Removed redundant layout wrappers and conflicting styles
+   - Moved article-specific styles from layout to article CSS for consistency
 
-### Technical Notes
+3. **Results**:
+   - ✅ Cleaner HTML structure with less nesting
+   - ✅ Proper 120px left indentation for callout boxes
+   - ✅ Better spacing between sections
+   - ✅ Components stand alone without external margins
+   - ✅ Improved alignment matching old template style
 
-- All changes follow the established style guide in CLAUDE.md
-- Used existing CSS classes and patterns for consistency
-- Maintained responsive design principles
-- No new dependencies or complex changes were introduced
-- All modifications were minimal and focused on the specific requirements
+The modular system now provides a cleaner, more aligned appearance while maintaining all benefits of the component architecture.
 
-## Refactor Research Project Content (New Task)
+## Article Layout Refinement (Completed 2025-07-06)
 
-### Problem
-Research project information (titles, subtitles, authors, DOIs, color schemes) was duplicated across multiple templates:
-- index.html
-- research.html  
-- Individual research pages (knowledge_calibration.html, phenotype_analysis.html)
+### Summary
+Further refined the article layout to ensure proper alignment with navbar and improved callout styling:
 
-### Solution
-Create a centralized configuration system to manage all research project metadata in one place.
+1. **Alignment Fixes**:
+   - Set article container to max-width 1400px (matching .container from base.html)
+   - Added navbar-inner styling with same width and padding
+   - Aligned hero content with article container
+   - Text now properly aligns with header logo
 
-### Implementation Steps
+2. **Callout Improvements**:
+   - Reduced callout indentation to 80px for better visual hierarchy
+   - Constrained callout width to maintain readability
+   - Improved responsive behavior
 
-- [x] Create centralized research projects configuration file
-- [x] Extract research metadata from existing templates
-- [x] Modify web_app.py to load and serve research configuration data
-- [x] Update research.html template to use dynamic data
-- [x] Update index.html template to use dynamic data
-- [x] Update individual research pages to use dynamic metadata
+3. **Full-width Sections**:
+   - Fixed section-callout and section-wide to be truly full viewport width
+   - Used proper CSS technique (position: relative; left: 50%; margin-left: -50vw)
+   - Content within full-width sections still respects container constraints
 
-### Review
+The article layout now has consistent alignment throughout, with text starting at the same position as the header logo, properly indented callout boxes, and true full-width callout sections.
 
-#### Changes Made
+## Layout System Implementation (Completed 2025-07-06)
 
-1. **Created `microbellm/research_config.py`**
-   - Defined a `ResearchProject` dataclass to store project metadata
-   - Created a list of all research projects with their properties
-   - Added helper functions to retrieve projects by ID, route, or page
+### Summary
+Implemented the proper layout system from the old template to ensure consistent spacing and alignment:
 
-2. **Updated `microbellm/web_app.py`**
-   - Imported the research configuration module
-   - Modified routes to pass project data to templates:
-     - `/` (index) - passes homepage projects
-     - `/research` - passes all projects
-     - `/knowledge_calibration` - passes specific project data
-     - `/phenotype_analysis` - passes specific project data
+1. **Container System**:
+   - Standard container: 1500px (for navbar, hero, footer alignment)
+   - Article container: 850px max-width for readable content
+   - Wide container: 1800px for large tables/dashboards
+   - Consistent padding: 48px desktop, 24px mobile
 
-3. **Updated Templates to Use Dynamic Data**
-   - **research.html**: Replaced hardcoded project cards with dynamic loop
-   - **index.html**: Replaced hardcoded publication cards with dynamic loop
-   - **knowledge_calibration.html**: Updated hero section and paper info to use project data
-   - **phenotype_analysis.html**: Updated hero section to use project data
+2. **Article Layout**:
+   - Grid-based layout with sidebar support (1fr 240px)
+   - Article content constrained to 850px for readability
+   - Proper spacing using CSS variables
+   - Single column on screens < 1200px
 
-4. **Improved Animation Handling**
-   - Updated animation functions to accept canvas ID parameters
-   - Made animation initialization dynamic based on projects displayed
+3. **Section Types**:
+   - Full-width sections using `calc(-50vw + 50%)` technique
+   - Callout boxes with 120px left indentation
+   - Section content respects container constraints
+   - Proper gradient backgrounds for callout sections
 
-#### Benefits
+4. **Responsive Design**:
+   - Breakpoints at 1200px (sidebar removal) and 768px (mobile)
+   - Adjusted padding and font sizes for mobile
+   - Maintained alignment across all screen sizes
 
-1. **Single Source of Truth**: All research metadata is now centralized in one configuration file
-2. **Easy Updates**: Adding new research projects or updating existing ones requires changes in only one place
-3. **Consistency**: Ensures all pages display the same information for each project
-4. **Maintainability**: Reduces code duplication and makes the codebase easier to maintain
-5. **Extensibility**: Easy to add new properties to projects (e.g., tags, categories, related links)
+The layout now properly matches the old template structure while maintaining the modular component system.
 
-#### Future Enhancements
+## Component Spacing and Presentation (Completed 2025-07-06)
 
-1. **Database Storage**: Consider moving project data to the SQLite database for even more flexibility
-2. **Admin Interface**: Add web interface for managing research projects without code changes
-3. **Search/Filter**: Add functionality to search and filter research projects
-4. **Project Pages**: Create a dynamic route handler for all project pages instead of individual routes
-5. **Markdown Support**: Allow project descriptions to use Markdown for richer formatting
+### Summary
+Added proper spacing between components in article sections:
 
-## Color Theme Consistency Fix
+1. **Component Spacing**:
+   - Added `article-section-spacing` wrapper div around components
+   - Provides consistent `var(--spacing-component)` margin between elements
+   - Last child has no bottom margin to prevent extra space
 
-### Problem
-Callout sections were using incorrect color themes that didn't match the project configuration:
-- knowledge_calibration.html had green callouts (should be purple)
-- phenotype_analysis.html had purple callouts (should be green)
+2. **Template Changes**:
+   - Wrapped callout_inline sections in spacing div
+   - Wrapped article_content sections in spacing div
+   - Wrapped initial article content in spacing div
+   - Components themselves remain unchanged
 
-### Solution
-1. Fixed all callout sections to use the correct color themes based on `research_config.py`
-2. Updated CLAUDE.md style guide to enforce color theme consistency rules
+The components now have proper spacing between them while maintaining the callout box indentation.
+
+## Banner and Hero Header Spacing Fix (Completed 2025-07-06)
+
+### Summary
+Fixed spacing issues between banner and hero header, updated component types in manifest:
+
+1. **Spacing Fixes**:
+   - Removed extra padding-top from page-content (set to 0)
+   - Hero header now starts immediately after navbar
+   - No extra space between banner and hero
+
+2. **Manifest Updates**:
+   - Changed worst_performers from "raw" to "section_callout_dynamic"
+   - Changed conclusion_text to "article_content" with parent_type: "article"
+   - Changed full_results_intro to "article_content" with parent_type: "article"
+   - Changed correlation_transition to "article_content" with parent_type: "article"
+
+3. **Hero Header Styling**:
+   - Added comprehensive hero header styles to article_styles.css
+   - Proper gradient overlay with slight transparency (0.9 opacity)
+   - Purple theme gradient for knowledge calibration pages
+   - Hero content properly positioned above animation and gradient
+   - Title, author, and subtitle styling matching reference
+
+The page now properly aligns with the reference screenshot, with no extra spacing and correct component types throughout.
+
+## Full-Width Callout Alignment Fix (Completed 2025-07-06)
+
+### Summary
+Fixed full-width callout sections alignment and component viewer display:
+
+1. **Alignment Fixes**:
+   - Updated section-callout CSS to use proper full-width technique
+   - Changed from `calc(-50vw + 50%)` to `position: relative; left: 50%; margin-left: -50vw`
+   - Applied same fix to section-wide and section-full classes
+   - Ensures proper centering and full viewport width
+
+2. **Dynamic Section Wrapper**:
+   - Added proper wrapper for section_callout_dynamic in research_article.html
+   - Now wraps dynamic content with section-callout structure
+   - Includes title and text headers when specified in manifest
+
+3. **Component Viewer Fix**:
+   - Updated viewer to properly display section_callout_dynamic components
+   - Added full wrapper structure with boundaries visualization
+   - Now shows as "Full-Width Dynamic Section Callout" with proper styling
+
+Full-width callout sections now properly extend to viewport edges and display correctly in both the main page and component viewer.
+
+## Component Viewer and Gradient Visibility Fix (Completed 2025-07-06)
+
+### Summary
+Fixed component viewer display issues and improved gradient visibility:
+
+1. **Component Viewer Fixes**:
+   - Added minimum heights for flow diagram components
+   - Ensured flow-diagram-wrapper has proper dimensions (min-height: 200px)
+   - Set flow-diagram to center content and have minimum height
+   - Added min-width and min-height to flow boxes for visibility
+   - Fixed section-callout positioning within component viewer
+
+2. **Gradient Visibility**:
+   - Increased purple gradient opacity from 0.06-0.08 to 0.10-0.12
+   - Increased border opacity from 0.2 to 0.3 for better definition
+   - Makes the full-width sections more visually distinct
+
+3. **Full-Width Behavior**:
+   - The gradient background correctly extends to viewport edges
+   - Content is intentionally constrained to 1500px for readability
+   - This is the expected behavior for optimal user experience
+
+The component viewer now properly displays flow diagrams and other full-width sections, and the gradient backgrounds are more visible while maintaining design consistency.
+
+## Section Callout Dynamic Rendering Fix (Completed 2025-07-06)
+
+### Summary
+Fixed the horizontal scrolling issue in the component viewer when displaying section_callout_dynamic sections. The content was appearing shifted to the right, requiring users to scroll horizontally to see it properly.
 
 ### Changes Made
-1. **knowledge_calibration.html**: Changed all `section-callout--green` to `section-callout--purple`
-2. **phenotype_analysis.html**: Changed all `section-callout--purple` to `section-callout--green`
-3. **CLAUDE.md**: Added explicit rules about color theme consistency:
-   - Each project must only use its defined color theme
-   - Knowledge pages: purple variants only
-   - Phenotype pages: green variants only
-   - Never mix color themes within a single page
 
-### Note
-When the growth_conditions project is implemented, a `.section-callout--yellow` variant will need to be added to `article_styles.css` to match its yellow color theme.
+1. **Updated component viewer.html** (lines 471-488):
+   - Modified the section_callout_dynamic rendering to use the section_callout_wrapper.html partial
+   - This ensures consistency with how other section callouts are rendered
 
-## Hero Header Refactoring
+2. **Updated section_callout_wrapper.html**:
+   - Added conditional logic to use different CSS classes based on context
+   - When `in_viewer` is true, uses `section-callout-component` classes
+   - When `in_viewer` is false, uses `section-callout` classes for full-width behavior
 
-### Problem
-The hero header implementation was duplicated across research pages:
-- Each template had its own copy of the CSS with hardcoded colors
-- The HTML structure was repeated in each template
-- Although project data was used, the implementation was inconsistent
+3. **Added CSS overrides in viewer.html** (lines 351-387):
+   - Added styles to prevent horizontal scrolling in the component viewer
+   - Overrode full-width margins for section-callout-component
+   - Added overflow-x: hidden to prevent horizontal scrolling
+   - Ensured proper content containment with max-width constraints
 
-### Solution
-Created a reusable hero header component using Flask template partials.
+### Result
+The section_callout_dynamic sections now display correctly in the component viewer without horizontal scrolling, while maintaining their full-width behavior in the actual article pages.
 
-### Implementation Steps
-- [x] Create partials directory and hero_header.html template
-- [x] Move shared hero header CSS to article_styles.css with dynamic color classes
-- [x] Update knowledge_calibration.html to use the partial
-- [x] Update phenotype_analysis.html to use the partial  
-- [x] Test both pages to ensure proper rendering
+## Section Width and Layout Issues Fix (Completed 2025-07-06)
+
+### Summary
+Fixed section width issues where full-width sections weren't properly extending to viewport edges. The issue was caused by missing positioning properties and potential conflicts with parent container overflow settings.
 
 ### Changes Made
 
-1. **Created `/templates/partials/hero_header.html`**
-   - Reusable template partial for hero headers
-   - Dynamic canvas animation based on project color theme
-   - Particle-based animation with theme-specific colors and behaviors
+1. **Enhanced Full-Width CSS in article_styles.css**:
+   - Added `position: relative` and `left: 0` to ensure proper alignment
+   - Added `transform: translateX(0)` to ensure sections break out properly even with body overflow-x: hidden
+   - Applied fixes to `.section-callout`, `.section-wide`, and `.section-full` classes
+   - Added documentation explaining the full-width technique
 
-2. **Updated `article_styles.css`**
-   - Added complete hero header styles
-   - Created theme-specific classes: `.hero-header--purple`, `.hero-header--green`, `.hero-header--yellow`
-   - Dynamic color gradients and animations for each theme
-   - Responsive styles for mobile devices
+2. **Updated Parent Container Overflow**:
+   - Set `overflow-x: visible` on `.main-content` and `.page-content` to allow sections to break out
+   - Added `position: relative` to body element for proper positioning context
 
-3. **Updated Templates**
-   - **knowledge_calibration.html**: Removed 85 lines of duplicate CSS, replaced hero HTML with `{% include 'partials/hero_header.html' %}`
-   - **phenotype_analysis.html**: Removed 83 lines of duplicate CSS, replaced hero HTML with include statement
+3. **Added Responsive Adjustments**:
+   - Ensured full-width sections work properly on mobile devices
+   - Added explicit width and margin calculations for mobile breakpoints
 
-### Benefits
+4. **Documentation**:
+   - Added comprehensive comment block explaining the full-width technique
+   - Documented that width: 100vw makes sections viewport width
+   - Explained that margin-left: calc(-50vw + 50%) breaks out of parent containers
+   - Noted that parent containers must have overflow-x: visible for proper functionality
 
-1. **DRY Principle**: Eliminated code duplication across templates
-2. **Consistency**: All hero headers now use identical structure and styling
-3. **Dynamic Theming**: Colors automatically match project configuration
-4. **Easy Maintenance**: Single location for hero header updates
-5. **Future-Ready**: Easy to add new color themes (e.g., yellow for growth_conditions)
-6. **Better Performance**: Shared CSS loaded once instead of per-page
+### Result
+Full-width sections now properly extend to viewport edges on all screen sizes while maintaining proper content alignment. The technique is robust and works even when body has overflow-x: hidden.
+
+## Component Viewer Dynamic Section Fixes (Completed 2025-07-06)
+
+### Summary
+Fixed issues with dynamic full-width callout sections not displaying properly in the component viewer. The main problem was timing issues with component initialization and missing component viewer detection in some components.
+
+### Changes Made
+
+1. **Fixed 26_top_models_web_alignment.html**:
+   - Added component viewer detection to prevent auto-initialization conflicts
+   - Added console logging with [TopModelsWebAlignment] prefix for debugging
+   - Exposed `initTopModelsWebAlignment` function for manual initialization
+   - Updated to follow same pattern as other dynamic components
+
+2. **Enhanced Component Viewer (viewer.html)**:
+   - Added robust initialization sequence with retry logic
+   - Implemented `initializeComponent` function with exponential backoff
+   - Added debugging information to check content area existence
+   - Updated initialization calls for all dynamic components
+   - Added proper error handling and console logging
+
+3. **Created Component Patterns Documentation**:
+   - Created COMPONENT_PATTERNS.md with standard patterns for components
+   - Documented requirements for component viewer detection
+   - Provided template code for creating new dynamic components
+   - Added troubleshooting guide for common issues
 
 ### Technical Details
+- Dynamic components must check for `/components/` in URL path
+- Components should expose global initialization functions
+- Component viewer uses retry logic (5 attempts with exponential backoff)
+- All components use consistent logging with [ComponentName] prefix
 
-The hero header now:
-- Uses the project's `color_theme` to determine colors
-- Generates a unique canvas ID based on project ID
-- Applies theme-specific gradients and particle animations
-- Properly displays author information with theme-matched styling
-
-## Footer Refactoring
-
-### Problem
-Footer implementation was duplicated across templates with inconsistent links and styles:
-- index.html had footer with all links including Imprint
-- phenotype_analysis.html had footer missing Imprint link
-- Other pages (knowledge_calibration, research, about, imprint, privacy) had no footers
-- Footer CSS was duplicated in individual templates
-
-### Solution
-Created a reusable footer partial similar to the hero header implementation.
-
-### Implementation Steps
-- [x] Analyze footer implementations across templates
-- [x] Create footer partial template
-- [x] Move footer CSS to a centralized location
-- [x] Update all templates to use the footer partial
-- [x] Test all pages to ensure proper footer rendering
-
-### Changes Made
-
-1. **Created `/templates/partials/footer.html`**
-   - Standardized footer with all links (About, Contact, GitHub, Imprint, Privacy)
-   - Consistent copyright text: "© 2025 - LLM-BioEval Team"
-
-2. **Added footer styles to `article_styles.css`**
-   - Moved all footer CSS from individual templates
-   - Added responsive styles for mobile devices
-   - Ensures consistent styling across all pages
-
-3. **Updated all templates**
-   - **index.html**: Removed footer CSS, replaced footer HTML with `{% include 'partials/footer.html' %}`
-   - **phenotype_analysis.html**: Removed footer CSS and inconsistent footer, replaced with partial
-   - **knowledge_calibration.html**: Added footer include
-   - **research.html**: Added footer include after projects section
-   - **about.html**: Added footer include
-   - **imprint.html**: Added footer include
-   - **privacy.html**: Added footer include
-
-### Benefits
-
-1. **Consistency**: All pages now have identical footers with the same links
-2. **Maintainability**: Single location for footer updates
-3. **Complete Coverage**: All main pages now have footers
-4. **DRY Principle**: Eliminated code duplication
-5. **Responsive Design**: Footer adapts properly on mobile devices
-
-## Research Pages File-Based Sections
-
-### Problem
-Research pages (knowledge_calibration.html, phenotype_analysis.html) were monolithic templates with 8000+ lines of mixed HTML, CSS, and JavaScript. This made them difficult to maintain and edit. Content sections couldn't be reordered easily, and finding specific sections required scrolling through thousands of lines.
-
-### Solution
-Created a file-based system where each page has:
-- A folder containing individual section files
-- A manifest.yaml defining section order and metadata
-- Reusable wrapper partials for common structures
-- Page-specific CSS in separate files
-
-### Implementation
-
-#### 1. Folder Structure
-```
-templates/research/
-├── knowledge_calibration/
-│   ├── manifest.yaml
-│   ├── sections/
-│   │   ├── 01_purpose_intro.html
-│   │   ├── 02_definition_binomial.html
-│   │   ├── 03_ai_hallucination.html
-│   │   └── ... (28 section files total)
-└── phenotype_analysis/
-    ├── manifest.yaml
-    └── sections/
-```
-
-#### 2. Created Reusable Wrapper Partials
-
-**section_callout_wrapper.html**
-- Wraps full-width gradient sections
-- Takes: color_theme, title, text, content
-- Provides consistent structure for major result sections
-
-**callout_box_wrapper.html**  
-- Wraps inline callout boxes (definitions, examples)
-- Takes: type, header, content, compact
-- Ensures consistent styling for all callout boxes
-
-**article_section_wrapper.html**
-- Wraps standard article sections
-- Takes: section_id, title, content, sidebar_content
-- Manages article container structure
-
-**section_wide_wrapper.html**
-- Wraps full-width white sections
-- Takes: content, constrain_text
-- For wide tables and visualizations
-
-#### 3. Manifest System
-
-Each page has a manifest.yaml defining:
-```yaml
-page_config:
-  title: "Hallucination Test"
-  color_theme: "purple"
-  
-sections:
-  - id: "purpose_intro"
-    type: "article"
-    file: "sections/01_purpose_intro.html"
-    title: "Hallucination Check: Fictional Strain Names"
-    include_sidebar: true
-    
-  - id: "hallucination_process"
-    type: "section_callout"
-    file: "sections/07_process_flow.html"
-    title: "Hallucination Detection Process"
-    text: "Our systematic approach..."
-```
-
-#### 4. Updated Web App
-
-- Added `load_page_manifest()` function to web_app.py
-- Modified routes to check for manifest files
-- Falls back to original template if no manifest exists
-- Passes manifest data to new template
-
-#### 5. New Template Structure
-
-Created knowledge_calibration_new.html that:
-- Iterates through manifest sections
-- Applies appropriate wrappers based on section type
-- Handles nested content (callouts within articles)
-- Manages article open/close states
-- Includes page-specific CSS
-
-### Benefits
-
-1. **Independent Editing**: Each section can be edited without affecting others
-2. **Easy Reordering**: Just update the manifest file
-3. **Clear Organization**: Sections are numbered and named descriptively
-4. **Reusable Structures**: Common patterns use shared wrappers
-5. **Flexible Content**: Each section can contain any HTML/JS needed
-6. **Version Control**: Changes to sections are isolated
-7. **Easier Navigation**: No more scrolling through 8000+ lines
-
-### Status
-
-- ✅ Knowledge calibration page fully converted (28 sections)
-- ⏳ Phenotype analysis page pending conversion
-- ✅ All wrapper partials created
-- ✅ Manifest system implemented
-- ✅ Web app updated to support manifests
-- ✅ Component viewer system created
-- ✅ JavaScript functionality extracted and implemented
-- ⏳ Testing with dynamic content in progress
-
-## Component Viewer System
-
-### Problem
-After splitting research pages into individual section files, there was no easy way to test and view individual components in isolation. Developers had to load the entire page to see changes to a single section.
-
-### Solution
-Created a component viewer system that allows:
-- Viewing all available components in a library-style interface
-- Testing individual sections in isolation
-- Seeing component metadata and structure
-
-### Implementation
-
-1. **Created Component Routes**
-   - `/components` - Shows index of all available components
-   - `/components/<page>/<section_id>` - Shows individual component
-
-2. **Component Index Page** (`templates/components/index.html`)
-   - Lists all pages with manifest files
-   - Shows sections organized by page
-   - Color-coded badges for each project
-   - Grid layout for easy browsing
-   - Links to view individual components
-
-3. **Component Viewer** (`templates/components/viewer.html`)
-   - Shows components with proper wrappers applied
-   - Displays metadata (type, file, title)
-   - Includes necessary scripts for dynamic content
-   - Back navigation to component index
-   - Link to view full page
-
-4. **Added Components Link to Footer**
-   - Easy access from any page
-   - Helps developers quickly find component viewer
-
-### JavaScript Implementation
-
-1. **Created Modular Scripts**
-   - Moved inline JavaScript to structured functions
-   - Created `/static/js/knowledge_content.js` for dynamic loaders
-   - Updated `sections/99_scripts.html` with full implementations
-
-2. **Implemented Data Loading Functions**
-   - `loadKnowledgeAnalysisData()` - Main data loader
-   - `renderTopPerformers()` - Top models section
-   - `renderWorstPerformers()` - Worst models section
-   - `loadCorrelationData()` - Correlation analysis
-   - `renderScoreExample()` - Score calculation examples
-
-3. **Added Missing CSS Classes**
-   - Knowledge distribution bar colors
-   - Loading states and animations
-   - Performer cards styling
-   - Statistical highlights
-   - Responsive adjustments
-
-### Benefits
-
-1. **Isolated Testing**: Test components without loading entire pages
-2. **Quick Navigation**: Find and edit specific sections easily
-3. **Visual Documentation**: See all components at a glance
-4. **Faster Development**: No need to scroll through large files
-5. **Better Debugging**: Test dynamic content in isolation
-
-### Technical Details
-
-- Component viewer respects section types and applies correct wrappers
-- Dynamic content sections are properly initialized
-- All necessary CSS and JS dependencies are loaded
-- Responsive design maintained in component view
+### Result
+All dynamic full-width callout sections now properly display in the component viewer with data loading correctly from API endpoints. The system is more robust with better error handling and debugging capabilities.

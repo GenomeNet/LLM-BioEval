@@ -7,6 +7,7 @@ import threading
 import time
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
+from markupsafe import escape
 from flask_socketio import SocketIO, emit
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1945,14 +1946,91 @@ def artificial_dataset_page():
     # Load manifest if it exists
     manifest = load_page_manifest('knowledge_calibration')
     if manifest:
-        # Use new manifest-based template
-        return render_template('research/knowledge_calibration_new.html', 
+        # Use generic research article template
+        return render_template('research_article.html', 
                              annotations=annotation_data, 
                              project=project,
-                             manifest=manifest)
+                             manifest=manifest,
+                             project_path='research/knowledge_calibration',
+                             page_specific_css='css/research/knowledge_calibration/page_specific.css')
     else:
         # Fall back to original template
         return render_template('knowledge_calibration.html', annotations=annotation_data, project=project)
+
+@app.route('/research/<page>/dynamic')
+def research_dynamic_page(page):
+    """Dynamic research page renderer using manifest-based approach"""
+    # Load manifest
+    manifest = load_page_manifest(page)
+    if not manifest:
+        abort(404)
+    
+    # Get project data
+    project = get_project_by_id(manifest['page_config'].get('project_id', page))
+    if not project:
+        abort(404)
+    
+    # Read annotation data if this is knowledge calibration
+    annotation_data = {}
+    if page == 'knowledge_calibration':
+        annotation_file = os.path.join(config.SPECIES_DIR, 'artificial_annotation.txt')
+        try:
+            if os.path.exists(annotation_file):
+                with open(annotation_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    if len(lines) > 1:  # Skip header
+                        for line in lines[1:]:
+                            line = line.strip()
+                            if line and ';' in line:
+                                parts = line.split(';')
+                                if len(parts) >= 3:
+                                    type_name = parts[0].strip()
+                                    description = parts[1].strip()
+                                    example = parts[2].strip()
+                                    annotation_data[type_name] = {
+                                        'description': description,
+                                        'example': example
+                                    }
+        except Exception as e:
+            print(f"Error reading annotation file: {e}")
+    
+    return render_template('research_dynamic.html',
+                         project=project,
+                         manifest=manifest,
+                         annotations=annotation_data,
+                         project_path=f'research/{page}',
+                         page_specific_css=f'css/research/{page}/page_specific.css')
+
+@app.route('/knowledge_calibration_old')
+@app.route('/oldpage')  # Alternative route name
+def knowledge_calibration_old_page():
+    """Old version of the knowledge calibration page - monolithic HTML"""
+    # Read annotation file if it exists
+    annotation_data = {}
+    annotation_file = os.path.join(config.SPECIES_DIR, 'artificial_annotation.txt')
+    
+    try:
+        if os.path.exists(annotation_file):
+            with open(annotation_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                if len(lines) > 1:  # Skip header
+                    for line in lines[1:]:
+                        line = line.strip()
+                        if line and ';' in line:
+                            parts = line.split(';')
+                            if len(parts) >= 3:
+                                type_name = parts[0].strip()
+                                description = parts[1].strip()
+                                example = parts[2].strip()
+                                annotation_data[type_name] = {
+                                    'description': description,
+                                    'example': example
+                                }
+    except Exception as e:
+        print(f"Error reading annotation file: {e}")
+    
+    project = get_project_by_id('knowledge_calibration')
+    return render_template('knowledge_calibration_old.html', annotations=annotation_data, project=project)
 
 @app.route('/search_correlation')
 def search_correlation_page():
@@ -1983,6 +2061,11 @@ def components_index():
     
     return render_template('components/index.html', components=components)
 
+@app.route('/debug_layout')
+def debug_layout():
+    """Debug page for layout issues"""
+    return render_template('debug_layout.html')
+
 @app.route('/components/<page>/<section_id>')
 def view_component(page, section_id):
     """View a single component in isolation"""
@@ -2003,11 +2086,61 @@ def view_component(page, section_id):
     # Get project data
     project = get_project_by_id(manifest['page_config'].get('project_id', page))
     
-    return render_template('components/viewer.html', 
-                         page=page,
-                         section=section,
-                         manifest=manifest,
-                         project=project)
+    # Read the raw content of the section file for all viewers
+    section_raw_content = ""
+    if section.get('file'):
+        # Get absolute path to the template folder
+        app_root = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(app_root, 'templates', 'research', page, section['file'])
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                section_raw_content = escape(f.read())
+        except Exception as e:
+            section_raw_content = f"Error reading file: {str(e)}"
+    
+    # Check if simple viewer requested (now the default for better dual view)
+    if request.args.get('simple') != 'false':
+        return render_template(
+            'components/viewer_simple.html',
+            section=section,
+            page=page,
+            manifest=manifest,
+            project=project,
+            section_raw_content=section_raw_content
+        )
+    
+    # Check if debug viewer requested
+    if request.args.get('debug') == 'true':
+        return render_template(
+            'components/viewer_debug.html',
+            section=section,
+            page=page,
+            manifest=manifest,
+            project=project
+        )
+    
+    # Check if old viewer requested
+    if request.args.get('old') == 'true':
+        return render_template(
+            'components/viewer.html', 
+            section=section, 
+            page=page, 
+            manifest=manifest, 
+            project=project,
+            project_path='research/' + page,
+            page_specific_css=f'css/research/{page}/page_specific.css',
+            section_raw_content=section_raw_content
+        )
+    
+    # Default to regular viewer with raw content
+    return render_template(
+        'components/viewer.html',
+        section=section,
+        page=page,
+        manifest=manifest,
+        project=project,
+        section_raw_content=section_raw_content
+    )
 
 @app.route('/phenotype_analysis')
 def phenotype_analysis_page():
@@ -3686,7 +3819,7 @@ def main():
     processing_manager = ProcessingManager()
     
     print(f"Starting MicrobeBench Web Interface on http://{args.host}:{args.port}")
-    socketio.run(app, host=args.host, port=args.port, debug=args.debug)
+    socketio.run(app, host=args.host, port=args.port, debug=args.debug, allow_unsafe_werkzeug=True)
 
 if __name__ == '__main__':
     main()

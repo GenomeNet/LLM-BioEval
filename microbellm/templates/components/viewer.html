@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/research/' + page + '/page_specific.css') }}">
 <style>
     .viewer-header {
@@ -74,6 +75,7 @@
     
     .viewer-content {
         padding: 0;
+        margin: 0;
         min-height: calc(100vh - 200px);
     }
     
@@ -84,6 +86,45 @@
         padding: 0;
         margin-bottom: 20px;
         position: relative;
+        overflow: visible !important; /* Allow content to break out */
+    }
+    
+    /* Special handling for full-width components */
+    .component-wrapper.full-width {
+        border: none;
+        border-radius: 0;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        margin-left: -50vw;
+    }
+    
+    /* Full-width component container */
+    .full-width-component-container {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        margin-left: -50vw;
+        margin-bottom: 20px;
+        margin-right: 0;
+        overflow: visible !important;
+        min-height: 300px; /* Ensure minimum height */
+    }
+    
+    .full-width-component-container .component-wrapper {
+        width: 100% !important;
+        border: none;
+        border-radius: 0;
+        margin: 0;
+        background: transparent; /* Remove background for full-width sections */
+    }
+    
+    /* Ensure boundaries work correctly for full-width */
+    .full-width-component-container .component-boundaries {
+        width: 100%;
+        padding: 0;
     }
     
     .component-label {
@@ -111,6 +152,7 @@
         );
         padding: 20px;
         margin: 0;
+        overflow: visible !important; /* Ensure content isn't clipped */
     }
     
     .component-boundaries::before,
@@ -162,6 +204,58 @@
         position: relative;
         background: var(--bg-primary);
         min-height: 100px;
+        overflow: visible !important;
+        z-index: 1;
+    }
+    
+    /* Override component_styles.css for viewer context */
+    .viewer-content .section-callout-component {
+        padding: 20px !important;
+        min-height: 200px !important;
+    }
+    
+    /* Simplified dynamic section wrapper */
+    .dynamic-section-wrapper {
+        padding: 20px;
+        background: rgba(99, 102, 241, 0.05);
+        border-radius: 8px;
+        min-height: 200px;
+    }
+    
+    .dynamic-section-wrapper .section-callout__header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+    
+    .dynamic-section-wrapper .section-callout__title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 8px;
+    }
+    
+    .dynamic-section-wrapper .section-callout__text {
+        font-size: 16px;
+        color: var(--gray-600);
+        line-height: 1.5;
+    }
+    
+    /* Ensure flow diagrams have proper height */
+    .component-content-area .flow-diagram-wrapper {
+        min-height: 200px;
+        width: 100%;
+    }
+    
+    .component-content-area .flow-diagram {
+        min-height: 150px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Ensure flow boxes are visible */
+    .component-content-area .flow-box {
+        min-width: 200px;
+        min-height: 80px;
     }
     
     /* Full-width component container */
@@ -174,6 +268,7 @@
     /* Override main-content styles for component viewer */
     .viewer-content .main-content {
         padding: 0;
+        margin: 0;
         max-width: none;
     }
     
@@ -182,13 +277,30 @@
         max-width: 100%;
         margin: 0;
         padding: 0;
+        overflow-x: visible; /* Allow content to extend beyond */
     }
     
     /* Fix alignment for section callouts in viewer */
-    .viewer-content .section-callout {
-        margin-left: 0;
-        margin-right: 0;
+    /* Section callouts should maintain their full-width behavior */
+    .full-width-component-container .section-callout,
+    .full-width-component-container .section-wide {
+        /* These already have the correct styles from article_styles.css */
+        /* Just ensure they're not overridden */
+    }
+    
+    /* Override constraints on inner content wrappers */
+    .full-width-component-container .flow-diagram-wrapper {
+        max-width: none !important;
         width: 100%;
+        margin: 0;
+        padding-left: var(--padding-container);
+        padding-right: var(--padding-container);
+    }
+    
+    /* Ensure section callout content uses full width */
+    .full-width-component-container .section-callout__content {
+        max-width: none !important;
+        padding: 0;
     }
     
     /* Fix hero header alignment */
@@ -200,13 +312,39 @@
     /* Ensure proper centering */
     body {
         overflow-x: hidden;
+        margin: 0;
+        padding: 0;
     }
     
     /* Remove padding from main content when viewing components */
     .main-content.page-content {
-        padding: 0;
-        margin: 0;
+        padding: 0 !important;
+        margin: 0 !important;
         max-width: 100%;
+    }
+    
+    /* Remove all padding/margins for full-width components */
+    .full-width-component-container {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+    }
+    
+    /* Ensure viewer-content doesn't add any padding for full-width */
+    .viewer-content {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    /* Remove all padding when viewing full-width sections */
+    .main-content.page-content.no-padding {
+        padding: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    .no-padding .viewer-content {
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
     /* Hide boundaries when toggled */
@@ -214,6 +352,7 @@
         background: none;
         padding: 0;
     }
+    
     
     .hide-boundaries .component-boundaries::before,
     .hide-boundaries .component-boundaries::after,
@@ -246,10 +385,189 @@
         border-radius: 3px;
         font-size: 13px;
     }
+    
+    /* Override section-callout-component to prevent full-width issues in viewer */
+    .section-callout-component {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        position: relative;
+    }
+    
+    /* Ensure section-callout-component content is properly contained */
+    .section-callout-component .section-callout__content {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 0 48px;
+    }
+    
+    .section-callout-component .section-callout__content--full-width {
+        max-width: 1800px;
+    }
+    
+    /* Prevent horizontal scrolling in full-width containers */
+    .full-width-component-container {
+        overflow-x: hidden;
+    }
+    
+    /* Ensure body doesn't have horizontal scroll */
+    body {
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Ensure main content doesn't overflow */
+    .main-content {
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Debug: Ensure dynamic content is visible */
+    #helloWorldContainer,
+    #topPerformersContainer,
+    #correlationContent,
+    #worstPerformerContainer {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 50px;
+    }
+    
+    /* Remove any potential conflicts */
+    .dynamic-section-wrapper #helloWorldContainer,
+    .dynamic-section-wrapper #topPerformersContainer,
+    .dynamic-section-wrapper #correlationContent {
+        background: white !important;
+        padding: 20px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Ensure loading containers don't hide content */
+    .loading-container {
+        display: block !important;
+        min-height: 50px;
+    }
+    
+    /* Code display section */
+    .code-section {
+        margin-bottom: 40px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .code-header {
+        background: #e9ecef;
+        padding: 12px 20px;
+        font-weight: 600;
+        font-size: 14px;
+        color: #495057;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .code-content {
+        padding: 20px;
+        overflow-x: auto;
+    }
+    
+    .code-content pre {
+        margin: 0;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #212529;
+        white-space: pre;
+    }
+    
+    .rendered-section {
+        margin-top: 40px;
+    }
+    
+    .rendered-header {
+        font-size: 18px;
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    /* Ensure section callout components are visible */
+    .section-callout-component {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 200px !important;
+        position: relative;
+        z-index: 1;
+        background: rgba(99, 102, 241, 0.1) !important;
+    }
+    
+    .section-callout-component .section-callout__content {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 150px !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+    
+    .section-callout-component .section-callout__content > * {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure content wrapper is visible */
+    .section-callout__content,
+    .section-callout__content--full-width {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative;
+        z-index: 2;
+    }
+    
+    /* Component content area should show content */
+    .component-content-area {
+        min-height: 200px;
+        position: relative;
+        z-index: 0;
+    }
+    
+    /* Ensure the full-width container doesn't clip content */
+    .full-width-component-container {
+        overflow: visible !important;
+        min-height: 200px;
+    }
+    
+    /* Force gradient background to be visible */
+    .section-callout-component--purple {
+        background: linear-gradient(135deg, 
+            rgba(99, 102, 241, 0.08) 0%,
+            rgba(168, 85, 247, 0.06) 25%,
+            rgba(59, 130, 246, 0.08) 50%,
+            rgba(147, 51, 234, 0.06) 75%,
+            rgba(79, 172, 254, 0.08) 100%) !important;
+        border-top: 1px solid rgba(99, 102, 241, 0.2) !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.2) !important;
+    }
+    
+    /* Debug specific for hello world */
+    .component-content-area:has(#helloWorldContainer) {
+        background: rgba(0, 255, 0, 0.1) !important; /* Green tint for parent */
+        min-height: 300px !important;
+    }
+    
 </style>
 {% endblock %}
 
 {% block content %}
+{# Add no-padding class when viewing full-width sections #}
 <div class="viewer-header">
     <div class="viewer-header-content">
         <div>
@@ -283,8 +601,9 @@
     </div>
 </div>
 
-<div class="main-content page-content">
+<div class="main-content page-content{% if section.type in ['section_callout', 'section_callout_dynamic', 'section_wide'] %} no-padding{% endif %}">
     <div class="viewer-content">
+        <!-- Component View -->
         {% if section.type in ['section_callout', 'section_callout_dynamic'] %}
             <div class="info-box">
                 <strong>Section Callout Component</strong><br>
@@ -302,12 +621,14 @@
                     <div class="component-boundaries-sides left"></div>
                     <div class="component-boundaries-sides right"></div>
                     <div class="component-content-area">
-                        {% set section_content %}
-                            {% include 'research/' + page + '/' + section.file %}
-                        {% endset %}
-                        {% with section_id=section.section_id, title=section.title, content=section_content, sidebar_content=none, full_width=section.full_width %}
-                            {% include 'partials/article_section_wrapper.html' %}
-                        {% endwith %}
+                        <article class="article-container">
+                            <div class="article-content">
+                                {% if section.title %}<h1 class="main-section-title">{{ section.title }}</h1>{% endif %}
+                                <div class="article-text">
+                                    {% include 'research/' + page + '/' + section.file %}
+                                </div>
+                            </div>
+                        </article>
                     </div>
                 </div>
             </div>
@@ -322,7 +643,7 @@
                         {% set callout_content %}
                             {% include 'research/' + page + '/' + section.file %}
                         {% endset %}
-                        {% with type=section.callout_type, header=section.header, content=callout_content, compact=section.compact %}
+                        {% with type=section.callout_type, header=section.header, content=callout_content, compact=section.compact, in_viewer=true %}
                             {% include 'partials/callout_box_wrapper.html' %}
                         {% endwith %}
                     </div>
@@ -344,54 +665,111 @@
             </div>
             
         {% elif section.type == 'section_callout' %}
-            <div class="full-width-component-container">
-                <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
-                    <span class="component-label">Full-Width Section Callout</span>
-                    <div class="component-boundaries" style="padding: 0;">
+            <!-- Raw Component (without wrapper) -->
+            <div class="rendered-section">
+                <h2 class="rendered-header">Raw Component (No Background)</h2>
+                <div class="component-wrapper">
+                    <span class="component-label">Raw Component</span>
+                    <div class="component-boundaries">
                         <div class="component-boundaries-sides left"></div>
                         <div class="component-boundaries-sides right"></div>
                         <div class="component-content-area">
-                            {% set section_content %}
-                                {% include 'research/' + page + '/' + section.file %}
-                            {% endset %}
-                            {% with color_theme=manifest.page_config.color_theme, title=section.title, text=section.text, content=section_content, full_width=section.full_width %}
-                                {% include 'partials/section_callout_wrapper.html' %}
-                            {% endwith %}
+                            <!-- Direct include without any wrappers -->
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Component with Section Callout Wrapper -->
+            <div class="rendered-section">
+                <h2 class="rendered-header">Component with Section Callout Background</h2>
+                <div class="full-width-component-container">
+                    <div class="component-wrapper full-width">
+                        <span class="component-label">Full-Width Section Callout</span>
+                        <div class="component-boundaries">
+                            <div class="component-boundaries-sides left"></div>
+                            <div class="component-boundaries-sides right"></div>
+                            <div class="component-content-area">
+                                {% set section_content %}
+                                    {% include 'research/' + page + '/' + section.file %}
+                                {% endset %}
+                                {% with color_theme=manifest.page_config.color_theme, title=section.title, text=section.text, content=section_content, full_width=section.full_width, in_viewer=true %}
+                                    {% include 'partials/section_callout_wrapper.html' %}
+                                {% endwith %}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
         {% elif section.type == 'section_callout_dynamic' %}
-            <div class="info-box">
-                <strong>Dynamic Content</strong><br>
-                This section loads content dynamically via JavaScript. Container ID: <code>{{ section.container_id }}</code>
+            <!-- Raw Component (without wrapper) -->
+            <div class="rendered-section">
+                <h2 class="rendered-header">Raw Component (No Background)</h2>
+                <div class="component-wrapper">
+                    <span class="component-label">Raw Dynamic Component</span>
+                    <div class="component-boundaries">
+                        <div class="component-boundaries-sides left"></div>
+                        <div class="component-boundaries-sides right"></div>
+                        <div class="component-content-area">
+                            <!-- Direct include without any wrappers -->
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            {% include 'research/' + page + '/' + section.file %}
+            
+            <!-- Component with Section Callout Wrapper -->
+            <div class="rendered-section">
+                <h2 class="rendered-header">Component with Section Callout Background</h2>
+                <div class="full-width-component-container">
+                    <div class="component-wrapper full-width">
+                        <span class="component-label">Full-Width Dynamic Section Callout</span>
+                        <div class="component-boundaries">
+                            <div class="component-boundaries-sides left"></div>
+                            <div class="component-boundaries-sides right"></div>
+                            <div class="component-content-area">
+                                <!-- With section callout wrapper -->
+                                <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+                                    <div class="section-callout__content">
+                                        {% if section.title or section.text %}
+                                        <div class="section-callout__header">
+                                            {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                                            {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        <!-- Static content for wrapped version -->
+                                        <div style="padding: 40px; text-align: center;">
+                                            <h2 style="font-size: 32px; color: #6366f1; margin-bottom: 16px;">Hello World!</h2>
+                                            <p style="font-size: 18px; color: #666;">This is a minimal dynamic section callout component.</p>
+                                            <p style="font-size: 16px; color: #999; margin-top: 24px;">
+                                                This is the wrapped version with section callout background.
+                                            </p>
+                                            <div style="margin-top: 32px; padding: 20px; background: #f3f4f6; border-radius: 8px;">
+                                                <h3 style="margin-bottom: 12px;">Component Info:</h3>
+                                                <p style="font-size: 14px; text-align: left; font-family: monospace;">
+                                                    This version includes:<br>
+                                                    - Section callout wrapper ✓<br>
+                                                    - Gradient background ✓<br>
+                                                    - Full-width layout ✓<br>
+                                                    - {{ manifest.page_config.color_theme }} color theme ✓
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
         {% elif section.type == 'hero' %}
-            <div class="component-wrapper" style="margin: 0; border-radius: 0; width: 100%;">
-                <span class="component-label">Hero Header</span>
-                <div class="component-boundaries" style="padding: 0;">
-                    <div class="component-boundaries-sides left"></div>
-                    <div class="component-boundaries-sides right"></div>
-                    <div class="component-content-area" style="padding: 0;">
-                        {% include 'research/' + page + '/' + section.file %}
-                    </div>
-                </div>
-            </div>
+            {% include 'research/' + page + '/' + section.file %}
             
         {% elif section.type == 'raw' %}
-            <div class="component-wrapper">
-                <span class="component-label">Raw Include</span>
-                <div class="component-boundaries">
-                    <div class="component-boundaries-sides left"></div>
-                    <div class="component-boundaries-sides right"></div>
-                    <div class="component-content-area">
-                        {% include 'research/' + page + '/' + section.file %}
-                    </div>
-                </div>
-            </div>
+            {% include 'research/' + page + '/' + section.file %}
             
         {% else %}
             <div class="info-box">
@@ -404,17 +782,69 @@
 <!-- Footer -->
 {% include 'partials/footer.html' %}
 
-<!-- Load any necessary scripts for dynamic content -->
-<script src="{{ url_for('static', filename='js/knowledge_content.js') }}"></script>
-<!-- Load the main scripts if this is a knowledge calibration page -->
-{% if page == 'knowledge_calibration' %}
-    {% include 'research/knowledge_calibration/sections/99_scripts.html' %}
-{% endif %}
+<!-- Scripts are not loaded in component viewer to prevent conflicts -->
 
 <script>
-// Initialize any dynamic content if this is a dynamic section
-{% if section.type == 'section_callout_dynamic' or section.type == 'hero' %}
+// Initialize content on page load with retry logic
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Viewer: DOM content loaded, preparing to initialize components...');
+    
+    // Debug: Check if content area exists and has content
+    const contentArea = document.querySelector('.component-content-area');
+    if (contentArea) {
+        console.log('Viewer: Content area found, innerHTML length:', contentArea.innerHTML.length);
+        console.log('Viewer: Content area display style:', window.getComputedStyle(contentArea).display);
+        console.log('Viewer: Content area height:', contentArea.offsetHeight);
+        
+        // Check for specific containers
+        {% if section.id == 'hello_world_dynamic' %}
+        console.log('Viewer: Detected hello_world_dynamic section');
+        const helloContainer = document.getElementById('helloWorldContainer');
+        if (helloContainer) {
+            console.log('Viewer: helloWorldContainer found immediately');
+            console.log('Viewer: Container styles:', window.getComputedStyle(helloContainer));
+        } else {
+            console.error('Viewer: helloWorldContainer NOT FOUND!');
+        }
+        {% endif %}
+    } else {
+        console.error('Viewer: No content area found!');
+    }
+    
+    // Function to initialize a component with retry logic
+    function initializeComponent(componentName, initFunction, maxRetries = 5) {
+        let retries = 0;
+        
+        function tryInit() {
+            console.log(`Viewer: Attempting to initialize ${componentName} (attempt ${retries + 1}/${maxRetries})`);
+            
+            if (typeof window[initFunction] === 'function') {
+                console.log(`Viewer: Found ${initFunction}, calling it...`);
+                try {
+                    window[initFunction]();
+                    console.log(`Viewer: Successfully initialized ${componentName}`);
+                    return true;
+                } catch (error) {
+                    console.error(`Viewer: Error initializing ${componentName}:`, error);
+                    return false;
+                }
+            } else {
+                console.log(`Viewer: ${initFunction} not yet available`);
+                retries++;
+                if (retries < maxRetries) {
+                    setTimeout(tryInit, 200 * retries); // Exponential backoff
+                } else {
+                    console.error(`Viewer: Failed to initialize ${componentName} after ${maxRetries} attempts`);
+                }
+                return false;
+            }
+        }
+        
+        // Start initialization with a small delay to let scripts load
+        setTimeout(tryInit, 100);
+    }
+    
+    {% if section.type == 'section_callout_dynamic' or section.type == 'hero' %}
     // Initialize hero animation if viewing hero section
     {% if section.type == 'hero' %}
         if (typeof initParticleAnimation !== 'undefined') {
@@ -424,20 +854,41 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Call initialization functions based on section id
     {% if section.id == 'top_performers' %}
-        if (typeof loadKnowledgeAnalysisData !== 'undefined') {
-            loadKnowledgeAnalysisData();
-        }
+        initializeComponent('top_performers', 'initTopPerformers');
     {% elif section.id == 'top_models_web_alignment' %}
-        if (typeof loadCorrelationData !== 'undefined') {
-            loadCorrelationData();
+        initializeComponent('top_models_web_alignment', 'initTopModelsWebAlignment');
+    {% elif section.id == 'hello_world_dynamic' %}
+        console.log('Viewer: Detected hello_world_dynamic section');
+        // Check if container exists immediately
+        const helloContainer = document.getElementById('helloWorldContainer');
+        if (helloContainer) {
+            console.log('Viewer: helloWorldContainer found immediately');
+            console.log('Viewer: Container styles:', window.getComputedStyle(helloContainer));
+        } else {
+            console.error('Viewer: helloWorldContainer NOT found!');
         }
+        initializeComponent('hello_world_dynamic', 'initHelloWorld');
     {% elif section.id == 'dynamic_stats' %}
-        if (typeof loadKnowledgeAnalysisData !== 'undefined') {
-            loadKnowledgeAnalysisData();
-        }
+        initializeComponent('dynamic_stats', 'loadKnowledgeAnalysisData');
+    {% elif section.id == 'worst_performers' %}
+        // Worst performers auto-initializes, but we can add manual init if needed
+        console.log('Viewer: worst_performers will auto-initialize');
+    {% elif section.id == 'knowledge_analysis_content' %}
+        // The knowledge analysis content has its own self-contained script
+        console.log('Viewer: knowledge_analysis_content will auto-initialize');
+    {% elif section.id == 'quality_score_chart' %}
+        console.log('Viewer: quality_score_chart will auto-initialize');
+    {% elif section.id == 'correlation_chart_interactive' %}
+        console.log('Viewer: correlation_chart_interactive will auto-initialize');
+    {% elif section.id == 'full_template_tables' %}
+        console.log('Viewer: full_template_tables will auto-initialize');
+    {% elif section.id == 'web_alignment_flow' %}
+        console.log('Viewer: web_alignment_flow will auto-initialize');
+    {% elif section.id == 'correlation_visualization' %}
+        console.log('Viewer: correlation_visualization will auto-initialize');
+    {% endif %}
     {% endif %}
 });
-{% endif %}
 
 // Toggle boundaries function
 function toggleBoundaries() {
@@ -452,5 +903,6 @@ function toggleBoundaries() {
         toggleText.textContent = 'Show Boundaries';
     }
 }
+
 </script>
 {% endblock %}

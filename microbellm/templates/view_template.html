@@ -1,9 +1,12 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
-{% block title %}Templates - LLM-BioEval{% endblock %}
+{% block title %}Templates - MicrobeLLM Admin{% endblock %}
 
 {% block content %}
-<h1>Template Configuration Viewer</h1>
+<div class="page-header">
+    <h1 class="page-title">Template Configuration Viewer</h1>
+    <p class="page-subtitle">View and understand all template configurations for phenotype prediction</p>
+</div>
 
 <div class="explanation-section">
     <div class="explanation-grid">
@@ -461,7 +464,7 @@
 
 /* Knowledge Template Styling */
 .knowledge-header {
-    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-dark));
     color: white;
 }
 
@@ -472,7 +475,7 @@
 
 /* Phenotype Template Styling */
 .phenotype-header {
-    background: linear-gradient(135deg, #27ae60, #229954);
+    background: linear-gradient(135deg, var(--status-success), #16a34a);
     color: white;
 }
 
@@ -517,20 +520,20 @@
 
 /* Knowledge Tab Styling */
 .knowledge-tab {
-    border-color: #d4b3ff;
-    color: #6f42c1;
+    border-color: var(--admin-primary-light);
+    color: var(--admin-primary);
 }
 
 .knowledge-tab:hover {
-    background: #f3f0ff;
-    border-color: #9b59b6;
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--admin-primary);
 }
 
 .knowledge-tab.active {
-    background: #9b59b6;
+    background: var(--admin-primary);
     color: white;
-    border-color: #9b59b6;
-    box-shadow: 0 4px 12px rgba(155,89,182,0.3);
+    border-color: var(--admin-primary);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.3);
 }
 
 .knowledge-tab.active i {
@@ -539,20 +542,20 @@
 
 /* Phenotype Tab Styling */
 .phenotype-tab {
-    border-color: #a9dfbf;
-    color: #27ae60;
+    border-color: rgba(16, 185, 129, 0.3);
+    color: var(--status-success);
 }
 
 .phenotype-tab:hover {
-    background: #e8f5e9;
-    border-color: #27ae60;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--status-success);
 }
 
 .phenotype-tab.active {
-    background: #27ae60;
+    background: var(--status-success);
     color: white;
-    border-color: #27ae60;
-    box-shadow: 0 4px 12px rgba(39,174,96,0.3);
+    border-color: var(--status-success);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
 }
 
 .phenotype-tab.active i {
@@ -843,12 +846,12 @@
 }
 
 .template-type-badge.template-type-knowledge {
-    background-color: #9b59b6;
+    background-color: var(--admin-primary);
     color: white;
 }
 
 .template-type-badge.template-type-phenotype {
-    background-color: #00796b;
+    background-color: var(--status-success);
     color: white;
 }
 

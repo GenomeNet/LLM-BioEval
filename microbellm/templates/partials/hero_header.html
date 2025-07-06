@@ -1,9 +1,12 @@
-{# Hero Header Partial - Reusable component for research page headers #}
+{# Hero Header Partial - Displays header with integrated animation canvas #}
 {# Expects: project (ResearchProject object) to be passed in context #}
 
-<!-- Hero Header - Full Width -->
+<!-- Hero Header with Animation -->
 <header class="hero-header hero-header--{{ project.color_theme }}">
+    <!-- Animation Canvas (positioned behind content) -->
     <canvas id="{{ project.id }}-hero-canvas" class="hero-canvas"></canvas>
+    
+    <!-- Hero Content (positioned above canvas) -->
     <div class="hero-content">
         <h1 class="hero-title">{{ project.title }}</h1>
         <div class="hero-author hero-author--{{ project.color_theme }}">{{ project.authors }}</div>
@@ -13,139 +16,17 @@
     </div>
 </header>
 
+<!-- Initialize Hero Animation -->
+<script src="{{ url_for('static', filename='js/animations.js') }}"></script>
 <script>
-// Initialize hero animation for {{ project.id }}
+// Initialize hero animation based on project type
 document.addEventListener('DOMContentLoaded', function() {
-    const canvas = document.getElementById('{{ project.id }}-hero-canvas');
-    if (!canvas) return;
+    const canvasId = '{{ project.id }}-hero-canvas';
+    const animationType = '{{ project.animation_type }}';
     
-    const ctx = canvas.getContext('2d');
-    let width, height;
-    let animationId;
-    
-    // Color configurations based on project theme
-    const colorThemes = {
-        purple: {
-            colors: [
-                { r: 99, g: 102, b: 241 },   // Blue
-                { r: 168, g: 85, b: 247 },   // Purple
-                { r: 147, g: 51, b: 234 },   // Deep Purple
-                { r: 59, g: 130, b: 246 },   // Light Blue
-            ],
-            particleCount: 60,
-            particleSpeed: 0.3,
-            particleSize: { min: 2, max: 4 }
-        },
-        green: {
-            colors: [
-                { r: 34, g: 197, b: 94 },    // Green
-                { r: 132, g: 204, b: 22 },   // Lime
-                { r: 16, g: 185, b: 129 },   // Emerald
-                { r: 5, g: 150, b: 105 },    // Teal
-            ],
-            particleCount: 50,
-            particleSpeed: 0.4,
-            particleSize: { min: 3, max: 6 }
-        },
-        yellow: {
-            colors: [
-                { r: 250, g: 204, b: 21 },   // Yellow
-                { r: 251, g: 146, b: 60 },   // Orange
-                { r: 254, g: 215, b: 102 },  // Light Yellow
-                { r: 251, g: 191, b: 36 },   // Amber
-            ],
-            particleCount: 40,
-            particleSpeed: 0.5,
-            particleSize: { min: 2, max: 5 }
-        }
-    };
-    
-    const theme = colorThemes['{{ project.color_theme }}'] || colorThemes.purple;
-    let particles = [];
-    
-    function resizeCanvas() {
-        width = canvas.width = canvas.offsetWidth;
-        height = canvas.height = canvas.offsetHeight;
-        initParticles();
+    // Initialize the appropriate animation
+    if (window.initAnimation) {
+        window.initAnimation(canvasId, animationType);
     }
-    
-    function initParticles() {
-        particles = [];
-        for (let i = 0; i < theme.particleCount; i++) {
-            particles.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                vx: (Math.random() - 0.5) * theme.particleSpeed,
-                vy: (Math.random() - 0.5) * theme.particleSpeed,
-                size: theme.particleSize.min + Math.random() * (theme.particleSize.max - theme.particleSize.min),
-                color: theme.colors[Math.floor(Math.random() * theme.colors.length)],
-                opacity: 0.3 + Math.random() * 0.4
-            });
-        }
-    }
-    
-    function drawParticle(particle) {
-        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.opacity})`;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    function animate() {
-        ctx.clearRect(0, 0, width, height);
-        
-        // Update and draw particles
-        particles.forEach(particle => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            
-            // Wrap around edges
-            if (particle.x < -10) particle.x = width + 10;
-            if (particle.x > width + 10) particle.x = -10;
-            if (particle.y < -10) particle.y = height + 10;
-            if (particle.y > height + 10) particle.y = -10;
-            
-            drawParticle(particle);
-        });
-        
-        // Draw connections between nearby particles
-        ctx.strokeStyle = `rgba(${theme.colors[0].r}, ${theme.colors[0].g}, ${theme.colors[0].b}, 0.1)`;
-        ctx.lineWidth = 1;
-        
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < 100) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.stroke();
-                }
-            }
-        }
-        
-        animationId = requestAnimationFrame(animate);
-    }
-    
-    // Initialize
-    resizeCanvas();
-    animate();
-    
-    // Handle resize
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(resizeCanvas, 250);
-    });
-    
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-        }
-    });
 });
 </script>

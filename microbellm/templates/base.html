@@ -6,6 +6,8 @@
     <title>{% block title %}LLM-BioEval{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout_styles.css') }}">
     <style>
         :root {
             /* Modern color palette */
@@ -49,6 +51,11 @@
             box-sizing: border-box;
         }
         
+        html {
+            overflow-x: hidden; /* Prevent horizontal scrollbar at root */
+            overflow-y: auto;
+        }
+        
         body {
             font-family: var(--font-sans);
             margin: 0;
@@ -60,6 +67,8 @@
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            overflow-x: visible; /* Allow full-width sections to break out */
+            position: relative; /* Establish positioning context for full-width sections */
         }
         
         /* Minimal Navigation */
@@ -71,6 +80,15 @@
             z-index: 40;
             backdrop-filter: blur(8px);
             background-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .navbar-inner {
+            max-width: 1500px; /* var(--container-standard) */
+            margin: 0 auto;
+            padding: 0 48px; /* var(--padding-container) */
+            height: 64px; /* var(--navbar-height) */
+            display: flex;
+            align-items: center;
         }
         
         .navbar-brand {
@@ -798,6 +816,9 @@
             }
         });
     </script>
+    <!-- Socket.IO for real-time updates -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    {% block scripts %}{% endblock %}
     {% block extra_scripts %}{% endblock %}
 </body>
 </html> 

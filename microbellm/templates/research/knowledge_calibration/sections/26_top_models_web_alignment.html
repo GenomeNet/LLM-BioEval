@@ -1,14 +1,195 @@
-<div id="correlationContent">
-    <div class="loading-container">
-        <div class="loading-progress">
-            <div class="loading-progress-bar"></div>
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
+        <div class="section-callout__header">
+            <h3 class="section-callout__title">Top Models - Web-Alignment</h3>
+            <p class="section-callout__text">Language models that demonstrate the best alignment between their knowledge claims and actual web presence of bacterial species, showing superior calibration abilities.</p>
         </div>
-        <div class="loading-text">Loading knowledge-web alignment data...</div>
+        
+        <div id="correlationContent">
+            <div class="loading-container">
+                <div class="loading-progress">
+                    <div class="loading-progress-bar"></div>
+                </div>
+                <div class="loading-text">Loading knowledge-web alignment data...</div>
+            </div>
+        </div>
     </div>
-</div>
+</section>
 
 <script>
-// Correlation content is populated dynamically
-// This shows top models ranked by their correlation between
-// knowledge claims and web presence of bacterial species
+// Self-contained script for loading and displaying correlation data
+(function() {
+    console.log('[TopModelsWebAlignment] Script starting...');
+    
+    // Helper function to create bar chart legend
+    function createBarChartLegend() {
+        return `
+            <div class="legend">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                    <span>Extensive</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                    <span>Moderate</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                    <span>Limited</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                    <span>NA</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                    <span>Failed</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper function to render knowledge distribution bar
+    function renderKnowledgeDistBar(dist, total) {
+        if (!total || total === 0) return '<div class="no-data">No data</div>';
+        const segments = [
+            { type: 'limited', count: dist.limited || 0, class: 'knowledge-limited' },
+            { type: 'moderate', count: dist.moderate || 0, class: 'knowledge-moderate' },
+            { type: 'extensive', count: dist.extensive || 0, class: 'knowledge-extensive' },
+            { type: 'NA', count: dist.NA || 0, class: 'knowledge-na' }
+        ].filter(seg => seg.count > 0);
+        let html = '<div class="bar-chart-container"><div class="bar-chart-segments">';
+        segments.forEach(seg => {
+            const pct = (seg.count / total * 100).toFixed(1);
+            html += `<div class="bar-segment ${seg.class}" style="width:${pct}%">${pct > 10 ? seg.count : ''}</div>`;
+        });
+        html += '</div></div>';
+        return html;
+    }
+
+    // Main function to render correlation stats and table
+    function renderCorrelationStatsAndTable(data, container) {
+        console.log('[TopModelsWebAlignment] Rendering correlation stats and table...');
+        // Use the first dataset with search counts
+        const selectedDataset = data.files_with_search_counts[0];
+        const fileData = data.correlation_data[selectedDataset];
+        console.log('[TopModelsWebAlignment] Selected dataset:', selectedDataset);
+        console.log('[TopModelsWebAlignment] File data:', fileData);
+        let modelResults = [];
+        Object.entries(fileData).forEach(([templateName, models]) => {
+            Object.entries(models).forEach(([modelName, d]) => {
+                if (d.species_count < 2) return;
+                modelResults.push({
+                    modelName,
+                    templateName,
+                    correlation: d.correlation_coefficient,
+                    speciesCount: d.species_count,
+                    knowledgeDist: d.knowledge_distribution,
+                    dataPoints: d.data_points
+                });
+            });
+        });
+        // Sort by correlation descending
+        modelResults.sort((a, b) => b.correlation - a.correlation);
+        
+        // Top performers call-out (Correlation)
+        const top4CorrModels = modelResults.slice(0, 4);
+        let corrTopPerformersHtml = "";
+        if (top4CorrModels.length > 0) {
+            corrTopPerformersHtml += `<div class="top-performers-section">
+    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>
+    <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>
+    ${createBarChartLegend()}
+    <div class="performers-list">`;
+
+            top4CorrModels.forEach((m, idx) => {
+                const displayName = m.modelName.split('/').pop();
+                corrTopPerformersHtml += `
+        <div class="performer-card">
+            <div class="performer-rank">${idx + 1}</div>
+            <div style="flex: 1;">
+                <div class="performer-name">${displayName}</div>
+                <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>
+                <div class="performer-dist-chart" style="margin-top: 12px;">
+                    ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}
+                </div>
+            </div>
+        </div>`;
+            });
+
+            corrTopPerformersHtml += `
+    </div>
+</div>`;
+        }
+
+        // Only display the top performers section
+        container.innerHTML = corrTopPerformersHtml;
+    }
+
+    // Load correlation data function
+    function loadCorrelationData() {
+        console.log('[TopModelsWebAlignment] Loading correlation data...');
+        const container = document.getElementById('correlationContent');
+        if (!container) {
+            console.error('[TopModelsWebAlignment] Container not found!');
+            return;
+        }
+        
+        console.log('[TopModelsWebAlignment] Fetching from /api/search_count_correlation...');
+        fetch('/api/search_count_correlation')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('[TopModelsWebAlignment] Data received:', data);
+                if (data.error) {
+                    container.innerHTML = `<div class='empty-state'><h3>Error loading correlation data</h3><p>${data.error}</p></div>`;
+                    return;
+                }
+                if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                    container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
+                    return;
+                }
+                
+                console.log('[TopModelsWebAlignment] Files with search counts:', data.files_with_search_counts);
+                // Render the data
+                renderCorrelationStatsAndTable(data, container);
+            })
+            .catch(error => {
+                console.error('[TopModelsWebAlignment] Error loading correlation data:', error);
+                container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+            });
+    }
+
+    // Initialize when DOM is ready
+    function init() {
+        console.log('[TopModelsWebAlignment] Initializing component...');
+        // Wait a bit for DOM to settle
+        setTimeout(function() {
+            console.log('[TopModelsWebAlignment] Looking for container...');
+            // Do not auto-init in component viewer context
+            if (!window.location.pathname.includes('/components/')) {
+                loadCorrelationData();
+            }
+        }, 100);
+    }
+    
+    // Expose initialization function for component viewer
+    window.loadCorrelationData = loadCorrelationData;
+    window.initTopModelsWebAlignment = function() {
+        console.log('[TopModelsWebAlignment] Manual initialization triggered');
+        loadCorrelationData();
+    };
+    
+    // Check if DOM is already loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        // DOM is already ready, run init
+        init();
+    }
+})();
 </script>

@@ -6,9 +6,16 @@
    - text: Optional descriptive text
    - content: The main content (passed as a variable)
    - full_width: Boolean to use full-width content variant
+   - in_viewer: Boolean indicating if in component viewer context
 #}
-<section class="section-callout section-callout--{{ color_theme }}">
-    <div class="section-callout__content{% if full_width %} section-callout__content--full-width{% endif %}">
+{% if in_viewer %}
+    {% set component_classes = ['section-callout-component', 'section-callout-component--' + color_theme] %}
+{% else %}
+    {% set component_classes = ['section-callout', 'section-callout--' + color_theme] %}
+{% endif %}
+
+<section class="{{ component_classes|join(' ') }}">
+    <div class="section-callout__content{% if full_width %}--full-width{% endif %}">
         {% if title or text %}
         <div class="section-callout__header">
             {% if title %}<h3 class="section-callout__title">{{ title }}</h3>{% endif %}

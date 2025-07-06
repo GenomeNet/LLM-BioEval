@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}{{ manifest.page_config.title }} - LLM-BioEval{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/layout_styles.css') }}">
+{% if page_specific_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename=page_specific_css) }}">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Main Content -->
+<div class="main-content page-content">
+
+{% set article_open = false %}
+{% set sidebar_html = "" %}
+
+{% for section in manifest.sections %}
+    {# Handle hero section #}
+    {% if section.type == 'hero' %}
+        {% include project_path + '/' + section.file %}
+    {% endif %}
+    
+    {# Handle article sections #}
+    {% if section.type == 'article' %}
+        {% if article_open %}
+            {# Close previous article if open #}
+                </article>
+            </div>
+            {% if sidebar_html %}
+            <aside class="article-sidebar">
+                {{ sidebar_html | safe }}
+            </aside>
+            {% endif %}
+        </div>
+        {% set sidebar_html = "" %}
+        {% endif %}
+        
+        {# Start new article section #}
+        <div class="article-container">
+            <div class="article-main">
+                <article class="article-content">
+                    {% if section.section_id %}<section id="{{ section.section_id }}" class="article-section">{% endif %}
+                    {% if section.title %}<h1 class="main-section-title">{{ section.title }}</h1>{% endif %}
+                    <div class="article-section-spacing">
+                        {% include project_path + '/' + section.file %}
+                    </div>
+                    {% if section.section_id %}</section>{% endif %}
+        {% set article_open = true %}
+        
+        {# Handle sidebar if specified #}
+        {% if section.include_sidebar %}
+            {% set sidebar_html %}
+            <!-- Paper Info Card -->
+            <div class="paper-info-card">
+                <h3>Paper Info</h3>
+                <ul class="paper-info-list">
+                    <li><strong>Title:</strong> {{ project.title }}</li>
+                    <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
+                    {% if project.doi %}
+                    <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
+                    {% else %}
+                    <li><strong>Status:</strong> Manuscript in preparation</li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endset %}
+        {% endif %}
+        
+    {# Handle inline callouts within article sections #}
+    {% elif section.type == 'callout_inline' and section.parent_type == 'article' %}
+        <div class="article-section-spacing">
+            <div class="callout callout-{{ section.callout_type }}{% if section.compact %} callout-compact{% endif %}">
+                {% if section.header %}<div class="callout-header">{{ section.header }}</div>{% endif %}
+                <div class="callout-content">
+                    {% include project_path + '/' + section.file %}
+                </div>
+            </div>
+        </div>
+        
+    {# Handle article content continuation #}
+    {% elif section.type == 'article_content' and section.parent_type == 'article' %}
+        <div class="article-section-spacing">
+            {% include project_path + '/' + section.file %}
+        </div>
+        
+        {# Close article if specified #}
+        {% if section.close_article %}
+                </article>
+            </div>
+            {% if sidebar_html %}
+            <aside class="article-sidebar">
+                {{ sidebar_html | safe }}
+            </aside>
+            {% endif %}
+        </div>
+            {% set article_open = false %}
+            {% set sidebar_html = "" %}
+        {% endif %}
+        
+    {# Handle section callouts #}
+    {% elif section.type == 'section_callout' %}
+        <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+            <div class="section-callout__content{% if section.full_width %}--full-width{% endif %}">
+                {% if section.title or section.text %}
+                <div class="section-callout__header">
+                    {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                    {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                </div>
+                {% endif %}
+                {% include project_path + '/' + section.file %}
+            </div>
+        </section>
+        
+    {# Handle dynamic section callouts #}
+    {% elif section.type == 'section_callout_dynamic' %}
+        <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+            <div class="section-callout__content{% if section.full_width %}--full-width{% endif %}">
+                {% if section.title or section.text %}
+                <div class="section-callout__header">
+                    {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                    {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                </div>
+                {% endif %}
+                {% include project_path + '/' + section.file %}
+            </div>
+        </section>
+        
+    {# Handle raw includes #}
+    {% elif section.type == 'raw' %}
+        {% include project_path + '/' + section.file %}
+        
+    {% endif %}
+{% endfor %}
+
+{# Close article if still open #}
+{% if article_open %}
+        </article>
+    </div>
+    {% if sidebar_html %}
+    <aside class="article-sidebar">
+        {{ sidebar_html | safe }}
+    </aside>
+    {% endif %}
+</div>
+{% endif %}
+
+</div> <!-- Close main-content -->
+
+<!-- Footer -->
+{% include 'partials/footer.html' %}
+
+
+<!-- Page-specific scripts -->
+{% for section in manifest.sections %}
+    {% if section.scripts %}
+        {% for script in section.scripts %}
+        <script src="{{ url_for('static', filename=script) }}"></script>
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+
+
+{% endblock %}

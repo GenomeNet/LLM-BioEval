@@ -1,0 +1,266 @@
+<div id="fullTemplateTablesContainer">
+    <!-- Full template analysis tables will be rendered here -->
+</div>
+
+<script>
+function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) {
+    let html = '';
+    
+    // Template descriptions
+    const templateDescriptions = {
+        'template1_knowlege': 'Basic knowledge level assessment template (limited, moderate, extensive)',
+        'template2_knowlege': 'Knowledge level assessment template with NA support', 
+        'template3_knowlege': 'Alternative knowledge level assessment template with NA support'
+    };
+    
+    // Create compact table layout for each template
+    templateArray.forEach((templateName, templateIndex) => {
+        html += `<section class="section-callout section-callout--purple">`;
+        html += `<div class="section-callout__content section-callout__content--full-width">`;
+        
+        // Section header with title and description
+        html += `<div class="section-callout__header">`;
+        html += `<h3 class="section-callout__title">`;
+        html += `<a href="/templates" class="template-header-link" onclick="scrollToTemplate('${templateName}')" style="color: inherit; text-decoration: none;">${templateName}</a>`;
+        html += `</h3>`;
+        html += `<p class="section-callout__text">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
+        html += `</div>`;
+        
+        html += createBarChartLegend();
+        
+        html += `<div class="table-fade" id="table-fade-${templateIndex}">`;
+        html += `<table class="knowledge-analysis-table">`;
+        
+        // Header row
+        html += `<thead><tr>`;
+        html += `<th>Model</th>`;
+        inputTypeArray.forEach(inputType => {
+            const displayType = formatTypeName(inputType);
+            html += `<th>${displayType}</th>`;
+        });
+        html += `<th style="text-align: center; width: 120px;">Quality Score</th>`;
+        html += `</tr></thead>`;
+        
+        // Data rows
+        html += `<tbody>`;
+        
+        // Calculate metrics for sorting
+        const modelScores = Object.entries(modelData)
+            .filter(([modelName, templates]) => templates[templateName])
+            .map(([modelName, templates]) => {
+                let totalQualityScore = 0;
+                let totalSamples = 0;
+                
+                inputTypeArray.forEach(inputType => {
+                    const data = templates[templateName][inputType];
+                    if (data) {
+                        const naFailedCount = (data.NA || 0) + (data.no_result || 0) + (data.inference_failed || 0);
+                        const limitedCount = data.limited || 0;
+                        const moderateCount = data.moderate || 0;
+                        const extensiveCount = data.extensive || 0;
+                        
+                        totalQualityScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                        totalSamples += data.total || 0;
+                    }
+                });
+                
+                return {
+                    modelName,
+                    templates: templates[templateName],
+                    qualityScore: totalQualityScore,
+                    totalSamples,
+                    averageQualityScore: totalSamples > 0 ? totalQualityScore / totalSamples : 0
+                };
+            })
+            .sort((a, b) => {
+                // Sort by quality score (higher is better)
+                if (b.averageQualityScore !== a.averageQualityScore) {
+                    return b.averageQualityScore - a.averageQualityScore;
+                }
+                // Secondary: by total quality score
+                if (b.qualityScore !== a.qualityScore) {
+                    return b.qualityScore - a.qualityScore;
+                }
+                // Final fallback: alphabetical by model name
+                return a.modelName.localeCompare(b.modelName);
+            });
+        
+        modelScores.forEach(({modelName, templates, averageQualityScore, qualityScore, totalSamples}, index) => {
+            const isHidden = index >= 3;
+            html += `<tr class="${isHidden ? 'hidden-row' : ''}">`;
+            html += `<td class="model-name-cell">${modelName.split('/').pop()}</td>`;
+            
+            inputTypeArray.forEach(inputType => {
+                html += `<td class="chart-cell">`;
+                if (templates[inputType]) {
+                    html += createKnowledgeBarChart(templates[inputType]);
+                } else {
+                    html += '<div class="no-data">No data</div>';
+                }
+                html += `</td>`;
+            });
+            
+            // Add quality score column
+            html += `<td class="quality-score-cell">`;
+            if (totalSamples > 0) {
+                html += `<span class="quality-score-value">${averageQualityScore.toFixed(2)}</span>`;
+            } else {
+                html += '<span style="color: #6c757d; font-style: italic; font-size: 11px;">No data</span>';
+            }
+            html += `</td>`;
+            
+            html += `</tr>`;
+        });
+        html += `</tbody></table>`;
+        
+        // Add expand/collapse button if there are more than 3 models
+        if (modelScores.length > 3) {
+            html += `<div class="table-controls">`;
+            html += `<button class="expand-button" onclick="toggleTableExpansion(this, ${templateIndex})">`;
+            html += `<span>Show ${modelScores.length - 3} more models</span>`;
+            html += `<svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">`;
+            html += `<path d="M6 9l6 6 6-6"/>`;
+            html += `</svg>`;
+            html += `</button>`;
+            html += `</div>`;
+        }
+        
+        html += `</div>`;
+        html += `</div>`;
+        html += `</section>`;
+    });
+    
+    return html;
+}
+
+// Create knowledge bar chart for table cells
+function createKnowledgeBarChart(data) {
+    const total = data.total || 0;
+    if (total === 0) {
+        return '<div class="no-data">No data</div>';
+    }
+    
+    // Calculate percentages
+    const segments = [
+        { type: 'na', count: data.NA || 0, class: 'knowledge-na' },
+        { type: 'limited', count: data.limited || 0, class: 'knowledge-limited' },
+        { type: 'moderate', count: data.moderate || 0, class: 'knowledge-moderate' },
+        { type: 'extensive', count: data.extensive || 0, class: 'knowledge-extensive' },
+        { type: 'failed', count: (data.no_result || 0) + (data.inference_failed || 0), class: 'knowledge-failed' }
+    ].filter(s => s.count > 0);
+    
+    let html = '<div class="bar-chart-wrapper"><div class="bar-chart-segments">';
+    
+    segments.forEach(segment => {
+        const percentage = (segment.count / total) * 100;
+        const showCount = percentage > 10;
+        
+        html += `<div class="bar-segment ${segment.class}" 
+                      style="width: ${percentage}%"
+                      data-count="${segment.count}"
+                      data-type="${segment.type}"
+                      data-total="${total}"
+                      onmouseover="showBarTooltip(event, this)"
+                      onmouseout="hideBarTooltip()">`;
+        if (showCount) {
+            html += segment.count;
+        }
+        html += `</div>`;
+    });
+    
+    html += '</div></div>';
+    return html;
+}
+
+// Toggle table expansion
+function toggleTableExpansion(button, templateIndex) {
+    const tableWrapper = button.closest('.table-fade');
+    const hiddenRows = tableWrapper.querySelectorAll('.hidden-row');
+    const fadeContainer = document.querySelector(`#table-fade-${templateIndex}`);
+    const isExpanded = button.classList.contains('expanded');
+    
+    if (isExpanded) {
+        // Collapse
+        hiddenRows.forEach(row => row.classList.remove('show'));
+        button.classList.remove('expanded');
+        button.querySelector('span').textContent = `Show ${hiddenRows.length} more models`;
+        if (fadeContainer) fadeContainer.classList.remove('expanded');
+    } else {
+        // Expand
+        hiddenRows.forEach(row => row.classList.add('show'));
+        button.classList.add('expanded');
+        button.querySelector('span').textContent = 'Show less';
+        if (fadeContainer) fadeContainer.classList.add('expanded');
+    }
+}
+
+// Load tables when knowledge data is available
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for knowledge data to be loaded
+    const checkDataInterval = setInterval(function() {
+        if (window.knowledgeData) {
+            clearInterval(checkDataInterval);
+            const container = document.getElementById('fullTemplateTablesContainer');
+            if (container && window.knowledgeData.templateArray && window.knowledgeData.inputTypeArray && window.knowledgeData.modelData) {
+                container.innerHTML = renderTemplateAnalysisTables(
+                    window.knowledgeData.templateArray,
+                    window.knowledgeData.inputTypeArray,
+                    window.knowledgeData.modelData
+                );
+            }
+        }
+    }, 100);
+    
+    // Stop checking after 10 seconds
+    setTimeout(function() {
+        clearInterval(checkDataInterval);
+    }, 10000);
+});
+
+// Helper function to format type names
+function formatTypeName(typeName) {
+    return typeName.charAt(0).toUpperCase() + typeName.slice(1);
+}
+
+// Bar tooltip functions
+let tooltipElement = null;
+
+function showBarTooltip(event, element) {
+    const count = element.getAttribute('data-count');
+    const type = element.getAttribute('data-type');
+    const total = element.getAttribute('data-total');
+    const percentage = ((count / total) * 100).toFixed(1);
+    
+    // Create tooltip if it doesn't exist
+    if (!tooltipElement) {
+        tooltipElement = document.createElement('div');
+        tooltipElement.className = 'bar-tooltip';
+        document.body.appendChild(tooltipElement);
+    }
+    
+    // Set content
+    let typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+    if (type === 'na') typeLabel = 'NA';
+    tooltipElement.innerHTML = `
+        <strong>${typeLabel}</strong><br>
+        ${count} / ${total} (${percentage}%)
+    `;
+    
+    // Position tooltip
+    const rect = element.getBoundingClientRect();
+    tooltipElement.style.left = rect.left + (rect.width / 2) - (tooltipElement.offsetWidth / 2) + 'px';
+    tooltipElement.style.top = rect.top - tooltipElement.offsetHeight - 10 + 'px';
+    tooltipElement.style.display = 'block';
+}
+
+function hideBarTooltip() {
+    if (tooltipElement) {
+        tooltipElement.style.display = 'none';
+    }
+}
+
+// Make functions globally available
+window.toggleTableExpansion = toggleTableExpansion;
+window.showBarTooltip = showBarTooltip;
+window.hideBarTooltip = hideBarTooltip;
+</script>

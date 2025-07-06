@@ -5,13 +5,7 @@ page_config:
   project_id: "knowledge_calibration"
 
 sections:
-  # Hero animation canvas only
-  - id: "hero_animation"
-    type: "raw"
-    file: "sections/00_hero_animation.html"
-    title: "Hero Animation Canvas"
-    
-  # Hero header with animation
+  # Hero header with integrated animation
   - id: "hero_header"
     type: "hero"
     file: "sections/00_hero_header.html"
@@ -130,6 +124,13 @@ sections:
     file: "sections/16_score_calculation.html"
     include_sidebar: false
     
+  # Score calculation example callout
+  - id: "score_calculation_example"
+    type: "callout_inline"
+    file: "sections/16a_score_calculation_example.html"
+    callout_type: "template"
+    parent_type: "article"
+    
   # Dynamic stats
   - id: "dynamic_stats"
     type: "article_content"
@@ -151,23 +152,48 @@ sections:
     
   # Worst performers (dynamic)
   - id: "worst_performers"
-    type: "raw"
+    type: "section_callout_dynamic"
     file: "sections/20_worst_performers.html"
     
   # Conclusion text
   - id: "conclusion_text"
-    type: "article"
+    type: "article_content"
     file: "sections/21_conclusion_text.html"
+    parent_type: "article"
     
   # Full results intro
   - id: "full_results_intro"
-    type: "article"
+    type: "article_content"
     file: "sections/22_full_results_intro.html"
+    parent_type: "article"
+    close_article: true
     
   # Knowledge analysis content (dynamic tables)
   - id: "knowledge_analysis_content"
-    type: "raw"
+    type: "section_callout_dynamic"
     file: "sections/23_knowledge_analysis_content.html"
+    title: "Full Results: Model Performance Analysis"
+    text: "Comprehensive analysis of all tested models, showing their quality scores and knowledge distribution patterns across different query templates."
+    
+  # Quality score distribution chart
+  - id: "quality_score_chart"
+    type: "section_callout_dynamic"
+    file: "sections/29_quality_score_chart.html"
+    title: "Quality Score Distribution by Model"
+    text: "Distribution of quality scores across all templates for each model, showing how consistently models refuse to provide information about fictional species."
+    
+  # Interactive correlation chart
+  - id: "correlation_chart_interactive"
+    type: "section_callout_dynamic"
+    file: "sections/30_correlation_chart_interactive.html"
+    title: "Interactive Correlation Analysis"
+    text: "Explore how each model's knowledge claims correlate with real-world web presence data. Hover over bars to see detailed scatter plots for each model-template combination."
+    
+  # Full template analysis tables
+  - id: "full_template_tables"
+    type: "section_callout_dynamic"
+    file: "sections/31_full_template_tables.html"
+    container_id: "fullTemplateTablesContainer"
     
   # Web-aligned knowledge intro
   - id: "web_aligned_intro"
@@ -176,22 +202,24 @@ sections:
     
   # Web alignment flow diagram
   - id: "web_alignment_flow"
-    type: "section_callout"
+    type: "section_callout_dynamic"
     file: "sections/25_web_alignment_flow.html"
     title: "Knowledge-Web Alignment Process"
     text: "Methodology for measuring how well language model knowledge claims correlate with actual information availability on the web for real bacterial species."
     
   # Top models web alignment
   - id: "top_models_web_alignment"
-    type: "section_callout"
+    type: "section_callout_dynamic"
     file: "sections/26_top_models_web_alignment.html"
     title: "Top Models - Web-Alignment"
     text: "Language models that demonstrate the best alignment between their knowledge claims and actual web presence of bacterial species, showing superior calibration abilities."
     
   # Correlation transition text
   - id: "correlation_transition"
-    type: "article"
+    type: "article_content"
     file: "sections/27_correlation_transition.html"
+    parent_type: "article"
+    close_article: true
     
   # Correlation visualization (dynamically added)
   - id: "correlation_visualization"
@@ -199,3 +227,22 @@ sections:
     file: "sections/28_correlation_visualization.html"
     title: "Correlation Visualization: Google Search vs. Knowledge Level"
     text: "This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts for bacterial species. Each point represents a species, with the x-axis showing log10 of Google search results and the y-axis showing the knowledge level (1=Limited, 2=Moderate, 3=Extensive)."
+    
+  # Scripts (should be last)
+  - id: "scripts"
+    type: "raw"
+    file: "sections/99_scripts.html"
+    title: "Scripts"
+  
+  # Hello World Test Component (for debugging dynamic sections)
+  - id: "hello_world_dynamic"
+    type: "section_callout_dynamic"
+    file: "sections/32_hello_world_dynamic.html"
+    title: "Hello World Dynamic Test"
+    text: "A minimal test component to verify dynamic section functionality"
+    
+  # API Test Component (for debugging)
+  - id: "api_test"
+    type: "raw"
+    file: "sections/99_api_test.html"
+    title: "API Test Component"

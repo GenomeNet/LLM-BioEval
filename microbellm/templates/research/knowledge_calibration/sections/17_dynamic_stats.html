@@ -18,4 +18,193 @@
     padding: 2px 8px;
     font-size: inherit;
 }
+
+.model-highlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(124, 58, 237, 0.1);
+    color: #7c3aed;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
+
+.model-lowlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
 </style>
+
+<script>
+// Self-contained script for dynamic stats
+(function() {
+    console.log('[DynamicStats] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[DynamicStats] Initializing...');
+        loadDynamicStats();
+    }, 100);
+    
+    // Transform API data to expected format
+    function transformKnowledgeData(knowledgeAnalysis) {
+        console.log('[DynamicStats] Transforming data...');
+        const modelData = {};
+        const templateSet = new Set();
+        const inputTypeSet = new Set();
+        
+        // Process only files with type columns
+        Object.entries(knowledgeAnalysis).forEach(([fileName, fileData]) => {
+            console.log('[DynamicStats] Processing file:', fileName);
+            
+            if (!fileData.has_type_column || !fileData.types) {
+                console.warn('[DynamicStats] Skipping file (no type column):', fileName);
+                return;
+            }
+            
+            // Process each input type
+            Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+                inputTypeSet.add(inputType);
+                
+                // Process each template
+                Object.entries(templateData).forEach(([templateName, models]) => {
+                    templateSet.add(templateName);
+                    
+                    // Process each model
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        // Initialize model data structure if needed
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        
+                        // Store the stats
+                        modelData[modelName][templateName][inputType] = stats;
+                    });
+                });
+            });
+        });
+        
+        const result = {
+            modelData: modelData,
+            templateArray: Array.from(templateSet).sort(),
+            inputTypeArray: Array.from(inputTypeSet).sort()
+        };
+        
+        console.log('[DynamicStats] Transformed data:', {
+            models: Object.keys(modelData).length,
+            templates: result.templateArray.length,
+            inputTypes: result.inputTypeArray.length
+        });
+        
+        return result;
+    }
+    
+    // Load and process data
+    async function loadDynamicStats() {
+        const container = document.getElementById('dynamicStatsText');
+        if (!container) {
+            console.error('[DynamicStats] Container not found');
+            return;
+        }
+        
+        try {
+            console.log('[DynamicStats] Fetching from /api/knowledge_analysis_data...');
+            const response = await fetch('/api/knowledge_analysis_data');
+            console.log('[DynamicStats] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[DynamicStats] Raw data received:', data);
+            
+            if (data.knowledge_analysis) {
+                console.log('[DynamicStats] Found knowledge_analysis in response');
+                // Transform the data
+                const transformedData = transformKnowledgeData(data.knowledge_analysis);
+                
+                // Generate the dynamic stats text
+                generateDynamicStats(transformedData, container);
+            } else {
+                console.error('[DynamicStats] No knowledge_analysis in response');
+                container.innerHTML = '<div class="error-message">No knowledge analysis data available</div>';
+            }
+        } catch (error) {
+            console.error('[DynamicStats] Failed to load data:', error);
+            container.innerHTML = '<div class="error-message">Failed to load statistics. Please try again later.</div>';
+        }
+    }
+    
+    // Generate dynamic stats text
+    function generateDynamicStats(data, container) {
+        const { modelData, templateArray, inputTypeArray } = data;
+        
+        // Calculate statistics
+        let totalModels = Object.keys(modelData).length;
+        let totalTemplates = templateArray.length;
+        let bestModel = null;
+        let worstModel = null;
+        let bestScore = -1;
+        let worstScore = 4; // Start with max possible score
+        
+        // Find best and worst models
+        Object.entries(modelData).forEach(([modelName, templates]) => {
+            let totalScore = 0;
+            let totalSamples = 0;
+            
+            templateArray.forEach(templateName => {
+                if (templates[templateName]) {
+                    inputTypeArray.forEach(inputType => {
+                        const data = templates[templateName][inputType];
+                        if (data) {
+                            const naFailedCount = (data.NA || 0) + (data.no_result || 0) + (data.inference_failed || 0);
+                            const limitedCount = data.limited || 0;
+                            const moderateCount = data.moderate || 0;
+                            const extensiveCount = data.extensive || 0;
+                            
+                            totalScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                            totalSamples += data.total || 0;
+                        }
+                    });
+                }
+            });
+            
+            if (totalSamples > 0) {
+                const averageScore = totalScore / totalSamples;
+                if (averageScore > bestScore) {
+                    bestScore = averageScore;
+                    bestModel = modelName.split('/').pop();
+                }
+                if (averageScore < worstScore) {
+                    worstScore = averageScore;
+                    worstModel = modelName.split('/').pop();
+                }
+            }
+        });
+        
+        // Generate the dynamic statistics text
+        const dynamicStatsText =
+            `In total, we analyzed <span class="stat-value">${totalModels}</span> language models across ` +
+            `<span class="stat-value">${totalTemplates}</span> different query templates and calculated for each model this score. ` +
+            (bestModel ? `The top performers are those that consistently identified fictional species as unknown, achieving the highest scores. Under all evaluated models, the best one was <span class="model-highlight">${bestModel}</span> ` +
+                `with an average quality score of <span class="stat-value">${bestScore.toFixed(2)}</span>, ` +
+                `correctly identifying most artificial species as non-existent. ` : '') +
+            (worstModel && worstModel !== bestModel ? `In contrast, <span class="model-lowlight">${worstModel}</span> ` +
+                `performed poorly with a score of <span class="stat-value">${worstScore.toFixed(2)}</span>, ` +
+                `frequently hallucinating information about fake bacteria.` : '');
+        
+        container.innerHTML = dynamicStatsText;
+    }
+})();
+</script>

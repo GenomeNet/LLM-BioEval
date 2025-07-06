@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section.id }} - Simple Component Viewer{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/research/' + page + '/page_specific.css') }}">
+<style>
+    .viewer-header {
+        background: #f3f4f6;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .viewer-content {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .debug-info {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        padding: 16px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 14px;
+    }
+    
+    .component-container {
+        border: 2px dashed #6366f1;
+        padding: 0; /* No padding for raw component */
+        margin: 20px 0;
+        background: #fafafa;
+        overflow: visible; /* Show content as is */
+        display: inline-block; /* Shrink to content width */
+        min-width: auto; /* Don't force minimum width */
+    }
+    
+    /* Override any default margins/padding for raw component */
+    .component-container > * {
+        margin: 0 !important;
+    }
+    
+    /* Remove any padding/margins from flow diagram elements in raw view */
+    .component-container .flow-diagram-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: auto !important; /* Don't force full width */
+        max-width: none !important;
+    }
+    
+    .component-container .flow-diagram {
+        margin: 0 !important;
+        padding: 0 !important;
+        justify-content: flex-start !important; /* Align to left instead of center */
+        width: auto !important; /* Let it size to content */
+    }
+    
+    .component-container .flow-legend {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        justify-content: flex-start !important; /* Align legend to left too */
+    }
+    
+    /* Ensure section callouts display properly */
+    .section-callout,
+    .section-callout-component {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 100px;
+    }
+    
+    /* Special styles for wrapped version */
+    .section-callout .section-callout__content {
+        padding-left: 250px !important; /* Start content 250px from left */
+        padding-right: 48px !important;
+        max-width: none !important; /* Allow full width */
+    }
+    
+    /* Ensure header aligns with content */
+    .section-callout .section-callout__header {
+        max-width: none !important;
+        margin-bottom: 32px;
+        margin-left: 0 !important; /* No additional margin */
+        padding-left: 0 !important; /* No additional padding */
+    }
+    
+    /* Ensure title and text align */
+    .section-callout .section-callout__title {
+        margin: 0 0 8px 0 !important; /* Keep only bottom margin */
+        padding-left: 0 !important;
+        max-width: none !important;
+        text-align: left !important;
+    }
+    
+    .section-callout .section-callout__text {
+        margin: 0 0 24px 0 !important; /* Keep only bottom margin */
+        padding-left: 0 !important;
+        max-width: none !important;
+        text-align: left !important;
+    }
+    
+    /* Ensure flow diagram starts at same position as header */
+    .section-callout .flow-diagram-wrapper {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    
+    .section-callout .flow-diagram {
+        justify-content: flex-start !important; /* Align to start like header */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-header">
+    <h1>Simple Component Viewer: {{ section.id }}</h1>
+    <p>Type: <strong>{{ section.type }}</strong> | Page: <strong>{{ page }}</strong></p>
+    <a href="{{ url_for('components_index') }}">← Back to Component List</a>
+</div>
+
+<div class="viewer-content">
+    <div class="debug-info">
+        <h3>Debug Information:</h3>
+        <pre>
+Section ID: {{ section.id }}
+Section Type: {{ section.type }}
+Section File: {{ section.file }}
+Title: {{ section.title | default('None') }}
+Text: {{ section.text | default('None') | truncate(100) }}
+Full Width: {{ section.full_width | default(false) }}
+Color Theme: {{ manifest.page_config.color_theme }}
+        </pre>
+    </div>
+    
+    <h2>Raw Component (No Background):</h2>
+    <div class="component-container">
+        {% include 'research/' + page + '/' + section.file %}
+    </div>
+    
+    {% if section.type == 'section_callout_dynamic' or section.type == 'section_callout' %}
+    <h2>Component with Section Callout Background:</h2>
+    <div style="width: 100%; margin-left: -20px; margin-right: -20px; padding: 0;">
+        <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+            <div class="section-callout__content">
+                {% if section.title or section.text %}
+                <div class="section-callout__header">
+                    {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                    {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                </div>
+                {% endif %}
+                <!-- Include the same component again for the wrapped version -->
+                {% include 'research/' + page + '/' + section.file %}
+            </div>
+        </section>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+console.log('Simple viewer loaded for component:', '{{ section.id }}');
+
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM ready, checking for component initialization...');
+    
+    // For components with duplicate IDs, we need special handling
+    {% if section.id == 'hello_world_dynamic' %}
+        console.log('Special handling for hello_world_dynamic with duplicate containers...');
+        
+        // Find all containers with the ID
+        const containers = document.querySelectorAll('#helloWorldContainer');
+        console.log('Found ' + containers.length + ' helloWorldContainer elements');
+        
+        if (containers.length >= 2) {
+            // Give unique IDs to each container
+            containers[0].id = 'helloWorldContainer1';
+            containers[1].id = 'helloWorldContainer2';
+            
+            // Initialize the first one
+            setTimeout(function() {
+                const container1 = document.getElementById('helloWorldContainer1');
+                if (container1) {
+                    console.log('Updating first container...');
+                    container1.innerHTML = `
+                        <div style="padding: 40px; text-align: center;">
+                            <h2 style="font-size: 32px; color: #6366f1; margin-bottom: 16px;">Hello World!</h2>
+                            <p style="font-size: 18px; color: #666;">This is the raw component without background.</p>
+                            <p style="font-size: 16px; color: #999; margin-top: 24px;">
+                                Timestamp: ${new Date().toLocaleString()}<br>
+                                Container: Raw version<br>
+                                Path: ${window.location.pathname}
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                const container2 = document.getElementById('helloWorldContainer2');
+                if (container2) {
+                    console.log('Updating second container...');
+                    container2.innerHTML = `
+                        <div style="padding: 40px; text-align: center;">
+                            <h2 style="font-size: 32px; color: #6366f1; margin-bottom: 16px;">Hello World!</h2>
+                            <p style="font-size: 18px; color: #666;">This is wrapped with section callout background.</p>
+                            <p style="font-size: 16px; color: #999; margin-top: 24px;">
+                                Timestamp: ${new Date().toLocaleString()}<br>
+                                Container: Wrapped version<br>
+                                Path: ${window.location.pathname}
+                            </p>
+                        </div>
+                    `;
+                }
+            }, 500);
+        }
+    {% else %}
+        // Standard initialization for other components
+        {% if section.id == 'top_models_web_alignment' %}
+            console.log('Initializing top_models_web_alignment...');
+            if (typeof window.initTopModelsWebAlignment === 'function') {
+                window.initTopModelsWebAlignment();
+            } else {
+                console.error('initTopModelsWebAlignment not found');
+            }
+        {% elif section.id == 'top_performers' %}
+            console.log('Initializing top_performers...');
+            if (typeof window.initTopPerformers === 'function') {
+                window.initTopPerformers();
+            } else {
+                console.error('initTopPerformers not found');
+            }
+        {% endif %}
+    {% endif %}
+    
+    // Debug: List all global functions starting with 'init'
+    console.log('Available init functions:');
+    for (let key in window) {
+        if (key.startsWith('init') && typeof window[key] === 'function') {
+            console.log(' - ' + key);
+        }
+    }
+});
+</script>
+{% endblock %}

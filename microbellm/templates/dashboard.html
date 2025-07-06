@@ -1,49 +1,25 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
-{% block title %}Dashboard - LLM-BioEval{% endblock %}
+{% block title %}Dashboard - MicrobeLLM Admin{% endblock %}
 
 {% block body_class %}page-dashboard{% endblock %}
 
 {% block content %}
-<div class="content-wrapper">
-    <div class="card">
-        <h2>Dashboard</h2>
-        <p>Manage your microbial prediction jobs</p>
+    <div class="page-header">
+        <h1 class="page-title">Processing Dashboard</h1>
+        <p class="page-subtitle">Manage and monitor your microbial prediction jobs</p>
     </div>
     
     <!-- API Key Warning -->
-    <div id="apiKeyWarning" class="card api-warning" style="display: none;">
+    <div id="apiKeyWarning" class="api-warning" style="display: none;">
         <h3>⚠️ API Key Not Configured</h3>
         <p>OpenRouter API key is not set. Jobs will fail without a valid API key.</p>
-        <button onclick="window.location.href='/settings'" class="button">Configure API Key</button>
-    </div>
-    
-    <!-- API Status -->
-    <div class="card" style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <div>
-                <h3 style="margin: 0 0 5px 0;">API Status</h3>
-                <p style="margin: 0; color: var(--text-secondary); font-size: 12px;">OpenRouter API connection status</p>
-            </div>
-            <div class="status-indicator" id="apiStatus">
-                <span class="status-dot"></span>
-                <span id="apiStatusText">CHECKING</span>
-            </div>
-        </div>
+        <button onclick="toggleSettings()" class="btn btn-primary">Configure API Key</button>
     </div>
 
     <div class="dashboard-header">
         <div class="dashboard-controls">
-            <button onclick="toggleSettings()" class="btn btn-ghost">
-                <i class="fas fa-cog"></i> Settings
-            </button>
-            <a href="/export" class="btn">
-                <i class="fas fa-download"></i> Export
-            </a>
-            <a href="/import" class="btn">
-                <i class="fas fa-upload"></i> Import
-            </a>
-            <button onclick="refreshDashboard(true)" class="btn" id="refreshBtn">
+            <button onclick="refreshDashboard(true)" class="btn btn-secondary" id="refreshBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
@@ -80,12 +56,15 @@
                 <div class="template-info card mb-3">
                     <p class="text-muted mb-1">{{ template_info.description }}</p>
                     <div class="text-small">
-                        System: <a href="/view_template/system/{{ file_template_name }}" target="_blank">{{ sys_template.split('/')[-1] }}</a> | 
-                        User: <a href="/view_template/user/{{ file_template_name }}" target="_blank">{{ user_template.split('/')[-1] }}</a>
+                        System: <a href="/templates#{{ file_template_name }}" target="_blank">{{ sys_template.split('/')[-1] }}</a> | 
+                        User: <a href="/templates#{{ file_template_name }}" target="_blank">{{ user_template.split('/')[-1] }}</a>
                     </div>
                 </div>
 
                 <div class="matrix-container">
+                    <button class="scroll-to-add-btn" onclick="scrollToAddColumn({{ i }})" title="Scroll to add column">
+                        <i class="fas fa-arrow-right"></i> Add Column
+                    </button>
                     <div class="matrix-scroll" id="matrix-scroll-{{ i }}">
                         <table class="processing-matrix">
                             <thead>
@@ -98,7 +77,7 @@
                                     </th>
                                     {% endfor %}
                                     <th class="add-column">
-                                        <button class="btn btn-accent btn-sm" onclick="addModel()" title="Add model">
+                                        <button class="btn btn-accent btn-sm" onclick="window.addModel()" title="Add model">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </th>
@@ -125,20 +104,22 @@
                                                                 {% elif cell_data.status in ['completed', 'failed', 'interrupted'] %}
                                                                     <span>{{ cell_data.successful }}/{{ cell_data.total }}</span>
                                                                 {% else %}
-                                                                    <span class="status-label">{{ cell_data.status }}</span>
+                                                                    <span>{{ cell_data.status|title }}</span>
                                                                 {% endif %}
                                                             </div>
-                                                            <div class="progress-details progress-completed">
-                                                                {% if cell_data.status in ['completed', 'failed', 'interrupted'] %}
-                                                                    {% set parts = [] %}
-                                                                    {% if cell_data.successful > 0 %}{% set _ = parts.append(cell_data.successful ~ ' success') %}{% endif %}
-                                                                    {% if cell_data.failed > 0 %}{% set _ = parts.append(cell_data.failed ~ ' failed') %}{% endif %}
-                                                                    {% if cell_data.timeouts > 0 %}{% set _ = parts.append(cell_data.timeouts ~ ' timeout') %}{% endif %}
-                                                                    {{ parts | join(', ') }}
-                                                                {% elif cell_data.status == 'running' %}
-                                                                    {{ cell_data.successful }} success
-                                                                {% endif %}
-                                                            </div>
+                                                            {% if cell_data.total > 0 and (cell_data.successful > 0 or cell_data.failed > 0 or cell_data.timeouts > 0) %}
+                                                                <div class="progress-stats">
+                                                                    {% if cell_data.successful > 0 %}
+                                                                        <span class="stat-success" title="{{ cell_data.successful }} successful">✓{{ cell_data.successful }}</span>
+                                                                    {% endif %}
+                                                                    {% if cell_data.failed > 0 %}
+                                                                        <span class="stat-failed" title="{{ cell_data.failed }} failed">✗{{ cell_data.failed }}</span>
+                                                                    {% endif %}
+                                                                    {% if cell_data.timeouts > 0 %}
+                                                                        <span class="stat-timeout" title="{{ cell_data.timeouts }} timeout">⌛{{ cell_data.timeouts }}</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                            {% endif %}
                                                         </div>
                                                         
                                                         {% if cell_data.total > 0 and (cell_data.status == 'running' or cell_data.successful > 0 or cell_data.failed > 0 or cell_data.timeouts > 0) %}
@@ -175,7 +156,7 @@
                                 {% endfor %}
                                 <tr class="add-row">
                                     <td>
-                                        <button class="btn btn-accent btn-sm" onclick="addSpeciesFile()">
+                                        <button class="btn btn-accent btn-sm" onclick="window.addSpeciesFile()">
                                             <i class="fas fa-plus"></i> Add File
                                         </button>
                                     </td>
@@ -198,7 +179,7 @@
             </div>
             <h3>No Processing Combinations Yet</h3>
             <p class="text-muted">Start by adding a species file and selecting models to process</p>
-            <button onclick="addSpeciesFile()" class="btn btn-primary">
+            <button onclick="window.addSpeciesFile()" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add First Species File
             </button>
         </div>
@@ -338,48 +319,27 @@
 </div>
 {% endblock %}
 
-{% block settings_content %}
-<div class="setting-group">
-    <label class="setting-label">API Configuration</label>
-    <div class="api-key-input-group">
-        <input type="password" id="apiKeyInput" placeholder="Enter your OpenRouter API key">
-        <button onclick="toggleApiKeyVisibility()" class="btn btn-ghost btn-sm" id="toggleApiKeyBtn">Show</button>
-        <button onclick="updateApiKey()" class="btn btn-primary btn-sm">Update</button>
-    </div>
-    <small class="text-muted mt-1">
-        Get your key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
-    </small>
-</div>
-
-<div class="setting-group">
-    <label class="setting-label">Processing Rate</label>
-    <div class="input-group">
-        <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="30">
-        <span class="text-muted">req/sec</span>
-        <button onclick="updateRateLimit()" class="btn btn-primary btn-sm">Update</button>
-    </div>
-</div>
-
-<div class="setting-group">
-    <label class="setting-label">Concurrent Requests</label>
-    <div class="input-group">
-        <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
-        <span class="text-muted">workers</span>
-        <button onclick="updateConcurrency()" class="btn btn-primary btn-sm">Update</button>
-    </div>
-    <small class="text-muted mt-1">Number of species to process in parallel</small>
-</div>
-
-<div class="setting-group">
-    <label class="setting-label">Queue Status</label>
-    <div class="queue-info">
-        <span id="queueLength">0</span> jobs waiting
-    </div>
-</div>
-{% endblock %}
 
 {% block scripts %}
 <style>
+    /* CSS Variables for dashboard */
+    :root {
+        --white: #ffffff;
+        --blue-600: #2563eb;
+        --green-600: #059669;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-900: #111827;
+        --border-color: #e5e7eb;
+        --bg-secondary: #f9fafb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --accent-primary: #3b82f6;
+        --accent-secondary: #92cdb6;
+        --accent-error: #ef4444;
+        --accent-warning: #f59e0b;
+    }
+    
     /* Dashboard specific styles */
     .dashboard-header {
         margin-bottom: 24px;
@@ -591,6 +551,287 @@
         z-index: 10;
     }
     
+    /* Improved scrolling for matrix */
+    .matrix-container {
+        position: relative;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--white);
+        margin-bottom: 24px;
+    }
+    
+    .matrix-scroll {
+        overflow: auto;
+        max-height: 70vh;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Custom scrollbar styling */
+    .matrix-scroll::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .matrix-scroll::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: 6px;
+    }
+    
+    .matrix-scroll::-webkit-scrollbar-thumb {
+        background: var(--gray-400);
+        border-radius: 6px;
+        border: 2px solid var(--bg-secondary);
+    }
+    
+    .matrix-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-600);
+    }
+    
+    /* Make the add column button more visible */
+    .add-column {
+        position: sticky;
+        right: 0;
+        background: var(--bg-secondary);
+        border-left: 2px solid var(--border-color);
+        min-width: 60px;
+        text-align: center;
+        z-index: 8;
+    }
+    
+    .add-cell {
+        position: sticky;
+        right: 0;
+        background: var(--white);
+        border-left: 2px solid var(--border-color);
+        min-width: 60px;
+    }
+    
+    /* Scroll to add button */
+    .scroll-to-add-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 20;
+        background: var(--accent-primary);
+        color: var(--white);
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .scroll-to-add-btn:hover {
+        background: var(--blue-600);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Matrix cell styles */
+    .matrix-cell {
+        padding: 4px;
+        min-width: 100px;
+        max-width: 150px;
+        position: relative;
+        vertical-align: middle;
+    }
+    
+    /* Status cell enhanced styles */
+    .status-cell {
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border: 2px solid transparent;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .status-cell:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Status-specific styles with better colors */
+    .status-pending {
+        background: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+    }
+    
+    .status-running {
+        background: #cce5ff;
+        border-color: #b8daff;
+        color: #004085;
+        animation: running-pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes running-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .status-failed {
+        background: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    
+    .status-interrupted {
+        background: #e2e3e5;
+        border-color: #d6d8db;
+        color: #383d41;
+    }
+    
+    .status-empty {
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        color: #6c757d;
+    }
+    
+    /* Progress info styling */
+    .progress-info {
+        font-size: 11px;
+        line-height: 1.3;
+        text-align: center;
+        width: 100%;
+    }
+    
+    .progress-main {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+    
+    .progress-secondary {
+        font-size: 10px;
+        opacity: 0.8;
+    }
+    
+    .progress-stats {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 9px;
+    }
+    
+    .stat-success {
+        color: #28a745;
+    }
+    
+    .stat-failed {
+        color: #dc3545;
+    }
+    
+    .stat-timeout {
+        color: #ffc107;
+    }
+    
+    /* Delete button styling */
+    .delete-btn {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 16px;
+        height: 16px;
+        border: none;
+        background: rgba(255, 255, 255, 0.8);
+        color: #dc3545;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        padding: 0;
+    }
+    
+    .status-cell:hover .delete-btn {
+        opacity: 1;
+    }
+    
+    .delete-btn:hover {
+        background: #dc3545;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    /* Progress bar */
+    .progress-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 2px;
+        margin-top: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: currentColor;
+        opacity: 0.6;
+        transition: width 0.3s ease;
+    }
+    
+    /* Action button for empty cells */
+    .action-btn {
+        font-size: 11px;
+        padding: 4px 12px;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+        background: #4f46e5;
+        transform: translateY(-1px);
+    }
+    
+    /* Hide cell actions by default, show on hover */
+    .cell-actions {
+        display: none;
+        margin-top: 4px;
+        gap: 4px;
+        justify-content: center;
+    }
+    
+    .status-cell:hover .cell-actions {
+        display: flex;
+    }
+    
+    .action-btn.start-btn,
+    .action-btn.pause-btn,
+    .action-btn.stop-btn {
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+    
     /* Delete buttons */
     .species-name button,
     .model-header button {
@@ -761,17 +1002,581 @@
         font-size: 12px;
         color: var(--text-primary);
     }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+        animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .modal-content {
+        background-color: var(--white);
+        margin: 50px auto;
+        padding: 0;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .modal-close:hover {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    /* Form controls */
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 14px;
+        background: var(--white);
+        color: var(--text-primary);
+        transition: all 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-control:disabled {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        cursor: not-allowed;
+    }
+    
+    select.form-control {
+        cursor: pointer;
+    }
+    
+    /* Button styles */
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-primary {
+        background: var(--accent-primary);
+        color: var(--white);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        background: var(--blue-600);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-secondary {
+        background: var(--gray-600);
+        color: var(--white);
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+        background: var(--gray-700);
+    }
+    
+    .btn-ghost {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 1px solid transparent;
+    }
+    
+    .btn-ghost:hover:not(:disabled) {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .btn-accent {
+        background: var(--accent-secondary);
+        color: var(--white);
+    }
+    
+    .btn-accent:hover:not(:disabled) {
+        background: var(--green-600);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(146, 205, 182, 0.3);
+    }
+    
+    /* Utility classes */
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 16px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 16px; }
+    .text-muted { color: var(--text-secondary); font-size: 12px; }
+    .text-small { font-size: 11px; }
+    
+    /* Enhanced details modal styles */
+    .combination-summary {
+        background: var(--bg-secondary);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+    }
+    
+    .stat-item {
+        background: var(--white);
+        padding: 16px;
+        border-radius: 6px;
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+    
+    .stat-label {
+        display: block;
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .stat-value {
+        display: block;
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .stat-item.success .stat-value { color: var(--accent-secondary); }
+    .stat-item.failed .stat-value { color: var(--accent-error); }
+    .stat-item.timeout .stat-value { color: var(--accent-warning); }
+    
+    .rerun-all-container {
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .btn-warning {
+        background: var(--accent-warning);
+        color: var(--white);
+    }
+    
+    .btn-warning:hover {
+        background: #e0a800;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    
+    .template-info {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 16px;
+    }
+    
+    /* Species results styles */
+    .species-results {
+        margin-top: 20px;
+    }
+    
+    .results-section {
+        margin-bottom: 24px;
+    }
+    
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+    
+    .section-title.failed {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--accent-error);
+    }
+    
+    .section-title.timeout {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--accent-warning);
+    }
+    
+    .section-title.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent-secondary);
+    }
+    
+    .species-list {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .species-item {
+        border-bottom: 1px solid var(--border-color);
+        background: var(--white);
+    }
+    
+    .species-item:last-child {
+        border-bottom: none;
+    }
+    
+    .species-header {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .species-header:hover {
+        background: var(--bg-secondary);
+    }
+    
+    .species-name {
+        font-weight: 500;
+        font-style: italic;
+        flex: 1;
+    }
+    
+    .species-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 8px;
+    }
+    
+    .species-status.success {
+        background: var(--accent-secondary);
+        color: var(--white);
+    }
+    
+    .species-status.failed {
+        background: var(--accent-error);
+        color: var(--white);
+    }
+    
+    .species-status.timeout {
+        background: var(--accent-warning);
+        color: var(--white);
+    }
+    
+    .toggle-icon {
+        font-family: monospace;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .species-details {
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .error-info, .raw-response, .knowledge-level, .phenotypes {
+        margin-bottom: 12px;
+    }
+    
+    .error-message {
+        margin-top: 4px;
+        padding: 8px;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 4px;
+        font-size: 12px;
+        color: var(--accent-error);
+    }
+    
+    .response-text {
+        margin-top: 4px;
+        padding: 8px;
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: var(--font-mono);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .llm-response-details {
+        margin-top: 8px;
+    }
+    
+    .llm-response-details summary {
+        cursor: pointer;
+        color: var(--primary);
+        font-size: 12px;
+    }
+    
+    .llm-response-details pre {
+        margin-top: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .rerun-container {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    /* Knowledge level styles */
+    .knowledge-value {
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: inline-block;
+        font-size: 12px;
+    }
+    
+    .knowledge-value.knowledge-limited {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .knowledge-value.knowledge-moderate {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+    
+    .knowledge-value.knowledge-extensive {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .knowledge-value.knowledge-na {
+        background-color: #e2e3e5;
+        color: #6c757d;
+        border: 1px solid #d6d8db;
+    }
+    
+    .phenotype-list {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
 </style>
 
 <script>
+    // Define all functions in global scope immediately
+    
+    // Model Management
+    window.addModel = function() {
+        console.log('addModel function called from window');
+        
+        // Check if modal exists
+        const modal = document.getElementById('addModelModal');
+        if (!modal) {
+            console.error('addModelModal not found in DOM');
+            alert('Error: Modal not found. Please refresh the page.');
+            return;
+        }
+        
+        console.log('Modal found, refreshing models...');
+        
+        // Load available models
+        window.refreshModels();
+        window.showModal('addModelModal');
+    };
+    
+    // Species File Management
+    window.addSpeciesFile = function() {
+        console.log('addSpeciesFile function called from window');
+        window.showModal('addSpeciesModal');
+    };
+    
+    // Modal helper functions
+    window.showModal = function(modalId) {
+        console.log('showModal called for:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            console.log('Modal displayed');
+        } else {
+            console.error('Modal not found:', modalId);
+            alert('Modal not found: ' + modalId);
+        }
+    };
+    
+    window.closeModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    };
+    
+    // Refresh models function
+    window.refreshModels = function() {
+        console.log('refreshModels called');
+        const dropdown = document.getElementById('modelDropdown');
+        if (!dropdown) {
+            console.error('modelDropdown not found');
+            return;
+        }
+        
+        dropdown.innerHTML = '<option value="">Loading...</option>';
+        
+        fetch('/api/get_openrouter_models')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    dropdown.innerHTML = '<option value="">Error loading models</option>';
+                    return;
+                }
+                
+                dropdown.innerHTML = '<option value="">Select a model...</option>';
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = `${model.name} ($${model.pricing.prompt}/1K)`;
+                    option.dataset.info = JSON.stringify(model);
+                    dropdown.appendChild(option);
+                });
+                
+                document.getElementById('modelCount').textContent = data.models.length;
+            })
+            .catch(error => {
+                console.error('Error fetching models:', error);
+                dropdown.innerHTML = '<option value="">Error loading models</option>';
+            });
+    };
+    
+    // Add error handler
+    window.addEventListener('error', function(event) {
+        console.error('JavaScript error:', event.error);
+        console.error('At:', event.filename, 'line:', event.lineno, 'col:', event.colno);
+    });
+    
     // Initialize Socket.IO connection
     const socket = io();
+    
+    console.log('Dashboard script loaded. Functions available:');
+    console.log('- window.addModel:', typeof window.addModel);
+    console.log('- window.addSpeciesFile:', typeof window.addSpeciesFile);
+    console.log('- window.showModal:', typeof window.showModal);
     
     // State management
     let activeTemplateIndex = 0;
     let liveStatusTracking = null;
     let autoRefreshEnabled = true;
     let lastUpdateTime = Date.now();
+    
+    // Scroll position management
+    const scrollPositions = {};
+    
+    function saveScrollPosition(key) {
+        const container = document.querySelector(`#${key.replace('template-', 'matrix-scroll-')}`);
+        if (container) {
+            scrollPositions[key] = {
+                left: container.scrollLeft,
+                top: container.scrollTop
+            };
+        }
+    }
+    
+    function restoreScrollPosition(key) {
+        const container = document.querySelector(`#${key.replace('template-', 'matrix-scroll-')}`);
+        const position = scrollPositions[key];
+        if (container && position) {
+            container.scrollLeft = position.left;
+            container.scrollTop = position.top;
+        }
+    }
     
     socket.on('connect', function() {
         console.log('Connected to server');
@@ -800,6 +1605,8 @@
     
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard DOM loaded');
+        
         // Check API key status
         fetch('/api/api_key_status')
             .then(response => response.json())
@@ -834,6 +1641,15 @@
                 restoreScrollPosition(`template-${index}`);
             });
         }, 100);
+        
+        // Debug: Check if modals exist
+        console.log('addModelModal exists:', !!document.getElementById('addModelModal'));
+        console.log('addSpeciesModal exists:', !!document.getElementById('addSpeciesModal'));
+        
+        // Debug: Add click listener to all add buttons
+        document.querySelectorAll('[onclick*="addModel"]').forEach(btn => {
+            console.log('Found add model button:', btn);
+        });
     });
     
     // Template management
@@ -1204,77 +2020,205 @@
         const info = data.combination_info || {};
         const results = data.species_results || [];
         
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
         let html = `
-            <div class="card mb-3">
+            <div class="combination-summary">
                 <h4>Summary</h4>
-                <div class="summary-grid">
-                    <div>Total: ${info.total_species || 0}</div>
-                    <div>Success: ${info.successful_species || 0}</div>
-                    <div>Failed: ${info.failed_species || 0}</div>
-                    <div>Timeouts: ${info.timeout_species || 0}</div>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Species:</span>
+                        <span class="stat-value">${info.total_species || 0}</span>
+                    </div>
+                    <div class="stat-item success">
+                        <span class="stat-label">Success:</span>
+                        <span class="stat-value">${info.successful_species || 0}</span>
+                    </div>
+                    <div class="stat-item failed">
+                        <span class="stat-label">Failed:</span>
+                        <span class="stat-value">${info.failed_species || 0}</span>
+                    </div>
+                    <div class="stat-item timeout">
+                        <span class="stat-label">Timeouts:</span>
+                        <span class="stat-value">${info.timeout_species || 0}</span>
+                    </div>
                 </div>
-                ${info.user_template && info.user_template.includes('phenotype') ? `
-                    <div style="margin-top: 16px; text-align: center;">
-                        <button onclick="reparsePhenotypeData(${info.id})" class="btn btn-primary" style="margin-right: 8px;">
-                            <i class="fas fa-sync"></i> Re-parse Phenotype Data
+                ${info.failed_species > 0 ? `
+                    <div class="rerun-all-container">
+                        <button onclick="rerunAllFailed(${info.id})" class="btn btn-warning">
+                            <i class="fas fa-redo"></i> Re-run All Failed (${info.failed_species})
                         </button>
-                        ${info.failed_species && info.failed_species > 0 ? `
-                            <button onclick="rerunAllFailed(${info.id})" class="btn btn-secondary">
-                                <i class="fas fa-redo"></i> Re-run Failed Samples
-                            </button>
-                        ` : ''}
-                        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
-                            Re-parse: Extract phenotype fields from existing responses | Re-run: Process failed samples with LLM again
-                        </div>
                     </div>
                 ` : ''}
+                <div class="template-info">
+                    <strong>Templates:</strong> ${info.system_template} + ${info.user_template}
+                </div>
             </div>
         `;
         
         if (results.length > 0) {
-            html += `
-                <div class="card">
-                    <h4>Results</h4>
-                    <div class="results-content">
-                        <div class="species-list">
-            `;
+            html += `<div class="species-results"><h4>Species Results</h4>`;
             
-            results.forEach(result => {
-                const statusClass = result.status === 'completed' ? 'success' : 'failed';
+            // Group results by status
+            const successful = results.filter(r => r.status === 'completed');
+            const failed = results.filter(r => r.status === 'failed');
+            const timeouts = results.filter(r => r.status === 'timeout');
+            
+            // Failed species section
+            if (failed.length > 0) {
                 html += `
-                    <div class="species-result ${statusClass}">
-                        <div class="species-result-header">
-                            <div>
-                                <strong>${result.binomial_name}</strong> - ${result.status}
-                                ${result.error ? `<div class="error-msg">${result.error}</div>` : ''}
-                            </div>
-                            <div class="species-actions">
-                                ${result.status === 'failed' ? `
-                                    <button onclick="rerunSpecies(${info.id}, '${result.binomial_name}')" 
-                                            class="btn-small btn-retry" title="Re-run this species">
-                                        Retry
-                                    </button>
-                                ` : ''}
-                                ${result.result ? `
-                                    <button data-species="${result.binomial_name}" 
-                                            data-raw='${result.result.replace(/'/g, "&#39;")}' 
-                                            data-parsed='${JSON.stringify(result.phenotypes || (result.knowledge_group ? {knowledge_group: result.knowledge_group} : {})).replace(/'/g, "&#39;")}'
-                                            onclick="showRawResponseFromData(this)" 
-                                            class="btn-small btn-view" title="View raw response">
-                                        View
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
+                    <div class="results-section failed-section">
+                        <h5 class="section-title failed">Failed Species (${failed.length})</h5>
+                        <div class="species-list">
                 `;
-            });
-            
-            html += `
+                
+                failed.forEach(result => {
+                    html += `
+                        <div class="species-item failed">
+                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
+                                <span class="species-name">${result.binomial_name}</span>
+                                <span class="species-status failed">Failed</span>
+                                <span class="toggle-icon">[+]</span>
+                            </div>
+                            <div class="species-details" style="display: none;">
+                                <div class="error-info">
+                                    <strong>Error:</strong>
+                                    <div class="error-message">${result.error || 'No specific error message'}</div>
+                                </div>
+                                ${result.result ? `
+                                    <div class="raw-response">
+                                        <strong>Raw Response:</strong>
+                                        <div class="response-text">${escapeHtml(result.result.substring(0, 500))}${result.result.length > 500 ? '...' : ''}</div>
+                                    </div>
+                                ` : ''}
+                                <div class="rerun-container">
+                                    <button onclick="rerunFailedSpecies(${info.id}, '${result.binomial_name}')" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-redo"></i> Re-run This Species
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            `;
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            // Timeout species section
+            if (timeouts.length > 0) {
+                html += `
+                    <div class="results-section timeout-section">
+                        <h5 class="section-title timeout">Timeout Species (${timeouts.length})</h5>
+                        <div class="species-list">
+                `;
+                
+                timeouts.forEach(result => {
+                    html += `
+                        <div class="species-item timeout">
+                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
+                                <span class="species-name">${result.binomial_name}</span>
+                                <span class="species-status timeout">Timeout</span>
+                                <span class="toggle-icon">[+]</span>
+                            </div>
+                            <div class="species-details" style="display: none;">
+                                <div class="error-info">
+                                    <strong>Status:</strong> Request timed out
+                                </div>
+                                <div class="rerun-container">
+                                    <button onclick="rerunFailedSpecies(${info.id}, '${result.binomial_name}')" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-redo"></i> Re-run This Species
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            // Successful species section
+            if (successful.length > 0) {
+                html += `
+                    <div class="results-section success-section">
+                        <h5 class="section-title success">Successful Species (${successful.length})</h5>
+                        <div class="species-list">
+                `;
+                
+                successful.forEach(result => {
+                    let mainContent = '';
+                    
+                    // Check if this is a knowledge template
+                    const isKnowledgeTemplate = info.user_template && info.user_template.includes('knowledge');
+                    
+                    if (isKnowledgeTemplate && result.knowledge_group) {
+                        // For knowledge templates, show knowledge level
+                        const knowledgeLevel = result.knowledge_group || 'Not determined';
+                        const levelClass = knowledgeLevel.toLowerCase() === 'limited' ? 'knowledge-limited' :
+                                         knowledgeLevel.toLowerCase() === 'moderate' ? 'knowledge-moderate' :
+                                         knowledgeLevel.toLowerCase() === 'extensive' ? 'knowledge-extensive' :
+                                         knowledgeLevel.toLowerCase() === 'na' ? 'knowledge-na' : '';
+                        
+                        mainContent = `
+                            <div class="knowledge-level">
+                                <strong>Knowledge Level:</strong>
+                                <span class="knowledge-value ${levelClass}">${knowledgeLevel}</span>
+                            </div>
+                        `;
+                    } else if (result.phenotypes && Object.keys(result.phenotypes).length > 0) {
+                        // For phenotype templates, show phenotypes
+                        const phenotypes = Object.entries(result.phenotypes)
+                            .filter(([key, value]) => value)
+                            .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+                            .join(', ');
+                        
+                        mainContent = `
+                            <div class="phenotypes">
+                                <strong>Phenotypes:</strong>
+                                <div class="phenotype-list">${phenotypes || 'No phenotypes extracted'}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    html += `
+                        <div class="species-item success">
+                            <div class="species-header" onclick="toggleSpeciesDetails(this)">
+                                <span class="species-name">${result.binomial_name}</span>
+                                <span class="species-status success">Success</span>
+                                <span class="toggle-icon">[+]</span>
+                            </div>
+                            <div class="species-details" style="display: none;">
+                                ${mainContent}
+                                ${result.result ? `
+                                    <div class="raw-response">
+                                        <strong>Raw LLM Response:</strong>
+                                        <details class="llm-response-details">
+                                            <summary>Click to expand raw output</summary>
+                                            <pre class="response-text">${escapeHtml(result.result)}</pre>
+                                        </details>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            html += `</div>`;
+        } else {
+            html += `<p class="no-results">No species have been processed yet.</p>`;
         }
         
         return html;
@@ -1477,37 +2421,7 @@
         }
     }
     
-    // Model Management
-    function addModel() {
-        // Load available models
-        refreshModels();
-        showModal('addModelModal');
-    }
-    
-    function refreshModels() {
-        const dropdown = document.getElementById('modelDropdown');
-        dropdown.innerHTML = '<option value="">Loading...</option>';
-        
-        fetch('/api/get_openrouter_models')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    dropdown.innerHTML = '<option value="">Error loading models</option>';
-                    return;
-                }
-                
-                dropdown.innerHTML = '<option value="">Select a model...</option>';
-                data.models.forEach(model => {
-                    const option = document.createElement('option');
-                    option.value = model.id;
-                    option.textContent = `${model.name} ($${model.pricing.prompt}/1K)`;
-                    option.dataset.info = JSON.stringify(model);
-                    dropdown.appendChild(option);
-                });
-                
-                document.getElementById('modelCount').textContent = data.models.length;
-            });
-    }
+    // Model Management functions are already defined globally at the top
     
     function switchInputMethod(method) {
         document.querySelectorAll('.input-tab').forEach(tab => {
@@ -1642,10 +2556,7 @@
         }
     }
     
-    // Species File Management
-    function addSpeciesFile() {
-        showModal('addSpeciesModal');
-    }
+    // Species File Management function is already defined globally at the top
     
     function confirmAddSpecies() {
         const file = document.getElementById('newSpeciesSelect').value;
@@ -1699,8 +2610,22 @@
         showNotification('Template manager coming soon', 'info');
     }
     
-    // Re-run individual species
-    function rerunSpecies(combinationId, speciesName) {
+    // Toggle species details
+    function toggleSpeciesDetails(header) {
+        const details = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+        
+        if (details.style.display === 'none') {
+            details.style.display = 'block';
+            icon.textContent = '[-]';
+        } else {
+            details.style.display = 'none';
+            icon.textContent = '[+]';
+        }
+    }
+    
+    // Re-run individual failed species
+    function rerunFailedSpecies(combinationId, speciesName) {
         if (confirm(`Re-run processing for ${speciesName}?`)) {
             showNotification(`Re-running ${speciesName}...`, 'info');
             
@@ -1716,9 +2641,10 @@
             .then(data => {
                 if (data.success) {
                     showNotification(data.message, 'success');
-                    // Refresh the details modal
+                    // Close modal and refresh
+                    closeModal('detailsModal');
                     setTimeout(() => {
-                        showCombinationDetails(combinationId);
+                        refreshDashboard();
                     }, 1000);
                 } else {
                     showNotification('Error: ' + data.error, 'error');
@@ -1867,5 +2793,196 @@
         }
     `;
     document.head.appendChild(notificationStyles);
+    
+    // Settings panel functionality
+    let settingsPanelOpen = false;
+    
+    function toggleSettings() {
+        const existingPanel = document.getElementById('settingsPanel');
+        
+        if (existingPanel) {
+            existingPanel.remove();
+            settingsPanelOpen = false;
+            return;
+        }
+        
+        settingsPanelOpen = true;
+        
+        const settingsPanel = document.createElement('div');
+        settingsPanel.id = 'settingsPanel';
+        settingsPanel.className = 'settings-panel';
+        settingsPanel.innerHTML = `
+            <div class="settings-panel-header">
+                <h3>Settings</h3>
+                <button onclick="toggleSettings()" class="modal-close">×</button>
+            </div>
+            <div class="settings-panel-content">
+                <div class="setting-group">
+                    <label class="setting-label">API Configuration</label>
+                    <div class="api-key-input-group">
+                        <input type="password" id="apiKeyInput" placeholder="Enter your OpenRouter API key">
+                        <button onclick="toggleApiKeyVisibility()" class="btn btn-ghost btn-sm" id="toggleApiKeyBtn">Show</button>
+                        <button onclick="updateApiKey()" class="btn btn-primary btn-sm">Update</button>
+                    </div>
+                    <small class="text-muted mt-1">
+                        Get your key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
+                    </small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Processing Rate</label>
+                    <div class="input-group">
+                        <input type="number" id="rateLimitInput" min="0.1" max="100" step="0.1" value="30">
+                        <span class="text-muted">req/sec</span>
+                        <button onclick="updateRateLimit()" class="btn btn-primary btn-sm">Update</button>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Concurrent Requests</label>
+                    <div class="input-group">
+                        <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
+                        <span class="text-muted">workers</span>
+                        <button onclick="updateConcurrency()" class="btn btn-primary btn-sm">Update</button>
+                    </div>
+                    <small class="text-muted mt-1">Number of species to process in parallel</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Queue Status</label>
+                    <div class="queue-info">
+                        <span id="queueLength">0</span> jobs waiting
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(settingsPanel);
+        
+        // Add styles for settings panel
+        if (!document.getElementById('settingsPanelStyles')) {
+            const settingsStyles = document.createElement('style');
+            settingsStyles.id = 'settingsPanelStyles';
+            settingsStyles.textContent = `
+                .settings-panel {
+                    position: fixed;
+                    right: 0;
+                    top: 0;
+                    height: 100vh;
+                    width: 400px;
+                    background: var(--white);
+                    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                    overflow-y: auto;
+                    animation: slideIn 0.3s ease-out;
+                }
+                
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                    }
+                    to {
+                        transform: translateX(0);
+                    }
+                }
+                
+                .settings-panel-header {
+                    padding: 20px;
+                    border-bottom: 1px solid var(--border-color);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                
+                .settings-panel-content {
+                    padding: 20px;
+                }
+                
+                .setting-group {
+                    margin-bottom: 24px;
+                }
+                
+                .setting-label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    font-size: 14px;
+                }
+                
+                .input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                .api-key-input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                .api-key-input-group input {
+                    flex: 1;
+                }
+                
+                .queue-info {
+                    padding: 12px;
+                    background: var(--bg-secondary);
+                    border-radius: 6px;
+                    text-align: center;
+                    font-weight: 600;
+                }
+            `;
+            document.head.appendChild(settingsStyles);
+        }
+    }
+    
+    // Modal helper functions are already defined globally at the top
+    
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // Scroll to add column button
+    function scrollToAddColumn(templateIndex) {
+        const container = document.getElementById(`matrix-scroll-${templateIndex}`);
+        if (container) {
+            // Scroll to the far right
+            container.scrollLeft = container.scrollWidth;
+        }
+    }
+    
+    // Make all necessary functions globally accessible
+    window.scrollToAddColumn = scrollToAddColumn;
+    window.confirmAddModel = confirmAddModel;
+    window.confirmAddSpecies = confirmAddSpecies;
+    window.switchInputMethod = switchInputMethod;
+    window.refreshModels = refreshModels;
+    window.deleteModel = deleteModel;
+    window.deleteSpeciesFile = deleteSpeciesFile;
+    window.createAndStartCombination = createAndStartCombination;
+    window.startCombination = startCombination;
+    window.pauseCombination = pauseCombination;
+    window.stopCombination = stopCombination;
+    window.restartCombination = restartCombination;
+    window.deleteCombination = deleteCombination;
+    window.showCombinationDetails = showCombinationDetails;
+    window.showTemplate = showTemplate;
+    window.toggleSettings = toggleSettings;
+    window.toggleApiKeyVisibility = toggleApiKeyVisibility;
+    window.updateApiKey = updateApiKey;
+    window.updateRateLimit = updateRateLimit;
+    window.updateConcurrency = updateConcurrency;
+    window.refreshDashboard = refreshDashboard;
+    window.openTemplateManager = openTemplateManager;
+    window.reparsePhenotypeData = reparsePhenotypeData;
+    window.rerunAllFailed = rerunAllFailed;
+    window.rerunSpecies = rerunSpecies;
+    window.showRawResponseFromData = showRawResponseFromData;
+    window.switchResponseTab = switchResponseTab;
 </script>
 {% endblock %} 

@@ -5,8 +5,20 @@
    - header: Optional header text
    - content: The main content (passed as a variable)
    - compact: Boolean for compact variant
+   - layout: Layout class to apply (default: 'indented')
+   - in_viewer: Boolean indicating if in component viewer context
 #}
-<div class="callout callout-{{ type }}{% if compact %} callout-compact{% endif %}">
+{% set component_classes = ['callout-component', 'callout-component--' + type] %}
+{% if compact %}
+    {% set component_classes = component_classes + ['callout-component--compact'] %}
+{% endif %}
+
+{% set layout_class = '' %}
+{% if not in_viewer %}
+    {% set layout_class = 'layout-callout-' + (layout|default('indented')) %}
+{% endif %}
+
+<div class="{{ component_classes|join(' ') }} {{ layout_class }}">
     {% if header %}<div class="callout-header">{{ header }}</div>{% endif %}
     <div class="callout-content">
         {{ content | safe }}

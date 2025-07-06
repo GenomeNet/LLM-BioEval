@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section.id }} - Component Viewer{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
+<style>
+    body {
+        background: #f5f5f5;
+    }
+    
+    .viewer-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .viewer-header {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .viewer-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 24px;
+    }
+    
+    .viewer-meta {
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .component-display {
+        background: white;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        min-height: 400px;
+    }
+    
+    /* Apply section callout styles directly */
+    {% if section.type == 'section_callout_dynamic' %}
+    .component-display {
+        background: linear-gradient(135deg, 
+            rgba(99, 102, 241, 0.08) 0%,
+            rgba(168, 85, 247, 0.06) 25%,
+            rgba(59, 130, 246, 0.08) 50%,
+            rgba(147, 51, 234, 0.06) 75%,
+            rgba(79, 172, 254, 0.08) 100%);
+    }
+    {% endif %}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-container">
+    <div class="viewer-header">
+        <h1>Component: {{ section.id }}</h1>
+        <div class="viewer-meta">
+            <strong>Type:</strong> {{ section.type }} | 
+            <strong>File:</strong> {{ section.file }} |
+            <strong>Page:</strong> {{ page }}
+        </div>
+        <div style="margin-top: 10px;">
+            <a href="{{ url_for('components_index') }}">← Back to Components</a> |
+            <a href="/{{ page }}">View Full Page</a>
+        </div>
+    </div>
+    
+    <div class="component-display">
+        {% if section.title or section.text %}
+        <div style="text-align: center; margin-bottom: 30px;">
+            {% if section.title %}<h2 style="font-size: 28px; margin-bottom: 10px;">{{ section.title }}</h2>{% endif %}
+            {% if section.text %}<p style="font-size: 18px; color: #666;">{{ section.text }}</p>{% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Direct include with no wrappers -->
+        {% include 'research/' + page + '/' + section.file %}
+    </div>
+</div>
+
+<script>
+// Component initialization with retry logic
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Viewer: Initializing {{ section.id }}');
+    
+    function tryInitialize(initFunc, componentName, attempts = 0) {
+        if (attempts > 5) {
+            console.error('Viewer: Failed to initialize ' + componentName + ' after 5 attempts');
+            return;
+        }
+        
+        if (typeof window[initFunc] === 'function') {
+            console.log('Viewer: Calling ' + initFunc);
+            window[initFunc]();
+        } else {
+            console.log('Viewer: ' + initFunc + ' not ready, retrying... (attempt ' + (attempts + 1) + ')');
+            setTimeout(function() {
+                tryInitialize(initFunc, componentName, attempts + 1);
+            }, 200);
+        }
+    }
+    
+    // Wait a bit for scripts to load then initialize
+    setTimeout(function() {
+        {% if section.id == 'hello_world_dynamic' %}
+        tryInitialize('initHelloWorld', 'hello_world_dynamic');
+        {% elif section.id == 'top_models_web_alignment' %}
+        tryInitialize('initTopModelsWebAlignment', 'top_models_web_alignment');
+        {% elif section.id == 'top_performers' %}
+        tryInitialize('initTopPerformers', 'top_performers');
+        {% elif section.id == 'worst_performers' %}
+        console.log('Viewer: worst_performers will auto-initialize');
+        {% elif section.id == 'knowledge_analysis_content' %}
+        console.log('Viewer: knowledge_analysis_content will auto-initialize');
+        {% elif section.id == 'quality_score_chart' %}
+        console.log('Viewer: quality_score_chart will auto-initialize');
+        {% elif section.id == 'correlation_chart_interactive' %}
+        console.log('Viewer: correlation_chart_interactive will auto-initialize');
+        {% elif section.id == 'web_alignment_flow' %}
+        console.log('Viewer: web_alignment_flow will auto-initialize');
+        {% endif %}
+    }, 300);
+});
+</script>
+{% endblock %}

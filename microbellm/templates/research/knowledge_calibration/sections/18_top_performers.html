@@ -8,143 +8,295 @@
 </div>
 
 <script>
-// Load top performers dynamically
-async function loadTopPerformers() {
-    try {
-        const response = await fetch('/api/knowledge_top_performers');
-        const data = await response.json();
+// Self-contained script for top performers
+(function() {
+    console.log('[TopPerformers] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[TopPerformers] Looking for container...');
+        // Do not auto-init in component viewer context
+        if (!window.location.pathname.includes('/components/')) {
+            initializeTopPerformers();
+        }
+    }, 100);
+    
+    // Function to find container with fallback
+    function findContainer() {
+        // Try direct ID first
+        let container = document.getElementById('topPerformersContainer');
+        if (container) {
+            console.log('[TopPerformers] Found container by ID');
+            return container;
+        }
         
-        if (data.success && data.performers) {
-            const container = document.getElementById('topPerformersContainer');
-            if (container) {
-                let html = `
-                    <div class="section-callout__header">
-                        <h3 class="section-callout__title">Top Performing Models</h3>
-                        <p class="section-callout__text">Models demonstrating superior ability to recognize fictional taxonomy and avoid hallucination when presented with non-existent bacterial species.</p>
-                    </div>
-                    <div class="performers-grid">
-                `;
+        // Try to find any container in current context
+        container = document.querySelector('[id*="topPerformersContainer"]');
+        if (container) {
+            console.log('[TopPerformers] Found container by partial ID match');
+            return container;
+        }
+        
+        console.error('[TopPerformers] Container not found!');
+        return null;
+    }
+    
+    // Initialize function
+    function initializeTopPerformers() {
+        console.log('[TopPerformers] Initializing...');
+        loadTopPerformers();
+    }
+
+    // Expose initialization function for component viewer
+    window.initTopPerformers = initializeTopPerformers;
+    
+    // Transform knowledge data from API format to expected format
+    function transformKnowledgeData(knowledgeAnalysis) {
+        console.log('[TopPerformers] Transforming data...');
+        const modelData = {};
+        const templateSet = new Set();
+        const inputTypeSet = new Set();
+        
+        // Process only files with type columns
+        // The data structure is: file -> types -> inputType -> template -> model -> stats
+        // We need to transform it to: model -> template -> inputType -> stats
+        
+        Object.entries(knowledgeAnalysis).forEach(([fileName, fileData]) => {
+            console.log('[TopPerformers] Processing file:', fileName);
+            
+            // Only process files that have type columns
+            if (!fileData.has_type_column || !fileData.types) {
+                console.warn('[TopPerformers] Skipping file (no type column):', fileName);
+                return;
+            }
+            
+            // Process each input type
+            Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+                inputTypeSet.add(inputType);
                 
-                data.performers.forEach((model, index) => {
-                    html += `
-                        <div class="performer-card performer-card--top">
-                            <div class="performer-rank">#${index + 1}</div>
-                            <div class="performer-model">${model.name}</div>
-                            <div class="performer-score">
-                                <div class="score-label">Score</div>
-                                <div class="score-value">${model.score.toFixed(2)}</div>
-                            </div>
-                            <div class="performer-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">NA Rate:</span>
-                                    <span class="detail-value">${model.na_rate}%</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Queries:</span>
-                                    <span class="detail-value">${model.query_count}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                // Process each template
+                Object.entries(templateData).forEach(([templateName, models]) => {
+                    templateSet.add(templateName);
+                    
+                    // Process each model
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        // Initialize model data structure if needed
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        
+                        // Store the stats
+                        modelData[modelName][templateName][inputType] = stats;
+                    });
                 });
-                
-                html += '</div>';
-                container.innerHTML = html;
+            });
+        });
+        
+        const result = {
+            modelData: modelData,
+            templateArray: Array.from(templateSet).sort(),
+            inputTypeArray: Array.from(inputTypeSet).sort()
+        };
+        
+        console.log('[TopPerformers] Transformed data:', {
+            models: Object.keys(modelData).length,
+            templates: result.templateArray.length,
+            inputTypes: result.inputTypeArray.length,
+            firstModel: Object.keys(modelData)[0]
+        });
+        
+        return result;
+    }
+    
+    // Calculate overall model scores
+    function calculateOverallModelScores(modelData, templateArray) {
+        const overallModelScores = {};
+        Object.entries(modelData).forEach(([modelName, templates]) => {
+            let totalScore = 0;
+            let totalSamples = 0;
+            let dist = { NA: 0, limited: 0, moderate: 0, extensive: 0, no_result: 0, inference_failed: 0, total: 0 };
+
+            templateArray.forEach(templateName => {
+                if (templates[templateName]) {
+                    const templateData = templates[templateName];
+                    Object.values(templateData).forEach(stats => {
+                        const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
+                        const limitedCount = stats.limited || 0;
+                        const moderateCount = stats.moderate || 0;
+                        const extensiveCount = stats.extensive || 0;
+                        totalScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                        totalSamples += stats.total || 0;
+
+                        dist.NA += stats.NA || 0;
+                        dist.limited += stats.limited || 0;
+                        dist.moderate += stats.moderate || 0;
+                        dist.extensive += stats.extensive || 0;
+                        dist.no_result += stats.no_result || 0;
+                        dist.inference_failed += stats.inference_failed || 0;
+                        dist.total += stats.total || 0;
+                    });
+                }
+            });
+            if (totalSamples > 0) {
+                overallModelScores[modelName] = {
+                    averageQualityScore: totalScore / totalSamples,
+                    totalSamples: totalSamples,
+                    distribution: dist
+                };
+            }
+        });
+        return overallModelScores;
+    }
+    
+    // Create knowledge bar chart
+    function createKnowledgeBarChart(dist) {
+        if (!dist || dist.total === 0) return '<div class="no-data">No data</div>';
+        
+        const segments = [
+            { type: 'NA', count: (dist.NA || 0) + (dist.no_result || 0) + (dist.inference_failed || 0), class: 'na' },
+            { type: 'limited', count: dist.limited || 0, class: 'limited' },
+            { type: 'moderate', count: dist.moderate || 0, class: 'moderate' },
+            { type: 'extensive', count: dist.extensive || 0, class: 'extensive' }
+        ].filter(seg => seg.count > 0);
+        
+        let html = '<div class="bar-chart-container"><div class="bar-chart-segments">';
+        segments.forEach(seg => {
+            const pct = (seg.count / dist.total * 100).toFixed(1);
+            html += `<div class="bar-segment ${seg.class}" style="width:${pct}%">${pct > 10 ? seg.count : ''}</div>`;
+        });
+        html += '</div></div>';
+        return html;
+    }
+    
+    // Create bar chart legend
+    function createBarChartLegend() {
+        return `
+            <div class="legend">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                    <span>Extensive</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                    <span>Moderate</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                    <span>Limited</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                    <span>NA</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                    <span>Failed</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render top performers
+    function renderTopPerformers(data) {
+        console.log('[TopPerformers] Rendering data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[TopPerformers] Cannot render - no container found');
+            return;
+        }
+        
+        // Transform data
+        const transformedData = transformKnowledgeData(data.knowledge_analysis);
+        
+        // Calculate overall model scores
+        const overallModelScores = calculateOverallModelScores(transformedData.modelData, transformedData.templateArray);
+        const sortedModels = Object.entries(overallModelScores)
+            .map(([modelName, scores]) => ({ modelName, ...scores }))
+            .sort((a, b) => b.averageQualityScore - a.averageQualityScore);
+        
+        // Get top 4 models
+        const top4Models = sortedModels.slice(0, 4);
+        if (top4Models.length === 0) {
+            container.innerHTML = '<div class="no-data">No model data available</div>';
+            return;
+        }
+        
+        let topPerformersHtml = `
+<div class="top-performers-section">
+    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Performing Models</h3>
+    <p class="article-text" style="margin-bottom: 24px;">To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores.</p>
+    ${createBarChartLegend()}
+    <div class="performers-list">
+    `;
+        
+        top4Models.forEach((model, index) => {
+            const displayName = model.modelName.split('/').pop();
+            topPerformersHtml += `
+        <div class="performer-card">
+            <div class="performer-rank">${index + 1}</div>
+            <div style="flex: 1;">
+                <div class="performer-name">${displayName}</div>
+                <div class="performer-score">Avg. Quality Score: <strong>${model.averageQualityScore.toFixed(2)}</strong></div>
+                <div class="performer-dist-chart" style="margin-top: 12px;">
+                    ${createKnowledgeBarChart(model.distribution)}
+                </div>
+            </div>
+        </div>
+        `;
+        });
+        
+        topPerformersHtml += `
+    </div>
+</div>
+        `;
+        
+        container.innerHTML = topPerformersHtml;
+    }
+    
+    // Load data and render
+    async function loadTopPerformers() {
+        console.log('[TopPerformers] Loading data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[TopPerformers] Cannot load - no container found');
+            return;
+        }
+        
+        try {
+            console.log('[TopPerformers] Fetching from /api/knowledge_analysis_data...');
+            const response = await fetch('/api/knowledge_analysis_data');
+            console.log('[TopPerformers] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[TopPerformers] Raw data received:', data);
+            
+            if (data.knowledge_analysis) {
+                console.log('[TopPerformers] Found knowledge_analysis in response');
+                renderTopPerformers(data);
+            } else {
+                console.error('[TopPerformers] No knowledge_analysis in response');
+                throw new Error('Invalid data format');
+            }
+        } catch (error) {
+            console.error('[TopPerformers] Failed to load data:', error);
+            if (container) {
+                container.innerHTML = '<div class="error-message">Failed to load top performing models. Please try again later.</div>';
             }
         }
-    } catch (error) {
-        console.error('Failed to load top performers:', error);
-        const container = document.getElementById('topPerformersContainer');
-        if (container) {
-            container.innerHTML = '<div class="error-message">Failed to load top performing models. Please try again later.</div>';
-        }
     }
-}
+    
+    // The component is initialized by the setTimeout above or by the viewer
+})();
 
-// Load when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    loadTopPerformers();
-});
+// Call init function if it exists, for component viewer
+if (typeof window.initTopPerformers === 'function') {
+    window.initTopPerformers();
+}
 </script>
-
-<style>
-.performers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
-    margin-top: 32px;
-}
-
-.performer-card {
-    background: var(--bg-primary);
-    border: 2px solid var(--gray-200);
-    border-radius: 12px;
-    padding: 24px;
-    position: relative;
-}
-
-.performer-card--top {
-    border-color: rgba(99, 102, 241, 0.3);
-    background: rgba(99, 102, 241, 0.02);
-}
-
-.performer-rank {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--gray-300);
-}
-
-.performer-model {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    color: var(--gray-900);
-}
-
-.performer-score {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.score-label {
-    font-size: 14px;
-    color: var(--gray-600);
-}
-
-.score-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.performer-details {
-    display: flex;
-    gap: 24px;
-    font-size: 14px;
-}
-
-.detail-item {
-    display: flex;
-    gap: 6px;
-}
-
-.detail-label {
-    color: var(--gray-600);
-}
-
-.detail-value {
-    font-weight: 600;
-    color: var(--gray-900);
-}
-
-.error-message {
-    text-align: center;
-    padding: 40px;
-    color: var(--gray-600);
-}
-</style>

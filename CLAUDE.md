@@ -31,6 +31,20 @@ The plan should have a list of todo items that you can check off as you complete
 - All pages are fully responsive, with grid and flex layouts adapting to smaller screens.
 - Animations (e.g., canvas-based bacteria, DNA, or cell growth) are used for visual interest but do not interfere with content readability.
 
+### Animation and Hero Header Guidelines
+- **One Animation Per Page**: Research pages should have ONLY ONE animation, which is integrated into the hero header
+- **Hero Header Structure**: The hero header (`partials/hero_header.html`) contains:
+  - An integrated canvas animation positioned behind the content (z-index: 0)
+  - A gradient overlay that transitions colors (z-index: 1)
+  - The header content (title, authors, subtitle) positioned above both (z-index: 2)
+- **No Background Animations**: Do NOT add separate background animations or floating canvases outside the hero header
+- **Animation Types**: Each project defines its `animation_type` in `research_config.py` (bacteria, dna, growth)
+- **Implementation**: When creating new research pages:
+  - Use the existing `hero_header.html` partial which already includes the animation
+  - Do NOT create separate animation sections in the manifest
+  - Do NOT add background-canvas elements to the main template
+  - The animation is automatically initialized based on the project's configuration
+
 ### Content Organization Guidelines
 
 #### What Goes Where
@@ -222,3 +236,47 @@ Consistent paper/article metadata display:
 - Section headers use flex layout, left-aligned, with small uppercase text
 - Buttons and links use consistent styling, with primary actions in color
 - Footer uses light gray border and background
+
+### Modular Research Page System
+
+Research pages use a manifest-based modular system for better maintainability:
+
+#### Manifest Structure
+Each research page has a folder structure:
+```
+templates/research/[project_name]/
+├── manifest.yaml          # Defines page structure and section order
+├── sections/             # Individual section files
+│   ├── 00_hero_header.html
+│   ├── 01_intro.html
+│   └── ...
+```
+
+#### Manifest Configuration
+```yaml
+page_config:
+  title: "Page Title"
+  color_theme: "purple"  # Must match research_config.py
+  project_id: "knowledge_calibration"
+
+sections:
+  - id: "hero_header"
+    type: "hero"
+    file: "sections/00_hero_header.html"
+    title: "Hero Header"
+```
+
+#### Section Types
+- **hero**: Hero header section (should be first, includes animation)
+- **article**: Standard article section with optional sidebar
+- **callout_inline**: Indented callout box within article
+- **article_content**: Continuation of article content
+- **section_callout**: Full-width gradient section
+- **section_callout_dynamic**: Full-width section with dynamic JS content
+- **raw**: Direct include without wrapper
+
+#### Important Rules
+1. **Hero Section**: Always use type "hero" for the header, which automatically includes the animation
+2. **No Separate Animations**: Never create separate animation sections or background canvases
+3. **Color Consistency**: All callout sections must use the project's defined color theme
+4. **Section Order**: Sections are rendered in the order defined in manifest.yaml

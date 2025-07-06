@@ -1,0 +1,382 @@
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
+        <div class="section-callout__header">
+            <h3 class="section-callout__title">Quality Score Distribution by Model</h3>
+            <p class="section-callout__text">Distribution of quality scores across all templates for each model, showing how consistently models refuse to provide information about fictional species.</p>
+        </div>
+        
+        <div id="qualityScoreChartContainer">
+            <!-- Quality score distribution chart will be rendered here -->
+        </div>
+    </div>
+</section>
+
+<script>
+// Self-contained script for quality score chart
+(function() {
+    console.log('[QualityScoreChart] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[QualityScoreChart] Looking for container...');
+        initializeQualityScoreChart();
+    }, 100);
+    
+    // Function to find container with fallback
+    function findContainer() {
+        // Try direct ID first
+        let container = document.getElementById('qualityScoreChartContainer');
+        if (container) {
+            console.log('[QualityScoreChart] Found container by ID');
+            return container;
+        }
+        
+        // Try to find any container in current context
+        container = document.querySelector('[id*="qualityScoreChartContainer"]');
+        if (container) {
+            console.log('[QualityScoreChart] Found container by partial ID match');
+            return container;
+        }
+        
+        console.error('[QualityScoreChart] Container not found!');
+        return null;
+    }
+    
+    // Transform API data to expected format (same as other components)
+    function transformKnowledgeData(knowledgeAnalysis) {
+        console.log('[QualityScoreChart] Transforming data...');
+        const modelData = {};
+        const templateSet = new Set();
+        const inputTypeSet = new Set();
+        
+        // Process only files with type columns
+        // The data structure is: file -> types -> inputType -> template -> model -> stats
+        // We need to transform it to: model -> template -> inputType -> stats
+        
+        Object.entries(knowledgeAnalysis).forEach(([fileName, fileData]) => {
+            console.log('[QualityScoreChart] Processing file:', fileName);
+            
+            // Only process files that have type columns
+            if (!fileData.has_type_column || !fileData.types) {
+                console.warn('[QualityScoreChart] Skipping file (no type column):', fileName);
+                return;
+            }
+            
+            // Process each input type
+            Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+                inputTypeSet.add(inputType);
+                
+                // Process each template
+                Object.entries(templateData).forEach(([templateName, models]) => {
+                    templateSet.add(templateName);
+                    
+                    // Process each model
+                    Object.entries(models).forEach(([modelName, stats]) => {
+                        // Initialize model data structure if needed
+                        if (!modelData[modelName]) {
+                            modelData[modelName] = {};
+                        }
+                        if (!modelData[modelName][templateName]) {
+                            modelData[modelName][templateName] = {};
+                        }
+                        
+                        // Store the stats
+                        modelData[modelName][templateName][inputType] = stats;
+                    });
+                });
+            });
+        });
+        
+        const result = {
+            modelData: modelData,
+            templateArray: Array.from(templateSet).sort(),
+            inputTypeArray: Array.from(inputTypeSet).sort()
+        };
+        
+        console.log('[QualityScoreChart] Transformed data:', {
+            models: Object.keys(modelData).length,
+            templates: result.templateArray.length,
+            inputTypes: result.inputTypeArray.length,
+            firstModel: Object.keys(modelData)[0]
+        });
+        
+        return result;
+    }
+    
+    // Initialize function
+    function initializeQualityScoreChart() {
+        console.log('[QualityScoreChart] Initializing...');
+        loadQualityScoreData();
+    }
+    
+    // Load data
+    async function loadQualityScoreData() {
+        console.log('[QualityScoreChart] Loading data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[QualityScoreChart] Cannot load - no container found');
+            return;
+        }
+        
+        try {
+            console.log('[QualityScoreChart] Fetching from /api/knowledge_analysis_data...');
+            const response = await fetch('/api/knowledge_analysis_data');
+            console.log('[QualityScoreChart] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[QualityScoreChart] Raw data received:', data);
+            
+            if (data.knowledge_analysis) {
+                console.log('[QualityScoreChart] Found knowledge_analysis in response');
+                // Transform the data
+                const transformedData = transformKnowledgeData(data.knowledge_analysis);
+                
+                // Store data globally
+                window.knowledgeData = transformedData;
+                
+                // Create the chart
+                createQualityScoreBarChart(transformedData.modelData, transformedData.templateArray);
+            } else {
+                console.error('[QualityScoreChart] No knowledge_analysis in response');
+                container.innerHTML = '<div class="error-message">No knowledge analysis data available</div>';
+            }
+        } catch (error) {
+            console.error('[QualityScoreChart] Failed to load data:', error);
+            container.innerHTML = '<div class="error-message">Failed to load data. Please try again later.</div>';
+        }
+    }
+
+    // Function to create quality score bar chart
+    function createQualityScoreBarChart(modelData, templateArray) {
+        const container = findContainer();
+        if (!container || !modelData || !templateArray) {
+            console.error('[QualityScoreChart] Cannot create chart - missing data or container');
+            return;
+        }
+    
+    // Calculate scores per template for each model
+    const modelScoresPerTemplate = {};
+    
+    Object.entries(modelData).forEach(([modelName, templates]) => {
+        modelScoresPerTemplate[modelName] = {};
+        let totalScore = 0;
+        let totalSamples = 0;
+        let hasAllTemplates = true;
+        
+        templateArray.forEach(templateName => {
+            if (templates[templateName]) {
+                let templateScore = 0;
+                let templateSamples = 0;
+                
+                Object.values(templates[templateName]).forEach(stats => {
+                    const naFailedCount = (stats.NA || 0) + (stats.no_result || 0) + (stats.inference_failed || 0);
+                    const limitedCount = stats.limited || 0;
+                    const moderateCount = stats.moderate || 0;
+                    const extensiveCount = stats.extensive || 0;
+                    templateScore += (naFailedCount * 3) + (limitedCount * 2) + (moderateCount * 1) + (extensiveCount * 0);
+                    templateSamples += stats.total || 0;
+                });
+                
+                if (templateSamples > 0) {
+                    modelScoresPerTemplate[modelName][templateName] = templateScore / templateSamples;
+                    totalScore += templateScore;
+                    totalSamples += templateSamples;
+                } else {
+                    hasAllTemplates = false;
+                }
+            } else {
+                hasAllTemplates = false;
+            }
+        });
+        
+        if (totalSamples > 0 && hasAllTemplates) {
+            modelScoresPerTemplate[modelName].average = totalScore / totalSamples;
+            modelScoresPerTemplate[modelName].hasAllTemplates = true;
+        } else {
+            // Remove models that don't have all templates
+            delete modelScoresPerTemplate[modelName];
+        }
+    });
+    
+    // Sort models by average score, only including those with all templates
+    const sortedModels = Object.entries(modelScoresPerTemplate)
+        .filter(([_, scores]) => scores.average !== undefined && scores.hasAllTemplates)
+        .sort((a, b) => b[1].average - a[1].average);
+    
+    if (sortedModels.length === 0) {
+        container.innerHTML = '<div class="no-data">No models with complete data across all templates</div>';
+        return;
+    }
+    
+    // Define colors for each template - matching the page's color scheme
+    const templateColors = {
+        0: '#8b5cf6', // Purple (matching the gradient colors)
+        1: '#06b6d4', // Cyan
+        2: '#f59e0b'  // Amber
+    };
+    
+    let html = `
+    <div class="quality-score-chart-container" style="margin-top: 48px; margin-bottom: 48px;">
+        <div style="max-width: 850px; margin: 0 auto;">
+            <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Quality Score Distribution by Template</h3>
+            <p class="article-text" style="margin-bottom: 24px;">This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown.</p>
+        </div>
+        
+        <!-- Legend -->
+        <div class="legend">
+    `;
+    
+    templateArray.forEach((template, idx) => {
+        html += `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
+                <span style="font-size: 13px; color: var(--gray-700); font-weight: 500;">${template}</span>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        <div class="quality-score-chart" style="position: relative; background: #FAFAFA; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+    `;
+    
+    // Find max score for scaling
+    let maxScore = 0;
+    sortedModels.forEach(([modelName, scores]) => {
+        templateArray.forEach(template => {
+            if (scores[template] && scores[template] > maxScore) {
+                maxScore = scores[template];
+            }
+        });
+    });
+    
+    sortedModels.forEach(([modelName, scores], modelIndex) => {
+        const displayName = modelName.split('/').pop();
+        
+        html += `
+            <div class="score-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '4px'}; padding: 4px 0;">
+                <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
+                    ${displayName}
+                </div>
+                <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; align-items: center;">
+        `;
+        
+        templateArray.forEach((template, idx) => {
+            const score = scores[template] || 0;
+            const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+            
+            html += `
+                <div class="template-bar-wrapper" style="position: relative; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
+                    <div class="template-bar" 
+                        style="
+                            width: ${percentage}%;
+                            height: 24px;
+                            background: ${templateColors[idx]};
+                            position: relative;
+                            transition: all 0.3s ease;
+                            min-width: ${score > 0 ? '45px' : '0'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 6px;
+                            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+                            cursor: pointer;
+                        " 
+                        title="${template}: ${score.toFixed(2)}"
+                        onmouseover="showBarTooltip(event, this, '${template}', ${score.toFixed(2)}, '${templateColors[idx]}')"
+                        onmouseout="hideBarTooltip()">
+                        <span style="
+                            color: white;
+                            font-size: 11px;
+                            font-weight: 600;
+                            white-space: nowrap;
+                            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                        ">${score > 0 ? score.toFixed(2) : ''}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+    </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+    // Make functions globally available for component viewer
+    window.initializeQualityScoreChart = initializeQualityScoreChart;
+    window.loadQualityScoreData = loadQualityScoreData;
+
+    // Bar tooltip functions
+    let barTooltip = null;
+
+    window.showBarTooltip = function(event, element, template, score, color) {
+        // Hide any existing tooltip
+        hideBarTooltip();
+    
+    // Create tooltip
+    barTooltip = document.createElement('div');
+    barTooltip.className = 'bar-tooltip';
+    barTooltip.style.cssText = `
+        position: fixed;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        pointer-events: none;
+        white-space: nowrap;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    `;
+    
+    barTooltip.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 12px; height: 12px; background: ${color}; border-radius: 2px;"></div>
+            <span><strong>${template}:</strong> ${score}</span>
+        </div>
+    `;
+    document.body.appendChild(barTooltip);
+    
+    // Position tooltip
+    const rect = element.getBoundingClientRect();
+    const tooltipRect = barTooltip.getBoundingClientRect();
+    
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.top - tooltipRect.height - 8;
+    
+    // Ensure tooltip stays on screen
+    if (left < 10) left = 10;
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+        left = window.innerWidth - tooltipRect.width - 10;
+    }
+    if (top < 10) {
+        top = rect.bottom + 8;
+    }
+    
+    barTooltip.style.left = left + 'px';
+    barTooltip.style.top = top + 'px';
+    }
+
+    window.hideBarTooltip = function() {
+        if (barTooltip) {
+            barTooltip.remove();
+            barTooltip = null;
+        }
+    }
+
+    // Don't auto-load, initialization is handled by setTimeout above
+})();
+</script>

@@ -4,11 +4,50 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadKnowledgeAnalysisData();
     
-    // Load correlation data if we're on a page that includes it
-    if (document.getElementById('correlationContent')) {
-        loadCorrelationData();
-    }
+    // Note: Correlation data is now loaded by the section itself (26_top_models_web_alignment.html)
 });
+
+// Transform knowledge data from API format to expected format
+function transformKnowledgeData(knowledgeAnalysis) {
+    const modelData = {};
+    const templateSet = new Set();
+    const inputTypeSet = new Set();
+    
+    // Iterate through all species files
+    Object.entries(knowledgeAnalysis).forEach(([speciesFile, fileInfo]) => {
+        if (!fileInfo.types) return;
+        
+        // Iterate through all types within the file
+        Object.entries(fileInfo.types).forEach(([inputType, templates]) => {
+            inputTypeSet.add(inputType);
+            
+            // Iterate through all templates
+            Object.entries(templates).forEach(([templateName, models]) => {
+                templateSet.add(templateName);
+                
+                // Iterate through all models
+                Object.entries(models).forEach(([modelName, stats]) => {
+                    // Initialize model data structure if needed
+                    if (!modelData[modelName]) {
+                        modelData[modelName] = {};
+                    }
+                    if (!modelData[modelName][templateName]) {
+                        modelData[modelName][templateName] = {};
+                    }
+                    
+                    // Store the stats
+                    modelData[modelName][templateName][inputType] = stats;
+                });
+            });
+        });
+    });
+    
+    return {
+        modelData: modelData,
+        templateArray: Array.from(templateSet).sort(),
+        inputTypeArray: Array.from(inputTypeSet).sort()
+    };
+}
 
 // Main knowledge analysis data loading function
 async function loadKnowledgeAnalysisData() {
@@ -16,15 +55,18 @@ async function loadKnowledgeAnalysisData() {
     if (!container) return;
     
     try {
-        const response = await fetch('/api/artificial_knowledge');
-        const data = await response.json();
+        const response = await fetch('/api/knowledge_analysis_data');
+        const rawData = await response.json();
         
-        if (data.success && data.data) {
+        if (rawData.knowledge_analysis) {
+            // Transform the data to the expected format
+            const transformedData = transformKnowledgeData(rawData.knowledge_analysis);
+            
             // Store data globally for other functions
-            window.knowledgeData = data.data;
+            window.knowledgeData = transformedData;
             
             // Render the data
-            renderKnowledgeAnalysis(data.data);
+            renderKnowledgeAnalysis(transformedData);
             
             // Load score calculation example
             if (typeof loadScoreCalculationExample !== 'undefined') {
@@ -232,11 +274,9 @@ function renderWorstPerformers(sortedModels) {
 
 // Render full results tables
 function renderFullResultsTables(modelData, templateArray, inputTypeArray) {
-    const container = document.getElementById('knowledgeAnalysisContent');
-    if (!container) return;
-    
-    let html = renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData);
-    container.innerHTML += html;
+    // Note: Full template tables are now rendered by 31_full_template_tables.html
+    // This function is kept for compatibility but the actual rendering
+    // is handled by the dedicated component
 }
 
 // Quality score histogram generation
@@ -389,58 +429,10 @@ function formatTypeName(typeName) {
     return typeName.charAt(0).toUpperCase() + typeName.slice(1);
 }
 
-// Render template analysis tables
-function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) {
-    // This is a placeholder - would need the full implementation from original
-    return '';
-}
+// Note: renderTemplateAnalysisTables has been moved to 31_full_template_tables.html
 
-// Correlation data loading function
-function loadCorrelationData() {
-    const container = document.getElementById('correlationContent');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="loading-container">
-            <div class="loading-progress">
-                <div class="loading-progress-bar"></div>
-            </div>
-            <div class="loading-text">Loading correlation data...</div>
-        </div>
-    `;
-    
-    fetch('/api/search_count_correlation')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                container.innerHTML = `<div class='empty-state'><h3>Error loading correlation data</h3><p>${data.error}</p></div>`;
-                return;
-            }
-            if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
-                container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
-                return;
-            }
-            // Store data globally for scatter plot
-            window.correlationData = data;
-            renderCorrelationSummary(data);
-            renderCorrelationStatsAndTable(data, container);
-            
-            // Add scatter plot section after data is loaded
-            setTimeout(() => {
-                addCorrelationScatterPlotSection();
-                renderCorrelationScatterPlot(data);
-            }, 100);
-        })
-        .catch(error => {
-            console.error('Error loading correlation data:', error);
-            container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
-        });
-}
+// Note: loadCorrelationData has been moved to 26_top_models_web_alignment.html
+// The correlation summary function is still needed for other sections
 
 // Render correlation summary
 function renderCorrelationSummary(data) {
@@ -487,63 +479,7 @@ function renderCorrelationSummary(data) {
     }
 }
 
-// Render correlation stats and table
-function renderCorrelationStatsAndTable(data, container) {
-    // Use the first dataset with search counts
-    const selectedDataset = data.files_with_search_counts[0];
-    const fileData = data.correlation_data[selectedDataset];
-    let modelResults = [];
-    Object.entries(fileData).forEach(([templateName, models]) => {
-        Object.entries(models).forEach(([modelName, d]) => {
-            if (d.species_count < 2) return;
-            modelResults.push({
-                modelName,
-                templateName,
-                correlation: d.correlation_coefficient,
-                speciesCount: d.species_count,
-                knowledgeDist: d.knowledge_distribution,
-                dataPoints: d.data_points
-            });
-        });
-    });
-    // Sort by correlation descending
-    modelResults.sort((a, b) => b.correlation - a.correlation);
-    
-    // Top performers call-out (Correlation)
-    const top4CorrModels = modelResults.slice(0, 4);
-    let corrTopPerformersHtml = "";
-    if (top4CorrModels.length > 0) {
-        corrTopPerformersHtml += `\n<div class="top-performers-section">\n    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>\n    <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>\n    ${createBarChartLegend()}\n    <div class="performers-list">`;
-
-        top4CorrModels.forEach((m, idx) => {
-            const displayName = m.modelName.split('/').pop();
-            corrTopPerformersHtml += `\n        <div class="performer-card">\n            <div class="performer-rank">${idx + 1}</div>\n            <div style="flex: 1;">\n                <div class="performer-name">${displayName}</div>\n                <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>\n                <div class="performer-dist-chart" style="margin-top: 12px;">\n                    ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}\n                </div>\n            </div>\n        </div>`;
-        });
-
-        corrTopPerformersHtml += `\n    </div>\n</div>`;
-    }
-
-    // Only display the top performers section
-    container.innerHTML = corrTopPerformersHtml;
-}
-
-// Render knowledge distribution bar
-function renderKnowledgeDistBar(dist, total) {
-    if (!total || total === 0) return '<div class="no-data">No data</div>';
-    const segments = [
-        { type: 'limited', count: dist.limited || 0, class: 'knowledge-limited' },
-        { type: 'moderate', count: dist.moderate || 0, class: 'knowledge-moderate' },
-        { type: 'extensive', count: dist.extensive || 0, class: 'knowledge-extensive' },
-        { type: 'NA', count: dist.NA || 0, class: 'knowledge-na' }
-    ].filter(seg => seg.count > 0);
-    let html = '<div class="bar-chart-container"><div class="bar-chart-segments">';
-    segments.forEach(seg => {
-        const pct = (seg.count / total * 100).toFixed(1);
-        html += `<div class="bar-segment ${seg.class}" style="width:${pct}%">${pct > 10 ? seg.count : ''}</div>`;
-    });
-    html += '</div></div>';
-    return html;
-}
+// Note: renderCorrelationStatsAndTable and renderKnowledgeDistBar have been moved to 26_top_models_web_alignment.html
 
 // Add scatter plot section and other correlation visualization functions would go here
 // These are quite large so leaving as stubs for now
@@ -561,7 +497,7 @@ function generateCorrelationScoreBarChart(container, overallModelScores) {
 }
 
 // Ensure functions are available globally
-window.loadCorrelationData = loadCorrelationData;
+// Note: loadCorrelationData is now self-contained in 26_top_models_web_alignment.html
 window.loadScoreCalculationExample = renderScoreExample;
 window.loadDynamicStats = updateDynamicStats;
 </script>

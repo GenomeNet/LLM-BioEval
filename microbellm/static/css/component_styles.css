@@ -1,0 +1,555 @@
+/* =====================================================
+   Component Styles - Visual styling only, no positioning
+   
+   This file contains pure component styles without any
+   layout or positioning rules. Components should be
+   self-contained and reusable in any context.
+   ===================================================== */
+
+/* =====================================================
+   Callout Components - Visual styles only
+   ===================================================== */
+
+/* Base callout component - no margins or positioning */
+.callout-component {
+    padding: var(--spacing-element) calc(var(--spacing-element) * 1.167);
+    background: #FAFAFA;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Callout with purple gradient background */
+.callout-component--definition {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.08) 0%,
+        rgba(168, 85, 247, 0.06) 25%,
+        rgba(59, 130, 246, 0.08) 50%,
+        rgba(147, 51, 234, 0.06) 75%,
+        rgba(79, 172, 254, 0.08) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Alternative purple gradient style */
+.callout-component--template {
+    background: linear-gradient(135deg, 
+        rgba(147, 51, 234, 0.08) 0%,
+        rgba(79, 172, 254, 0.06) 25%,
+        rgba(99, 102, 241, 0.08) 50%,
+        rgba(168, 85, 247, 0.06) 75%,
+        rgba(59, 130, 246, 0.08) 100%);
+    border: 1px solid rgba(147, 51, 234, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Green gradient for phenotype content */
+.callout-component--phenotype {
+    background: linear-gradient(135deg, 
+        rgba(34, 197, 94, 0.08) 0%,
+        rgba(132, 204, 22, 0.06) 25%,
+        rgba(16, 185, 129, 0.08) 50%,
+        rgba(5, 150, 105, 0.06) 75%,
+        rgba(34, 197, 94, 0.08) 100%);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Green to yellow gradient for methodology */
+.callout-component--methodology {
+    background: linear-gradient(135deg, 
+        rgba(16, 185, 129, 0.08) 0%,
+        rgba(34, 197, 94, 0.06) 25%,
+        rgba(132, 204, 22, 0.08) 50%,
+        rgba(250, 204, 21, 0.06) 75%,
+        rgba(16, 185, 129, 0.08) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+/* Callout header styling */
+.callout-header {
+    display: none;
+}
+
+.callout-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--gray-700);
+    font-style: italic;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.callout-content strong {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* Special cases for callout headers */
+.callout-component--definition .callout-header {
+    color: #6366f1;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.callout-component--template .callout-header {
+    color: #9333ea;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.callout-component--phenotype .callout-header {
+    color: #10b981;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.callout-component--methodology .callout-header {
+    color: #14b8a6;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* Compact variant */
+.callout-component--compact {
+    padding: calc(var(--spacing-element) * 0.667) var(--spacing-element);
+}
+
+.callout-component--compact .callout-content {
+    font-size: 12px;
+}
+
+/* =====================================================
+   Section Callout Components - Full-width gradient sections
+   ===================================================== */
+
+/* Base section callout - no margins or positioning */
+.section-callout-component {
+    padding: var(--spacing-section) 0;
+    backdrop-filter: blur(8px);
+}
+
+/* Purple gradient for knowledge/hallucination themes */
+.section-callout-component--purple {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.08) 0%,
+        rgba(168, 85, 247, 0.06) 25%,
+        rgba(59, 130, 246, 0.08) 50%,
+        rgba(147, 51, 234, 0.06) 75%,
+        rgba(79, 172, 254, 0.08) 100%);
+    border-top: 1px solid rgba(99, 102, 241, 0.2);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Green gradient for phenotype themes */
+.section-callout-component--green {
+    background: linear-gradient(135deg, 
+        rgba(34, 197, 94, 0.08) 0%,
+        rgba(132, 204, 22, 0.06) 25%,
+        rgba(16, 185, 129, 0.08) 50%,
+        rgba(5, 150, 105, 0.06) 75%,
+        rgba(34, 197, 94, 0.08) 100%);
+    border-top: 1px solid rgba(34, 197, 94, 0.2);
+    border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* Section callout header */
+.section-callout__header {
+    text-align: center;
+    margin-bottom: var(--spacing-component);
+}
+
+.section-callout__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+}
+
+.section-callout__text {
+    font-size: 18px;
+    color: var(--gray-600);
+    line-height: 1.5;
+}
+
+/* =====================================================
+   Bar Chart Components
+   ===================================================== */
+
+.bar-chart-container {
+    width: 100%;
+    background: var(--gray-100);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 32px;
+}
+
+.bar-chart-segments {
+    display: flex;
+    height: 100%;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bar-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+/* Bar segment colors */
+.bar-segment.na {
+    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+    color: var(--gray-700);
+}
+
+.bar-segment.limited {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: var(--gray-800);
+}
+
+.bar-segment.moderate {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: var(--gray-800);
+}
+
+.bar-segment.extensive {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: var(--gray-800);
+}
+
+/* =====================================================
+   Legend Components
+   ===================================================== */
+
+.legend-component {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Legend variants */
+.legend-component--centered {
+    justify-content: center;
+}
+
+.legend-component--boxed {
+    background: var(--gray-100);
+    padding: 12px 16px;
+    border-radius: 8px;
+}
+
+.legend-component--separated {
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-200);
+}
+
+/* =====================================================
+   Table Components
+   ===================================================== */
+
+.table-component {
+    width: 100%;
+    background: #FAFAFA;
+    border-collapse: collapse;
+}
+
+.table-component thead {
+    background: #F5F5F5;
+}
+
+.table-component th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.table-component td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.table-component tbody tr:hover {
+    background: #F9F9F9;
+}
+
+/* Table wrapper for responsive behavior */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+}
+
+/* Remove borders when inside callout sections */
+.section-callout-component .table-responsive {
+    border: none;
+    box-shadow: none;
+}
+
+/* =====================================================
+   Card Components
+   ===================================================== */
+
+.paper-info-card {
+    background: #FAFAFA;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: var(--spacing-element);
+    box-shadow: var(--shadow-sm);
+}
+
+.paper-info-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--gray-900);
+}
+
+.paper-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.paper-info-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.paper-info-list li:last-child {
+    border-bottom: none;
+}
+
+.paper-info-list strong {
+    color: var(--gray-900);
+    font-weight: 600;
+}
+
+/* =====================================================
+   Flow Diagram Components
+   ===================================================== */
+
+.flow-box {
+    background: #FAFAFA;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: var(--spacing-element);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.flow-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.flow-arrow {
+    font-size: 20px;
+    color: var(--gray-400);
+}
+
+/* =====================================================
+   Loading States
+   ===================================================== */
+
+.loading-container {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-600);
+}
+
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%);
+    animation: loading-slide 1.5s ease-in-out infinite;
+    width: 40%;
+}
+
+@keyframes loading-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+
+.loading-text {
+    font-size: 14px;
+}
+
+/* =====================================================
+   Performer Cards
+   ===================================================== */
+
+.performer-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    background: #FAFAFA;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.performer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.performer-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.performer-card.worst .performer-rank {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.performer-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+}
+
+.performer-score {
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+.performer-score strong {
+    color: var(--gray-900);
+}
+
+/* =====================================================
+   Interactive Elements
+   ===================================================== */
+
+.chart-container {
+    background: #FAFAFA;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* Scatter plot container */
+.scatter-plot-container {
+    background: #FAFAFA;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* Template browser */
+.template-browser {
+    background: #FAFAFA;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+/* Fake bugs animation container */
+.fake-bugs-container {
+    background: #FAFAFA;
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 200px;
+}
+
+/* =====================================================
+   Score Example Component
+   ===================================================== */
+
+.score-example__title {
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.score-example {
+    font-size: 14px;
+}
+
+.score-example__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--gray-50);
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.score-example__item:last-of-type {
+    margin-bottom: 16px;
+}
+
+.score-example__response {
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.score-example__value {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.score-example__formula {
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.score-example__formula-text {
+    font-size: 14px;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+}
+
+.score-example__formula-range {
+    font-size: 13px;
+    color: var(--gray-600);
+}

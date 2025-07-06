@@ -17,6 +17,7 @@ setup(
         "console_scripts": [
             "microbellm=microbellm.microbellm:main",
             "microbellm-web=microbellm.web_app:main",
+            "microbellm-admin=microbellm.admin_app:main",
         ],
     },
     package_data={

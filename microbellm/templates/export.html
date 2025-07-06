@@ -1,56 +1,137 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
-{% block title %}Export Results - MicrobeBench{% endblock %}
+{% block title %}Export Results - MicrobeLLM Admin{% endblock %}
 
 {% block content %}
-<div class="page-header mb-3">
-    <h2>Export Results</h2>
-    <p class="text-muted">Export your processing results to CSV format</p>
+<div class="page-header">
+    <h1 class="page-title">Export Results</h1>
+    <p class="page-subtitle">Export your processing results to CSV format</p>
 </div>
 
-<div class="nav-links mb-3">
-    <a href="/" class="btn btn-ghost btn-sm">← Back to Dashboard</a>
+<div class="card mb-3">
+    <div class="stats-row">
+        <div class="stat-item">
+            <div class="stat-value">{{ total_results }}</div>
+            <div class="stat-label">Total Results</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ species_files|length }}</div>
+            <div class="stat-label">Species Files</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ models|length }}</div>
+            <div class="stat-label">Models</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ templates|length }}</div>
+            <div class="stat-label">Template Pairs</div>
+        </div>
+    </div>
 </div>
 
 <div class="card">
     <h3>Export Options</h3>
     
     <div class="export-controls">
-        <div class="export-filters mb-3">
-            <div class="filter-group">
-                <label class="setting-label">Filter by Species File</label>
-                <select id="speciesFilter" class="form-control">
-                    <option value="">All species files</option>
-                    {% for file in species_files %}
-                        <option value="{{ file }}">{{ file }}</option>
+        <div class="export-format mb-3">
+            <label class="setting-label">Export Format</label>
+            <div class="format-options">
+                <label class="format-option active">
+                    <input type="radio" name="format" value="csv" checked>
+                    <span class="format-label">
+                        <i class="fas fa-file-csv"></i>
+                        CSV
+                    </span>
+                </label>
+                <!-- Future format options can be added here -->
+            </div>
+        </div>
+
+        <div class="export-filters">
+            <h4 class="filter-title">Filter Results</h4>
+            <p class="text-muted text-small mb-3">Leave empty to export all results</p>
+            
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="setting-label">Species File</label>
+                    <select id="speciesFilter" class="form-control">
+                        <option value="">All species files</option>
+                        {% for file in species_files %}
+                            <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="setting-label">Model</label>
+                    <select id="modelFilter" class="form-control">
+                        <option value="">All models</option>
+                        {% for model in models %}
+                            <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="template-filter mt-3">
+                <label class="setting-label">Template Pair</label>
+                <select id="templateFilter" class="form-control">
+                    <option value="">All templates</option>
+                    {% for template in templates %}
+                        <option value="{{ template.system }}|{{ template.user }}">
+                            {{ template.system.split('/')[-1] }} / {{ template.user.split('/')[-1] }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
-            
-            <div class="filter-group mt-2">
-                <label class="setting-label">Filter by Model</label>
-                <select id="modelFilter" class="form-control">
-                    <option value="">All models</option>
-                    {% for model in models %}
-                        <option value="{{ model }}">{{ model }}</option>
-                    {% endfor %}
-                </select>
+        </div>
+        
+        <div class="export-preview mt-3">
+            <h4 class="preview-title">Export Preview</h4>
+            <div id="previewInfo" class="preview-content">
+                <p class="text-muted">Select filters above to preview what will be exported</p>
             </div>
         </div>
         
         <div class="export-info card mb-3" style="background: var(--bg-secondary);">
-            <h4 class="text-small">Export includes</h4>
-            <ul class="text-small text-muted">
-                <li>Species names and processing status</li>
-                <li>Model predictions and extracted phenotypes</li>
-                <li>Error messages for failed predictions</li>
-                <li>Timestamps and metadata</li>
-            </ul>
+            <h4 class="text-small">CSV Export includes</h4>
+            <div class="info-grid">
+                <div class="info-column">
+                    <h5>Core Data</h5>
+                    <ul class="text-small text-muted">
+                        <li>Species binomial names</li>
+                        <li>Processing status</li>
+                        <li>Model and template information</li>
+                        <li>Error messages (if any)</li>
+                    </ul>
+                </div>
+                <div class="info-column">
+                    <h5>Phenotype Predictions</h5>
+                    <ul class="text-small text-muted">
+                        <li>Gram staining</li>
+                        <li>Motility</li>
+                        <li>Cell shape</li>
+                        <li>All other phenotypes</li>
+                    </ul>
+                </div>
+                <div class="info-column">
+                    <h5>Metadata</h5>
+                    <ul class="text-small text-muted">
+                        <li>Knowledge groups</li>
+                        <li>Raw prediction results</li>
+                        <li>Template configurations</li>
+                    </ul>
+                </div>
+            </div>
         </div>
         
         <div class="export-actions">
-            <button onclick="exportResults()" class="btn btn-primary">
+            <button onclick="exportResults()" class="btn btn-primary" id="exportBtn">
                 <i class="fas fa-download"></i> Export to CSV
+            </button>
+            
+            <button onclick="previewResults()" class="btn btn-ghost ml-2">
+                <i class="fas fa-eye"></i> Preview Data
             </button>
             
             <div id="exportStatus" class="mt-2"></div>
@@ -68,35 +149,137 @@
         padding: 8px 0;
     }
     
+    .stats-row {
+        display: flex;
+        gap: 32px;
+        justify-content: space-around;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+    
     .export-controls {
-        max-width: 600px;
+        max-width: 800px;
+    }
+    
+    .format-options {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+    }
+    
+    .format-option {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .format-option.active {
+        border-color: var(--accent-primary);
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .format-option input {
+        display: none;
+    }
+    
+    .format-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+    
+    .filter-title, .preview-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
     }
     
     .filter-group {
-        margin-bottom: 16px;
+        margin-bottom: 0;
+    }
+    
+    .template-filter {
+        grid-column: 1 / -1;
+    }
+    
+    .export-preview {
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .preview-content {
+        font-size: 14px;
     }
     
     .export-info {
-        padding: 16px;
+        padding: 20px;
+        margin-top: 24px;
     }
     
     .export-info h4 {
-        margin-bottom: 8px;
+        margin-bottom: 16px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     
-    .export-info ul {
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+    
+    .info-column h5 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+    
+    .info-column ul {
         margin: 0;
         padding-left: 20px;
+        list-style: disc;
     }
     
     .export-actions {
-        margin-top: 24px;
+        margin-top: 32px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
     }
     
     #exportStatus {
-        font-size: 12px;
+        font-size: 14px;
+        width: 100%;
     }
     
     #exportStatus.success {
@@ -106,25 +289,99 @@
     #exportStatus.error {
         color: var(--accent-error);
     }
+    
+    .ml-2 {
+        margin-left: 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-row {
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .stat-item {
+            flex: 0 0 calc(50% - 8px);
+        }
+    }
 </style>
 
 <script>
+    function updatePreview() {
+        const speciesFile = document.getElementById('speciesFilter').value;
+        const model = document.getElementById('modelFilter').value;
+        const templatePair = document.getElementById('templateFilter').value;
+        const previewDiv = document.getElementById('previewInfo');
+        
+        let previewText = '<p class="text-muted mb-0">Export will include:</p><ul class="mt-1 mb-0">';
+        
+        if (!speciesFile && !model && !templatePair) {
+            previewText += '<li>All {{ total_results }} results in the database</li>';
+        } else {
+            if (speciesFile) {
+                previewText += `<li>Results for species file: <strong>${speciesFile}</strong></li>`;
+            } else {
+                previewText += '<li>Results from all species files</li>';
+            }
+            
+            if (model) {
+                previewText += `<li>Results for model: <strong>${model}</strong></li>`;
+            } else {
+                previewText += '<li>Results from all models</li>';
+            }
+            
+            if (templatePair) {
+                const [sys, user] = templatePair.split('|');
+                previewText += `<li>Results for template pair: <strong>${sys.split('/').pop()} / ${user.split('/').pop()}</strong></li>`;
+            } else {
+                previewText += '<li>Results from all template pairs</li>';
+            }
+        }
+        
+        previewText += '</ul>';
+        previewDiv.innerHTML = previewText;
+    }
+    
+    // Update preview when filters change
+    document.getElementById('speciesFilter').addEventListener('change', updatePreview);
+    document.getElementById('modelFilter').addEventListener('change', updatePreview);
+    document.getElementById('templateFilter').addEventListener('change', updatePreview);
+    
     function exportResults() {
         const speciesFile = document.getElementById('speciesFilter').value;
         const model = document.getElementById('modelFilter').value;
+        const templatePair = document.getElementById('templateFilter').value;
         const statusDiv = document.getElementById('exportStatus');
+        const exportBtn = document.getElementById('exportBtn');
         
         // Build query parameters
         const params = new URLSearchParams();
         if (speciesFile) params.append('species_file', speciesFile);
         if (model) params.append('model', model);
+        if (templatePair) {
+            const [sys, user] = templatePair.split('|');
+            params.append('system_template', sys);
+            params.append('user_template', user);
+        }
         
         statusDiv.textContent = 'Preparing export...';
         statusDiv.className = '';
+        exportBtn.disabled = true;
         
         fetch('/api/export_csv?' + params.toString())
             .then(response => {
                 if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('No results found for the selected filters');
+                    }
                     throw new Error('Export failed');
                 }
                 return response.blob();
@@ -134,7 +391,14 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `microbebench_export_${new Date().toISOString().split('T')[0]}.csv`;
+                
+                // Generate filename based on filters
+                let filename = 'microbebench_export';
+                if (speciesFile) filename += `_${speciesFile.split('/').pop().replace('.txt', '')}`;
+                if (model) filename += `_${model.replace('/', '_')}`;
+                filename += `_${new Date().toISOString().split('T')[0]}.csv`;
+                
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -145,9 +409,36 @@
             })
             .catch(error => {
                 console.error('Export error:', error);
-                statusDiv.textContent = 'Error: Export failed. Please try again.';
+                statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.className = 'error';
+            })
+            .finally(() => {
+                exportBtn.disabled = false;
             });
     }
+    
+    function previewResults() {
+        const speciesFile = document.getElementById('speciesFilter').value;
+        const model = document.getElementById('modelFilter').value;
+        const templatePair = document.getElementById('templateFilter').value;
+        
+        // Build query for preview
+        const params = new URLSearchParams();
+        if (speciesFile) params.append('species_file', speciesFile);
+        if (model) params.append('model', model);
+        if (templatePair) {
+            const [sys, user] = templatePair.split('|');
+            params.append('system_template', sys);
+            params.append('user_template', user);
+        }
+        params.append('limit', '10'); // Preview first 10 rows
+        
+        // For now, just download the CSV
+        // In the future, this could show a modal with a preview table
+        alert('Preview functionality coming soon! For now, please download the CSV to preview the data.');
+    }
+    
+    // Initialize preview
+    updatePreview();
 </script>
-{% endblock %} 
+{% endblock %}

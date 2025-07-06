@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout Debug - Full Width Sections</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        /* Debug helpers */
+        .debug-border {
+            border: 2px dashed red;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            border-radius: 3px;
+        }
+        
+        /* Container system */
+        .container-standard {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 48px;
+            background: rgba(0, 255, 0, 0.1);
+            position: relative;
+        }
+        
+        .container-article {
+            max-width: 850px;
+            margin: 0 auto;
+            background: rgba(0, 0, 255, 0.1);
+            padding: 0 48px;
+            position: relative;
+        }
+        
+        /* Navigation */
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .navbar-inner {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 48px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 0, 0.1);
+            position: relative;
+        }
+        
+        /* Main content */
+        .main-content {
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        .page-content {
+            padding-top: 0;
+        }
+        
+        /* Hero section */
+        .hero-header {
+            position: relative;
+            width: 100%;
+            padding: 120px 0 80px;
+            margin-bottom: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, 
+                rgba(99, 102, 241, 0.12) 0%,
+                rgba(168, 85, 247, 0.10) 25%,
+                rgba(59, 130, 246, 0.12) 50%,
+                rgba(147, 51, 234, 0.10) 75%,
+                rgba(79, 172, 254, 0.12) 100%);
+        }
+        
+        .hero-content {
+            position: relative;
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 48px;
+            z-index: 2;
+            background: rgba(255, 0, 0, 0.1);
+        }
+        
+        /* Article container */
+        .article-container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 48px 48px;
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 32px;
+            background: rgba(0, 255, 0, 0.05);
+            position: relative;
+        }
+        
+        .article-content {
+            max-width: 850px;
+            background: rgba(0, 0, 255, 0.05);
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* Full-width section - Method 1: calc */
+        .section-callout-method1 {
+            width: 100vw;
+            margin-left: calc(-50vw + 50%);
+            padding: 48px 0;
+            margin-bottom: 48px;
+            background: linear-gradient(135deg, 
+                rgba(99, 102, 241, 0.12) 0%,
+                rgba(168, 85, 247, 0.10) 25%,
+                rgba(59, 130, 246, 0.12) 50%,
+                rgba(147, 51, 234, 0.10) 75%,
+                rgba(79, 172, 254, 0.12) 100%);
+            border-top: 1px solid rgba(99, 102, 241, 0.3);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+            position: relative;
+        }
+        
+        /* Full-width section - Method 2: position */
+        .section-callout-method2 {
+            position: relative;
+            width: 100vw;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+            padding: 48px 0;
+            margin-bottom: 48px;
+            background: linear-gradient(135deg, 
+                rgba(99, 102, 241, 0.12) 0%,
+                rgba(168, 85, 247, 0.10) 25%,
+                rgba(59, 130, 246, 0.12) 50%,
+                rgba(147, 51, 234, 0.10) 75%,
+                rgba(79, 172, 254, 0.12) 100%);
+            border-top: 1px solid rgba(99, 102, 241, 0.3);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        /* Content within full-width sections */
+        .section-callout__content {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 48px;
+            background: rgba(255, 255, 0, 0.1);
+            position: relative;
+        }
+        
+        /* Callout box (indented) */
+        .callout {
+            position: relative;
+            margin: 32px 0;
+            margin-left: 120px;
+            padding: 24px 28px;
+            background: #FAFAFA;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            width: calc(100% - 120px);
+            font-size: 13px;
+        }
+        
+        /* Visual guides */
+        .viewport-edges {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: red;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        
+        .viewport-edge-left {
+            left: 0;
+        }
+        
+        .viewport-edge-right {
+            right: 0;
+        }
+        
+        .center-line {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            background: blue;
+            z-index: 9999;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Visual guides -->
+    <div class="viewport-edges viewport-edge-left"></div>
+    <div class="viewport-edges viewport-edge-right"></div>
+    <div class="center-line"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-inner debug-border">
+            <span class="debug-info">Navbar (1500px container)</span>
+            <a href="#" style="font-size: 20px; font-weight: bold; text-decoration: none; color: #333;">LLM-BioEval</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-content">
+            
+            <!-- Hero Header -->
+            <header class="hero-header">
+                <span class="debug-info">Hero (full width background)</span>
+                <div class="hero-content debug-border">
+                    <span class="debug-info">Hero Content (1500px)</span>
+                    <h1 style="font-size: 56px; margin-bottom: 16px;">Hallucination Test</h1>
+                    <p style="font-size: 20px; opacity: 0.8;">by Pranav Mandal</p>
+                    <p style="font-size: 20px; max-width: 800px;">Can language models differentiate between real and fictional bacterial species?</p>
+                </div>
+            </header>
+
+            <!-- Article Section -->
+            <div class="article-container debug-border" style="grid-template-columns: 1fr;">
+                <span class="debug-info">Article Container (1500px)</span>
+                <div class="article-main">
+                    <article class="article-content debug-border">
+                        <span class="debug-info">Article Content (850px)</span>
+                        <h1 style="font-size: 36px; margin-bottom: 24px;">Article Title</h1>
+                        <p>This is article text that should be constrained to 850px for readability. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+                        
+                        <!-- Indented Callout -->
+                        <div class="callout debug-border">
+                            <span class="debug-info">Callout (120px indent)</span>
+                            <strong>Definition:</strong> This is an indented callout box that should be 120px from the left edge of the article content.
+                        </div>
+                        
+                        <p>Article content continues between callouts. This mimics how the real articles have content between each callout box.</p>
+                        
+                        <!-- Another Callout -->
+                        <div class="callout debug-border" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.06) 100%);">
+                            <span class="debug-info">Callout (purple gradient)</span>
+                            <strong>Example:</strong> This callout has a purple gradient background like the real definition callouts.
+                        </div>
+                        
+                        <p>More article content after the second callout box. This shows how article text flows between the indented callout boxes.</p>
+                    </article>
+                </div>
+            </div>
+
+            <!-- Full-width Section Method 1 -->
+            <section class="section-callout-method1">
+                <span class="debug-info">Full-width Method 1 (calc)</span>
+                <div class="section-callout__content debug-border">
+                    <span class="debug-info">Content (1500px centered)</span>
+                    <h3 style="font-size: 24px; margin-bottom: 16px;">Full-Width Section - Method 1</h3>
+                    <p>This section uses: width: 100vw; margin-left: calc(-50vw + 50%);</p>
+                    <p>The purple gradient background should extend to the viewport edges (red lines).</p>
+                </div>
+            </section>
+
+            <!-- Full-width Section Method 2 -->
+            <section class="section-callout-method2">
+                <span class="debug-info">Full-width Method 2 (position)</span>
+                <div class="section-callout__content debug-border">
+                    <span class="debug-info">Content (1500px centered)</span>
+                    <h3 style="font-size: 24px; margin-bottom: 16px;">Full-Width Section - Method 2</h3>
+                    <p>This section uses: position: relative; width: 100vw; left: 50%; margin-left: -50vw;</p>
+                    <p>The purple gradient background should extend to the viewport edges (red lines).</p>
+                </div>
+            </section>
+
+            <!-- Another Article Section -->
+            <div class="article-container debug-border">
+                <div class="article-main">
+                    <article class="article-content debug-border">
+                        <h2>What Should Happen:</h2>
+                        <ul>
+                            <li>Red lines = viewport edges</li>
+                            <li>Blue line = center of viewport</li>
+                            <li>Yellow backgrounds = 1500px containers (navbar, hero content, article container)</li>
+                            <li>Green backgrounds = standard containers</li>
+                            <li>Blue backgrounds = article content (850px)</li>
+                            <li>Purple gradient sections should touch the red lines (viewport edges)</li>
+                            <li>Content within purple sections should align with navbar/hero content</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,432 @@
+<section class="section-callout section-callout--purple">
+    <div class="section-callout__content">
+        <div class="section-callout__header">
+            <h3 class="section-callout__title">Interactive Correlation Analysis</h3>
+            <p class="section-callout__text">Explore how each model's knowledge claims correlate with real-world web presence data. Hover over bars to see detailed scatter plots for each model-template combination.</p>
+        </div>
+        
+        <div id="correlationChartContainer">
+            <div class="loading-container">
+                <div class="loading-progress">
+                    <div class="loading-progress-bar"></div>
+                </div>
+                <div class="loading-text">Loading correlation visualization...</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Self-contained script for interactive correlation chart
+(function() {
+    // Function to create interactive correlation chart
+    function createInteractiveCorrelationChart(data) {
+        const container = document.getElementById('correlationChartContainer');
+        if (!container) return;
+        
+        // Process correlation data to get model correlations
+        const selectedDataset = data.files_with_search_counts[0];
+        const fileData = data.correlation_data[selectedDataset];
+        
+        // Aggregate correlations by model
+        const modelCorrelations = {};
+        const templateSet = new Set();
+        
+        Object.entries(fileData).forEach(([templateName, models]) => {
+            templateSet.add(templateName);
+            Object.entries(models).forEach(([modelName, modelData]) => {
+                if (!modelCorrelations[modelName]) {
+                    modelCorrelations[modelName] = {
+                        correlations: {},
+                        dataPoints: {}
+                    };
+                }
+                modelCorrelations[modelName].correlations[templateName] = modelData.correlation_coefficient;
+                modelCorrelations[modelName].dataPoints[templateName] = modelData.data_points || [];
+            });
+        });
+        
+        // Get template names from the data
+        const templateNames = Array.from(templateSet).sort();
+        console.log('[CorrelationChart] Found templates:', templateNames);
+        
+        // Filter models that have correlations for all templates
+        const completeModels = {};
+        
+        Object.entries(modelCorrelations).forEach(([modelName, data]) => {
+            const hasAllTemplates = templateNames.every(template => 
+                data.correlations && data.correlations[template] !== undefined
+            );
+            
+            if (hasAllTemplates) {
+                // Calculate average correlation
+                const correlations = Object.values(data.correlations);
+                const avgCorrelation = correlations.reduce((a, b) => a + b, 0) / correlations.length;
+                
+                completeModels[modelName] = {
+                    ...data,
+                    averageCorrelation: avgCorrelation
+                };
+            }
+        });
+        
+        // Sort by average correlation
+        const sortedModels = Object.entries(completeModels)
+            .sort((a, b) => b[1].averageCorrelation - a[1].averageCorrelation);
+        
+        console.log('[CorrelationChart] Complete models:', Object.keys(completeModels).length);
+        console.log('[CorrelationChart] Model correlations sample:', Object.keys(modelCorrelations).slice(0, 3));
+        
+        if (sortedModels.length === 0) {
+            container.innerHTML = '<div class="no-data">No models with complete correlation data</div>';
+            return;
+        }
+        
+        // Template colors matching the quality score chart
+        const colorPalette = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ef4444'];
+        const templateColors = {};
+        templateNames.forEach((template, idx) => {
+            templateColors[idx] = colorPalette[idx % colorPalette.length];
+        });
+        
+        let html = `
+        <div class="correlation-chart-container" style="margin-top: 24px; margin-bottom: 48px;">
+            <!-- Legend -->
+            <div class="legend legend--centered legend--boxed">
+        `;
+        
+        templateNames.forEach((template, idx) => {
+            // Create a nicer display name for the template
+            const displayName = template.replace(/_/g, ' ').replace(/knowlege/g, 'knowledge').replace(/template(\d+)/, 'Template $1');
+            html += `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
+                    <span style="font-size: 13px; color: var(--gray-700); font-weight: 500;">${displayName}</span>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+            <div style="display: flex; gap: 24px;">
+                <div class="correlation-score-chart" style="flex: 1; background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+        `;
+        
+        // Find max absolute correlation for scaling
+        let maxAbsCorrelation = 0;
+        sortedModels.forEach(([modelName, data]) => {
+            templateNames.forEach(template => {
+                const absCorr = Math.abs(data.correlations[template] || 0);
+                if (absCorr > maxAbsCorrelation) {
+                    maxAbsCorrelation = absCorr;
+                }
+            });
+        });
+        
+        sortedModels.forEach(([modelName, data], modelIndex) => {
+            const displayName = modelName.split('/').pop();
+            
+            html += `
+                <div class="correlation-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '16px'}; padding: 8px 0;">
+                    <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
+                        ${displayName}
+                    </div>
+                    <div class="correlation-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: center;">
+            `;
+            
+            templateNames.forEach((template, idx) => {
+                const correlation = data.correlations[template] || 0;
+                const percentage = maxAbsCorrelation > 0 ? (Math.abs(correlation) / maxAbsCorrelation) * 100 : 0;
+                const isNegative = correlation < 0;
+                const dataPoints = data.dataPoints && data.dataPoints[template] || [];
+                
+                html += `
+                    <div class="template-correlation-wrapper" style="position: relative; background: var(--gray-100); border-radius: 4px; overflow: visible;">
+                        <div class="template-correlation-bar" style="
+                            width: ${percentage}%;
+                            height: 24px;
+                            background: ${isNegative ? '#dc3545' : templateColors[idx]};
+                            position: relative;
+                            transition: all 0.3s ease;
+                            min-width: ${correlation !== 0 ? '45px' : '0'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 6px;
+                            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+                            cursor: pointer;
+                        " 
+                        title="${template}: ${correlation.toFixed(3)}"
+                        data-model="${modelName}"
+                        data-template="${template}"
+                        data-correlation="${correlation}"
+                        data-points='${JSON.stringify(dataPoints)}'
+                        onmouseover="showCorrelationPlot(event, this)"
+                        onmouseout="hideCorrelationPlot()">
+                            <span style="
+                                color: white;
+                                font-size: 11px;
+                                font-weight: 600;
+                                white-space: nowrap;
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                            ">${correlation !== 0 ? correlation.toFixed(3) : ''}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                <!-- Placeholder for correlation plot -->
+                <div id="correlationPlotContainer" style="width: 300px; display: none;">
+                    <div style="background: #FAFAFA; border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+                        <h4 id="correlationPlotTitle" style="font-size: 14px; margin-bottom: 12px; color: var(--gray-800);"></h4>
+                        <canvas id="correlationPlotCanvas" width="268" height="200"></canvas>
+                        <div id="correlationPlotStats" style="margin-top: 12px; font-size: 12px; color: var(--gray-600);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // Setup hover effects
+        setupCorrelationHoverEffects();
+    }
+    
+    // Correlation plot functions
+    let correlationPlotTimeout = null;
+    
+    window.showCorrelationPlot = function(event, element) {
+        // Clear any existing timeout
+        if (correlationPlotTimeout) {
+            clearTimeout(correlationPlotTimeout);
+        }
+        
+        const model = element.getAttribute('data-model');
+        const template = element.getAttribute('data-template');
+        const correlation = parseFloat(element.getAttribute('data-correlation'));
+        const dataPoints = JSON.parse(element.getAttribute('data-points'));
+        
+        // Show the plot container
+        const container = document.getElementById('correlationPlotContainer');
+        if (container) {
+            container.style.display = 'block';
+            
+            // Update title
+            const title = document.getElementById('correlationPlotTitle');
+            if (title) {
+                const displayName = model.split('/').pop();
+                title.textContent = `${displayName} - ${template}`;
+            }
+            
+            // Update stats
+            const stats = document.getElementById('correlationPlotStats');
+            if (stats) {
+                stats.innerHTML = `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Correlation: <strong>${correlation.toFixed(3)}</strong></span>
+                        <span>n = ${dataPoints.length}</span>
+                    </div>
+                `;
+            }
+            
+            // Draw the plot
+            drawCorrelationScatterPlot(dataPoints, correlation);
+        }
+    };
+    
+    window.hideCorrelationPlot = function() {
+        // Add a small delay to prevent flicker when moving between bars
+        correlationPlotTimeout = setTimeout(() => {
+            const container = document.getElementById('correlationPlotContainer');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }, 100);
+    };
+    
+    function drawCorrelationScatterPlot(dataPoints, correlation) {
+        const canvas = document.getElementById('correlationPlotCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = 268;
+        const height = 200;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Fill background with off-white
+        ctx.fillStyle = '#FAFAFA';
+        ctx.fillRect(0, 0, width, height);
+        
+        if (!dataPoints || dataPoints.length === 0) return;
+        
+        // Calculate bounds
+        const xValues = dataPoints.map(p => Math.log10(p.search_count || 1));
+        const yValues = dataPoints.map(p => p.knowledge_score);
+        
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        const yMin = 0.5;
+        const yMax = 3.5;
+        
+        const padding = 30;
+        const plotWidth = width - 2 * padding;
+        const plotHeight = height - 2 * padding;
+        
+        // Draw axes
+        ctx.strokeStyle = '#dee2e6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+        
+        // Draw grid lines
+        ctx.strokeStyle = '#f0f0f0';
+        ctx.lineWidth = 0.5;
+        
+        // Y grid lines (knowledge levels)
+        [1, 2, 3].forEach(level => {
+            const y = height - padding - ((level - yMin) / (yMax - yMin)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+        });
+        
+        // Plot points
+        dataPoints.forEach(point => {
+            const x = padding + ((Math.log10(point.search_count || 1) - xMin) / (xMax - xMin)) * plotWidth;
+            const y = height - padding - ((point.knowledge_score - yMin) / (yMax - yMin)) * plotHeight;
+            
+            // Color based on knowledge level
+            switch(point.knowledge_score) {
+                case 1: ctx.fillStyle = '#fff3cd'; break;
+                case 2: ctx.fillStyle = '#d1ecf1'; break;
+                case 3: ctx.fillStyle = '#d4edda'; break;
+                default: ctx.fillStyle = '#e2e3e5';
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        });
+        
+        // Draw trend line if significant correlation
+        if (Math.abs(correlation) > 0.1) {
+            // Simple linear regression
+            const n = xValues.length;
+            const sumX = xValues.reduce((a, b) => a + b, 0);
+            const sumY = yValues.reduce((a, b) => a + b, 0);
+            const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+            const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            ctx.strokeStyle = correlation > 0 ? '#28a745' : '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            
+            const x1 = padding;
+            const y1 = height - padding - ((slope * xMin + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            const x2 = width - padding;
+            const y2 = height - padding - ((slope * xMax + intercept - yMin) / (yMax - yMin)) * plotHeight;
+            
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // Add axis labels
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Log(Search Count)', width / 2, height - 5);
+        
+        ctx.save();
+        ctx.translate(10, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Knowledge', 0, 0);
+        ctx.restore();
+    }
+    
+    function setupCorrelationHoverEffects() {
+        // Keep plot visible when hovering over it
+        const plotContainer = document.getElementById('correlationPlotContainer');
+        if (plotContainer) {
+            plotContainer.addEventListener('mouseenter', () => {
+                if (correlationPlotTimeout) {
+                    clearTimeout(correlationPlotTimeout);
+                }
+            });
+            
+            plotContainer.addEventListener('mouseleave', () => {
+                hideCorrelationPlot();
+            });
+        }
+    }
+    
+    // Make functions globally available for component viewer
+    window.loadCorrelationData = loadCorrelationData;
+    window.createInteractiveCorrelationChart = createInteractiveCorrelationChart;
+    
+    // Load correlation data
+    function loadCorrelationData() {
+        const container = document.getElementById('correlationChartContainer');
+        if (!container) return;
+        
+        fetch('/api/search_count_correlation')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    container.innerHTML = `<div class='empty-state'><h3>Error loading correlation data</h3><p>${data.error}</p></div>`;
+                    return;
+                }
+                if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                    container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
+                    return;
+                }
+                
+                // Store data globally for other functions that might need it
+                window.correlationData = data;
+                
+                // Render the chart
+                createInteractiveCorrelationChart(data);
+            })
+            .catch(error => {
+                console.error('Error loading correlation data:', error);
+                container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+            });
+    }
+    
+    // Auto-load when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadCorrelationData);
+    } else {
+        // DOM is already ready
+        loadCorrelationData();
+    }
+})();
+</script>

@@ -9,9 +9,350 @@
 </div>
 
 <script>
-// Correlation scatter plot is rendered dynamically when data loads
-// This visualization shows the relationship between:
-// - X-axis: log10 of Google search results for each bacterial species
-// - Y-axis: Knowledge level reported by the model (1=Limited, 2=Moderate, 3=Extensive)
-// Each model gets its own scatter plot showing how well it calibrates its knowledge claims
+// Self-contained script for correlation visualization
+(function() {
+    console.log('[CorrelationVisualization] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[CorrelationVisualization] Looking for container...');
+        initializeCorrelationVisualization();
+    }, 100);
+    
+    // Function to find container with fallback
+    function findContainer() {
+        // Try direct ID first
+        let container = document.getElementById('scatter-plot-container');
+        if (container) {
+            console.log('[CorrelationVisualization] Found container by ID');
+            return container;
+        }
+        
+        // Try to find any container in current context
+        container = document.querySelector('[id*="scatter-plot-container"]');
+        if (container) {
+            console.log('[CorrelationVisualization] Found container by partial ID match');
+            return container;
+        }
+        
+        console.error('[CorrelationVisualization] Container not found!');
+        return null;
+    }
+    
+    // Initialize function
+    function initializeCorrelationVisualization() {
+        console.log('[CorrelationVisualization] Initializing...');
+        loadCorrelationData();
+    }
+    
+    // Load correlation data
+    async function loadCorrelationData() {
+        console.log('[CorrelationVisualization] Loading data...');
+        const container = findContainer();
+        if (!container) {
+            console.error('[CorrelationVisualization] Cannot load - no container found');
+            return;
+        }
+        
+        try {
+            console.log('[CorrelationVisualization] Fetching from /api/search_count_correlation...');
+            const response = await fetch('/api/search_count_correlation');
+            console.log('[CorrelationVisualization] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[CorrelationVisualization] Raw data received:', data);
+            
+            if (data.error) {
+                container.innerHTML = `<div class='empty-state'><h3>Error loading correlation data</h3><p>${data.error}</p></div>`;
+                return;
+            }
+            
+            if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
+                return;
+            }
+            
+            // Store data globally for the render function
+            window.correlationData = data;
+            
+            // Render the visualization
+            renderCorrelationScatterPlot(data);
+        } catch (error) {
+            console.error('[CorrelationVisualization] Failed to load data:', error);
+            container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+        }
+    }
+
+    // Function to render the correlation scatter plot grid
+    function renderCorrelationScatterPlot(correlationData) {
+        const container = findContainer();
+        if (!container || !correlationData) {
+            console.error('[CorrelationVisualization] Cannot render - missing container or data');
+            return;
+        }
+    
+    // Get the first dataset with search counts
+    const selectedDataset = correlationData.files_with_search_counts[0];
+    const fileData = correlationData.correlation_data[selectedDataset];
+    
+    // Collect and aggregate data by model and knowledge level
+    let aggregatedData = {};
+    
+    Object.entries(fileData).forEach(([templateName, models]) => {
+        Object.entries(models).forEach(([modelName, modelInfo]) => {
+            if (modelInfo.data_points && modelInfo.data_points.length > 0) {
+                const shortName = modelName.split('/').pop();
+                
+                if (!aggregatedData[shortName]) {
+                    aggregatedData[shortName] = {
+                        correlation: modelInfo.correlation_coefficient,
+                        byLevel: { 1: [], 2: [], 3: [] },
+                        rawPoints: modelInfo.data_points
+                    };
+                }
+                
+                // Group by knowledge level
+                modelInfo.data_points.forEach(point => {
+                    const level = point.knowledge_score;
+                    if (level >= 1 && level <= 3) {
+                        aggregatedData[shortName].byLevel[level].push(Math.log10(point.search_count || 1));
+                    }
+                });
+            }
+        });
+    });
+    
+    // Calculate statistics for each model and level
+    const modelStats = Object.entries(aggregatedData).map(([modelName, data]) => {
+        const stats = {};
+        [1, 2, 3].forEach(level => {
+            const values = data.byLevel[level];
+            if (values.length > 0) {
+                const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                const sd = Math.sqrt(variance);
+                stats[level] = { mean, sd, count: values.length, values };
+            }
+        });
+        return { 
+            modelName, 
+            correlation: data.correlation, 
+            stats,
+            rawPoints: data.rawPoints 
+        };
+    }).filter(m => Object.keys(m.stats).length > 0);
+    
+    if (modelStats.length === 0) {
+        container.innerHTML = '<p class="no-data">No data available for visualization</p>';
+        return;
+    }
+    
+    // Sort models by correlation for consistent ordering
+    modelStats.sort((a, b) => b.correlation - a.correlation);
+    
+    // Calculate average statistics for all models (for background reference)
+    const avgStats = {};
+    [1, 2, 3].forEach(level => {
+        const allMeans = [];
+        const allSDs = [];
+        modelStats.forEach(model => {
+            if (model.stats[level]) {
+                allMeans.push(model.stats[level].mean);
+                allSDs.push(model.stats[level].sd);
+            }
+        });
+        if (allMeans.length > 0) {
+            avgStats[level] = {
+                mean: allMeans.reduce((a, b) => a + b, 0) / allMeans.length,
+                sd: allSDs.reduce((a, b) => a + b, 0) / allSDs.length
+            };
+        }
+    });
+    
+    // Create grid layout
+    const plotsPerRow = 4;
+    const plotWidth = 280;
+    const plotHeight = 220;
+    const margin = { top: 35, right: 20, bottom: 45, left: 50 };
+    const innerWidth = plotWidth - margin.left - margin.right;
+    const innerHeight = plotHeight - margin.top - margin.bottom;
+    
+    // Calculate global bounds for consistent scaling across all plots
+    let allXValues = [];
+    modelStats.forEach(model => {
+        Object.values(model.stats).forEach(stat => {
+            allXValues.push(...stat.values);
+        });
+    });
+    const globalXMin = Math.min(...allXValues) - 0.3;
+    const globalXMax = Math.max(...allXValues) + 0.3;
+    
+    // Create grid container with legend
+    let html = `
+        <div style="background: transparent; padding: 32px;">
+            <!-- Legend -->
+            <div class="flow-legend">
+                <div class="legend-item">
+                    <svg width="40" height="20" style="vertical-align: middle;">
+                        <circle cx="20" cy="10" r="6" fill="#6366f1" stroke="#6366f1" stroke-width="2"/>
+                    </svg>
+                    <span class="legend-symbol">Current Model</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="40" height="20" style="vertical-align: middle;">
+                        <line x1="20" y1="0" x2="20" y2="20" stroke="#9ca3af" stroke-width="2" stroke-dasharray="4,2"/>
+                    </svg>
+                    <span class="legend-symbol">All Models (avg)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-symbol">E</span> = Extensive knowledge
+                </div>
+                <div class="legend-item">
+                    <span class="legend-symbol">M</span> = Moderate knowledge
+                </div>
+                <div class="legend-item">
+                    <span class="legend-symbol">L</span> = Limited knowledge
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(${plotsPerRow}, 1fr); gap: 24px; max-width: 100%; margin: 0 auto;">`;
+    
+    // Create individual plot for each model
+    modelStats.slice(0, 16).forEach((model, modelIdx) => {
+        const color = '#6366f1'; // Consistent color for each model's plot
+        
+        html += `
+            <div style="background: transparent; padding: 16px;">
+                <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900); text-align: center;">
+                    ${model.modelName}
+                </h4>
+                <p style="font-size: 12px; color: var(--gray-600); margin: 0 0 12px 0; text-align: center;">
+                    r = ${model.correlation.toFixed(3)}
+                </p>
+                <svg width="${plotWidth}" height="${plotHeight}" style="display: block;">
+                    <!-- Background -->
+                    <rect x="${margin.left}" y="${margin.top}" width="${innerWidth}" height="${innerHeight}" 
+                          fill="#FAFAFA" stroke="transparent" stroke-width="0"/>
+                    
+                    <!-- Grid lines -->
+                    <g class="grid-lines">`;
+    
+        // Y-axis grid lines for knowledge levels
+        [1, 2, 3].forEach(level => {
+            const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+            html += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + innerWidth}" y2="${y}" 
+                         stroke="var(--gray-200)" stroke-width="1" stroke-dasharray="2,2"/>`;
+        });
+        
+        // X-axis grid lines
+        for (let x = Math.ceil(globalXMin); x <= Math.floor(globalXMax); x++) {
+            const xPos = margin.left + ((x - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+            html += `<line x1="${xPos}" y1="${margin.top}" x2="${xPos}" y2="${margin.top + innerHeight}" 
+                         stroke="var(--gray-200)" stroke-width="1" stroke-dasharray="2,2"/>`;
+        }
+        
+        html += `</g>`;
+        
+        // Plot average of all other models as background reference
+        html += `<g class="other-models-reference">`;
+        
+        [1, 2, 3].forEach(level => {
+            if (avgStats[level]) {
+                const x = margin.left + ((avgStats[level].mean - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+                
+                // Vertical dashed line for average position
+                html += `<line x1="${x}" y1="${y - 15}" x2="${x}" y2="${y + 15}" 
+                             stroke="#9ca3af" stroke-width="2" stroke-dasharray="4,2" opacity="0.8"/>`;
+                
+                // Horizontal line showing SD range
+                const sdWidth = (avgStats[level].sd / (globalXMax - globalXMin)) * innerWidth;
+                html += `<line x1="${x - sdWidth}" y1="${y}" x2="${x + sdWidth}" y2="${y}" 
+                             stroke="#d1d5db" stroke-width="1" opacity="0.5"/>`;
+            }
+        });
+        
+        html += `</g>`;
+        
+        // Plot data for this model
+        html += `<g class="model-data">`;
+        
+        // Plot each knowledge level
+        [1, 2, 3].forEach(level => {
+            if (model.stats[level]) {
+                const stat = model.stats[level];
+                const x = margin.left + ((stat.mean - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                const y = margin.top + innerHeight - ((level - 0.5) / 3) * innerHeight;
+                
+                // Error bars (horizontal for x-axis SD)
+                const sdWidth = (stat.sd / (globalXMax - globalXMin)) * innerWidth;
+                html += `<line x1="${x - sdWidth}" y1="${y}" x2="${x + sdWidth}" y2="${y}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                
+                // End caps for error bars
+                html += `<line x1="${x - sdWidth}" y1="${y - 3}" x2="${x - sdWidth}" y2="${y + 3}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                html += `<line x1="${x + sdWidth}" y1="${y - 3}" x2="${x + sdWidth}" y2="${y + 3}" 
+                             stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+                
+                // Mean point
+                html += `<circle cx="${x}" cy="${y}" r="6" 
+                             fill="${color}" fill-opacity="0.9" 
+                             stroke="${color}" stroke-width="2"/>`;
+            }
+        });
+        
+        html += `</g>`;
+        
+        // Add axes labels
+        html += `
+            <!-- Y-axis labels -->
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (0.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">L</text>
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (1.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">M</text>
+            <text x="${margin.left - 5}" y="${margin.top + innerHeight - (2.5 / 3) * innerHeight + 3}" 
+                  text-anchor="end" font-size="11" fill="var(--gray-600)">E</text>
+            
+            <!-- X-axis labels -->`;
+        
+        // X-axis labels (simplified for small plots)
+        for (let x = Math.ceil(globalXMin); x <= Math.floor(globalXMax); x++) {
+            if (x % 2 === 0) { // Only show even numbers to avoid crowding
+                const xPos = margin.left + ((x - globalXMin) / (globalXMax - globalXMin)) * innerWidth;
+                html += `<text x="${xPos}" y="${margin.top + innerHeight + 15}" 
+                             text-anchor="middle" font-size="10" fill="var(--gray-600)">${x}</text>`;
+            }
+        }
+        
+        // Simplified axis titles
+        html += `
+            <text x="${margin.left + innerWidth / 2}" y="${plotHeight - 5}" 
+                  text-anchor="middle" font-size="11" fill="var(--gray-700)">
+                  log₁₀ Search Count
+            </text>
+        `;
+        
+        html += `
+                </svg>
+            </div>`;
+    });
+    
+    // Close grid container
+    html += `
+            </div>
+            <p class="article-text" style="margin-top: 32px; text-align: center; font-size: 14px; color: var(--gray-600);">
+                Each plot shows the mean log₁₀ Google search count (with ± 1 SD error bars) for species at each knowledge level (L=Limited, M=Moderate, E=Extensive).
+                Models with positive correlation (r) show higher search counts for species they claim extensive knowledge about.
+            </p>
+        </div>`;
+    
+    container.innerHTML = html;
+    }
+    
+    // Don't auto-load, initialization is handled by setTimeout above
+})();
 </script>
