@@ -165,19 +165,9 @@ Color Theme: {{ manifest.page_config.color_theme }}
     
     {% if section.type == 'section_callout_dynamic' or section.type == 'section_callout' %}
     <h2>Component with Section Callout Background:</h2>
-    <div style="width: 100%; margin-left: -20px; margin-right: -20px; padding: 0;">
-        <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
-            <div class="section-callout__content">
-                {% if section.title or section.text %}
-                <div class="section-callout__header">
-                    {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
-                    {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
-                </div>
-                {% endif %}
-                <!-- Include the same component again for the wrapped version -->
-                {% include 'research/' + page + '/' + section.file %}
-            </div>
-        </section>
+    <div style="width: 100%; margin-left: -20px; margin-right: -20px; padding: 0;" id="wrapped-component-container">
+        <!-- Component already includes section-callout wrapper, so just include it directly -->
+        {% include 'research/' + page + '/' + section.file %}
     </div>
     {% endif %}
 </div>
@@ -197,14 +187,31 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Found section-callout in raw component, extracting inner content...');
             const innerContent = sectionCallout.querySelector('.section-callout__content');
             if (innerContent) {
+                // Clone the content first
+                const contentClone = innerContent.cloneNode(true);
                 // Extract just the content without the header
-                const header = innerContent.querySelector('.section-callout__header');
+                const header = contentClone.querySelector('.section-callout__header');
                 if (header) {
                     header.remove();
                 }
                 // Move the inner content directly to the container
-                rawContainer.innerHTML = innerContent.innerHTML;
+                rawContainer.innerHTML = contentClone.innerHTML;
             }
+        }
+    }
+    
+    // For wrapped component, ensure proper styling
+    const wrappedContainer = document.getElementById('wrapped-component-container');
+    if (wrappedContainer) {
+        const sectionCallout = wrappedContainer.querySelector('.section-callout');
+        if (sectionCallout) {
+            // Ensure the section-callout has proper full-width styling
+            sectionCallout.style.width = '100vw';
+            sectionCallout.style.position = 'relative';
+            sectionCallout.style.left = '50%';
+            sectionCallout.style.transform = 'translateX(-50%)';
+            sectionCallout.style.marginLeft = '0';
+            sectionCallout.style.marginRight = '0';
         }
     }
     
