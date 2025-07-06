@@ -25,33 +25,45 @@ html, body {
     padding: 0;
 }
 
-/* No spacing between sections - let content handle it */
+/* No spacing between sections */
 .page-section {
     margin: 0;
     padding: 0;
 }
 
-/* Full-width sections with minimal padding */
+/* Full-width sections with tight padding */
 .section-callout {
     width: 100vw !important;
     position: relative !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    padding: 24px 0 !important;
+    padding: 16px 0 !important;
     margin: 0 !important;
     overflow: visible !important;
 }
 
-/* Article containers with minimal padding */
+/* Article containers with no vertical padding */
 .article-container {
     max-width: 1500px;
     margin: 0 auto;
-    padding: 16px 48px;
+    padding: 0 48px;
 }
 
-/* Small gap between consecutive sections */
+/* Remove gaps between sections */
 .page-section + .page-section {
-    margin-top: 8px;
+    margin-top: 0;
+}
+
+/* Also remove paragraph margins at section boundaries */
+.article-container > *:last-child,
+.article-section-spacing > *:last-child,
+.callout-content > *:last-child {
+    margin-bottom: 0 !important;
+}
+
+.article-container > *:first-child,
+.article-section-spacing > *:first-child {
+    margin-top: 0 !important;
 }
 
 /* Remove all component-specific margins */
