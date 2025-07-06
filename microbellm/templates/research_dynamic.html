@@ -14,11 +14,13 @@
 html, body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
+    overflow-x: hidden !important; /* Prevent horizontal scroll */
     width: 100%;
+    max-width: 100vw; /* Ensure no content exceeds viewport */
+    position: relative; /* Establish positioning context */
 }
 main.main-content {
-    overflow-x: visible !important;
+    overflow-x: hidden !important; /* Hide overflow on main */
     margin: 0;
     padding: 0;
 }
@@ -33,13 +35,16 @@ main.main-content {
     margin-right: 0 !important;
     margin-top: var(--spacing-section);
     margin-bottom: var(--spacing-section);
+    overflow: visible !important; /* Allow background to extend */
 }
 /* Ensure the content wrapper aligns with article content */
 .section-callout__content {
     max-width: 1500px; /* Same as article container */
     margin: 0 auto;
     padding: 0 48px; /* Same padding as hero and article */
-    padding-left: 200px; /* Move content more to the right */
+    padding-left: 280px; /* Move content to align with article text */
+    box-sizing: border-box; /* Include padding in width calculation */
+    overflow-x: visible; /* Don't hide overflow */
 }
 
 /* Reset all margins and padding for consistent alignment */
@@ -78,15 +83,25 @@ main.main-content {
 }
 /* Fix flow diagram to display horizontally */
 .flow-diagram {
-    flex-wrap: nowrap !important;
-    justify-content: center !important;
+    flex-wrap: nowrap !important; /* Keep in one row */
+    justify-content: flex-start !important; /* Align left */
     gap: 20px !important;
-    overflow-x: auto;
     padding: 20px 0;
+    box-sizing: border-box;
+}
+
+/* Ensure all elements use border-box */
+.section-callout * {
+    box-sizing: border-box;
 }
 /* Ensure flow boxes don't shrink */
 .flow-box {
     flex-shrink: 0;
+}
+/* Allow flow diagram to use available space */
+.section-callout .flow-diagram-wrapper {
+    margin: 0;
+    padding: 0;
 }
 /* Ensure no white gaps on edges */
 .section-callout::before,
