@@ -50,6 +50,27 @@ main.main-content {
 .section-callout + .section-callout {
     margin-top: 0;
 }
+
+/* Remove bottom padding from last article-container in main-content when followed by section-callout */
+.main-content .article-container:last-child {
+    padding-bottom: 0;
+}
+
+/* Ensure main-content itself has no bottom padding/margin */
+.main-content {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Specific fix for the transition from dynamic_stats to top_performers */
+.main-content + .section-callout {
+    margin-top: 0 !important;
+}
+
+/* Ensure article-section-spacing doesn't add extra margin at the end */
+.article-container .article-section-spacing:last-child {
+    margin-bottom: 0 !important;
+}
 /* Ensure the content wrapper aligns with article content */
 .section-callout__content {
     max-width: 1500px; /* Same as article container */
