@@ -47,6 +47,15 @@ html, body {
     max-width: 1500px;
     margin: 0 auto;
     padding: 0 48px;
+    box-sizing: border-box;
+    position: relative;
+    left: -148px; /* Shift container left to align with hero */
+}
+
+/* Align article content with hero title */
+.article-main {
+    margin-left: 0; /* Remove any left margin */
+    padding-left: 0; /* Remove any left padding */
 }
 
 /* Remove gaps between sections */
@@ -82,7 +91,6 @@ html, body {
     max-width: 1500px; /* Same as article container */
     margin: 0 auto;
     padding: 0 48px; /* Same padding as hero and article */
-    padding-left: 280px; /* Move content to align with article text */
     box-sizing: border-box; /* Include padding in width calculation */
     overflow-x: visible; /* Don't hide overflow */
 }
@@ -199,8 +207,10 @@ html, body {
 }
 
 .article-content {
-    max-width: 450px; /* Control the main text content width */
+    max-width: 850px; /* Align with hero content width */
     width: 100%;
+    margin-left: 0; /* Remove any left margin */
+    padding-left: 0; /* Remove any left padding */
 }
 
 .article-section-spacing {
