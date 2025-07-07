@@ -561,24 +561,15 @@
 /* Skeleton loading effect for transformation */
 .skeleton-word {
     display: inline-block;
-    background: linear-gradient(90deg, 
-        rgba(147, 51, 234, 0.08) 25%, 
-        rgba(99, 102, 241, 0.12) 50%, 
-        rgba(147, 51, 234, 0.08) 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
+    background: rgba(147, 51, 234, 0.1);
     border-radius: 4px;
     height: 1.2em;
     vertical-align: middle;
-}
-
-@keyframes loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    /* No animation - just a static placeholder */
 }
 
 .genus-part, .species-part {
-    transition: color 0.3s ease, transform 0.3s ease;
+    transition: all 0.4s ease;
     display: inline-block;
 }
 
@@ -595,17 +586,9 @@
     color: #dc2626 !important;
 }
 
-/* Glitch effect for transformation */
-@keyframes glitch {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-2px); }
-    40% { transform: translateX(2px); }
-    60% { transform: translateX(-1px); }
-    80% { transform: translateX(1px); }
-}
-
+/* Clean transformation effect - just use the blur */
 .transforming-text {
-    animation: glitch 0.3s ease-out;
+    /* No animation needed - blur is handled in JS */
 }
 
 /* =====================================================
