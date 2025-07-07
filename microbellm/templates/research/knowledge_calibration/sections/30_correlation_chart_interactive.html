@@ -1,20 +1,11 @@
-<section class="section-callout section-callout--purple">
-    <div class="section-callout__content">
-        <div class="section-callout__header">
-            <h3 class="section-callout__title">Interactive Correlation Analysis</h3>
-            <p class="section-callout__text">Explore how each model's knowledge claims correlate with real-world web presence data. Hover over bars to see detailed scatter plots for each model-template combination.</p>
+<div id="correlationChartContainer">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
         </div>
-        
-        <div id="correlationChartContainer">
-            <div class="loading-container">
-                <div class="loading-progress">
-                    <div class="loading-progress-bar"></div>
-                </div>
-                <div class="loading-text">Loading correlation visualization...</div>
-            </div>
-        </div>
+        <div class="loading-text">Loading correlation visualization...</div>
     </div>
-</section>
+</div>
 
 <script>
 // Self-contained script for interactive correlation chart
@@ -387,6 +378,131 @@
     window.loadCorrelationData = loadCorrelationData;
     window.createInteractiveCorrelationChart = createInteractiveCorrelationChart;
     
+    // Mock data for component viewer
+    function getMockCorrelationData() {
+        return {
+            files_with_search_counts: ["mock_data.csv"],
+            correlation_data: {
+                "mock_data.csv": {
+                    "template1_knowledge": {
+                        "claude-3-opus-20240229": {
+                            correlation_coefficient: 0.832,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 15, moderate: 45, extensive: 60, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 3 },
+                                { search_count: 890000, knowledge_score: 3 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 2 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "gpt-4-turbo": {
+                            correlation_coefficient: 0.798,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 18, moderate: 52, extensive: 50, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 3 },
+                                { search_count: 890000, knowledge_score: 3 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "claude-3-sonnet-20240229": {
+                            correlation_coefficient: 0.756,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 22, moderate: 58, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 3 },
+                                { search_count: 890000, knowledge_score: 2 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 2 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        }
+                    },
+                    "template2_physiology": {
+                        "claude-3-opus-20240229": {
+                            correlation_coefficient: 0.754,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 20, moderate: 50, extensive: 50, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 3 },
+                                { search_count: 890000, knowledge_score: 3 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "gpt-4-turbo": {
+                            correlation_coefficient: 0.689,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 25, moderate: 55, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 3 },
+                                { search_count: 890000, knowledge_score: 2 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "claude-3-sonnet-20240229": {
+                            correlation_coefficient: 0.623,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 30, moderate: 50, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 2 },
+                                { search_count: 890000, knowledge_score: 2 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        }
+                    },
+                    "template3_habitat": {
+                        "claude-3-opus-20240229": {
+                            correlation_coefficient: 0.567,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 35, moderate: 45, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 2 },
+                                { search_count: 890000, knowledge_score: 2 },
+                                { search_count: 230000, knowledge_score: 2 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "gpt-4-turbo": {
+                            correlation_coefficient: 0.512,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 40, moderate: 40, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 2 },
+                                { search_count: 890000, knowledge_score: 2 },
+                                { search_count: 230000, knowledge_score: 1 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        },
+                        "claude-3-sonnet-20240229": {
+                            correlation_coefficient: 0.489,
+                            species_count: 120,
+                            knowledge_distribution: { limited: 45, moderate: 35, extensive: 40, NA: 0 },
+                            data_points: [
+                                { search_count: 1500000, knowledge_score: 2 },
+                                { search_count: 890000, knowledge_score: 1 },
+                                { search_count: 230000, knowledge_score: 1 },
+                                { search_count: 45000, knowledge_score: 1 },
+                                { search_count: 12000, knowledge_score: 1 }
+                            ]
+                        }
+                    }
+                }
+            }
+        };
+    }
+
     // Load correlation data
     function loadCorrelationData() {
         const container = document.getElementById('correlationChartContainer');
@@ -417,7 +533,15 @@
             })
             .catch(error => {
                 console.error('Error loading correlation data:', error);
-                container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+                // Use mock data in component viewer context
+                if (window.location.pathname.includes('/components/')) {
+                    console.log('[CorrelationChart] Using mock data for component viewer');
+                    const mockData = getMockCorrelationData();
+                    window.correlationData = mockData;
+                    createInteractiveCorrelationChart(mockData);
+                } else {
+                    container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+                }
             });
     }
     

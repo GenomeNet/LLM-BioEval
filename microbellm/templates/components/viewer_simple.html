@@ -45,6 +45,12 @@
         margin: 0 !important;
     }
     
+    /* Specific fix for quality score chart container */
+    #qualityScoreChartContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
     /* Remove any padding/margins from flow diagram elements in raw view */
     .component-container .flow-diagram-wrapper {
         margin: 0 !important;
@@ -159,15 +165,37 @@ Color Theme: {{ manifest.page_config.color_theme }}
     </div>
     
     <h2>Raw Component (No Background):</h2>
-    <div class="component-container" id="raw-component-container">
+    <div class="component-container" id="raw-component-container" data-component-instance="raw">
         {% include 'research/' + page + '/' + section.file %}
     </div>
     
-    {% if section.type == 'section_callout_dynamic' or section.type == 'section_callout' %}
-    <h2>Component with Section Callout Background:</h2>
-    <div style="width: 100%; margin-left: -20px; margin-right: -20px; padding: 0;" id="wrapped-component-container">
-        <!-- Component already includes section-callout wrapper, so just include it directly -->
-        {% include 'research/' + page + '/' + section.file %}
+    {% if section.type == 'section_callout_dynamic' or section.type == 'section_callout' or section.type == 'callout_inline' %}
+    <h2>Component with {% if section.type == 'callout_inline' %}Callout{% else %}Section Callout{% endif %} Background:</h2>
+    <div style="width: 100%; margin-left: -20px; margin-right: -20px; padding: 0;" id="wrapped-component-container" data-component-instance="wrapped">
+        {% if section.type == 'callout_inline' %}
+        <div class="callout callout-{{ section.callout_type | default('definition') }}">
+            {% if section.header %}
+            <div class="callout-header">{{ section.header }}</div>
+            {% endif %}
+            <div class="callout-content">
+                {% include 'research/' + page + '/' + section.file %}
+            </div>
+        </div>
+        {% else %}
+        <section class="section-callout section-callout--{{ manifest.page_config.color_theme | default('purple') }}">
+            <div class="section-callout__content">
+                {% if section.title or section.text %}
+                <div class="section-callout__header">
+                    {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                    {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                </div>
+                {% endif %}
+                <div data-component-wrapper="true">
+                    {% include 'research/' + page + '/' + section.file %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
     </div>
     {% endif %}
 </div>

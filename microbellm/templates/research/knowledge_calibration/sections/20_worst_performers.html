@@ -225,8 +225,6 @@
         
         let worstPerformersHtml = `
 <div class="worst-performers-section">
-    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Models Needing Improvement</h3>
-    <p class="article-text" style="margin-bottom: 24px;">These models showed the poorest performance in identifying fictional species, often claiming extensive knowledge about bacteria that don't exist. These models would benefit most from improved training on handling unknown entities.</p>
     ${createBarChartLegend()}
     <div class="performers-list">
     `;
@@ -296,7 +294,9 @@
 })();
 
 // Call init function if it exists, for component viewer
-if (typeof window.initWorstPerformers === 'function') {
-    window.initWorstPerformers();
-}
+setTimeout(function() {
+    if (typeof window.initWorstPerformers === 'function') {
+        window.initWorstPerformers();
+    }
+}, 100);
 </script>

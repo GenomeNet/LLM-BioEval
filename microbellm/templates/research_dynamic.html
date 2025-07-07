@@ -51,7 +51,7 @@ html, body {
 
 /* Remove gaps between sections */
 .page-section + .page-section {
-    margin-top: 0;
+    margin-top: 38px;
 }
 
 /* Also remove paragraph margins at section boundaries */
@@ -158,6 +158,65 @@ html, body {
 }
 .section-callout::after {
     left: 100%;
+}
+
+/* Customize Paper Info box width */
+.article-sidebar {
+    width: 350px; /* Increase from default width */
+    min-width: 350px; /* Ensure minimum width */
+}
+
+.paper-info-card {
+    width: 100%; /* Use full sidebar width */
+    min-width: 320px; /* Minimum width for the card */
+}
+
+/* Customize inline callout box width */
+.callout {
+    width: 900px; /* Fixed width for all callout boxes */
+    min-width: 900px; /* Ensure minimum width */
+}
+
+/* Optional: Different widths for different callout types */
+.callout-definition {
+    width: 900px; /* Fixed width for definition boxes */
+    min-width: 900px;
+}
+
+.callout-template {
+    width: 900px; /* Fixed width for template boxes */
+    min-width: 900px;
+}
+
+.callout-compact {
+    width: 900px; /* Fixed width for compact callouts */
+    min-width: 900px;
+}
+
+/* Customize article content width */
+.article-container {
+    max-width: 1200px; /* Adjust this to control article width */
+}
+
+.article-content {
+    max-width: 450px; /* Control the main text content width */
+    width: 100%;
+}
+
+.article-section-spacing {
+    max-width: 850px; /* Control article content sections */
+    width: 100%;
+}
+
+/* Customize main article sections (type: "article" in manifest) */
+.article-main {
+    max-width: 900px; /* Control the main article area width */
+    width: 100%;
+}
+
+.article-section {
+    max-width: 850px; /* Control individual article sections */
+    width: 100%;
 }
 </style>
 {% endblock %}

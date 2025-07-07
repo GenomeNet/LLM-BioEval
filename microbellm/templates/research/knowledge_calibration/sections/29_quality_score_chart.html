@@ -1,15 +1,6 @@
-<section class="section-callout section-callout--purple">
-    <div class="section-callout__content">
-        <div class="section-callout__header">
-            <h3 class="section-callout__title">Quality Score Distribution by Model</h3>
-            <p class="section-callout__text">Distribution of quality scores across all templates for each model, showing how consistently models refuse to provide information about fictional species.</p>
-        </div>
-        
-        <div id="qualityScoreChartContainer">
-            <!-- Quality score distribution chart will be rendered here -->
-        </div>
-    </div>
-</section>
+<div id="qualityScoreChartContainer">
+    <!-- Quality score distribution chart will be rendered here -->
+</div>
 
 <script>
 // Self-contained script for quality score chart
@@ -19,23 +10,40 @@
     // Wait a bit for DOM to settle
     setTimeout(function() {
         console.log('[QualityScoreChart] Looking for container...');
-        initializeQualityScoreChart();
+        initializeAllCharts();
     }, 100);
+    
+    // Function to initialize all charts on the page
+    function initializeAllCharts() {
+        const allContainers = document.querySelectorAll('#qualityScoreChartContainer');
+        console.log('[QualityScoreChart] Found', allContainers.length, 'containers to initialize');
+        
+        allContainers.forEach((container, index) => {
+            console.log('[QualityScoreChart] Initializing container', index);
+            initializeQualityScoreChart(container);
+        });
+    }
     
     // Function to find container with fallback
     function findContainer() {
-        // Try direct ID first
-        let container = document.getElementById('qualityScoreChartContainer');
-        if (container) {
-            console.log('[QualityScoreChart] Found container by ID');
-            return container;
+        // Find all containers
+        const allContainers = document.querySelectorAll('#qualityScoreChartContainer');
+        console.log('[QualityScoreChart] Found', allContainers.length, 'containers');
+        
+        // In component viewer, prefer the wrapped container
+        const wrappedContainer = document.getElementById('wrapped-component-container');
+        if (wrappedContainer && allContainers.length > 1) {
+            const container = wrappedContainer.querySelector('#qualityScoreChartContainer');
+            if (container) {
+                console.log('[QualityScoreChart] Found container in wrapped component');
+                return container;
+            }
         }
         
-        // Try to find any container in current context
-        container = document.querySelector('[id*="qualityScoreChartContainer"]');
-        if (container) {
-            console.log('[QualityScoreChart] Found container by partial ID match');
-            return container;
+        // Return the first container found
+        if (allContainers.length > 0) {
+            console.log('[QualityScoreChart] Using first container found');
+            return allContainers[0];
         }
         
         console.error('[QualityScoreChart] Container not found!');
@@ -103,16 +111,315 @@
         return result;
     }
     
+    // Mock data for component viewer
+    function getMockKnowledgeAnalysisData() {
+        return {
+            knowledge_analysis: {
+                "mock_data.csv": {
+                    has_type_column: true,
+                    types: {
+                        "Real": {
+                            "template1_knowledge": {
+                                "claude-3-opus-20240229": {
+                                    limited: 15,
+                                    moderate: 45,
+                                    extensive: 60,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.88
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 18,
+                                    moderate: 52,
+                                    extensive: 50,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.85
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 22,
+                                    moderate: 58,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.82
+                                },
+                                "gemini-pro": {
+                                    limited: 25,
+                                    moderate: 60,
+                                    extensive: 35,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.79
+                                },
+                                "llama-3-70b": {
+                                    limited: 30,
+                                    moderate: 65,
+                                    extensive: 25,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.75
+                                }
+                            },
+                            "template2_physiology": {
+                                "claude-3-opus-20240229": {
+                                    limited: 20,
+                                    moderate: 50,
+                                    extensive: 50,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.85
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 25,
+                                    moderate: 55,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.81
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 30,
+                                    moderate: 50,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.78
+                                },
+                                "gemini-pro": {
+                                    limited: 35,
+                                    moderate: 55,
+                                    extensive: 30,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.74
+                                },
+                                "llama-3-70b": {
+                                    limited: 40,
+                                    moderate: 50,
+                                    extensive: 30,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.70
+                                }
+                            },
+                            "template3_habitat": {
+                                "claude-3-opus-20240229": {
+                                    limited: 35,
+                                    moderate: 45,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.72
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 40,
+                                    moderate: 40,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.68
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 45,
+                                    moderate: 35,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.64
+                                },
+                                "gemini-pro": {
+                                    limited: 50,
+                                    moderate: 40,
+                                    extensive: 30,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.60
+                                },
+                                "llama-3-70b": {
+                                    limited: 55,
+                                    moderate: 35,
+                                    extensive: 30,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.56
+                                }
+                            }
+                        },
+                        "Fake": {
+                            "template1_knowledge": {
+                                "claude-3-opus-20240229": {
+                                    limited: 5,
+                                    moderate: 10,
+                                    extensive: 5,
+                                    NA: 100,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.92
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 8,
+                                    moderate: 12,
+                                    extensive: 10,
+                                    NA: 90,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.88
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 10,
+                                    moderate: 15,
+                                    extensive: 15,
+                                    NA: 80,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.84
+                                },
+                                "gemini-pro": {
+                                    limited: 15,
+                                    moderate: 20,
+                                    extensive: 20,
+                                    NA: 65,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.77
+                                },
+                                "llama-3-70b": {
+                                    limited: 20,
+                                    moderate: 25,
+                                    extensive: 25,
+                                    NA: 50,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.70
+                                }
+                            },
+                            "template2_physiology": {
+                                "claude-3-opus-20240229": {
+                                    limited: 3,
+                                    moderate: 7,
+                                    extensive: 5,
+                                    NA: 105,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.94
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 5,
+                                    moderate: 10,
+                                    extensive: 10,
+                                    NA: 95,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.90
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 8,
+                                    moderate: 12,
+                                    extensive: 15,
+                                    NA: 85,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.86
+                                },
+                                "gemini-pro": {
+                                    limited: 12,
+                                    moderate: 18,
+                                    extensive: 20,
+                                    NA: 70,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.79
+                                },
+                                "llama-3-70b": {
+                                    limited: 18,
+                                    moderate: 22,
+                                    extensive: 25,
+                                    NA: 55,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.72
+                                }
+                            },
+                            "template3_habitat": {
+                                "claude-3-opus-20240229": {
+                                    limited: 8,
+                                    moderate: 12,
+                                    extensive: 10,
+                                    NA: 90,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.88
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 12,
+                                    moderate: 18,
+                                    extensive: 15,
+                                    NA: 75,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.82
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 15,
+                                    moderate: 20,
+                                    extensive: 20,
+                                    NA: 65,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.77
+                                },
+                                "gemini-pro": {
+                                    limited: 20,
+                                    moderate: 25,
+                                    extensive: 25,
+                                    NA: 50,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.70
+                                },
+                                "llama-3-70b": {
+                                    limited: 25,
+                                    moderate: 30,
+                                    extensive: 30,
+                                    NA: 35,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.63
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+    
     // Initialize function
-    function initializeQualityScoreChart() {
+    function initializeQualityScoreChart(targetContainer) {
         console.log('[QualityScoreChart] Initializing...');
-        loadQualityScoreData();
+        loadQualityScoreData(targetContainer);
     }
     
     // Load data
-    async function loadQualityScoreData() {
+    async function loadQualityScoreData(targetContainer) {
         console.log('[QualityScoreChart] Loading data...');
-        const container = findContainer();
+        const container = targetContainer || findContainer();
         if (!container) {
             console.error('[QualityScoreChart] Cannot load - no container found');
             return;
@@ -139,20 +446,38 @@
                 window.knowledgeData = transformedData;
                 
                 // Create the chart
-                createQualityScoreBarChart(transformedData.modelData, transformedData.templateArray);
+                createQualityScoreBarChart(transformedData.modelData, transformedData.templateArray, container);
             } else {
                 console.error('[QualityScoreChart] No knowledge_analysis in response');
                 container.innerHTML = '<div class="error-message">No knowledge analysis data available</div>';
             }
         } catch (error) {
             console.error('[QualityScoreChart] Failed to load data:', error);
-            container.innerHTML = '<div class="error-message">Failed to load data. Please try again later.</div>';
+            // Use mock data in component viewer context
+            if (window.location.pathname.includes('/components/')) {
+                console.log('[QualityScoreChart] Using mock data for component viewer');
+                const mockData = getMockKnowledgeAnalysisData();
+                
+                if (mockData.knowledge_analysis) {
+                    console.log('[QualityScoreChart] Found knowledge_analysis in mock data');
+                    // Transform the data
+                    const transformedData = transformKnowledgeData(mockData.knowledge_analysis);
+                    
+                    // Store data globally
+                    window.knowledgeData = transformedData;
+                    
+                    // Create the chart
+                    createQualityScoreBarChart(transformedData.modelData, transformedData.templateArray, container);
+                }
+            } else {
+                container.innerHTML = '<div class="error-message">Failed to load data. Please try again later.</div>';
+            }
         }
     }
 
     // Function to create quality score bar chart
-    function createQualityScoreBarChart(modelData, templateArray) {
-        const container = findContainer();
+    function createQualityScoreBarChart(modelData, templateArray, targetContainer) {
+        const container = targetContainer || findContainer();
         if (!container || !modelData || !templateArray) {
             console.error('[QualityScoreChart] Cannot create chart - missing data or container');
             return;
@@ -219,13 +544,22 @@
         2: '#f59e0b'  // Amber
     };
     
+    // Check if we're in a section callout wrapper
+    const isInSectionCallout = container.closest('.section-callout__content') !== null;
+    
     let html = `
-    <div class="quality-score-chart-container" style="margin-top: 48px; margin-bottom: 48px;">
+    <div class="quality-score-chart-container">`; 
+    
+    // Only add title and text if not in section callout (which already has them)
+    if (!isInSectionCallout) {
+        html += `
         <div style="max-width: 850px; margin: 0 auto;">
             <h3 class="section-title" style="font-size: 24px; margin-bottom: 16px;">Model Quality Score Distribution by Template</h3>
             <p class="article-text" style="margin-bottom: 24px;">This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown.</p>
-        </div>
-        
+        </div>`;
+    }
+    
+    html += `
         <!-- Legend -->
         <div class="legend">
     `;

@@ -1,20 +1,11 @@
-<section class="section-callout section-callout--purple">
-    <div class="section-callout__content">
-        <div class="section-callout__header">
-            <h3 class="section-callout__title">Full Results: Model Performance Analysis</h3>
-            <p class="section-callout__text">Comprehensive analysis of all tested models, showing their quality scores and knowledge distribution patterns across different query templates.</p>
+<div class="knowledge-analysis-content-container">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
         </div>
-        
-        <div id="knowledgeAnalysisContent" class="knowledge-analysis-content-container">
-            <div class="loading-container">
-                <div class="loading-progress">
-                    <div class="loading-progress-bar"></div>
-                </div>
-                <div class="loading-text">Loading knowledge analysis data...</div>
-            </div>
-        </div>
+        <div class="loading-text">Loading knowledge analysis data...</div>
     </div>
-</section>
+</div>
 
 <style>
 /* Clean, plain table styling */
@@ -123,12 +114,29 @@
 <script>
 // Self-contained script for knowledge analysis content
 (function() {
-    console.log('[KnowledgeAnalysis] Script starting...');
+    // Check if we've already initialized to prevent duplicate execution
+    if (window._knowledgeAnalysisInitialized) {
+        console.log('[KnowledgeAnalysis] Already initialized, skipping...');
+        return;
+    }
+    window._knowledgeAnalysisInitialized = true;
+    
+    // Create unique namespace for this instance
+    const instanceId = 'ka_' + Math.random().toString(36).substr(2, 9);
+    console.log('[KnowledgeAnalysis] Script starting... Instance:', instanceId);
     
     // Initialize when DOM is ready
     function init() {
         console.log('[KnowledgeAnalysis] Initializing...');
-        initializeKnowledgeAnalysis();
+        
+        // Initialize all containers on the page
+        const allContainers = document.querySelectorAll('.knowledge-analysis-content-container');
+        console.log('[KnowledgeAnalysis] Found', allContainers.length, 'containers to initialize');
+        
+        allContainers.forEach((container, index) => {
+            console.log('[KnowledgeAnalysis] Initializing container', index);
+            initializeKnowledgeAnalysis(container);
+        });
     }
     
     // Check if DOM is already loaded
@@ -139,31 +147,159 @@
         setTimeout(init, 100);
     }
     
+    // Mock data for component viewer
+    function getMockKnowledgeAnalysisData() {
+        return {
+            knowledge_analysis: {
+                "mock_data.csv": {
+                    has_type_column: true,
+                    types: {
+                        "Real": {
+                            "template1_knowledge": {
+                                "claude-3-opus-20240229": {
+                                    limited: 15,
+                                    moderate: 45,
+                                    extensive: 60,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.88
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 18,
+                                    moderate: 52,
+                                    extensive: 50,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.85
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 22,
+                                    moderate: 58,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.82
+                                }
+                            },
+                            "template2_physiology": {
+                                "claude-3-opus-20240229": {
+                                    limited: 20,
+                                    moderate: 50,
+                                    extensive: 50,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.85
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 25,
+                                    moderate: 55,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.81
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 30,
+                                    moderate: 50,
+                                    extensive: 40,
+                                    NA: 0,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.78
+                                }
+                            }
+                        },
+                        "Fake": {
+                            "template1_knowledge": {
+                                "claude-3-opus-20240229": {
+                                    limited: 5,
+                                    moderate: 10,
+                                    extensive: 5,
+                                    NA: 100,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.92
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 8,
+                                    moderate: 12,
+                                    extensive: 10,
+                                    NA: 90,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.88
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 10,
+                                    moderate: 15,
+                                    extensive: 15,
+                                    NA: 80,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.84
+                                }
+                            },
+                            "template2_physiology": {
+                                "claude-3-opus-20240229": {
+                                    limited: 3,
+                                    moderate: 7,
+                                    extensive: 5,
+                                    NA: 105,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.94
+                                },
+                                "gpt-4-turbo": {
+                                    limited: 5,
+                                    moderate: 10,
+                                    extensive: 10,
+                                    NA: 95,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.90
+                                },
+                                "claude-3-sonnet-20240229": {
+                                    limited: 8,
+                                    moderate: 12,
+                                    extensive: 15,
+                                    NA: 85,
+                                    failed: 0,
+                                    total: 120,
+                                    quality_score: 0.86
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
     // Function to find container with fallback
     function findContainer() {
-        // Try direct ID first
-        let container = document.getElementById('knowledgeAnalysisContent');
-        if (container) {
-            console.log('[KnowledgeAnalysis] Found container by ID');
-            return container;
-        }
+        // Find all containers
+        const allContainers = document.querySelectorAll('.knowledge-analysis-content-container');
+        console.log('[KnowledgeAnalysis] Found', allContainers.length, 'containers');
         
-        // Try class name
-        container = document.querySelector('.knowledge-analysis-content-container');
-        if (container) {
-            console.log('[KnowledgeAnalysis] Found container by class');
-            return container;
-        }
-        
-        // For component viewer - find within section-callout
-        const sectionCallout = document.querySelector('.section-callout__content');
-        if (sectionCallout) {
-            container = sectionCallout.querySelector('#knowledgeAnalysisContent') || 
-                       sectionCallout.querySelector('.knowledge-analysis-content-container');
+        // In component viewer, prefer the wrapped container
+        const wrappedContainer = document.getElementById('wrapped-component-container');
+        if (wrappedContainer && allContainers.length > 1) {
+            const container = wrappedContainer.querySelector('.knowledge-analysis-content-container');
             if (container) {
-                console.log('[KnowledgeAnalysis] Found container in section-callout');
+                console.log('[KnowledgeAnalysis] Found container in wrapped component');
                 return container;
             }
+        }
+        
+        // Return the first container found
+        if (allContainers.length > 0) {
+            console.log('[KnowledgeAnalysis] Using first container found');
+            return allContainers[0];
         }
         
         console.error('[KnowledgeAnalysis] Container not found!');
@@ -232,14 +368,14 @@
     }
     
     // Initialize function
-    function initializeKnowledgeAnalysis() {
+    function initializeKnowledgeAnalysis(targetContainer) {
         console.log('[KnowledgeAnalysis] Initializing component...');
-        loadKnowledgeAnalysisData();
+        loadKnowledgeAnalysisData(targetContainer);
     }
     
     // Function to render knowledge analysis tables
-    function renderKnowledgeAnalysis(data) {
-        const container = findContainer();
+    function renderKnowledgeAnalysis(data, targetContainer) {
+        const container = targetContainer || findContainer();
         if (!container) {
             console.error('[KnowledgeAnalysis] Cannot render - no container found');
             return;
@@ -259,12 +395,6 @@
         // Create overview section
         let html = `
         <div class="knowledge-analysis-overview">
-            <h3 class="section-title" style="font-size: 24px; margin-bottom: 12px;">Model Performance Overview</h3>
-            <p class="article-text" style="margin-bottom: 0;">Summary of all ${sortedModels.length} models tested across ${templateArray.length} query templates, showing their ability to correctly identify fictional bacterial species.</p>
-        `;
-        
-        // Add model ranking table
-        html += `
             <div class="model-ranking-table" style="margin-top: 32px;">
                 <h4 style="font-size: 18px; margin-bottom: 20px; font-weight: 600;">Complete Model Ranking</h4>
                 <div class="table-wrapper" style="background: transparent;">
@@ -595,9 +725,9 @@
     }
     
     // Load knowledge analysis data
-    async function loadKnowledgeAnalysisData() {
+    async function loadKnowledgeAnalysisData(targetContainer) {
         console.log('[KnowledgeAnalysis] Loading data...');
-        const container = findContainer();
+        const container = targetContainer || findContainer();
         if (!container) {
             console.error('[KnowledgeAnalysis] Cannot load - no container found');
             return;
@@ -623,21 +753,55 @@
                 window.knowledgeData = transformedData;
                 
                 // Render the data
-                renderKnowledgeAnalysis(transformedData);
+                renderKnowledgeAnalysis(transformedData, container);
             } else {
                 console.error('[KnowledgeAnalysis] No knowledge_analysis in response');
                 container.innerHTML = '<div class="error-message">No knowledge analysis data available</div>';
             }
         } catch (error) {
             console.error('[KnowledgeAnalysis] Failed to load data:', error);
-            container.innerHTML = '<div class="error-message">Failed to load data. Please try again later.</div>';
+            // Use mock data in component viewer context
+            if (window.location.pathname.includes('/components/')) {
+                console.log('[KnowledgeAnalysis] Using mock data for component viewer');
+                const mockData = getMockKnowledgeAnalysisData();
+                
+                if (mockData.knowledge_analysis) {
+                    // Transform the data to expected format
+                    const transformedData = transformKnowledgeData(mockData.knowledge_analysis);
+                    
+                    // Store data globally for other functions
+                    window.knowledgeData = transformedData;
+                    
+                    // Render the data
+                    renderKnowledgeAnalysis(transformedData, container);
+                }
+            } else {
+                container.innerHTML = '<div class="error-message">Failed to load data. Please try again later.</div>';
+            }
         }
     }
     
-})();
+    // Create namespace for this instance
+    if (!window.KnowledgeAnalysis) {
+        window.KnowledgeAnalysis = {};
+    }
+    
+    // Expose functions globally for onclick handlers
+    window.KnowledgeAnalysis[instanceId] = {
+        toggleTableExpansion: toggleTableExpansion,
+        showBarTooltip: showBarTooltip,
+        hideBarTooltip: hideBarTooltip
+    };
+    
+    // Also expose globally for backwards compatibility (only if not already defined)
+    if (!window.toggleTableExpansion) {
+        window.toggleTableExpansion = toggleTableExpansion;
+        window.showBarTooltip = showBarTooltip;
+        window.hideBarTooltip = hideBarTooltip;
+    }
 
-// Global functions for table interactions
-function toggleTableExpansion(button, tableIndex) {
+    // Table expansion function
+    function toggleTableExpansion(button, tableIndex) {
     const tableFade = document.getElementById(`table-fade-${tableIndex}`);
     const hiddenRows = tableFade.querySelectorAll('.hidden-row');
     const isExpanded = button.dataset.expanded === 'true';
@@ -658,10 +822,10 @@ function toggleTableExpansion(button, tableIndex) {
     }
 }
 
-// Tooltip functions
-let tooltipElement = null;
+    // Tooltip functions
+    let tooltipElement = null;
 
-function showBarTooltip(event, element) {
+    function showBarTooltip(event, element) {
     // Remove any existing tooltip
     hideBarTooltip();
     
@@ -709,10 +873,12 @@ function showBarTooltip(event, element) {
     tooltipElement.style.top = `${rect.top - tooltipRect.height - 8}px`;
 }
 
-function hideBarTooltip() {
-    if (tooltipElement) {
-        tooltipElement.remove();
-        tooltipElement = null;
+    function hideBarTooltip() {
+        if (tooltipElement) {
+            tooltipElement.remove();
+            tooltipElement = null;
+        }
     }
-}
+
+})();
 </script>

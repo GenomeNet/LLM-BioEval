@@ -1,20 +1,11 @@
-<section class="section-callout section-callout--purple">
-    <div class="section-callout__content">
-        <div class="section-callout__header">
-            <h3 class="section-callout__title">Top Models - Web-Alignment</h3>
-            <p class="section-callout__text">Language models that demonstrate the best alignment between their knowledge claims and actual web presence of bacterial species, showing superior calibration abilities.</p>
+<div id="correlationContent">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
         </div>
-        
-        <div id="correlationContent">
-            <div class="loading-container">
-                <div class="loading-progress">
-                    <div class="loading-progress-bar"></div>
-                </div>
-                <div class="loading-text">Loading knowledge-web alignment data...</div>
-            </div>
-        </div>
+        <div class="loading-text">Loading knowledge-web alignment data...</div>
     </div>
-</section>
+</div>
 
 <script>
 // Self-contained script for loading and displaying correlation data
@@ -97,8 +88,6 @@
         let corrTopPerformersHtml = "";
         if (top4CorrModels.length > 0) {
             corrTopPerformersHtml += `<div class="top-performers-section">
-    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Models – Web-Alignment</h3>
-    <p class="article-text" style="margin-bottom: 24px;">Based on the Pearson correlation between claimed knowledge and Google search counts, these models show the strongest calibration to real-world information availability.</p>
     ${createBarChartLegend()}
     <div class="performers-list">`;
 
@@ -124,6 +113,59 @@
 
         // Only display the top performers section
         container.innerHTML = corrTopPerformersHtml;
+    }
+
+    // Mock data for component viewer
+    function getMockCorrelationData() {
+        return {
+            files_with_search_counts: ["mock_data.csv"],
+            correlation_data: {
+                "mock_data.csv": {
+                    "template1_knowledge": {
+                        "claude-3-opus-20240229": {
+                            correlation_coefficient: 0.832,
+                            species_count: 120,
+                            knowledge_distribution: {
+                                limited: 15,
+                                moderate: 45,
+                                extensive: 60,
+                                NA: 0
+                            }
+                        },
+                        "gpt-4-turbo": {
+                            correlation_coefficient: 0.798,
+                            species_count: 120,
+                            knowledge_distribution: {
+                                limited: 18,
+                                moderate: 52,
+                                extensive: 50,
+                                NA: 0
+                            }
+                        },
+                        "claude-3-sonnet-20240229": {
+                            correlation_coefficient: 0.756,
+                            species_count: 120,
+                            knowledge_distribution: {
+                                limited: 22,
+                                moderate: 58,
+                                extensive: 40,
+                                NA: 0
+                            }
+                        },
+                        "gemini-pro": {
+                            correlation_coefficient: 0.723,
+                            species_count: 120,
+                            knowledge_distribution: {
+                                limited: 25,
+                                moderate: 60,
+                                extensive: 35,
+                                NA: 0
+                            }
+                        }
+                    }
+                }
+            }
+        };
     }
 
     // Load correlation data function
@@ -160,7 +202,14 @@
             })
             .catch(error => {
                 console.error('[TopModelsWebAlignment] Error loading correlation data:', error);
-                container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+                // Use mock data in component viewer context
+                if (window.location.pathname.includes('/components/')) {
+                    console.log('[TopModelsWebAlignment] Using mock data for component viewer');
+                    const mockData = getMockCorrelationData();
+                    renderCorrelationStatsAndTable(mockData, container);
+                } else {
+                    container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${error.message}</p></div>`;
+                }
             });
     }
 

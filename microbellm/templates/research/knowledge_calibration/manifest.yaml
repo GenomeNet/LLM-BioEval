@@ -144,6 +144,8 @@ sections:
     type: "section_callout_dynamic"
     file: "sections/18_top_performers.html"
     container_id: "topPerformersContainer"
+    title: "Top Performing Models"
+    text: "To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores."
     
   # Transition text
   - id: "transition_text"
@@ -154,6 +156,8 @@ sections:
   - id: "worst_performers"
     type: "section_callout_dynamic"
     file: "sections/20_worst_performers.html"
+    title: "Models Needing Improvement"
+    text: "These models showed the poorest performance in identifying fictional species, often claiming extensive knowledge about bacteria that don't exist. These models would benefit most from improved training on handling unknown entities."
     
   # Conclusion text
   - id: "conclusion_text"
@@ -179,8 +183,8 @@ sections:
   - id: "quality_score_chart"
     type: "section_callout_dynamic"
     file: "sections/29_quality_score_chart.html"
-    title: "Quality Score Distribution by Model"
-    text: "Distribution of quality scores across all templates for each model, showing how consistently models refuse to provide information about fictional species."
+    title: "Model Quality Score Distribution by Template"
+    text: "This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown."
     
   # Interactive correlation chart
   - id: "correlation_chart_interactive"
@@ -194,6 +198,8 @@ sections:
     type: "section_callout_dynamic"
     file: "sections/31_full_template_tables.html"
     container_id: "fullTemplateTablesContainer"
+    title: "Full Template Analysis"
+    text: "Detailed performance breakdown for each query template, showing how different models responded to questions about fictional bacterial species."
     
   # Web-aligned knowledge intro
   - id: "web_aligned_intro"

@@ -45,6 +45,9 @@
         loadCorrelationData();
     }
     
+    // Expose initialization function for component viewer
+    window.initializeCorrelationVisualization = initializeCorrelationVisualization;
+    
     // Load correlation data
     async function loadCorrelationData() {
         console.log('[CorrelationVisualization] Loading data...');
@@ -355,4 +358,11 @@
     
     // Don't auto-load, initialization is handled by setTimeout above
 })();
+
+// Call init function if it exists, for component viewer
+setTimeout(function() {
+    if (typeof window.initializeCorrelationVisualization === 'function') {
+        window.initializeCorrelationVisualization();
+    }
+}, 100);
 </script>

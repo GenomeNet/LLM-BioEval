@@ -226,8 +226,6 @@
         
         let topPerformersHtml = `
 <div class="top-performers-section">
-    <h3 class="section-title" style="text-align: left; font-size: 24px; margin-bottom: 8px;">Top Performing Models</h3>
-    <p class="article-text" style="margin-bottom: 24px;">To create an overall ranking, we average each model's quality score across all query templates. The top performers are those that consistently identified fictional species as unknown, achieving the highest scores.</p>
     ${createBarChartLegend()}
     <div class="performers-list">
     `;
@@ -296,7 +294,9 @@
 })();
 
 // Call init function if it exists, for component viewer
-if (typeof window.initTopPerformers === 'function') {
-    window.initTopPerformers();
-}
+setTimeout(function() {
+    if (typeof window.initTopPerformers === 'function') {
+        window.initTopPerformers();
+    }
+}, 100);
 </script>
