@@ -261,11 +261,15 @@ class ProcessingManager:
                     try:
                         result, status, error = future.result(timeout=1)
                         
-                        # Store result
+                        # Store result in both tables
                         cursor.execute("""
                             INSERT INTO species_results (combination_id, binomial_name, result, status, error)
                             VALUES (?, ?, ?, ?, ?)
                         """, (combination_id, species_name, result, status, error))
+                        
+                        # Also store in results table for knowledge analysis
+                        self._store_in_results_table(cursor, species_name, species_file, model, 
+                                                   system_template, user_template, result, status, error)
                         conn.commit()
                         
                         print(f"    Stored result for {species_name}: status={status}")
@@ -306,6 +310,10 @@ class ProcessingManager:
                                     INSERT INTO species_results (combination_id, binomial_name, result, status, error)
                                     VALUES (?, ?, ?, ?, ?)
                                 """, (combination_id, species_name, result, status, error))
+                                
+                                # Also store in results table for knowledge analysis
+                                self._store_in_results_table(cursor, species_name, species_file, model, 
+                                                           system_template, user_template, result, status, error)
                                 conn.commit()
                                 
                                 print(f"    Stored result for {species_name}: status={status}")
@@ -328,6 +336,10 @@ class ProcessingManager:
                         INSERT INTO species_results (combination_id, binomial_name, result, status, error)
                         VALUES (?, ?, ?, ?, ?)
                     """, (combination_id, species_name, result, status, error))
+                    
+                    # Also store in results table for knowledge analysis
+                    self._store_in_results_table(cursor, species_name, species_file, model, 
+                                               system_template, user_template, result, status, error)
                     conn.commit()
                     
                     if status == 'completed':
@@ -419,6 +431,71 @@ class ProcessingManager:
         except Exception as e:
             print(f"    ✗ Error processing {species}: {str(e)}")
             return None, 'failed', str(e)
+    
+    def _store_in_results_table(self, cursor, binomial_name, species_file, model, 
+                               system_template, user_template, result_json, status, error):
+        """Store result in results table for knowledge analysis compatibility"""
+        try:
+            # Parse the result if it's JSON
+            knowledge_group = None
+            phenotype_data = {}
+            
+            if result_json and status == 'completed':
+                try:
+                    result_dict = json.loads(result_json)
+                    
+                    # Extract knowledge_group if present
+                    knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
+                    
+                    # Extract phenotypes if present
+                    if 'phenotypes' in result_dict:
+                        phenotype_data = result_dict['phenotypes']
+                    
+                    # Also check for individual phenotype fields at top level
+                    phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                                      'extreme_environment_tolerance', 'biofilm_formation',
+                                      'animal_pathogenicity', 'biosafety_level', 
+                                      'health_association', 'host_association',
+                                      'plant_pathogenicity', 'spore_formation', 
+                                      'hemolysis', 'cell_shape']
+                    
+                    for field in phenotype_fields:
+                        if field in result_dict and field not in phenotype_data:
+                            phenotype_data[field] = result_dict[field]
+                            
+                except json.JSONDecodeError:
+                    print(f"    Warning: Could not parse JSON result for {binomial_name}")
+            
+            # Insert into results table
+            cursor.execute("""
+                INSERT INTO results (
+                    species_file, binomial_name, model, system_template, user_template,
+                    status, result, error, timestamp, knowledge_group,
+                    gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                    biofilm_formation, animal_pathogenicity, biosafety_level,
+                    health_association, host_association, plant_pathogenicity,
+                    spore_formation, hemolysis, cell_shape
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                species_file, binomial_name, model, system_template, user_template,
+                status, result_json, error, datetime.now(), knowledge_group,
+                phenotype_data.get('gram_staining'),
+                phenotype_data.get('motility'),
+                phenotype_data.get('aerophilicity'),
+                phenotype_data.get('extreme_environment_tolerance'),
+                phenotype_data.get('biofilm_formation'),
+                phenotype_data.get('animal_pathogenicity'),
+                phenotype_data.get('biosafety_level'),
+                phenotype_data.get('health_association'),
+                phenotype_data.get('host_association'),
+                phenotype_data.get('plant_pathogenicity'),
+                phenotype_data.get('spore_formation'),
+                phenotype_data.get('hemolysis'),
+                phenotype_data.get('cell_shape')
+            ))
+            
+        except Exception as e:
+            print(f"    Warning: Failed to store in results table for {binomial_name}: {str(e)}")
     
     def _apply_rate_limit(self, model):
         """Apply rate limiting per model"""
