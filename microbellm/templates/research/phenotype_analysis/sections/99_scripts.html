@@ -385,8 +385,15 @@
         // Update the distributions view
         const distContent = document.getElementById('phenotypeDistributionsContent');
         if (distContent) {
-            distContent.innerHTML = renderDistributionsContent(modelResults);
-            distContent.style.display = 'block';
+            // Pass model results to the distributions component
+            window._phenotypeModelResults = modelResults;
+            
+            // If the component hasn't loaded yet, it will pick up the data
+            // If it has loaded, trigger a re-render
+            if (window._phenotypeDistributionsReady) {
+                const event = new CustomEvent('phenotypeDataUpdated', { detail: modelResults });
+                window.dispatchEvent(event);
+            }
         }
         
         // Update hidden phenotypes section

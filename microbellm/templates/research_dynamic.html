@@ -307,6 +307,17 @@ html, body {
             </div>
         </div>
         
+    {# Handle section wide - full width standard sections #}
+    {% elif section.type == 'section_wide' %}
+        <section class="section-wide">
+            <div class="section-wide__content{% if section.full_width %}--full-width{% endif %}">
+                {% if section.title %}
+                <h2 class="section-title" style="text-align: center; margin-bottom: var(--spacing-section);">{{ section.title }}</h2>
+                {% endif %}
+                {% include project_path + '/' + section.file %}
+            </div>
+        </section>
+        
     {# Handle raw includes #}
     {% elif section.type == 'raw' %}
         {% include project_path + '/' + section.file %}

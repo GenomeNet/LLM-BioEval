@@ -1,8 +1,47 @@
-<div id="phenotypeDistributionsContent" style="display: none;">
+<div id="phenotypeDistributionsContent">
     <!-- This will be populated by JavaScript -->
 </div>
 
 <style>
+    /* Grid layout for phenotype cards */
+    .phenotype-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
+        width: 100%;
+    }
+    
+    @media (max-width: 1200px) {
+        .phenotype-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .phenotype-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .phenotype-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .phenotype-card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin: 0;
+    }
+    
     /* Phenotype Analysis Table Styles */
     .phenotype-analysis-table {
         width: 100%;
@@ -44,6 +83,19 @@
     
     .phenotype-card .chart-cell {
         max-width: none;
+    }
+    
+    .model-name-cell {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--gray-700);
+        background-color: var(--gray-50);
+        padding-left: 10px;
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     .no-data {
@@ -136,62 +188,372 @@
         border-radius: 3px;
         margin-right: 6px;
         display: inline-block;
+        border: 1px solid rgba(0,0,0,0.1);
     }
     
     .legend-label {
         color: var(--gray-600);
     }
     
-    /* Tooltip styles */
-    .phenotype-tooltip {
-        position: fixed;
-        z-index: 1000;
-        pointer-events: none;
-        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+    /* Loading and empty states */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 48px;
+        color: var(--gray-600);
     }
     
-    .phenotype-tooltip-content {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 8px 12px;
-        font-size: 11px;
-        max-width: 300px;
+    .empty-state {
+        text-align: center;
+        padding: 48px;
+        color: var(--gray-600);
     }
     
-    .phenotype-tooltip-header {
-        font-weight: 600;
-        margin-bottom: 6px;
-        padding-bottom: 4px;
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .phenotype-tooltip-stats {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-top: 8px;
-    }
-    
-    .tooltip-stat {
-        font-size: 10px;
-    }
-    
-    .tooltip-stat-label {
-        color: #6c757d;
-    }
-    
-    .tooltip-stat-value {
-        font-weight: 600;
-        color: #2c3e50;
+    .empty-state h3 {
+        color: var(--gray-900);
+        margin-bottom: 8px;
     }
 </style>
 
 <script>
-// This component depends on data from the main model predictions component
-// It will be populated after the main data is loaded
 (function() {
-    // The distribution view will be rendered by the main component
-    window._phenotypeDistributionsReady = true;
+    // Component state
+    let isComponentViewer = window.location.pathname.includes('/components/');
+    let componentInitialized = false;
+    
+    // Wait for phenotype data to be available
+    function waitForData() {
+        // In component viewer, use mock data
+        if (isComponentViewer) {
+            initializeWithMockData();
+            return;
+        }
+        
+        // In main page, wait for data from model predictions component
+        if (window._phenotypeModelResults) {
+            renderDistributions(window._phenotypeModelResults);
+        } else {
+            // Set up observer for when data becomes available
+            Object.defineProperty(window, '_phenotypeModelResults', {
+                set: function(value) {
+                    window.__phenotypeModelResults = value;
+                    if (value && !componentInitialized) {
+                        renderDistributions(value);
+                    }
+                },
+                get: function() {
+                    return window.__phenotypeModelResults;
+                }
+            });
+        }
+    }
+    
+    function initializeWithMockData() {
+        const mockData = createMockModelResults();
+        renderDistributions(mockData);
+    }
+    
+    function createMockModelResults() {
+        const models = [
+            'anthropic/claude-3-opus-20240229',
+            'openai/gpt-4',
+            'google/gemini-pro',
+            'meta-llama/llama-3-70b-instruct'
+        ];
+        
+        const phenotypes = {
+            'gram_staining': { name: 'Gram Staining' },
+            'motility': { name: 'Motility' },
+            'aerophilicity': { name: 'Aerophilicity' },
+            'biofilm_formation': { name: 'Biofilm Formation' },
+            'spore_formation': { name: 'Spore Formation' },
+            'cell_shape': { name: 'Cell Shape' }
+        };
+        
+        return models.map(modelName => ({
+            modelName,
+            totalPredictions: 100,
+            naCount: Math.floor(Math.random() * 20),
+            naPercentage: Math.random() * 20,
+            phenotypeDistributions: Object.keys(phenotypes).reduce((acc, key) => {
+                if (key === 'gram_staining') {
+                    acc[key] = {
+                        'Positive': Math.floor(Math.random() * 40) + 30,
+                        'Negative': Math.floor(Math.random() * 40) + 20,
+                        'NA': Math.floor(Math.random() * 20) + 10
+                    };
+                } else if (key === 'motility' || key === 'biofilm_formation' || key === 'spore_formation') {
+                    acc[key] = {
+                        'TRUE': Math.floor(Math.random() * 50) + 25,
+                        'FALSE': Math.floor(Math.random() * 40) + 20,
+                        'NA': Math.floor(Math.random() * 15) + 5
+                    };
+                } else if (key === 'aerophilicity') {
+                    acc[key] = {
+                        'Aerobic': Math.floor(Math.random() * 30) + 20,
+                        'Anaerobic': Math.floor(Math.random() * 25) + 15,
+                        'Facultative': Math.floor(Math.random() * 20) + 10,
+                        'NA': Math.floor(Math.random() * 15) + 5
+                    };
+                } else if (key === 'cell_shape') {
+                    acc[key] = {
+                        'Coccus': Math.floor(Math.random() * 25) + 15,
+                        'Bacillus': Math.floor(Math.random() * 30) + 20,
+                        'Spiral': Math.floor(Math.random() * 15) + 5,
+                        'Other': Math.floor(Math.random() * 10) + 5,
+                        'NA': Math.floor(Math.random() * 10) + 5
+                    };
+                }
+                return acc;
+            }, {})
+        }));
+    }
+    
+    function renderDistributions(modelResults) {
+        componentInitialized = true;
+        const container = document.getElementById('phenotypeDistributionsContent');
+        if (!container) return;
+        
+        const phenotypes = {
+            'gram_staining': { name: 'Gram Staining' },
+            'motility': { name: 'Motility' },
+            'aerophilicity': { name: 'Aerophilicity' },
+            'biofilm_formation': { name: 'Biofilm Formation' },
+            'spore_formation': { name: 'Spore Formation' },
+            'cell_shape': { name: 'Cell Shape' }
+        };
+        
+        let html = '<div class="phenotype-grid">';
+        
+        Object.entries(phenotypes).forEach(([phenotypeKey, phenotypeInfo]) => {
+            html += renderPhenotypeCard(phenotypeKey, phenotypeInfo, modelResults);
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    function renderPhenotypeCard(phenotypeKey, phenotypeInfo, modelResults) {
+        let html = `<div class="phenotype-card">`;
+        
+        // Header
+        html += `<div class="phenotype-card-header">`;
+        html += `<h4 class="phenotype-card-title">${phenotypeInfo.name}`;
+        
+        // Add field type badge
+        const fieldType = getFieldType(phenotypeKey);
+        html += ` <span class="field-type-badge field-type-${fieldType}">${fieldType}</span>`;
+        
+        html += `</h4>`;
+        html += `</div>`;
+        
+        // Legend
+        html += generatePhenotypeLegend(phenotypeKey);
+        
+        // Table
+        html += `<table class="phenotype-analysis-table">`;
+        html += `<thead><tr>`;
+        html += `<th style="text-align: left;">Model</th>`;
+        html += `<th>Prediction Distribution</th>`;
+        html += `<th>NA %</th>`;
+        html += `</tr></thead>`;
+        html += `<tbody>`;
+        
+        modelResults.forEach(result => {
+            const distribution = result.phenotypeDistributions[phenotypeKey] || {};
+            const total = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+            const naCount = distribution['NA'] || 0;
+            const naRate = total > 0 ? (naCount / total * 100) : 0;
+            
+            html += `<tr>`;
+            html += `<td class="model-name-cell">${formatModelName(result.modelName)}</td>`;
+            html += `<td class="chart-cell">${renderValueDistributionBar(distribution, total, phenotypeKey)}</td>`;
+            html += `<td style="text-align: center; font-weight: 600; color: ${naRate > 50 ? '#dc3545' : naRate > 20 ? '#ffc107' : '#28a745'};">`;
+            html += `${naRate.toFixed(1)}%`;
+            html += `</td>`;
+            html += `</tr>`;
+        });
+        
+        html += `</tbody></table>`;
+        html += `</div>`;
+        
+        return html;
+    }
+    
+    function getFieldType(phenotypeKey) {
+        if (phenotypeKey === 'aerophilicity' || phenotypeKey === 'cell_shape') {
+            return 'categorical';
+        }
+        return 'binary';
+    }
+    
+    function generatePhenotypeLegend(phenotypeKey) {
+        let html = '<div class="phenotype-legend">';
+        
+        const legendData = getLegendData(phenotypeKey);
+        legendData.forEach(item => {
+            html += `<div class="legend-item">`;
+            html += `<div class="legend-color" style="background-color: ${item.background}; color: ${item.color};"></div>`;
+            html += `<span class="legend-label">${item.label}</span>`;
+            html += `</div>`;
+        });
+        
+        // Always add NA
+        html += `<div class="legend-item">`;
+        html += `<div class="legend-color" style="background-color: #e2e3e5; color: #6c757d;"></div>`;
+        html += `<span class="legend-label">NA/Not Available</span>`;
+        html += `</div>`;
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function getLegendData(phenotypeKey) {
+        const legends = {
+            'gram_staining': [
+                { label: 'Positive', background: '#4caf50', color: 'white' },
+                { label: 'Negative', background: '#f44336', color: 'white' }
+            ],
+            'motility': [
+                { label: 'TRUE', background: '#22c55e', color: 'white' },
+                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+            ],
+            'biofilm_formation': [
+                { label: 'TRUE', background: '#22c55e', color: 'white' },
+                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+            ],
+            'spore_formation': [
+                { label: 'TRUE', background: '#22c55e', color: 'white' },
+                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+            ],
+            'aerophilicity': [
+                { label: 'Aerobic', background: '#2196f3', color: 'white' },
+                { label: 'Anaerobic', background: '#ff9800', color: 'white' },
+                { label: 'Facultative', background: '#9c27b0', color: 'white' }
+            ],
+            'cell_shape': [
+                { label: 'Coccus', background: '#3f51b5', color: 'white' },
+                { label: 'Bacillus', background: '#009688', color: 'white' },
+                { label: 'Spiral', background: '#ff5722', color: 'white' },
+                { label: 'Other', background: '#607d8b', color: 'white' }
+            ]
+        };
+        
+        return legends[phenotypeKey] || [];
+    }
+    
+    function renderValueDistributionBar(distribution, total, phenotypeKey) {
+        if (total === 0) {
+            return '<div class="no-data">No data</div>';
+        }
+        
+        const sortedValues = Object.entries(distribution)
+            .sort((a, b) => {
+                if (a[0] === 'NA') return 1;
+                if (b[0] === 'NA') return -1;
+                return getValueOrder(phenotypeKey, a[0]) - getValueOrder(phenotypeKey, b[0]);
+            });
+        
+        let html = '<div class="single-bar-chart">';
+        html += '<div class="single-stacked-bar">';
+        
+        sortedValues.forEach(([value, count]) => {
+            const percentage = (count / total * 100);
+            const colors = getValueColors(value, phenotypeKey);
+            
+            if (percentage > 0) {
+                html += `<div class="bar-segment" style="width: ${percentage}%; background-color: ${colors.background}; color: ${colors.color};">`;
+                if (percentage > 5) {
+                    html += `<span class="bar-number">${count}</span>`;
+                }
+                html += `</div>`;
+            }
+        });
+        
+        html += '</div>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    function getValueOrder(phenotypeKey, value) {
+        const orders = {
+            'gram_staining': { 'Positive': 0, 'Negative': 1 },
+            'motility': { 'TRUE': 0, 'FALSE': 1 },
+            'biofilm_formation': { 'TRUE': 0, 'FALSE': 1 },
+            'spore_formation': { 'TRUE': 0, 'FALSE': 1 },
+            'aerophilicity': { 'Aerobic': 0, 'Anaerobic': 1, 'Facultative': 2 },
+            'cell_shape': { 'Coccus': 0, 'Bacillus': 1, 'Spiral': 2, 'Other': 3 }
+        };
+        
+        return orders[phenotypeKey]?.[value] ?? 999;
+    }
+    
+    function getValueColors(value, phenotypeKey) {
+        if (value === 'NA' || value === 'N/A' || value === '') {
+            return { background: '#e2e3e5', color: '#6c757d' };
+        }
+        
+        const colorMappings = {
+            'gram_staining': {
+                'Positive': { background: '#4caf50', color: 'white' },
+                'Negative': { background: '#f44336', color: 'white' }
+            },
+            'motility': {
+                'TRUE': { background: '#22c55e', color: 'white' },
+                'FALSE': { background: '#94a3b8', color: 'white' }
+            },
+            'biofilm_formation': {
+                'TRUE': { background: '#22c55e', color: 'white' },
+                'FALSE': { background: '#94a3b8', color: 'white' }
+            },
+            'spore_formation': {
+                'TRUE': { background: '#22c55e', color: 'white' },
+                'FALSE': { background: '#94a3b8', color: 'white' }
+            },
+            'aerophilicity': {
+                'Aerobic': { background: '#2196f3', color: 'white' },
+                'Anaerobic': { background: '#ff9800', color: 'white' },
+                'Facultative': { background: '#9c27b0', color: 'white' }
+            },
+            'cell_shape': {
+                'Coccus': { background: '#3f51b5', color: 'white' },
+                'Bacillus': { background: '#009688', color: 'white' },
+                'Spiral': { background: '#ff5722', color: 'white' },
+                'Other': { background: '#607d8b', color: 'white' }
+            }
+        };
+        
+        return colorMappings[phenotypeKey]?.[value] || { background: '#f8f9fa', color: '#495057' };
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) {
+            return modelName;
+        }
+        
+        const [provider, model] = modelName.split('/');
+        const providerMap = {
+            'anthropic': 'Anthropic',
+            'openai': 'OpenAI',
+            'google': 'Google',
+            'meta-llama': 'Meta',
+            'mistralai': 'Mistral',
+            'cohere': 'Cohere',
+            'x-ai': 'xAI'
+        };
+        
+        const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+        return `${displayProvider} ${model}`;
+    }
+    
+    // Initialize component
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitForData);
+    } else {
+        waitForData();
+    }
 })();
 </script>

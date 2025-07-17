@@ -883,9 +883,13 @@
     }
     
     .species-list {
-        max-height: 400px;
+        max-height: 600px;
         overflow-y: auto;
         margin-top: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 8px;
+        background: #fafafa;
     }
     
     .species-result {
@@ -2098,6 +2102,7 @@
                 html += `
                     <div class="results-section failed-section">
                         <h5 class="section-title failed">Failed Species (${failed.length})</h5>
+                        ${failed.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0;">Scroll to see all ' + failed.length + ' species</p>' : ''}
                         <div class="species-list">
                 `;
                 
@@ -2171,6 +2176,7 @@
                 html += `
                     <div class="results-section success-section">
                         <h5 class="section-title success">Successful Species (${successful.length})</h5>
+                        ${successful.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0;">Scroll to see all ' + successful.length + ' species</p>' : ''}
                         <div class="species-list">
                 `;
                 
