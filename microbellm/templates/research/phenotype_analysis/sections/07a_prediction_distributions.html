@@ -130,6 +130,11 @@
         font-weight: 600;
         position: relative;
         min-width: 16px;
+        transition: opacity 0.2s;
+    }
+    
+    .bar-segment:hover {
+        opacity: 0.9;
     }
     
     .bar-number {
@@ -248,6 +253,12 @@
                 }
             });
         }
+        
+        // Also listen for custom event
+        window.addEventListener('phenotypeDataUpdated', function(event) {
+            // Always re-render when we get new data
+            renderDistributions(event.detail);
+        });
     }
     
     function initializeWithMockData() {
@@ -315,6 +326,9 @@
         componentInitialized = true;
         const container = document.getElementById('phenotypeDistributionsContent');
         if (!container) return;
+        
+        // Clear any existing content
+        container.innerHTML = '';
         
         const phenotypes = {
             'gram_staining': { name: 'Gram Staining' },
@@ -496,37 +510,77 @@
             return { background: '#e2e3e5', color: '#6c757d' };
         }
         
+        // Convert value to string for consistent comparison
+        const valueStr = String(value);
+        
         const colorMappings = {
             'gram_staining': {
                 'Positive': { background: '#4caf50', color: 'white' },
-                'Negative': { background: '#f44336', color: 'white' }
+                'Negative': { background: '#f44336', color: 'white' },
+                'positive': { background: '#4caf50', color: 'white' },
+                'negative': { background: '#f44336', color: 'white' },
+                'Gram-positive': { background: '#4caf50', color: 'white' },
+                'Gram-negative': { background: '#f44336', color: 'white' },
+                'gram-positive': { background: '#4caf50', color: 'white' },
+                'gram-negative': { background: '#f44336', color: 'white' }
             },
             'motility': {
                 'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' }
+                'FALSE': { background: '#94a3b8', color: 'white' },
+                'True': { background: '#22c55e', color: 'white' },
+                'False': { background: '#94a3b8', color: 'white' },
+                'true': { background: '#22c55e', color: 'white' },
+                'false': { background: '#94a3b8', color: 'white' }
             },
             'biofilm_formation': {
                 'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' }
+                'FALSE': { background: '#94a3b8', color: 'white' },
+                'True': { background: '#22c55e', color: 'white' },
+                'False': { background: '#94a3b8', color: 'white' },
+                'true': { background: '#22c55e', color: 'white' },
+                'false': { background: '#94a3b8', color: 'white' }
             },
             'spore_formation': {
                 'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' }
+                'FALSE': { background: '#94a3b8', color: 'white' },
+                'True': { background: '#22c55e', color: 'white' },
+                'False': { background: '#94a3b8', color: 'white' },
+                'true': { background: '#22c55e', color: 'white' },
+                'false': { background: '#94a3b8', color: 'white' }
             },
             'aerophilicity': {
                 'Aerobic': { background: '#2196f3', color: 'white' },
                 'Anaerobic': { background: '#ff9800', color: 'white' },
-                'Facultative': { background: '#9c27b0', color: 'white' }
+                'Facultative': { background: '#9c27b0', color: 'white' },
+                'aerobic': { background: '#2196f3', color: 'white' },
+                'anaerobic': { background: '#ff9800', color: 'white' },
+                'facultative': { background: '#9c27b0', color: 'white' },
+                'Facultative anaerobe': { background: '#9c27b0', color: 'white' },
+                'facultative anaerobe': { background: '#9c27b0', color: 'white' },
+                'Obligate aerobe': { background: '#2196f3', color: 'white' },
+                'obligate aerobe': { background: '#2196f3', color: 'white' },
+                'Obligate anaerobe': { background: '#ff9800', color: 'white' },
+                'obligate anaerobe': { background: '#ff9800', color: 'white' }
             },
             'cell_shape': {
                 'Coccus': { background: '#3f51b5', color: 'white' },
                 'Bacillus': { background: '#009688', color: 'white' },
                 'Spiral': { background: '#ff5722', color: 'white' },
-                'Other': { background: '#607d8b', color: 'white' }
+                'Other': { background: '#607d8b', color: 'white' },
+                'coccus': { background: '#3f51b5', color: 'white' },
+                'bacillus': { background: '#009688', color: 'white' },
+                'spiral': { background: '#ff5722', color: 'white' },
+                'other': { background: '#607d8b', color: 'white' }
             }
         };
         
-        return colorMappings[phenotypeKey]?.[value] || { background: '#f8f9fa', color: '#495057' };
+        // Check for exact match
+        if (colorMappings[phenotypeKey]?.[valueStr]) {
+            return colorMappings[phenotypeKey][valueStr];
+        }
+        
+        // Fallback to gray
+        return { background: '#f8f9fa', color: '#495057' };
     }
     
     function formatModelName(modelName) {
@@ -553,7 +607,8 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', waitForData);
     } else {
-        waitForData();
+        // Small delay to ensure main scripts have run
+        setTimeout(waitForData, 100);
     }
 })();
 </script>

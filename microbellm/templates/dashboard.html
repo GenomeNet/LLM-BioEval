@@ -98,11 +98,13 @@
                                             {% set cell_data = dashboard_data.matrix.get(cell_key, {}).get('models', {}).get(model) %}
                                             <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
                                                 {% if cell_data %}
-                                                    <div class="status-cell status-{{ cell_data.status }} {% if cell_data.historical %}historical{% endif %}" 
-                                                         {% if cell_data.id %}onclick="showCombinationDetails({{ cell_data.id }})"{% endif %} 
-                                                         data-combination-id="{{ cell_data.id or 'historical' }}">
+                                                    <div class="status-cell status-{{ cell_data.status }} {% if cell_data.historical %}historical{% endif %} {% if cell_data.orphaned %}orphaned{% endif %}" 
+                                                         {% if cell_data.id %}onclick="showCombinationDetails({{ cell_data.id }})"{% elif cell_data.orphaned %}onclick="showOrphanedDetails('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')"{% endif %} 
+                                                         data-combination-id="{{ cell_data.id or 'orphaned' }}">
                                                         {% if cell_data.id %}
                                                             <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination({{ cell_data.id }})">&times;</button>
+                                                        {% elif cell_data.orphaned %}
+                                                            <button class="delete-btn" onclick="event.stopPropagation(); deleteOrphanedResults('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" title="Delete orphaned results">&times;</button>
                                                         {% endif %}
                                                         <div class="progress-info">
                                                             <div class="progress-main">
@@ -795,6 +797,23 @@
         background: #dc3545;
         color: white;
         transform: scale(1.1);
+    }
+    
+    .status-cell.orphaned {
+        background: #fff5f5;
+        border-color: #feb2b2;
+        position: relative;
+    }
+    
+    .status-cell.orphaned::after {
+        content: "⚠ Orphaned";
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        font-size: 9px;
+        color: #e53e3e;
+        opacity: 0.7;
+        font-weight: 600;
     }
     
     /* Progress bar */
@@ -2394,6 +2413,36 @@
                     }
                 });
         }
+    }
+    
+    function deleteOrphanedResults(speciesFile, model, sysTemplate, userTemplate) {
+        if (confirm('Delete these orphaned results? They exist in the database but have no associated combination.')) {
+            // Encode the parameters to handle special characters in paths
+            const encodedSpeciesFile = encodeURIComponent(speciesFile);
+            const encodedModel = encodeURIComponent(model);
+            const encodedSysTemplate = encodeURIComponent(sysTemplate);
+            const encodedUserTemplate = encodeURIComponent(userTemplate);
+            
+            fetch(`/api/cleanup_orphaned/${encodedSpeciesFile}/${encodedModel}/${encodedSysTemplate}/${encodedUserTemplate}`, {method: 'DELETE'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(`Deleted ${data.deleted_count} orphaned results`, 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showNotification('Failed to delete orphaned results: ' + data.error, 'error');
+                    }
+                })
+                .catch(err => {
+                    showNotification('Error: ' + err.message, 'error');
+                });
+        }
+    }
+    
+    function showOrphanedDetails(speciesFile, model, sysTemplate, userTemplate) {
+        showNotification('These are orphaned results - they exist in the database but have no associated combination. Use the × button to delete them.', 'warning');
     }
     
     function reparsePhenotypeData(combinationId) {

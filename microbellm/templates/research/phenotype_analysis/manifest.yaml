@@ -91,12 +91,13 @@ sections:
     title: "Model Phenotype Predictions"
     text: "Comprehensive analysis of how different language models predict bacterial phenotypes, revealing patterns in biological knowledge representation."
     
-  # Model Prediction Distributions - Full Width
+  # Model Prediction Distributions - Dynamic Full Width
   - id: "prediction_distributions"
-    type: "section_wide"
+    type: "section_callout_dynamic"
     file: "sections/07a_prediction_distributions.html"
+    container_id: "phenotypeDistributionsContent"
     title: "Model Prediction Distributions by Phenotype"
-    dynamic: true
+    text: "Visual breakdown of how each model predicts different phenotype values, showing distribution patterns and confidence levels across bacterial characteristics."
     
   # Placeholder text section 2
   - id: "placeholder_text_2"

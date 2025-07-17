@@ -824,7 +824,8 @@ class ProcessingManager:
                     'failed': failed or 0,
                     'timeouts': timeouts or 0,
                     'submitted': total,
-                    'historical': True  # Mark as historical data
+                    'historical': True,  # Mark as historical data
+                    'orphaned': True  # Mark as orphaned (no combination)
                 }
             
             # Also make sure this model is in our models list
@@ -1601,6 +1602,41 @@ def delete_combination_api(combination_id):
         cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
         conn.commit()
         return jsonify({'success': True, 'message': 'Combination deleted successfully'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/cleanup_orphaned/<species_file>/<model>/<system_template>/<user_template>', methods=['DELETE'])
+def cleanup_orphaned_results_api(species_file, model, system_template, user_template):
+    """Delete orphaned results that don't have a combination"""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        # Delete orphaned results
+        cursor.execute("""
+            DELETE FROM results 
+            WHERE species_file = ? AND model = ? 
+            AND system_template = ? AND user_template = ?
+            AND NOT EXISTS (
+                SELECT 1 FROM combinations c 
+                WHERE c.species_file = results.species_file 
+                AND c.model = results.model 
+                AND c.system_template = results.system_template 
+                AND c.user_template = results.user_template
+            )
+        """, (species_file, model, system_template, user_template))
+        
+        deleted_count = cursor.rowcount
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Deleted {deleted_count} orphaned results',
+            'deleted_count': deleted_count
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
