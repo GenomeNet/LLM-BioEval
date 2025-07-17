@@ -121,6 +121,7 @@ class ProcessingManager:
             combination = cursor.fetchone()
             
             if not combination:
+                print(f"ERROR: Combination {combination_id} not found in database")
                 return
                 
             species_file = combination[1]
@@ -128,17 +129,97 @@ class ProcessingManager:
             system_template = combination[3]
             user_template = combination[4]
             
+            print(f"Processing combination {combination_id}:")
+            print(f"  Species file: {species_file}")
+            print(f"  Model: {model}")
+            print(f"  System template: {system_template}")
+            print(f"  User template: {user_template}")
+            
             # Read species file and templates
             try:
-                df = pd.read_csv(species_file, sep='\t')
+                # Check if species file exists
+                if not Path(species_file).exists():
+                    # Try to resolve relative to project root
+                    from microbellm.shared import PROJECT_ROOT
+                    species_path = PROJECT_ROOT / config.SPECIES_DIR / Path(species_file).name
+                    if species_path.exists():
+                        species_file = str(species_path)
+                        print(f"  Resolved species file path to: {species_file}")
+                    else:
+                        raise FileNotFoundError(f"Species file not found: {species_file}")
+                
+                # Try to read the species file with different separators
+                # First, try to detect the separator by reading the first line
+                with open(species_file, 'r') as f:
+                    first_line = f.readline().strip()
+                    if '\t' in first_line:
+                        sep = '\t'
+                        sep_name = 'tab'
+                    elif ',' in first_line:
+                        sep = ','
+                        sep_name = 'comma'
+                    else:
+                        sep = None
+                        sep_name = 'auto'
+                
+                try:
+                    if sep:
+                        df = pd.read_csv(species_file, sep=sep)
+                        print(f"  Read species file with {sep_name} separator")
+                    else:
+                        # Let pandas auto-detect
+                        df = pd.read_csv(species_file)
+                        print(f"  Read species file with auto-detected separator")
+                except Exception as e:
+                    raise ValueError(f"Failed to read species file: {e}")
+                
+                # Check for binomial_name column (case-insensitive)
+                print(f"  Columns found in file: {list(df.columns)}")
+                
+                binomial_col = None
+                # Try exact match first
+                if 'binomial_name' in df.columns:
+                    binomial_col = 'binomial_name'
+                else:
+                    # Try case-insensitive and space variations
+                    for col in df.columns:
+                        col_lower = col.lower().replace(' ', '_')
+                        if col_lower == 'binomial_name' or col_lower == 'binomial_name':
+                            binomial_col = col
+                            break
+                        elif col_lower in ['species', 'taxon_name', 'organism', 'species_name']:
+                            binomial_col = col
+                            break
+                
+                if binomial_col:
+                    if binomial_col != 'binomial_name':
+                        print(f"  Using column '{binomial_col}' as binomial_name")
+                        df['binomial_name'] = df[binomial_col]
+                else:
+                    raise ValueError(f"Could not find binomial_name column in {species_file}. Found columns: {list(df.columns)}")
+                
                 species_list = df['binomial_name'].tolist()
+                print(f"  Found {len(species_list)} species to process")
                 
                 system_prompt = read_template_from_file(system_template)
                 user_prompt = read_template_from_file(user_template)
+                print(f"  Successfully loaded templates")
+                
+                # Update total species count
+                cursor.execute("UPDATE combinations SET total_species = ? WHERE id = ?", 
+                             (len(species_list), combination_id))
+                conn.commit()
+                
             except Exception as e:
+                error_msg = f"Error reading files for combination {combination_id}: {str(e)}"
+                print(f"ERROR: {error_msg}")
                 cursor.execute("UPDATE combinations SET status = 'failed' WHERE id = ?", (combination_id,))
                 conn.commit()
-                print(f"Error reading files: {e}")
+                # Emit error to frontend
+                socketio.emit('job_error', {
+                    'combination_id': combination_id,
+                    'error': error_msg
+                })
                 return
             
             # Process species with rate limiting and concurrent execution
@@ -187,6 +268,8 @@ class ProcessingManager:
                         """, (combination_id, species_name, result, status, error))
                         conn.commit()
                         
+                        print(f"    Stored result for {species_name}: status={status}")
+                        
                         if status == 'completed':
                             successful += 1
                         elif status == 'timeout':
@@ -225,6 +308,8 @@ class ProcessingManager:
                                 """, (combination_id, species_name, result, status, error))
                                 conn.commit()
                                 
+                                print(f"    Stored result for {species_name}: status={status}")
+                                
                                 if status == 'completed':
                                     successful += 1
                                 elif status == 'timeout':
@@ -254,13 +339,28 @@ class ProcessingManager:
                 except Exception as e:
                     failed += 1
                     
-            # Update combination status
+            # Update combination status and final counts
             final_status = 'completed'
             if combination_id in self.stopped_combinations:
                 final_status = 'interrupted'
-                
-            cursor.execute("UPDATE combinations SET status = ?, completed_at = ? WHERE id = ?", 
-                         (final_status, datetime.now(), combination_id))
+            
+            print(f"\nFinal results for combination {combination_id}:")
+            print(f"  Total: {total_species}")
+            print(f"  Successful: {successful}")
+            print(f"  Failed: {failed}")
+            print(f"  Timeouts: {timeouts}")
+            
+            # Update with final counts
+            cursor.execute("""
+                UPDATE combinations 
+                SET status = ?, 
+                    completed_at = ?,
+                    successful_species = ?,
+                    failed_species = ?,
+                    timeout_species = ?,
+                    total_species = ?
+                WHERE id = ?
+            """, (final_status, datetime.now(), successful, failed, timeouts, total_species, combination_id))
             conn.commit()
             
             # Final update
@@ -294,23 +394,30 @@ class ProcessingManager:
         # Rate limiting
         self._apply_rate_limit(model)
         
+        print(f"  Processing species: {species} with model: {model}")
+        
         try:
             # Make prediction
             result = predict_binomial_name(
                 binomial_name=species,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=model
+                system_template=system_prompt,
+                user_template=user_prompt,
+                model=model,
+                verbose=True  # Enable verbose logging
             )
             
             if result:
+                print(f"    ✓ Success: {species}")
                 return json.dumps(result), 'completed', None
             else:
+                print(f"    ✗ Failed: {species} - No result returned")
                 return None, 'failed', 'No result returned'
                 
         except requests.exceptions.Timeout:
+            print(f"    ⏱ Timeout: {species}")
             return None, 'timeout', 'Request timed out'
         except Exception as e:
+            print(f"    ✗ Error processing {species}: {str(e)}")
             return None, 'failed', str(e)
     
     def _apply_rate_limit(self, model):
@@ -338,19 +445,26 @@ class ProcessingManager:
     
     def start_combination(self, combination_id):
         """Start processing a combination"""
+        print(f"\n=== Starting combination {combination_id} ===")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # Check if combination exists and is not already running
-        cursor.execute("SELECT status FROM combinations WHERE id = ?", (combination_id,))
+        cursor.execute("SELECT status, species_file, model, system_template, user_template FROM combinations WHERE id = ?", (combination_id,))
         result = cursor.fetchone()
         
         if not result:
+            print(f"ERROR: Combination {combination_id} not found")
             conn.close()
             return False
             
-        status = result[0]
+        status, species_file, model, sys_tmpl, usr_tmpl = result
+        print(f"Current status: {status}")
+        print(f"Species file: {species_file}")
+        print(f"Model: {model}")
+        
         if status == 'running':
+            print(f"WARNING: Combination {combination_id} is already running")
             conn.close()
             return False
         
@@ -359,6 +473,7 @@ class ProcessingManager:
         conn.commit()
         conn.close()
         
+        print(f"Added combination {combination_id} to processing queue")
         # Add to processing queue
         self.add_combination(combination_id)
         return True
@@ -432,31 +547,78 @@ class ProcessingManager:
         models = [row[0] for row in cursor.fetchall()]
         
         # Get unique species files from both combinations and managed_species_files
+        # Also include files from results table for historical data
         cursor.execute("""
             SELECT DISTINCT species_file FROM (
                 SELECT DISTINCT species_file FROM combinations
                 UNION
                 SELECT species_file FROM managed_species_files
+                UNION
+                SELECT DISTINCT species_file FROM results
             ) ORDER BY species_file
         """)
-        species_files = [row[0] for row in cursor.fetchall()]
         
-        # Get template display info
+        # Normalize paths to avoid duplicates
+        seen_files = set()
+        species_files = []
+        for row in cursor.fetchall():
+            file_path = row[0]
+            # Get just the filename for comparison
+            file_name = Path(file_path).name
+            if file_name not in seen_files:
+                seen_files.add(file_name)
+                species_files.append(file_path)
+        
+        # Get template display info from all available templates, not just used ones
         template_info = []
+        available_templates = get_available_template_pairs()
+        
+        # First add all available templates
+        for template_pair in available_templates:
+            template_info.append({
+                'system_template': template_pair['system'],
+                'user_template': template_pair['user'],
+                'display_name': template_pair['name'],
+                'description': f'Template: {template_pair["name"]}',
+                'template_type': detect_template_type(template_pair['user']) if template_pair['user'] else 'unknown'
+            })
+        
+        # Also check if there are any templates in combinations that aren't in the filesystem
         cursor.execute("SELECT DISTINCT system_template, user_template FROM combinations")
         for row in cursor.fetchall():
-            template_info.append({
-                'system_template': row[0],
-                'user_template': row[1],
-                'display_name': Path(row[0]).stem,
-                'description': f'Template: {Path(row[0]).stem}',
-                'template_type': detect_template_type(row[1]) if row[1] else 'unknown'
-            })
+            # Check if this template is already in our list
+            found = False
+            for t in template_info:
+                if t['system_template'] == row[0] and t['user_template'] == row[1]:
+                    found = True
+                    break
+            if not found:
+                template_info.append({
+                    'system_template': row[0],
+                    'user_template': row[1],
+                    'display_name': Path(row[0]).stem,
+                    'description': f'Template: {Path(row[0]).stem} (from DB)',
+                    'template_type': detect_template_type(row[1]) if row[1] else 'unknown'
+                })
         
         # Create matrix structure
         matrix = {}
+        
+        # Debug: Print what we have
+        
+        # Helper function to normalize paths for consistent keys
+        def normalize_key_path(species_file, sys_tmpl, usr_tmpl):
+            # Normalize species file to just the filename
+            species_name = Path(species_file).name
+            # Normalize template paths to just the filename
+            sys_name = Path(sys_tmpl).name if sys_tmpl else sys_tmpl
+            usr_name = Path(usr_tmpl).name if usr_tmpl else usr_tmpl
+            return f"{species_name}|{sys_name}|{usr_name}"
+        
+        # First, add data from combinations table
         for combo in combinations:
-            key = f"{combo['species_file']}|{combo['system_template']}|{combo['user_template']}"
+            # Use normalized key
+            key = normalize_key_path(combo['species_file'], combo['system_template'], combo['user_template'])
             if key not in matrix:
                 matrix[key] = {'models': {}}
             matrix[key]['models'][combo['model']] = {
@@ -468,6 +630,53 @@ class ProcessingManager:
                 'timeouts': combo['timeouts'],
                 'submitted': combo['submitted'] if combo['submitted'] else (combo['successful'] + combo['failed'] + combo['timeouts'])
             }
+        
+        # Also check the results table for historical data
+        # Only add results that don't already have a combination entry
+        cursor.execute("""
+            SELECT r.species_file, r.model, r.system_template, r.user_template, 
+                   COUNT(*) as total,
+                   SUM(CASE WHEN r.status = 'completed' OR r.status IS NULL THEN 1 ELSE 0 END) as successful,
+                   SUM(CASE WHEN r.status = 'failed' THEN 1 ELSE 0 END) as failed,
+                   SUM(CASE WHEN r.status = 'timeout' THEN 1 ELSE 0 END) as timeouts
+            FROM results r
+            WHERE NOT EXISTS (
+                SELECT 1 FROM combinations c 
+                WHERE c.species_file = r.species_file 
+                AND c.model = r.model 
+                AND c.system_template = r.system_template 
+                AND c.user_template = r.user_template
+            )
+            GROUP BY r.species_file, r.model, r.system_template, r.user_template
+        """)
+        
+        # Add historical results to matrix if not already present
+        for row in cursor.fetchall():
+            species_file, model, sys_tmpl, usr_tmpl, total, successful, failed, timeouts = row
+            key = f"{species_file}|{sys_tmpl}|{usr_tmpl}"
+            
+            if key not in matrix:
+                matrix[key] = {'models': {}}
+            
+            # Only add if this model isn't already in the matrix for this key
+            if model not in matrix[key]['models']:
+                matrix[key]['models'][model] = {
+                    'id': None,  # No combination ID for historical data
+                    'status': 'completed',  # Historical data is completed
+                    'total': total,
+                    'successful': successful or 0,
+                    'failed': failed or 0,
+                    'timeouts': timeouts or 0,
+                    'submitted': total,
+                    'historical': True  # Mark as historical data
+                }
+            
+            # Also make sure this model is in our models list
+            if model not in models:
+                models.append(model)
+        
+        # Re-sort models
+        models.sort()
         
         conn.close()
         
@@ -496,51 +705,91 @@ class ProcessingManager:
             conn.close()
             return jsonify({'error': 'Combination not found'}), 404
         
-        # Get species results from the results table
+        # First try to get species results from the species_results table (for new combinations)
         cursor.execute("""
-            SELECT binomial_name, result, status, error, knowledge_group,
-                   gram_staining, motility, aerophilicity, extreme_environment_tolerance,
-                   biofilm_formation, animal_pathogenicity, biosafety_level,
-                   health_association, host_association, plant_pathogenicity,
-                   spore_formation, hemolysis, cell_shape
-            FROM results 
-            WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-        """, (combo[1], combo[2], combo[3], combo[4]))
+            SELECT binomial_name, result, status, error
+            FROM species_results 
+            WHERE combination_id = ?
+        """, (combination_id,))
+        
+        species_results_raw = cursor.fetchall()
+        
+        # If no results in species_results, try the results table (for historical data)
+        if not species_results_raw:
+            print(f"No results in species_results for combination {combination_id}, checking results table...")
+            cursor.execute("""
+                SELECT binomial_name, result, status, error, knowledge_group,
+                       gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                       biofilm_formation, animal_pathogenicity, biosafety_level,
+                       health_association, host_association, plant_pathogenicity,
+                       spore_formation, hemolysis, cell_shape
+                FROM results 
+                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+            """, (combo[1], combo[2], combo[3], combo[4]))
+            species_results_raw = cursor.fetchall()
+            from_results_table = True
+        else:
+            from_results_table = False
+            print(f"Found {len(species_results_raw)} results in species_results for combination {combination_id}")
         
         species_results = []
-        for row in cursor.fetchall():
-            result_data = {
-                'binomial_name': row[0],
-                'result': row[1],
-                'status': row[2] or 'completed',  # Default to completed if no status
-                'error': row[3],
-                'knowledge_group': row[4]
-            }
-            
-            # Collect phenotypes from individual columns
-            phenotypes = {}
-            phenotype_columns = [
-                ('gram_staining', row[5]),
-                ('motility', row[6]),
-                ('aerophilicity', row[7]),
-                ('extreme_environment_tolerance', row[8]),
-                ('biofilm_formation', row[9]),
-                ('animal_pathogenicity', row[10]),
-                ('biosafety_level', row[11]),
-                ('health_association', row[12]),
-                ('host_association', row[13]),
-                ('plant_pathogenicity', row[14]),
-                ('spore_formation', row[15]),
-                ('hemolysis', row[16]),
-                ('cell_shape', row[17])
-            ]
-            
-            for col_name, value in phenotype_columns:
-                if value and value.strip():
-                    phenotypes[col_name] = value
-            
-            if phenotypes:
-                result_data['phenotypes'] = phenotypes
+        for row in species_results_raw:
+            if from_results_table:
+                # Results table has more columns
+                result_data = {
+                    'binomial_name': row[0],
+                    'result': row[1],
+                    'status': row[2] or 'completed',  # Default to completed if no status
+                    'error': row[3],
+                    'knowledge_group': row[4] if len(row) > 4 else None
+                }
+                
+                # Collect phenotypes from individual columns if available
+                if len(row) > 5:
+                    phenotypes = {}
+                    phenotype_columns = [
+                        ('gram_staining', row[5]),
+                        ('motility', row[6]),
+                        ('aerophilicity', row[7]),
+                        ('extreme_environment_tolerance', row[8]),
+                        ('biofilm_formation', row[9]),
+                        ('animal_pathogenicity', row[10]),
+                        ('biosafety_level', row[11]),
+                        ('health_association', row[12]),
+                        ('host_association', row[13]),
+                        ('plant_pathogenicity', row[14]),
+                        ('spore_formation', row[15]),
+                        ('hemolysis', row[16]),
+                        ('cell_shape', row[17])
+                    ]
+                    
+                    for col_name, value in phenotype_columns:
+                        if value and value.strip():
+                            phenotypes[col_name] = value
+                    
+                    if phenotypes:
+                        result_data['phenotypes'] = phenotypes
+            else:
+                # species_results table has fewer columns
+                result_data = {
+                    'binomial_name': row[0],
+                    'result': row[1],
+                    'status': row[2] or 'completed',
+                    'error': row[3]
+                }
+                
+                # Try to parse result JSON if available
+                if row[1]:
+                    try:
+                        parsed_result = json.loads(row[1])
+                        if isinstance(parsed_result, dict):
+                            # Extract any fields from the parsed result
+                            if 'knowledge_group' in parsed_result:
+                                result_data['knowledge_group'] = parsed_result['knowledge_group']
+                            if 'phenotypes' in parsed_result:
+                                result_data['phenotypes'] = parsed_result['phenotypes']
+                    except json.JSONDecodeError:
+                        pass
             
             species_results.append(result_data)
         
@@ -569,6 +818,19 @@ class ProcessingManager:
         cursor = conn.cursor()
         
         created = []
+        
+        # Resolve full path for species file
+        from microbellm.shared import PROJECT_ROOT
+        species_path = Path(species_file)
+        if not species_path.is_absolute():
+            # Try to find the file in the species directory
+            species_dir = PROJECT_ROOT / config.SPECIES_DIR
+            full_path = species_dir / species_file
+            if full_path.exists():
+                species_file = str(full_path)
+                print(f"Resolved species file to: {species_file}")
+            else:
+                print(f"WARNING: Could not find species file: {species_file} in {species_dir}")
         
         try:
             for model in models:
@@ -951,23 +1213,30 @@ def get_available_species_files():
     # Get directory from config
     species_dir = Path(config.SPECIES_DIR)
     
+    print(f"\n=== Looking for species files ===")
+    print(f"Config SPECIES_DIR: {config.SPECIES_DIR}")
+    
     # Try absolute path first
     if not species_dir.is_absolute():
         # Try relative to project root
         from microbellm.shared import PROJECT_ROOT
         species_dir = PROJECT_ROOT / species_dir
+        print(f"Trying relative to PROJECT_ROOT: {species_dir}")
     
     if not species_dir.exists():
         # Try relative to the script location
         species_dir = Path(__file__).parent.parent / config.SPECIES_DIR
+        print(f"Trying relative to script: {species_dir}")
     
     if not species_dir.exists():
-        print(f"Warning: Species directory not found at {species_dir}")
+        print(f"ERROR: Species directory not found at {species_dir}")
         return []
     
     # Look for .tsv and .txt files
     files = list(species_dir.glob('*.tsv')) + list(species_dir.glob('*.txt'))
     print(f"Found {len(files)} species files in {species_dir}")
+    for f in files:
+        print(f"  - {f.name}")
     return [f.name for f in files]
 
 def get_popular_models():
@@ -1329,17 +1598,24 @@ def api_key_status():
     """Check if API key is configured"""
     api_key = os.getenv('OPENROUTER_API_KEY')
     if api_key:
-        # Optionally validate the key with a test request
+        # Mask the API key for display (show first 6 and last 4 characters)
+        if len(api_key) > 10:
+            masked_key = api_key[:6] + '*' * (len(api_key) - 10) + api_key[-4:]
+        else:
+            masked_key = '*' * len(api_key)
+        
         return jsonify({
             'configured': True,
             'status': 'configured',
-            'message': 'API key is set'
+            'message': 'API key is set',
+            'masked_key': masked_key
         })
     else:
         return jsonify({
             'configured': False,
             'status': 'missing',
-            'message': 'No API key found'
+            'message': 'No API key found',
+            'masked_key': None
         })
 
 @app.route('/api/set_api_key', methods=['POST'])
@@ -1349,7 +1625,7 @@ def set_api_key():
     api_key = data.get('api_key')
     
     if not api_key:
-        return jsonify({'status': 'error', 'message': 'API key required'}), 400
+        return jsonify({'success': False, 'status': 'error', 'message': 'API key required'}), 400
     
     try:
         # Update .env file
@@ -1375,9 +1651,9 @@ def set_api_key():
         # Update environment variable for current session
         os.environ['OPENROUTER_API_KEY'] = api_key
         
-        return jsonify({'status': 'success', 'message': 'API key updated successfully'})
+        return jsonify({'success': True, 'status': 'success', 'message': 'API key updated successfully'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'success': False, 'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/get_openrouter_models')
 def get_openrouter_models():

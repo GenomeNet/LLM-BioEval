@@ -51,8 +51,13 @@ class OpenRouterProvider(LLMProvider):
             raise ValueError("OpenRouter API key is not set.")
 
         if verbose:
-            print("Raw query to OpenRouter API:")
+            print(f"\n=== OpenRouter API Request ===")
+            print(f"Model: {model}")
+            print(f"Temperature: {temperature}")
+            print(f"API Key: {'Set' if self.api_key else 'NOT SET'}")
+            print("Messages:")
             print(json.dumps(messages, indent=2))
+            print("============================")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -66,7 +71,14 @@ class OpenRouterProvider(LLMProvider):
         }
         
         try:
+            if verbose:
+                print(f"Sending request to: {self.API_URL}")
+                
             response = requests.post(self.API_URL, headers=headers, json=data, timeout=30)
+            
+            if verbose:
+                print(f"Response status: {response.status_code}")
+                
             response.raise_for_status()
             
             completion = response.json()
@@ -82,9 +94,17 @@ class OpenRouterProvider(LLMProvider):
             print(f"Timeout querying OpenRouter API for model {model}")
             raise TimeoutError(f"OpenRouter API timeout after 30 seconds for model {model}")
         except requests.exceptions.RequestException as e:
-            print(f"Error querying OpenRouter API: {e}")
+            print(f"\nERROR: OpenRouter API request failed")
+            print(f"  Model: {model}")
+            print(f"  Error Type: {type(e).__name__}")
+            print(f"  Error: {str(e)}")
             if hasattr(e, 'response') and e.response is not None:
-                print(f"Response content: {e.response.text}")
+                print(f"  Status Code: {e.response.status_code}")
+                try:
+                    error_data = e.response.json()
+                    print(f"  API Error Details: {json.dumps(error_data, indent=2)}")
+                except:
+                    print(f"  Response Text: {e.response.text[:500]}..." if len(e.response.text) > 500 else f"  Response Text: {e.response.text}")
             return None
         except KeyError as e:
             print(f"Error parsing OpenRouter API response: {e}")

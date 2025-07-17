@@ -194,6 +194,15 @@
     margin-bottom: calc(var(--spacing-element) * 0.833);
 }
 
+/* Apply article-text styling to all paragraphs in article sections */
+.article-content p,
+.article-section-spacing p {
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--gray-700);
+    margin-bottom: calc(var(--spacing-element) * 0.833);
+}
+
 /* Full-width variant for text in wide sections */
 .section-wide .article-text,
 .section-callout .article-text {

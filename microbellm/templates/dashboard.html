@@ -91,12 +91,19 @@
                                             <button class="btn btn-ghost btn-sm" onclick="deleteSpeciesFile('{{ species_file }}')" title="Remove file">×</button>
                                         </td>
                                         {% for model in dashboard_data.models %}
-                                            {% set cell_key = species_file + '|' + sys_template + '|' + user_template %}
+                                            {% set species_name = species_file.split('/')[-1] %}
+                                            {% set sys_name = sys_template.split('/')[-1] if sys_template else sys_template %}
+                                            {% set usr_name = user_template.split('/')[-1] if user_template else user_template %}
+                                            {% set cell_key = species_name + '|' + sys_name + '|' + usr_name %}
                                             {% set cell_data = dashboard_data.matrix.get(cell_key, {}).get('models', {}).get(model) %}
                                             <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
                                                 {% if cell_data %}
-                                                    <div class="status-cell status-{{ cell_data.status }}" onclick="showCombinationDetails({{ cell_data.id }})" data-combination-id="{{ cell_data.id }}">
-                                                        <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination({{ cell_data.id }})">&times;</button>
+                                                    <div class="status-cell status-{{ cell_data.status }} {% if cell_data.historical %}historical{% endif %}" 
+                                                         {% if cell_data.id %}onclick="showCombinationDetails({{ cell_data.id }})"{% endif %} 
+                                                         data-combination-id="{{ cell_data.id or 'historical' }}">
+                                                        {% if cell_data.id %}
+                                                            <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination({{ cell_data.id }})">&times;</button>
+                                                        {% endif %}
                                                         <div class="progress-info">
                                                             <div class="progress-main">
                                                                 {% if cell_data.status == 'running' %}
@@ -669,6 +676,18 @@
         background: #fff3cd;
         border-color: #ffeaa7;
         color: #856404;
+    }
+    
+    /* Historical results styling */
+    .status-cell.historical {
+        background: #e8f4f8;
+        border: 2px dashed #b0d4e3;
+        cursor: default;
+    }
+    
+    .status-cell.historical:hover {
+        transform: none;
+        box-shadow: none;
     }
     
     .status-running {

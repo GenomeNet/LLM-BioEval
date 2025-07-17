@@ -13,6 +13,15 @@
     display: none;
 }
 
+/* Remove default table borders for clean look */
+table {
+    border: none !important;
+}
+
+th, td {
+    border: none !important;
+}
+
 /* Loading animation styles */
 .loading-container {
     text-align: center;
@@ -397,15 +406,15 @@
         <div class="knowledge-analysis-overview">
             <div class="model-ranking-table" style="margin-top: 32px;">
                 <h4 style="font-size: 18px; margin-bottom: 20px; font-weight: 600;">Complete Model Ranking</h4>
-                <div class="table-wrapper" style="background: transparent;">
+                <div class="table-wrapper" style="background: #FAFAFA; border: 1px solid #f3f4f6; border-radius: 8px; overflow: hidden;">
                     <table class="ranking-table" style="width: 100%; border-collapse: collapse; background: transparent;">
                         <thead>
-                            <tr style="border-bottom: 1px solid #f3f4f6;">
-                                <th style="width: 60px; padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">RANK</th>
-                                <th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">MODEL</th>
-                                <th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">QUALITY SCORE</th>
-                                <th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">SAMPLES</th>
-                                <th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">KNOWLEDGE DISTRIBUTION</th>
+                            <tr style="background: #F9FAFB; border-bottom: 1px solid #f3f4f6;">
+                                <th style="width: 60px; padding: 12px 16px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Rank</th>
+                                <th style="width: 180px; padding: 12px 16px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Model</th>
+                                <th style="padding: 12px 16px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Quality Score</th>
+                                <th style="padding: 12px 16px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Samples</th>
+                                <th style="min-width: 400px; padding: 12px 16px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Knowledge Distribution</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -471,27 +480,39 @@
         
         // Create compact table layout for each template
         templateArray.forEach((templateName, templateIndex) => {
-            // Section header with title and description
-            html += `<div class="template-section-header" style="margin-top: 48px; margin-bottom: 24px;">`;
-            html += `<h3 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">${templateName}</h3>`;
-            html += `<p style="font-size: 16px; color: #6b7280; line-height: 1.6;">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
-            html += `</div>`;
+            // Section header with title and description - matching the Complete Model Ranking style
+            html += `<div style="margin-top: 48px;">`;
+            html += `<h4 style="font-size: 18px; margin-bottom: 8px; font-weight: 600;">${templateName}</h4>`;
+            html += `<p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-bottom: 20px;">${templateDescriptions[templateName] || 'Template for model evaluation'}. The bar charts below show response distributions for each model across the artificial species categories.</p>`;
             
             html += createBarChartLegend();
             
+            html += `</div>`; // Close the section div
+            
             html += `<div class="table-fade" id="table-fade-${templateIndex}" style="margin-top: 16px;">`;
-            html += `<div style="overflow-x: auto;">`;
+            html += `<div style="overflow-x: auto; background: #FAFAFA; border: 1px solid #f3f4f6; border-radius: 8px; overflow: hidden;">`;
             html += `<table style="width: 100%; border-collapse: collapse; background: transparent;">`;
             
             // Header row
-            html += `<thead><tr>`;
-            html += `<th>Model</th>`;
-            inputTypeArray.forEach(inputType => {
-                const displayType = formatTypeName(inputType);
-                html += `<th>${displayType}</th>`;
+            html += `<thead>`;
+            html += `<tr style="background: #F9FAFB; border-bottom: 1px solid #f3f4f6;">`;
+            html += `<th style="padding: 12px 16px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Model</th>`;
+            inputTypeArray.forEach((inputType, idx) => {
+                // Use shorter labels for column headers
+                const shortLabels = {
+                    'Fake': 'FAKE GENUS + REAL SPECIES',
+                    'Real': 'REAL GENUS + FAKE SPECIES',
+                    'random_words': 'RANDOM WORDS',
+                    'latin_random_words': 'FICTIONAL LATIN',
+                    'real_genus_latin_strain': 'REAL GENUS + FAKE SPECIES',
+                    'latin_genus_real_strain': 'FAKE GENUS + REAL SPECIES'
+                };
+                const label = shortLabels[inputType] || inputType.replace(/_/g, ' ');
+                html += `<th style="padding: 12px 16px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">${label}</th>`;
             });
-            html += `<th style="text-align: center; width: 120px;">Quality Score</th>`;
-            html += `</tr></thead>`;
+            html += `<th style="padding: 12px 16px; text-align: center; width: 120px; font-weight: 500; color: #9ca3af; font-size: 13px; text-transform: uppercase;">Quality<br>Score</th>`;
+            html += `</tr>`;
+            html += `</thead>`;
             
             // Data rows
             html += `<tbody>`;
@@ -539,45 +560,45 @@
             
             modelScores.forEach(({modelName, templates, averageQualityScore, qualityScore, totalSamples}, index) => {
                 const isHidden = index >= 3;
-                html += `<tr class="${isHidden ? 'hidden-row' : ''}">`;
-                html += `<td class="model-name-cell">${modelName.split('/').pop()}</td>`;
+                html += `<tr class="${isHidden ? 'hidden-row' : ''}" style="border-bottom: 1px solid #f3f4f6;">`;
+                html += `<td style="padding: 16px; font-weight: 500; color: #111827;">${modelName.split('/').pop()}</td>`;
                 
                 inputTypeArray.forEach(inputType => {
-                    html += `<td class="chart-cell">`;
+                    html += `<td style="padding: 16px;">`;
                     if (templates[inputType]) {
                         html += createDetailedKnowledgeBarChart(templates[inputType]);
                     } else {
-                        html += '<div class="no-data">No data</div>';
+                        html += '<div style="color: #9ca3af; font-size: 14px;">No data</div>';
                     }
                     html += `</td>`;
                 });
                 
                 // Add quality score column
-                html += `<td class="quality-score-cell">`;
+                html += `<td style="padding: 16px; text-align: center;">`;
                 if (totalSamples > 0) {
-                    html += `<span class="quality-score-value">${averageQualityScore.toFixed(2)}</span>`;
+                    html += `<span style="font-weight: 600; color: #7c3aed; font-size: 16px;">${averageQualityScore.toFixed(2)}</span>`;
                 } else {
-                    html += '<span style="color: #6c757d; font-style: italic; font-size: 11px;">No data</span>';
+                    html += '<span style="color: #9ca3af; font-style: italic; font-size: 14px;">No data</span>';
                 }
                 html += `</td>`;
                 
                 html += `</tr>`;
             });
             html += `</tbody></table>`;
-            html += `</div>`;
             
             // Add expand/collapse button if there are more than 3 models
             if (modelScores.length > 3) {
-                html += `<div class="table-controls">`;
-                html += `<button class="expand-button" onclick="toggleTableExpansion(this, ${templateIndex})">`;
+                html += `<div style="text-align: center; padding: 16px; background: white; border-top: 1px solid #f3f4f6;">`;
+                html += `<button style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; color: #6b7280; font-size: 14px; font-weight: 500; cursor: pointer; transition: border-color 0.2s, color 0.2s;" onclick="toggleTableExpansion(this, ${templateIndex})" onmouseover="this.style.borderColor='#9ca3af'; this.style.color='#4b5563';" onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#6b7280';">`;
                 html += `<span>Show ${modelScores.length - 3} more models</span>`;
-                html += `<svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">`;
+                html += `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;">`;
                 html += `<path d="M6 9l6 6 6-6"/>`;
                 html += `</svg>`;
                 html += `</button>`;
                 html += `</div>`;
             }
             
+            html += `</div>`;
             html += `</div>`;
         });
         
@@ -817,7 +838,7 @@
         span.textContent = `Show ${hiddenRows.length} more models`;
         svg.style.transform = 'rotate(0deg)';
     } else {
-        span.textContent = 'Show less';
+        span.textContent = 'Show fewer models';
         svg.style.transform = 'rotate(180deg)';
     }
 }

@@ -172,12 +172,22 @@ sections:
     parent_type: "article"
     close_article: true
     
+  # Knowledge analysis intro
+  - id: "knowledge_analysis_intro"
+    type: "article"
+    file: "sections/22a_knowledge_analysis_intro.html"
+    
   # Knowledge analysis content (dynamic tables)
   - id: "knowledge_analysis_content"
     type: "section_callout_dynamic"
     file: "sections/23_knowledge_analysis_content.html"
     title: "Full Results: Model Performance Analysis"
     text: "Comprehensive analysis of all tested models, showing their quality scores and knowledge distribution patterns across different query templates."
+    
+  # Quality score intro
+  - id: "quality_score_intro"
+    type: "article"
+    file: "sections/28a_quality_score_intro.html"
     
   # Quality score distribution chart
   - id: "quality_score_chart"
@@ -186,12 +196,10 @@ sections:
     title: "Model Quality Score Distribution by Template"
     text: "This chart shows quality scores for each model stratified by template. Higher scores indicate better performance at recognizing fictional species. Only models with results for all templates are shown."
     
-  # Interactive correlation chart
-  - id: "correlation_chart_interactive"
-    type: "section_callout_dynamic"
-    file: "sections/30_correlation_chart_interactive.html"
-    title: "Interactive Correlation Analysis"
-    text: "Explore how each model's knowledge claims correlate with real-world web presence data. Hover over bars to see detailed scatter plots for each model-template combination."
+  # Full template intro
+  - id: "full_template_intro"
+    type: "article"
+    file: "sections/30a_full_template_intro.html"
     
   # Full template analysis tables
   - id: "full_template_tables"
@@ -212,6 +220,11 @@ sections:
     file: "sections/25_web_alignment_flow.html"
     title: "Knowledge-Web Alignment Process"
     text: "Methodology for measuring how well language model knowledge claims correlate with actual information availability on the web for real bacterial species."
+    
+  # Web alignment analysis text
+  - id: "web_alignment_analysis"
+    type: "article"
+    file: "sections/25a_web_alignment_analysis.html"
     
   # Top models web alignment
   - id: "top_models_web_alignment"
@@ -239,16 +252,3 @@ sections:
     type: "raw"
     file: "sections/99_scripts.html"
     title: "Scripts"
-  
-  # Hello World Test Component (for debugging dynamic sections)
-  - id: "hello_world_dynamic"
-    type: "section_callout_dynamic"
-    file: "sections/32_hello_world_dynamic.html"
-    title: "Hello World Dynamic Test"
-    text: "A minimal test component to verify dynamic section functionality"
-    
-  # API Test Component (for debugging)
-  - id: "api_test"
-    type: "raw"
-    file: "sections/99_api_test.html"
-    title: "API Test Component"

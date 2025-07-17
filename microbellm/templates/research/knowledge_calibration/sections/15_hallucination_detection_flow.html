@@ -87,6 +87,163 @@
 </div>
 </div>
 
+<script>
+// Animation for hallucination detection flow
+(function() {
+    console.log('[HallucinationFlow] Animation script starting...');
+    
+    function initAnimation() {
+        console.log('[HallucinationFlow] Looking for flow diagram...');
+        
+        // Find all possible containers
+        const containers = document.querySelectorAll('.flow-diagram-wrapper');
+        console.log('[HallucinationFlow] Found', containers.length, 'flow diagram wrappers');
+        
+        containers.forEach((container, index) => {
+            console.log('[HallucinationFlow] Processing container', index);
+            const diagram = container.querySelector('.flow-diagram');
+            if (!diagram) {
+                console.log('[HallucinationFlow] No flow-diagram found in container', index);
+                return;
+            }
+            
+            const queryTemplates = diagram.querySelectorAll('.query-template');
+            const outputOptions = diagram.querySelectorAll('.output-option');
+            const naOption = diagram.querySelector('.output-option[data-level="na"]');
+            
+            console.log('[HallucinationFlow] Found', queryTemplates.length, 'query templates and', outputOptions.length, 'output options');
+            
+            if (queryTemplates.length === 0 || outputOptions.length === 0) {
+                console.error('[HallucinationFlow] Could not find query or output elements.');
+                return;
+            }
+            
+            // Only add CSS once
+            if (!document.getElementById('hallucination-flow-styles')) {
+                const style = document.createElement('style');
+                style.id = 'hallucination-flow-styles';
+                style.textContent = `
+                    .query-template.active {
+                        border: 2px solid #6366f1 !important;
+                        background: rgba(99, 102, 241, 0.05) !important;
+                        transform: translateY(-2px) !important;
+                        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15) !important;
+                    }
+                    
+                    .output-option.highlight {
+                        transform: scale(1.05) !important;
+                        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+                        border-color: var(--primary) !important;
+                        border-width: 2px !important;
+                    }
+                    
+                    .output-option.hide {
+                        opacity: 0.3 !important;
+                        transform: scale(0.95) !important;
+                    }
+                    
+                    .expectation-indicator span {
+                        display: none;
+                        animation: popIn 0.3s ease;
+                    }
+                    
+                    @keyframes popIn {
+                        0% { transform: scale(0); }
+                        50% { transform: scale(1.2); }
+                        100% { transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            function resetHighlights() {
+                queryTemplates.forEach(q => q.classList.remove('active'));
+                outputOptions.forEach(o => o.classList.remove('highlight'));
+                diagram.querySelectorAll('.expectation-indicator span').forEach(span => {
+                    span.style.display = 'none';
+                });
+            }
+            
+            const animations = [
+                { query: '1', output: 'limited', duration: 3000 },
+                { query: '2', output: 'na', duration: 3000 },
+                { query: '3', output: 'na', duration: 3000 }
+            ];
+            
+            let currentIndex = 0;
+            
+            function showNext() {
+                resetHighlights();
+                
+                const current = animations[currentIndex];
+                const queryElement = diagram.querySelector(`.query-template[data-query="${current.query}"]`);
+                const outputElement = diagram.querySelector(`.output-option[data-level="${current.output}"]`);
+                
+                console.log('[HallucinationFlow] Animating:', current, queryElement, outputElement);
+                
+                // Show/hide NA option based on query
+                if (current.query === '1') {
+                    if (naOption) {
+                        naOption.classList.add('hide');
+                    }
+                } else {
+                    if (naOption) {
+                        naOption.classList.remove('hide');
+                    }
+                }
+                
+                if (queryElement && outputElement) {
+                    // Highlight query template
+                    queryElement.classList.add('active');
+                    
+                    // After a delay, highlight the output
+                    setTimeout(() => {
+                        outputElement.classList.add('highlight');
+                        
+                        // Show the appropriate indicator
+                        const expectIndicator = outputElement.querySelector(`.expect-q${current.query}`);
+                        if (expectIndicator) {
+                            expectIndicator.style.display = 'inline-block';
+                        }
+                    }, 500);
+                }
+                
+                currentIndex = (currentIndex + 1) % animations.length;
+                setTimeout(showNext, current.duration);
+            }
+            
+            // Start animation after a delay
+            console.log('[HallucinationFlow] Starting animation for container', index);
+            setTimeout(showNext, 1500);
+        });
+    }
+    
+    // Initialize immediately
+    initAnimation();
+    
+    // Also try after DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAnimation);
+    }
+    
+    // And after a short delay for dynamic content
+    setTimeout(initAnimation, 500);
+    
+    // Expose for component viewer
+    window.initHallucinationFlow = initAnimation;
+})();
+
+// Call init if in component viewer
+if (window.location.pathname.includes('/components/')) {
+    console.log('[HallucinationFlow] Component viewer detected, initializing after delay...');
+    setTimeout(() => {
+        if (typeof window.initHallucinationFlow === 'function') {
+            window.initHallucinationFlow();
+        }
+    }, 1000);
+}
+</script>
+
 <style>
 /* Interactive hover effects */
 .flow-diagram {
@@ -121,7 +278,8 @@
     display: flex;
     gap: 24px;
     justify-content: center;
-    margin-top: 24px;
+    margin-top: 8px;
+    margin-bottom: 0;
     font-size: 14px;
     color: var(--gray-600);
 }

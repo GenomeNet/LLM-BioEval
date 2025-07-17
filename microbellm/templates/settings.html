@@ -115,6 +115,11 @@
             .then(response => response.json())
             .then(data => {
                 updateApiKeyStatus(data);
+                // If API key is configured, show the masked version
+                if (data.configured && data.masked_key) {
+                    const input = document.getElementById('apiKeyInput');
+                    input.placeholder = data.masked_key;
+                }
             })
             .catch(error => {
                 console.error('Error checking API key status:', error);
