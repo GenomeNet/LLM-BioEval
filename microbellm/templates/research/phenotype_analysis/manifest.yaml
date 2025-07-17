@@ -1,0 +1,125 @@
+# Phenotype Analysis Page Manifest
+page_config:
+  title: "Phenotype Analysis"
+  color_theme: "green"
+  project_id: "phenotype_analysis"
+
+sections:
+  # Hero header with integrated bacteria animation
+  - id: "hero_header"
+    type: "hero"
+    file: "sections/00_hero_header.html"
+    title: "Hero Header"
+    
+  # Introduction section with sidebar
+  - id: "introduction"
+    type: "article"
+    file: "sections/01_introduction.html"
+    title: "Understanding Phenotype Predictions"
+    section_id: "introduction"
+    include_sidebar: true
+    
+  # Research Applications section
+  - id: "research_applications"
+    type: "article_content"
+    file: "sections/02_research_applications.html"
+    parent_type: "article"
+    close_article: true
+    
+  # Key Phenotype Categories - Full Width Callout
+  - id: "key_phenotype_categories"
+    type: "section_callout"
+    file: "sections/03_key_phenotype_categories.html"
+    title: "Key Phenotype Categories"
+    text: "Our analysis evaluates model predictions across essential microbial characteristics that form the foundation of bacterial classification and identification in clinical and research settings."
+    
+  # Placeholder text section 1
+  - id: "placeholder_text_1"
+    type: "article"
+    file: "sections/04_placeholder_text_1.html"
+    include_sidebar: false
+    
+  # Dynamic stats callout
+  - id: "dynamic_stats"
+    type: "callout_inline"
+    file: "sections/05_dynamic_stats.html"
+    callout_type: "phenotype"
+    parent_type: "article"
+    dynamic: true
+    
+  # Continue placeholder text
+  - id: "placeholder_text_1_cont"
+    type: "article_content"
+    file: "sections/04a_placeholder_text_1_cont.html"
+    parent_type: "article"
+    close_article: true
+    
+  # Analysis Methodology section
+  - id: "analysis_methodology"
+    type: "article"
+    file: "sections/06_analysis_methodology.html"
+    title: "Analysis Methodology"
+    include_sidebar: false
+    
+  # Methodology callout
+  - id: "methodology_callout"
+    type: "callout_inline"
+    file: "sections/06a_methodology_callout.html"
+    callout_type: "methodology"
+    header: "Prediction Distribution Analysis"
+    parent_type: "article"
+    
+  # Methodology continuation
+  - id: "methodology_cont"
+    type: "article_content"
+    file: "sections/06b_methodology_cont.html"
+    parent_type: "article"
+    
+  # Phenotype categories animation
+  - id: "phenotype_animation"
+    type: "callout_inline"
+    file: "sections/06c_phenotype_animation.html"
+    callout_type: "phenotype"
+    parent_type: "article"
+    close_article: true
+    
+  # Model Phenotype Predictions - Dynamic Full Width
+  - id: "model_predictions"
+    type: "section_callout_dynamic"
+    file: "sections/07_model_predictions.html"
+    container_id: "phenotypeContent"
+    title: "Model Phenotype Predictions"
+    text: "Comprehensive analysis of how different language models predict bacterial phenotypes, revealing patterns in biological knowledge representation."
+    
+  # Model Prediction Distributions - Full Width
+  - id: "prediction_distributions"
+    type: "section_wide"
+    file: "sections/07a_prediction_distributions.html"
+    title: "Model Prediction Distributions by Phenotype"
+    dynamic: true
+    
+  # Placeholder text section 2
+  - id: "placeholder_text_2"
+    type: "article"
+    file: "sections/08_placeholder_text_2.html"
+    include_sidebar: false
+    
+  # Hidden phenotypes section
+  - id: "hidden_phenotypes"
+    type: "article_content"
+    file: "sections/09_hidden_phenotypes.html"
+    parent_type: "article"
+    dynamic: true
+    
+  # End placeholder text 2
+  - id: "placeholder_text_2_end"
+    type: "article_content"
+    file: "sections/08a_placeholder_text_2_end.html"
+    parent_type: "article"
+    close_article: true
+    
+  # Scripts (should be last)
+  - id: "scripts"
+    type: "raw"
+    file: "sections/99_scripts.html"
+    title: "Scripts"

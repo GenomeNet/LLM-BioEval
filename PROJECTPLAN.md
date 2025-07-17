@@ -287,3 +287,108 @@ Fixed issues with dynamic full-width callout sections not displaying properly in
 
 ### Result
 All dynamic full-width callout sections now properly display in the component viewer with data loading correctly from API endpoints. The system is more robust with better error handling and debugging capabilities.
+
+## Unified Database Architecture (Started 2025-07-17)
+
+### Problem Statement
+Currently, the microbeLLM system uses two separate tables for storing species results:
+- **Admin Dashboard**: Writes to `species_results` table
+- **Knowledge Analysis Component**: Reads from `results` table
+
+This creates data inconsistency where:
+- Deletions in admin dashboard don't affect component display
+- New models processed through admin might not appear in components
+- We essentially have two separate data stores for the same information
+
+### Solution: Single Source of Truth
+
+#### Architecture Decision
+Use **only the `results` table** as the single source of truth for all species processing results.
+
+#### Why `results` table over `species_results`?
+1. **More comprehensive schema**: The `results` table has all phenotype fields (gram_staining, motility, etc.) needed by components
+2. **Already used by components**: All visualization components query from `results`
+3. **Better structure**: Contains all necessary fields for both admin and component needs
+
+### Implementation Plan
+
+#### Phase 1: Update Admin Dashboard (Priority: High) ✅
+- [x] Modify `admin_app.py` to write directly to `results` table instead of `species_results`
+- [x] Update `process_species` method to store results with all phenotype fields
+- [x] Remove the dual storage method (`_store_in_results_table`) - just store once in `results`
+
+#### Phase 2: Update Delete Operations (Priority: High) ✅
+- [x] Modify `delete_combination_api` to delete from `results` table
+- [x] Ensure cascading deletes remove all related data
+
+#### Phase 3: Update Query Operations (Priority: High) ✅
+- [x] Update `get_combination_details` to query from `results` table
+- [x] Update dashboard matrix view to use `results` table
+- [x] Update all admin dashboard queries to use `results` table
+
+#### Phase 4: Data Migration (Priority: Medium) 🚧
+- [x] Create migration script to move existing data from `species_results` to `results`
+  - Created `migrate_to_unified_db.py` script
+  - Script backs up database before migration
+  - Handles parsing of JSON results to extract phenotypes
+  - Skips already migrated records
+- [ ] Run migration script on production data
+- [ ] Verify all historical data is preserved
+
+#### Phase 5: Cleanup (Priority: Low)
+- [ ] Remove `species_results` table after successful migration
+- [ ] Remove any code references to `species_results`
+- [ ] Update database initialization to not create `species_results`
+
+### Benefits
+1. **Data Consistency**: Single source of truth for all operations
+2. **Immediate Visibility**: Changes in admin immediately reflected in components
+3. **Simplified Architecture**: Easier to maintain and debug
+4. **Better Performance**: No need for dual writes or complex joins
+
+### Risks & Mitigation
+1. **Data Loss**: Backup database before migration
+2. **Breaking Changes**: Test thoroughly in development first
+3. **Performance**: Monitor query performance after migration
+
+### Timeline
+- Phase 1-3: Immediate implementation (critical for consistency)
+- Phase 4: After testing phases 1-3
+- Phase 5: After successful migration and verification
+
+### Implementation Summary (2025-07-17)
+
+Successfully updated the admin dashboard to use a unified database architecture:
+
+1. **Code Changes in `admin_app.py`**:
+   - Modified all INSERT operations to write to `results` table instead of `species_results`
+   - Updated all DELETE operations to remove from `results` table
+   - Changed all SELECT queries to read from `results` table
+   - Removed the `_store_in_results_table` method (no longer needed)
+   - Updated the following methods:
+     - `process_combination`: Now stores directly in results table with phenotype parsing
+     - `restart_combination`: Deletes from results table
+     - `get_combination_details`: Queries from results table only
+     - `delete_combination_api`: Deletes from results table
+     - `rerun_failed_species`: Works with results table
+     - `import_results_from_csv`: Imports directly to results table
+     - `_process_single_species_rerun`: Stores in results table with phenotype parsing
+     - `reparse_phenotype_data`: Queries from results table
+
+2. **Migration Script**:
+   - Created `migrate_to_unified_db.py` to migrate existing data
+   - Script creates automatic backup before migration
+   - Parses JSON results to extract knowledge_group and individual phenotypes
+   - Skips records that already exist in results table
+   - Provides detailed migration statistics
+
+3. **Benefits Achieved**:
+   - Single source of truth - deletions in admin immediately affect components
+   - No more data inconsistencies between admin and visualization
+   - Simplified architecture without dual storage
+   - Better performance without redundant writes
+
+### Next Steps:
+1. Test the updated admin dashboard thoroughly
+2. Run the migration script to move historical data
+3. Remove the species_results table after verification

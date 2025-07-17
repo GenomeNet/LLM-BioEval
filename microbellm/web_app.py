@@ -2770,7 +2770,15 @@ def get_knowledge_analysis_data():
             type_mapping = {}
             has_type_column = False
             try:
-                species_file_path = os.path.join(config.SPECIES_DIR, species_file)
+                # Handle both full paths and just filenames
+                if os.path.isabs(species_file):
+                    # Full path provided - use it directly if it exists
+                    species_file_path = species_file
+                    # Also normalize the species_file to just the basename for consistency
+                    species_file = os.path.basename(species_file)
+                else:
+                    # Just filename provided - construct the path
+                    species_file_path = os.path.join(config.SPECIES_DIR, species_file)
                 
                 with open(species_file_path, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
@@ -2821,30 +2829,33 @@ def get_knowledge_analysis_data():
         file_has_types = {}
         
         for binomial_name, species_file, model, knowledge_group, system_template, user_template, status, raw_result in results:
-            # Get type mapping for this species file
-            if species_file not in species_type_cache:
-                species_type_cache[species_file], file_has_types[species_file] = get_species_type_mapping(species_file)
+            # Normalize species_file to just the basename for consistency
+            normalized_species_file = os.path.basename(species_file) if os.path.isabs(species_file) else species_file
             
-            species_type = species_type_cache[species_file].get(binomial_name, 'unclassified')
+            # Get type mapping for this species file
+            if normalized_species_file not in species_type_cache:
+                species_type_cache[normalized_species_file], file_has_types[normalized_species_file] = get_species_type_mapping(species_file)
+            
+            species_type = species_type_cache[normalized_species_file].get(binomial_name, 'unclassified')
             
             # Get template info for categorization
             template_key = f"{system_template}|{user_template}"
             
             # Initialize nested structure: file -> type -> template -> model
-            if species_file not in file_data:
-                file_data[species_file] = {
-                    'has_type_column': file_has_types[species_file],
+            if normalized_species_file not in file_data:
+                file_data[normalized_species_file] = {
+                    'has_type_column': file_has_types[normalized_species_file],
                     'types': {}
                 }
             
-            if species_type not in file_data[species_file]['types']:
-                file_data[species_file]['types'][species_type] = {}
+            if species_type not in file_data[normalized_species_file]['types']:
+                file_data[normalized_species_file]['types'][species_type] = {}
             
-            if template_key not in file_data[species_file]['types'][species_type]:
-                file_data[species_file]['types'][species_type][template_key] = {}
+            if template_key not in file_data[normalized_species_file]['types'][species_type]:
+                file_data[normalized_species_file]['types'][species_type][template_key] = {}
                 
-            if model not in file_data[species_file]['types'][species_type][template_key]:
-                file_data[species_file]['types'][species_type][template_key][model] = {
+            if model not in file_data[normalized_species_file]['types'][species_type][template_key]:
+                file_data[normalized_species_file]['types'][species_type][template_key][model] = {
                     'limited': 0,
                     'moderate': 0, 
                     'extensive': 0,
@@ -2871,33 +2882,33 @@ def get_knowledge_analysis_data():
             
             # Handle failed inference
             if status == 'failed':
-                file_data[species_file]['types'][species_type][template_key][model]['inference_failed'] += 1
-                file_data[species_file]['types'][species_type][template_key][model]['samples']['inference_failed'].append(sample_data)
+                file_data[normalized_species_file]['types'][species_type][template_key][model]['inference_failed'] += 1
+                file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['inference_failed'].append(sample_data)
             elif knowledge_group:
                 # Normalize knowledge group value for completed inferences
                 normalized_knowledge = knowledge_group.lower().strip()
                 if normalized_knowledge in ['limited', 'minimal', 'basic', 'low']:
-                    file_data[species_file]['types'][species_type][template_key][model]['limited'] += 1
-                    file_data[species_file]['types'][species_type][template_key][model]['samples']['limited'].append(sample_data)
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['limited'] += 1
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['limited'].append(sample_data)
                 elif normalized_knowledge in ['moderate', 'medium', 'intermediate']:
-                    file_data[species_file]['types'][species_type][template_key][model]['moderate'] += 1
-                    file_data[species_file]['types'][species_type][template_key][model]['samples']['moderate'].append(sample_data)
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['moderate'] += 1
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['moderate'].append(sample_data)
                 elif normalized_knowledge in ['extensive', 'comprehensive', 'detailed', 'high', 'full']:
-                    file_data[species_file]['types'][species_type][template_key][model]['extensive'] += 1
-                    file_data[species_file]['types'][species_type][template_key][model]['samples']['extensive'].append(sample_data)
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['extensive'] += 1
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['extensive'].append(sample_data)
                 elif normalized_knowledge in ['na', 'n/a', 'n.a.', 'not available', 'not applicable', 'unknown']:
-                    file_data[species_file]['types'][species_type][template_key][model]['NA'] += 1
-                    file_data[species_file]['types'][species_type][template_key][model]['samples']['NA'].append(sample_data)
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['NA'] += 1
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['NA'].append(sample_data)
                 else:
                     # Unrecognized response - treat as no result
-                    file_data[species_file]['types'][species_type][template_key][model]['no_result'] += 1
-                    file_data[species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['no_result'] += 1
+                    file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
             else:
                 # Null/empty knowledge_group for completed status - treat as no result (parsing failure)
-                file_data[species_file]['types'][species_type][template_key][model]['no_result'] += 1
-                file_data[species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
+                file_data[normalized_species_file]['types'][species_type][template_key][model]['no_result'] += 1
+                file_data[normalized_species_file]['types'][species_type][template_key][model]['samples']['no_result'].append(sample_data)
             
-            file_data[species_file]['types'][species_type][template_key][model]['total'] += 1
+            file_data[normalized_species_file]['types'][species_type][template_key][model]['total'] += 1
         
         # Format the data for the frontend with template display names
         formatted_data = {}

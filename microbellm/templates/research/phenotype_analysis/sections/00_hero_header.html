@@ -1,0 +1,114 @@
+<!-- Hero Header with Bacteria Animation -->
+<div class="hero-header hero-header--{{ project.color_theme }}">
+    <canvas id="phenotype-hero-canvas" class="hero-canvas"></canvas>
+    <div class="hero-content">
+        <h1 class="hero-title">{{ project.title }}</h1>
+        <div class="hero-author hero-author--{{ project.color_theme }}">{{ project.authors }}</div>
+        <p class="hero-subtitle">{{ project.subtitle }}</p>
+    </div>
+</div>
+
+<!-- Initialize Phenotype Animation -->
+<script>
+(function() {
+    // Initialize phenotype animation from original page
+    function initPhenotypeAnimation() {
+        const canvas = document.getElementById('phenotype-hero-canvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let bacteria = [];
+        let animationId;
+        
+        const colors = [
+            { r: 34, g: 197, b: 94 },   // Green
+            { r: 16, g: 185, b: 129 },  // Teal
+        ];
+        
+        function resizeCanvas() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+            initBacteria();
+        }
+        
+        function initBacteria() {
+            bacteria = [];
+            const numBacteria = 35;
+            
+            for (let i = 0; i < numBacteria; i++) {
+                bacteria.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    length: 15 + Math.random() * 35,
+                    width: 4 + Math.random() * 8,
+                    angle: Math.random() * Math.PI * 2,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speed: 0.08 + Math.random() * 0.25,
+                    rotationSpeed: (Math.random() - 0.5) * 0.015,
+                    shape: Math.random() > 0.3 ? 'bacillus' : 'coccus'
+                });
+            }
+        }
+        
+        function drawBacterium(bacterium) {
+            ctx.save();
+            ctx.translate(bacterium.x, bacterium.y);
+            ctx.rotate(bacterium.angle);
+            
+            ctx.fillStyle = `rgba(${bacterium.color.r}, ${bacterium.color.g}, ${bacterium.color.b}, 1)`;
+            
+            if (bacterium.shape === 'bacillus') {
+                ctx.beginPath();
+                ctx.moveTo(-bacterium.length/2 + bacterium.width/2, 0);
+                ctx.lineTo(bacterium.length/2 - bacterium.width/2, 0);
+                ctx.arc(bacterium.length/2 - bacterium.width/2, 0, bacterium.width/2, -Math.PI/2, Math.PI/2);
+                ctx.lineTo(-bacterium.length/2 + bacterium.width/2, bacterium.width);
+                ctx.arc(-bacterium.length/2 + bacterium.width/2, bacterium.width/2, bacterium.width/2, Math.PI/2, Math.PI * 1.5);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, bacterium.width, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+        
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            bacteria.forEach(bacterium => {
+                bacterium.x += Math.cos(bacterium.angle) * bacterium.speed;
+                bacterium.y += Math.sin(bacterium.angle) * bacterium.speed;
+                bacterium.angle += bacterium.rotationSpeed;
+                
+                if (bacterium.x < -50) bacterium.x = width + 50;
+                if (bacterium.x > width + 50) bacterium.x = -50;
+                if (bacterium.y < -50) bacterium.y = height + 50;
+                if (bacterium.y > height + 50) bacterium.y = -50;
+                
+                drawBacterium(bacterium);
+            });
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        resizeCanvas();
+        animate();
+        
+        window.addEventListener('resize', () => {
+            clearTimeout(window.resizeTimeout);
+            window.resizeTimeout = setTimeout(resizeCanvas, 250);
+        });
+    }
+
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPhenotypeAnimation);
+    } else {
+        setTimeout(initPhenotypeAnimation, 100);
+    }
+})();
+</script>

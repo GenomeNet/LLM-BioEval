@@ -1,0 +1,884 @@
+<style>
+    /* CSS Variables from layout.css */
+    :root {
+        --container-standard: 1500px;
+        --padding-container: 48px;
+    }
+    
+    /* Data Tables */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 18px;
+        font-size: 14px;
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .data-table th {
+        background: var(--gray-50);
+        font-weight: 600;
+        color: var(--gray-900);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .data-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* Model name cell styling */
+    .model-name-cell {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--gray-700);
+        background-color: var(--gray-50);
+        padding-left: 10px;
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Model Analysis Section */
+    .model-analysis-section {
+        margin-top: var(--spacing-section);
+    }
+    
+    /* Phenotype Analysis Styles */
+    .phenotype-analysis-container {
+        margin-bottom: 20px;
+    }
+    
+    /* Grid layout for phenotype cards */
+    .phenotype-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
+        width: 100%;
+    }
+    
+    @media (max-width: 1200px) {
+        .phenotype-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .phenotype-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .phenotype-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .phenotype-card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin: 0;
+    }
+    
+    /* Additional styles for phenotype components... */
+</style>
+
+<script>
+// Full Phenotype Analysis Implementation
+(function() {
+    // Skip if already initialized by component
+    if (window._phenotypeAnalysisInitialized) return;
+    window._phenotypeAnalysisInitialized = true;
+    
+    // Global variables
+    let phenotypeData = null;
+    let templateData = null;
+    let availableTemplates = [];
+    let selectedTemplate = 'template1_phenotype';
+    let visibleFieldTypes = ['binary', 'categorical'];
+    
+    const phenotypes = {
+        'gram_staining': { name: 'Gram Staining' },
+        'motility': { name: 'Motility' },
+        'aerophilicity': { name: 'Aerophilicity' },
+        'extreme_environment_tolerance': { name: 'Extreme Environment' },
+        'biofilm_formation': { name: 'Biofilm Formation' },
+        'animal_pathogenicity': { name: 'Animal Pathogenicity' },
+        'biosafety_level': { name: 'Biosafety Level' },
+        'health_association': { name: 'Health Association' },
+        'host_association': { name: 'Host Association' },
+        'plant_pathogenicity': { name: 'Plant Pathogenicity' },
+        'spore_formation': { name: 'Spore Formation' },
+        'hemolysis': { name: 'Hemolysis' },
+        'cell_shape': { name: 'Cell Shape' }
+    };
+    
+    // Format model name with provider
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) {
+            return modelName;
+        }
+        
+        const [provider, model] = modelName.split('/');
+        const providerMap = {
+            'anthropic': 'Anthropic',
+            'openai': 'OpenAI',
+            'google': 'Google',
+            'meta-llama': 'Meta',
+            'mistralai': 'Mistral',
+            'cohere': 'Cohere',
+            'x-ai': 'xAI'
+        };
+        
+        const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+        return `${displayProvider} ${model}`;
+    }
+    
+    // Load initial data (will be called by the model predictions component)
+    window.loadInitialData = function() {
+        // Load available templates first
+        fetch('/api/available_phenotype_templates')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    availableTemplates = data.templates;
+                    if (availableTemplates.length > 0) {
+                        selectedTemplate = availableTemplates[0].name;
+                    }
+                    // Load template definitions and phenotype data
+                    return Promise.all([
+                        loadTemplateDefinitions(),
+                        loadPhenotypeData()
+                    ]);
+                } else {
+                    throw new Error(data.error || 'Failed to load templates');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading initial data:', error);
+                document.getElementById('phenotypeContent').innerHTML = 
+                    '<div class="empty-state"><h3>Error loading data</h3><p>' + error.message + '</p></div>';
+            });
+    };
+    
+    function loadTemplateDefinitions() {
+        return fetch(`/api/template_field_definitions?template=${selectedTemplate}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    templateData = data;
+                } else {
+                    throw new Error(data.error || 'Failed to load template definitions');
+                }
+            });
+    }
+    
+    function loadPhenotypeData() {
+        fetch('/api/phenotype_analysis')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('phenotypeContent').innerHTML = 
+                        `<div class="empty-state"><h3>Error loading phenotype data</h3><p>${data.error}</p></div>`;
+                    return;
+                }
+                
+                phenotypeData = data;
+                
+                if (!data.files || data.files.length === 0) {
+                    document.getElementById('phenotypeContent').innerHTML = 
+                        '<div class="empty-state"><h3>No phenotype prediction data found</h3><p>Run predictions using phenotype templates to see analysis here.</p></div>';
+                    return;
+                }
+                
+                // Auto-select first dataset
+                if (data.files.length > 0) {
+                    showDatasetAnalysis(data.files[0]);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading phenotype data:', error);
+                document.getElementById('phenotypeContent').innerHTML = 
+                    '<div class="empty-state"><h3>Error loading data</h3><p>' + error.message + '</p></div>';
+            });
+    }
+    
+    function showDatasetAnalysis(selectedFile) {
+        if (!selectedFile || !phenotypeData) {
+            return;
+        }
+        
+        const fileData = phenotypeData.data[selectedFile];
+        if (!fileData) {
+            document.getElementById('phenotypeContent').innerHTML = 
+                '<div class="empty-state"><h3>No data available for this file</h3></div>';
+            return;
+        }
+        
+        updatePhenotypeView(selectedFile, fileData);
+    }
+    
+    // Update phenotype view function
+    function updatePhenotypeView(fileName, fileData) {
+        const content = document.getElementById('phenotypeContent');
+        if (!content) return;
+        
+        let html = '';
+        
+        // Simple controls
+        html += '<div class="simple-controls">';
+        
+        // Template selector
+        html += '<div class="control-item">';
+        html += '<label>Template:</label>';
+        html += '<select class="modern-select" onchange="changeTemplate(this.value)">';
+        availableTemplates.forEach(template => {
+            html += `<option value="${template.name}" ${template.name === selectedTemplate ? 'selected' : ''}>${template.display_name}</option>`;
+        });
+        html += '</select>';
+        html += '</div>';
+        
+        // Dataset selector  
+        html += '<div class="control-item">';
+        html += '<label>Dataset:</label>';
+        html += '<select class="modern-select" onchange="showDatasetAnalysis(this.value)">';
+        phenotypeData.files.forEach(file => {
+            html += `<option value="${file}" ${file === fileName ? 'selected' : ''}>${file}</option>`;
+        });
+        html += '</select>';
+        html += '</div>';
+        
+        html += '</div>';
+
+        // Calculate statistics
+        const modelStats = {};
+        let totalPredictions = 0;
+        let totalNA = 0;
+        
+        // Process data by model and phenotype
+        fileData.forEach(item => {
+            const model = item.model;
+            if (!modelStats[model]) {
+                modelStats[model] = {
+                    totalPredictions: 0,
+                    naCount: 0,
+                    phenotypeDistributions: {}
+                };
+            }
+            
+            modelStats[model].totalPredictions++;
+            totalPredictions++;
+            
+            // Check each phenotype field
+            const phenotypeFields = Object.keys(phenotypes);
+            
+            phenotypeFields.forEach(field => {
+                if (!modelStats[model].phenotypeDistributions[field]) {
+                    modelStats[model].phenotypeDistributions[field] = {};
+                }
+                
+                let value = item[field];
+                
+                // Check for null, undefined, empty string, or NA values
+                if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
+                    value = 'NA';
+                    modelStats[model].naCount++;
+                    totalNA++;
+                } else if (typeof value === 'string' && value.startsWith('INVALID:')) {
+                    // Handle invalid values that failed validation
+                    const originalValue = value.substring(8);
+                    value = `Invalid: ${originalValue}`;
+                }
+                
+                // Handle arrays (like aerophilicity)
+                if (Array.isArray(value)) {
+                    value = value.join(', ');
+                }
+                
+                modelStats[model].phenotypeDistributions[field][value] = 
+                    (modelStats[model].phenotypeDistributions[field][value] || 0) + 1;
+            });
+        });
+        
+        // Convert to sorted array
+        const modelResults = Object.entries(modelStats).map(([modelName, stats]) => ({
+            modelName,
+            totalPredictions: stats.totalPredictions,
+            naCount: stats.naCount,
+            naPercentage: (stats.naCount / (stats.totalPredictions * Object.keys(phenotypes).length)) * 100,
+            phenotypeDistributions: stats.phenotypeDistributions
+        }));
+        
+        // Sort alphabetically by model name for consistent ordering
+        modelResults.sort((a, b) => a.modelName.localeCompare(b.modelName));
+        
+        if (modelResults.length === 0) {
+            html += '<div class="empty-state"><h3>No model predictions found</h3></div>';
+            content.innerHTML = html;
+            return;
+        }
+        
+        // Calculate consensus and deviation metrics
+        const consensusAnalysis = calculateConsensusAnalysis(modelResults);
+        
+        // Calculate and update dynamic stats
+        const avgNAPercentage = modelResults.reduce((sum, m) => sum + m.naPercentage, 0) / modelResults.length;
+        const totalPhenotypes = Object.keys(phenotypes).length;
+        const avgPredictionsPerModel = totalPredictions / modelResults.length;
+        
+        // Find best and worst performers based on NA rate
+        let bestModel = null;
+        let bestNARate = 100;
+        let worstModel = null;
+        let worstNARate = 0;
+        
+        modelResults.forEach(model => {
+            if (model.naPercentage < bestNARate) {
+                bestNARate = model.naPercentage;
+                bestModel = model.modelName;
+            }
+            if (model.naPercentage > worstNARate) {
+                worstNARate = model.naPercentage;
+                worstModel = model.modelName;
+            }
+        });
+        
+        // Update dynamic stats text
+        const dynamicStatsText =
+            `We analyzed <span class="stat-value">${modelResults.length}</span> language models across ` +
+            `<span class="stat-value">${totalPhenotypes}</span> bacterial phenotype categories, ` +
+            `generating an average of <span class="stat-value">${Math.round(avgPredictionsPerModel)}</span> predictions per model. ` +
+            `The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">${avgNAPercentage.toFixed(1)}%</span>. ` +
+            (bestModel ? `<span class="model-highlight">${formatModelName(bestModel)}</span> demonstrated the highest confidence ` +
+                `with only <span class="stat-value">${bestNARate.toFixed(1)}%</span> NA responses, ` : '') +
+            (worstModel && worstModel !== bestModel ? `while <span class="model-lowlight">${formatModelName(worstModel)}</span> ` +
+                `was more conservative with <span class="stat-value">${worstNARate.toFixed(1)}%</span> NA responses.` : '');
+        
+        const statsTarget = document.getElementById('dynamicStatsText');
+        if (statsTarget) statsTarget.innerHTML = dynamicStatsText;
+        
+        // Consensus Agreement Ranking
+        html += renderConsensusRanking(consensusAnalysis);
+        
+        content.innerHTML = html;
+        
+        // Update the distributions view
+        const distContent = document.getElementById('phenotypeDistributionsContent');
+        if (distContent) {
+            distContent.innerHTML = renderDistributionsContent(modelResults);
+            distContent.style.display = 'block';
+        }
+        
+        // Update hidden phenotypes section
+        const hiddenPhenotypes = getHiddenPhenotypes();
+        const hiddenSection = document.getElementById('hiddenPhenotypesSection');
+        if (hiddenSection && hiddenPhenotypes.length > 0) {
+            let hiddenHtml = '<div class="hidden-phenotypes-info">';
+            hiddenHtml += '<h4>Hidden Phenotype Fields</h4>';
+            hiddenHtml += '<p>The following phenotype fields are not shown because they are complex multi-select data types:</p>';
+            hiddenHtml += '<ul>';
+            hiddenPhenotypes.forEach(phenotype => {
+                hiddenHtml += `<li><strong>${phenotype.name}</strong> not shown since it is datatype ${phenotype.fieldType}</li>`;
+            });
+            hiddenHtml += '</ul>';
+            hiddenHtml += '</div>';
+            hiddenSection.innerHTML = hiddenHtml;
+        }
+    }
+    
+    function renderConsensusRanking(consensusAnalysis) {
+        let html = '';
+        // Model ranking by deviation
+        const rankedModels = Object.entries(consensusAnalysis.modelDeviations)
+            .sort((a, b) => a[1].averageDeviation - b[1].averageDeviation);
+        
+        html += '<div class="model-ranking">';
+        html += '<h5>Model Consensus Agreement Ranking</h5>';
+        html += '<div class="ranking-explanation">Models are sorted by their average deviation from the consensus prediction patterns. Lower scores indicate better agreement with the overall trend.</div>';
+        
+        html += '<table class="consensus-ranking-table">';
+        html += '<thead>';
+        html += '<tr>';
+        html += '<th>Model<br><span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Language model used</span></th>';
+        html += '<th>Avg. JS Divergence<br><span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Avg. difference from consensus (0 is best)</span></th>';
+        html += '<th>Outlier Phenotypes<br><span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Count of phenotypes with JS > 0.1 from consensus</span></th>';
+        html += '<th>Agreement Level<br><span style="font-weight: normal; font-size: 10px; color: #6c757d; font-style: italic;">Overall consensus agreement category</span></th>';
+        html += '</tr>';
+        html += '</thead>';
+        html += '<tbody>';
+        
+        rankedModels.forEach(([modelName, metrics]) => {
+            const agreementLevel = getAgreementLevel(metrics.averageDeviation);
+            
+            let significantPhenotypesHtml = `<span class="significant-count">${metrics.significantDeviations}</span>`;
+            if (metrics.significantDeviations > 0) {
+                const significantPhenotypeNames = Object.entries(metrics.phenotypeDeviations)
+                    .filter(([phenotypeKey, deviationMetrics]) => deviationMetrics.significant)
+                    .map(([phenotypeKey, deviationMetrics]) => phenotypes[phenotypeKey].name);
+                
+                significantPhenotypesHtml += `<div class="significant-phenotypes-list">${significantPhenotypeNames.join(', ')}</div>`;
+            }
+
+            html += '<tr>';
+            html += `<td class="model-name">${formatModelName(modelName)}</td>`;
+            html += `<td><span class="deviation-score">${metrics.averageDeviation.toFixed(3)}</span></td>`;
+            html += `<td>${significantPhenotypesHtml}</td>`;
+            html += `<td><span class="agreement-badge agreement-${agreementLevel.class}">${agreementLevel.label}</span></td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody>';
+        html += '</table>';
+        html += '</div>';
+        return html;
+    }
+    
+    function renderDistributionsContent(modelResults) {
+        let html = '<h2 class="section-title" style="text-align: center; margin-bottom: var(--spacing-section);">Model Prediction Distributions by Phenotype</h2>';
+        html += '<div class="phenotype-grid">';
+        
+        // Filter phenotypes by visible field types
+        Object.entries(phenotypes).forEach(([phenotypeKey, phenotypeInfo]) => {
+            if (shouldShowPhenotype(phenotypeKey)) {
+                html += renderPhenotypeCard(phenotypeKey, phenotypeInfo, modelResults);
+            }
+        });
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function renderPhenotypeCard(phenotypeKey, phenotypeInfo, modelResults) {
+        let html = `<div class="phenotype-card">`;
+        
+        // Get field type info from template data
+        let fieldTypeInfo = '';
+        if (templateData && templateData.legend_data && templateData.legend_data[phenotypeKey]) {
+            const fieldType = templateData.legend_data[phenotypeKey].field_type;
+            const typeLabels = {
+                'binary': 'Binary',
+                'categorical': 'Categorical', 
+                'multi-select': 'Multi-select'
+            };
+            fieldTypeInfo = ` <span class="field-type-badge field-type-${fieldType}">${typeLabels[fieldType] || fieldType}</span>`;
+        }
+        
+        html += `<div class="phenotype-card-header">`;
+        html += `<h4 class="phenotype-card-title">${phenotypeInfo.name}${fieldTypeInfo}</h4>`;
+        html += `</div>`;
+        
+        // Add legend
+        html += generatePhenotypeLegend(phenotypeKey);
+        
+        html += `<table class="phenotype-analysis-table">`;
+        
+        // Header row
+        html += `<thead><tr>`;
+        html += `<th style="text-align: left;">Model</th>`;
+        html += `<th>Prediction Distribution</th>`;
+        html += `<th>NA %</th>`;
+        html += `</tr></thead>`;
+        
+        // Data rows
+        html += `<tbody>`;
+        
+        modelResults.forEach(result => {
+            const distribution = result.phenotypeDistributions[phenotypeKey] || {};
+            const total = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+            const naCount = distribution['NA'] || 0;
+            const naRate = total > 0 ? (naCount / total * 100) : 0;
+            
+            html += `<tr>`;
+            html += `<td class="model-name-cell">${formatModelName(result.modelName)}</td>`;
+            
+            html += `<td class="chart-cell">
+                        ${renderValueDistributionBar(distribution, total, phenotypeKey)}
+                     </td>`;
+            
+            html += `<td style="text-align: center; font-weight: 600; color: ${naRate > 50 ? '#dc3545' : naRate > 20 ? '#ffc107' : '#28a745'};">
+                        ${naRate.toFixed(1)}%
+                     </td>`;
+            html += `</tr>`;
+        });
+        
+        html += `</tbody></table>`;
+        html += `</div>`;
+        
+        return html;
+    }
+    
+    function generatePhenotypeLegend(phenotypeKey) {
+        if (!templateData || !templateData.legend_data) {
+            return '<div class="phenotype-legend"><div class="legend-item"><span class="legend-label">Loading template data...</span></div></div>';
+        }
+        
+        const legendInfo = templateData.legend_data[phenotypeKey];
+        if (!legendInfo) {
+            return '<div class="phenotype-legend"><div class="legend-item"><span class="legend-label">No legend data available</span></div></div>';
+        }
+        
+        let html = '<div class="phenotype-legend">';
+        
+        legendInfo.items.forEach(item => {
+            html += `<div class="legend-item">`;
+            html += `<div class="legend-color" style="background-color: ${item.background}; color: ${item.color}; border: 1px solid rgba(0,0,0,0.1);"></div>`;
+            html += `<span class="legend-label">${item.label}</span>`;
+            html += `</div>`;
+        });
+        
+        // Always add Invalid Response and NA to legend
+        html += `<div class="legend-item">`;
+        html += `<div class="legend-color" style="background-color: #ffcdd2; color: #c62828; border: 1px dashed #c62828;"></div>`;
+        html += `<span class="legend-label">Invalid Response</span>`;
+        html += `</div>`;
+        
+        html += `<div class="legend-item">`;
+        html += `<div class="legend-color" style="background-color: #e2e3e5; color: #6c757d; border: 1px solid rgba(0,0,0,0.1);"></div>`;
+        html += `<span class="legend-label">NA/Not Available</span>`;
+        html += `</div>`;
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function renderValueDistributionBar(distribution, total, phenotypeKey) {
+        if (total === 0) {
+            return '<div class="no-data">No data</div>';
+        }
+        
+        // Get value ordering from template data
+        let preferredOrder = [];
+        if (templateData && templateData.value_orderings && templateData.value_orderings[phenotypeKey]) {
+            preferredOrder = templateData.value_orderings[phenotypeKey];
+        }
+        
+        // Sort values by preferred order, then alphabetically, with NA always last
+        const sortedValues = Object.entries(distribution)
+            .sort((a, b) => {
+                const [valueA] = a;
+                const [valueB] = b;
+                
+                // NA always goes last
+                if (valueA === 'NA' || valueA === 'N/A' || valueA === '') return 1;
+                if (valueB === 'NA' || valueB === 'N/A' || valueB === '') return -1;
+                
+                // Use preferred order if available
+                const indexA = preferredOrder.findIndex(order => valueA.toLowerCase().includes(order.toLowerCase()));
+                const indexB = preferredOrder.findIndex(order => valueB.toLowerCase().includes(order.toLowerCase()));
+                
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                
+                // Fallback to alphabetical
+                return valueA.localeCompare(valueB);
+            });
+        
+        let html = '<div class="single-bar-chart">';
+        html += '<div class="single-stacked-bar">';
+        
+        sortedValues.forEach(([value, count]) => {
+            const percentage = (count / total * 100);
+            const colors = getValueColors(value, phenotypeKey);
+            
+            if (percentage > 0) {
+                html += `<div class="bar-segment" style="width: ${percentage}%; background-color: ${colors.background}; color: ${colors.color};">`;
+                
+                // Show count for larger segments
+                if (percentage > 5) {
+                    html += `<span class="bar-number">${count}</span>`;
+                }
+                
+                html += `</div>`;
+            }
+        });
+        
+        html += '</div>';
+        html += '</div>';
+        
+        return html;
+    }
+    
+    function getValueColors(value, phenotypeKey) {
+        // Default colors for NA or unknown values
+        const defaultColors = {
+            background: '#e2e3e5',
+            color: '#6c757d'
+        };
+        
+        if (value === 'NA' || value === 'N/A' || value === '') {
+            return defaultColors;
+        }
+        
+        // Check for invalid values
+        if (typeof value === 'string' && value.startsWith('Invalid:')) {
+            return {
+                background: '#ffcdd2',
+                color: '#c62828'
+            };
+        }
+        
+        // Try to get colors from template data
+        if (templateData && templateData.color_mappings && templateData.color_mappings[phenotypeKey]) {
+            const colorMapping = templateData.color_mappings[phenotypeKey];
+            
+            // Direct match first
+            if (colorMapping[value]) {
+                return {
+                    background: colorMapping[value].background,
+                    color: colorMapping[value].color
+                };
+            }
+            
+            // Try case-insensitive match for boolean values
+            const lowerValue = value.toString().toLowerCase();
+            if (lowerValue === 'true' && colorMapping['TRUE']) {
+                return {
+                    background: colorMapping['TRUE'].background,
+                    color: colorMapping['TRUE'].color
+                };
+            }
+            if (lowerValue === 'false' && colorMapping['FALSE']) {
+                return {
+                    background: colorMapping['FALSE'].background,
+                    color: colorMapping['FALSE'].color
+                };
+            }
+            
+            // Try partial matching for complex values
+            for (const [mappedValue, colors] of Object.entries(colorMapping)) {
+                if (lowerValue.includes(mappedValue.toLowerCase()) || 
+                    mappedValue.toLowerCase().includes(lowerValue)) {
+                    return {
+                        background: colors.background,
+                        color: colors.color
+                    };
+                }
+            }
+        }
+        
+        // Fallback to default colors for unmatched values
+        return {
+            background: '#f8f9fa',
+            color: '#495057'
+        };
+    }
+    
+    // Consensus Analysis Functions
+    function calculateConsensusAnalysis(modelResults) {
+        const consensus = {};
+        const modelDeviations = {};
+        
+        // Calculate consensus for each phenotype
+        Object.keys(phenotypes).forEach(phenotype => {
+            if (!shouldShowPhenotype(phenotype)) return;
+            
+            // Collect all unique values across all models
+            const allValues = new Set();
+            modelResults.forEach(model => {
+                if (model.phenotypeDistributions[phenotype]) {
+                    Object.keys(model.phenotypeDistributions[phenotype]).forEach(value => {
+                        allValues.add(value);
+                    });
+                }
+            });
+            
+            // Calculate consensus percentages
+            const consensusDistribution = {};
+            allValues.forEach(value => {
+                let totalCount = 0;
+                let totalPredictions = 0;
+                
+                modelResults.forEach(model => {
+                    const modelDist = model.phenotypeDistributions[phenotype] || {};
+                    const valueCount = modelDist[value] || 0;
+                    const modelTotal = Object.values(modelDist).reduce((sum, count) => sum + count, 0);
+                    
+                    if (modelTotal > 0) {
+                        totalCount += (valueCount / modelTotal);
+                        totalPredictions += 1;
+                    }
+                });
+                
+                if (totalPredictions > 0) {
+                    consensusDistribution[value] = (totalCount / totalPredictions) * 100;
+                }
+            });
+            
+            consensus[phenotype] = consensusDistribution;
+        });
+        
+        // Calculate deviation metrics for each model
+        modelResults.forEach(model => {
+            const deviations = {};
+            let totalDeviation = 0;
+            let phenotypeCount = 0;
+            
+            Object.keys(phenotypes).forEach(phenotype => {
+                if (!shouldShowPhenotype(phenotype)) return;
+                
+                const modelDist = model.phenotypeDistributions[phenotype] || {};
+                const consensusDist = consensus[phenotype] || {};
+                const modelTotal = Object.values(modelDist).reduce((sum, count) => sum + count, 0);
+                
+                if (modelTotal > 0) {
+                    // Convert to percentages
+                    const modelPercentages = {};
+                    Object.entries(modelDist).forEach(([value, count]) => {
+                        modelPercentages[value] = (count / modelTotal) * 100;
+                    });
+                    
+                    // Calculate Jensen-Shannon divergence
+                    const jsDivergence = calculateJSDivergence(modelPercentages, consensusDist);
+                    
+                    deviations[phenotype] = {
+                        jsDivergence: jsDivergence,
+                        significant: jsDivergence > 0.1
+                    };
+                    
+                    totalDeviation += jsDivergence;
+                    phenotypeCount++;
+                }
+            });
+            
+            modelDeviations[model.modelName] = {
+                phenotypeDeviations: deviations,
+                averageDeviation: phenotypeCount > 0 ? totalDeviation / phenotypeCount : 0,
+                significantDeviations: Object.values(deviations).filter(d => d.significant).length
+            };
+        });
+        
+        return { consensus, modelDeviations };
+    }
+    
+    function calculateJSDivergence(p, q) {
+        // Jensen-Shannon divergence between two probability distributions
+        const allKeys = new Set([...Object.keys(p), ...Object.keys(q)]);
+        
+        let jsDiv = 0;
+        const pArray = [];
+        const qArray = [];
+        
+        allKeys.forEach(key => {
+            const pVal = (p[key] || 0) / 100; // Convert percentage to probability
+            const qVal = (q[key] || 0) / 100;
+            pArray.push(pVal);
+            qArray.push(qVal);
+        });
+        
+        // Calculate M = (P + Q) / 2
+        const mArray = pArray.map((pVal, i) => (pVal + qArray[i]) / 2);
+        
+        // Calculate KL divergences
+        let klPM = 0;
+        let klQM = 0;
+        
+        for (let i = 0; i < pArray.length; i++) {
+            if (pArray[i] > 0 && mArray[i] > 0) {
+                klPM += pArray[i] * Math.log2(pArray[i] / mArray[i]);
+            }
+            if (qArray[i] > 0 && mArray[i] > 0) {
+                klQM += qArray[i] * Math.log2(qArray[i] / mArray[i]);
+            }
+        }
+        
+        return (klPM + klQM) / 2;
+    }
+    
+    function getAgreementLevel(deviation) {
+        if (deviation < 0.05) {
+            return { class: 'high', label: 'High Agreement' };
+        } else if (deviation < 0.1) {
+            return { class: 'moderate', label: 'Moderate Agreement' };
+        } else if (deviation < 0.2) {
+            return { class: 'low', label: 'Low Agreement' };
+        } else {
+            return { class: 'outlier', label: 'Outlier' };
+        }
+    }
+    
+    function shouldShowPhenotype(phenotypeKey) {
+        if (!templateData || !templateData.legend_data) {
+            return true;
+        }
+        
+        const legendInfo = templateData.legend_data[phenotypeKey];
+        if (!legendInfo) {
+            return true;
+        }
+        
+        const fieldType = legendInfo.field_type;
+        return visibleFieldTypes.includes(fieldType);
+    }
+    
+    function getHiddenPhenotypes() {
+        const hiddenPhenotypes = [];
+        if (!templateData || !templateData.legend_data) {
+            return hiddenPhenotypes;
+        }
+        
+        Object.entries(phenotypes).forEach(([phenotypeKey, phenotypeInfo]) => {
+            const legendInfo = templateData.legend_data[phenotypeKey];
+            if (legendInfo && !visibleFieldTypes.includes(legendInfo.field_type)) {
+                hiddenPhenotypes.push({
+                    name: phenotypeInfo.name,
+                    fieldType: legendInfo.field_type
+                });
+            }
+        });
+        
+        return hiddenPhenotypes;
+    }
+    
+    // Global functions for controls
+    window.changeTemplate = function(newTemplate) {
+        selectedTemplate = newTemplate;
+        loadTemplateDefinitions()
+            .then(() => loadPhenotypeData())
+            .catch(error => {
+                console.error('Error changing template:', error);
+                document.getElementById('phenotypeContent').innerHTML = 
+                    '<div class="empty-state"><h3>Error loading template</h3><p>' + error.message + '</p></div>';
+            });
+    };
+    
+    window.showDatasetAnalysis = showDatasetAnalysis;
+    
+    // Initialize if not in component viewer
+    if (!window.location.pathname.includes('/components/')) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.loadInitialData) {
+                    window.loadInitialData();
+                }
+            });
+        } else {
+            setTimeout(function() {
+                if (window.loadInitialData) {
+                    window.loadInitialData();
+                }
+            }, 100);
+        }
+    }
+})();
+</script>

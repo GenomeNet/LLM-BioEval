@@ -1,0 +1,197 @@
+<div id="phenotypeDistributionsContent" style="display: none;">
+    <!-- This will be populated by JavaScript -->
+</div>
+
+<style>
+    /* Phenotype Analysis Table Styles */
+    .phenotype-analysis-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 18px;
+        font-size: 14px;
+    }
+    
+    .phenotype-analysis-table th,
+    .phenotype-analysis-table td {
+        padding: 8px 12px;
+        border: 1px solid var(--gray-200);
+        text-align: left;
+    }
+    
+    .phenotype-analysis-table th {
+        background: var(--gray-50);
+        font-weight: 600;
+    }
+    
+    .phenotype-card .phenotype-analysis-table th:first-child {
+        text-align: left;
+    }
+    
+    .phenotype-card .phenotype-analysis-table th:nth-child(2) {
+        text-align: center;
+    }
+    
+    .phenotype-card .phenotype-analysis-table th:last-child {
+        text-align: center;
+        width: 100px;
+    }
+    
+    .chart-cell {
+        width: 100%;
+        max-width: 500px;
+        padding: 4px 8px;
+    }
+    
+    .phenotype-card .chart-cell {
+        max-width: none;
+    }
+    
+    .no-data {
+        text-align: center;
+        color: var(--gray-500);
+        font-style: italic;
+        font-size: 11px;
+    }
+    
+    /* Bar Chart Styles */
+    .single-bar-chart {
+        width: 100%;
+        height: 16px;
+    }
+    
+    .single-stacked-bar {
+        width: 100%;
+        height: 16px;
+        display: flex;
+        border: 1px solid #dee2e6;
+        border-radius: 2px;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
+    
+    .bar-segment {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        position: relative;
+        min-width: 16px;
+    }
+    
+    .bar-number {
+        font-size: 11px;
+        font-weight: 600;
+        z-index: 1;
+        pointer-events: none;
+    }
+    
+    /* Field type badges */
+    .field-type-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-left: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .field-type-binary {
+        background: rgba(99, 102, 241, 0.1);
+        color: #6366f1;
+    }
+    
+    .field-type-categorical {
+        background: rgba(34, 197, 94, 0.1);
+        color: #059669;
+    }
+    
+    .field-type-multi-select {
+        background: rgba(251, 146, 60, 0.1);
+        color: #ea580c;
+    }
+    
+    /* Legend styles */
+    .phenotype-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        font-size: 13px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: var(--gray-600);
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        margin-right: 6px;
+        display: inline-block;
+    }
+    
+    .legend-label {
+        color: var(--gray-600);
+    }
+    
+    /* Tooltip styles */
+    .phenotype-tooltip {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+    }
+    
+    .phenotype-tooltip-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 11px;
+        max-width: 300px;
+    }
+    
+    .phenotype-tooltip-header {
+        font-weight: 600;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .phenotype-tooltip-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .tooltip-stat {
+        font-size: 10px;
+    }
+    
+    .tooltip-stat-label {
+        color: #6c757d;
+    }
+    
+    .tooltip-stat-value {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+</style>
+
+<script>
+// This component depends on data from the main model predictions component
+// It will be populated after the main data is loaded
+(function() {
+    // The distribution view will be rendered by the main component
+    window._phenotypeDistributionsReady = true;
+})();
+</script>

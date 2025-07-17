@@ -1,0 +1,76 @@
+<div id="dynamicStatsText">
+    <!-- This will be populated by JavaScript -->
+</div>
+
+<style>
+    /* Dynamic Stats Text */
+    #dynamicStatsText {
+        background: linear-gradient(135deg, 
+            rgba(34, 197, 94, 0.05) 0%,
+            rgba(16, 185, 129, 0.03) 50%,
+            rgba(5, 150, 105, 0.05) 100%);
+        border: 1px solid rgba(34, 197, 94, 0.1);
+        border-radius: 12px;
+        padding: 20px 28px;
+        margin-bottom: 48px;
+        font-size: 16px;
+        line-height: 1.8;
+        color: var(--gray-700);
+    }
+    
+    .stat-value {
+        display: inline-block;
+        font-weight: 700;
+        color: var(--gray-900);
+        background: rgba(34, 197, 94, 0.1);
+        border-radius: 6px;
+        margin: 0 2px;
+        padding: 2px 6px;
+        font-size: inherit;
+    }
+    
+    .model-highlight {
+        display: inline-block;
+        font-weight: 700;
+        color: #059669;
+        background: rgba(34, 197, 94, 0.1);
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: inherit;
+    }
+    
+    .model-lowlight {
+        display: inline-block;
+        font-weight: 700;
+        color: #dc2626;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: inherit;
+    }
+</style>
+
+<script>
+// Dynamic stats will be populated by the main phenotype analysis script
+// This is just a placeholder for the component viewer
+(function() {
+    // Check if we're in component viewer context
+    if (window.location.pathname.includes('/components/')) {
+        // Provide mock data for component viewer
+        const mockStatsText = 
+            'We analyzed <span class="stat-value">25</span> language models across ' +
+            '<span class="stat-value">13</span> bacterial phenotype categories, ' +
+            'generating an average of <span class="stat-value">500</span> predictions per model. ' +
+            'The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">15.2%</span>. ' +
+            '<span class="model-highlight">GPT-4</span> demonstrated the highest confidence ' +
+            'with only <span class="stat-value">8.5%</span> NA responses, ' +
+            'while <span class="model-lowlight">Llama-2</span> ' +
+            'was more conservative with <span class="stat-value">22.3%</span> NA responses.';
+        
+        const container = document.getElementById('dynamicStatsText');
+        if (container) {
+            container.innerHTML = mockStatsText;
+        }
+    }
+})();
+</script>

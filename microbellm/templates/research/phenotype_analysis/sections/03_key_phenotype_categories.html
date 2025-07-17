@@ -1,0 +1,68 @@
+<div class="overview-cards">
+    <div class="overview-card">
+        <h4 class="overview-title">Gram Staining</h4>
+        <p class="overview-description">Fundamental bacterial classification based on cell wall structure, determining staining properties and antibiotic susceptibility.</p>
+    </div>
+    <div class="overview-card">
+        <h4 class="overview-title">Motility</h4>
+        <p class="overview-description">Ability of bacteria to move independently using flagella, pili, or other mechanisms, affecting colonization and virulence.</p>
+    </div>
+    <div class="overview-card">
+        <h4 class="overview-title">Oxygen Requirements</h4>
+        <p class="overview-description">Metabolic relationship with oxygen, from obligate aerobes to anaerobes, determining growth conditions and habitat.</p>
+    </div>
+    <div class="overview-card">
+        <h4 class="overview-title">Temperature Range</h4>
+        <p class="overview-description">Optimal growth temperatures defining psychrophiles, mesophiles, and thermophiles, indicating environmental adaptations.</p>
+    </div>
+    <div class="overview-card">
+        <h4 class="overview-title">Metabolism</h4>
+        <p class="overview-description">Energy generation pathways including fermentation, respiration, and photosynthesis, defining nutritional requirements.</p>
+    </div>
+    <div class="overview-card">
+        <h4 class="overview-title">Pathogenicity</h4>
+        <p class="overview-description">Ability to cause disease in hosts, from harmless commensals to obligate pathogens, crucial for clinical applications.</p>
+    </div>
+</div>
+
+<style>
+    .overview-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-component);
+    }
+
+    .overview-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+
+    .overview-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .overview-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: calc(var(--spacing-small) * 0.75);
+    }
+
+    .overview-description {
+        font-size: 14px;
+        color: var(--gray-600);
+        line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+        .overview-cards {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

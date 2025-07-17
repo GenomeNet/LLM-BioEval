@@ -1,0 +1,215 @@
+<div id="phenotypeContent">
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading phenotype prediction data...</div>
+    </div>
+</div>
+
+<style>
+    /* Loading States */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-element);
+        padding: calc(var(--spacing-section) * 1.25) var(--spacing-component);
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid var(--bg-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .loading-progress {
+        width: 300px;
+        height: 6px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .loading-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--bg-primary), rgba(255, 255, 255, 0.8));
+        border-radius: 3px;
+        animation: progress-slide 2s ease-in-out infinite;
+        width: 30%;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes progress-slide {
+        0% { transform: translateX(-100%); }
+        50% { transform: translateX(250%); }
+        100% { transform: translateX(-100%); }
+    }
+
+    .loading-text {
+        font-size: 16px;
+        color: var(--bg-primary);
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: calc(var(--spacing-section) * 1.25);
+        color: var(--gray-600);
+    }
+
+    .empty-state h3 {
+        color: var(--gray-900);
+        margin-bottom: calc(var(--spacing-small) * 0.625);
+    }
+
+    /* Model Ranking Styles */
+    .model-ranking {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .model-ranking h5 {
+        margin: 0 0 10px 0;
+        color: #2c3e50;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .ranking-explanation {
+        color: #6c757d;
+        font-size: 13px;
+        margin-bottom: 20px;
+        font-style: italic;
+    }
+    
+    .consensus-ranking-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .consensus-ranking-table th {
+        background-color: #f8f9fa;
+        padding: 12px 8px;
+        text-align: center;
+        font-weight: 600;
+        color: #495057;
+        border: 1px solid #dee2e6;
+        font-size: 12px;
+    }
+    
+    .consensus-ranking-table td {
+        padding: 10px 8px;
+        border: 1px solid #e9ecef;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .model-name {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        color: #495057;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .deviation-score {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+    
+    .significant-count {
+        font-weight: 600;
+        color: #dc3545;
+    }
+    
+    .significant-phenotypes-list {
+        font-size: 11px;
+        color: #721c24;
+        margin-top: 4px;
+        font-style: italic;
+    }
+    
+    .agreement-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .agreement-badge.agreement-high {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .agreement-badge.agreement-moderate {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .agreement-badge.agreement-low {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .agreement-badge.agreement-outlier {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    /* Simple controls */
+    .simple-controls {
+        display: flex;
+        gap: var(--spacing-small);
+        margin-bottom: var(--spacing-element);
+        align-items: center;
+        flex-wrap: wrap;
+        padding: var(--spacing-small);
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+    }
+    
+    .control-item {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing-small) * 0.625);
+    }
+    
+    .control-item label {
+        font-size: 13px;
+        color: #495057;
+        font-weight: 600;
+        min-width: 60px;
+    }
+    
+    .control-item select {
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background: white;
+        font-size: 13px;
+        font-family: inherit;
+        min-width: 160px;
+    }
+</style>

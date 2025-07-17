@@ -262,14 +262,63 @@ class ProcessingManager:
                         result, status, error = future.result(timeout=1)
                         
                         # Store result in both tables
-                        cursor.execute("""
-                            INSERT INTO species_results (combination_id, binomial_name, result, status, error)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (combination_id, species_name, result, status, error))
+                        # Parse the result if it's JSON
+                        knowledge_group = None
+                        phenotype_data = {}
                         
-                        # Also store in results table for knowledge analysis
-                        self._store_in_results_table(cursor, species_name, species_file, model, 
-                                                   system_template, user_template, result, status, error)
+                        if result and status == 'completed':
+                            try:
+                                result_dict = json.loads(result)
+                                
+                                # Extract knowledge_group if present
+                                knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
+                                
+                                # Extract phenotypes if present
+                                if 'phenotypes' in result_dict:
+                                    phenotype_data = result_dict['phenotypes']
+                                
+                                # Also check for individual phenotype fields at top level
+                                phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                                                  'extreme_environment_tolerance', 'biofilm_formation',
+                                                  'animal_pathogenicity', 'biosafety_level', 
+                                                  'health_association', 'host_association',
+                                                  'plant_pathogenicity', 'spore_formation', 
+                                                  'hemolysis', 'cell_shape']
+                                
+                                for field in phenotype_fields:
+                                    if field in result_dict and field not in phenotype_data:
+                                        phenotype_data[field] = result_dict[field]
+                                        
+                            except json.JSONDecodeError:
+                                print(f"    Warning: Could not parse JSON result for {species_name}")
+                        
+                        # Store directly in results table (single source of truth)
+                        cursor.execute("""
+                            INSERT INTO results (
+                                species_file, binomial_name, model, system_template, user_template,
+                                status, result, error, knowledge_group,
+                                gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                                biofilm_formation, animal_pathogenicity, biosafety_level,
+                                health_association, host_association, plant_pathogenicity,
+                                spore_formation, hemolysis, cell_shape
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            species_file, species_name, model, system_template, user_template,
+                            status, result, error, knowledge_group,
+                            phenotype_data.get('gram_staining'),
+                            phenotype_data.get('motility'),
+                            phenotype_data.get('aerophilicity'),
+                            phenotype_data.get('extreme_environment_tolerance'),
+                            phenotype_data.get('biofilm_formation'),
+                            phenotype_data.get('animal_pathogenicity'),
+                            phenotype_data.get('biosafety_level'),
+                            phenotype_data.get('health_association'),
+                            phenotype_data.get('host_association'),
+                            phenotype_data.get('plant_pathogenicity'),
+                            phenotype_data.get('spore_formation'),
+                            phenotype_data.get('hemolysis'),
+                            phenotype_data.get('cell_shape')
+                        ))
                         conn.commit()
                         
                         print(f"    Stored result for {species_name}: status={status}")
@@ -306,14 +355,55 @@ class ProcessingManager:
                             try:
                                 result, status, error = future.result(timeout=1)
                                 
-                                cursor.execute("""
-                                    INSERT INTO species_results (combination_id, binomial_name, result, status, error)
-                                    VALUES (?, ?, ?, ?, ?)
-                                """, (combination_id, species_name, result, status, error))
+                                # Parse the result if it's JSON
+                                knowledge_group = None
+                                phenotype_data = {}
                                 
-                                # Also store in results table for knowledge analysis
-                                self._store_in_results_table(cursor, species_name, species_file, model, 
-                                                           system_template, user_template, result, status, error)
+                                if result and status == 'completed':
+                                    try:
+                                        result_dict = json.loads(result)
+                                        knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
+                                        if 'phenotypes' in result_dict:
+                                            phenotype_data = result_dict['phenotypes']
+                                        phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                                                          'extreme_environment_tolerance', 'biofilm_formation',
+                                                          'animal_pathogenicity', 'biosafety_level', 
+                                                          'health_association', 'host_association',
+                                                          'plant_pathogenicity', 'spore_formation', 
+                                                          'hemolysis', 'cell_shape']
+                                        for field in phenotype_fields:
+                                            if field in result_dict and field not in phenotype_data:
+                                                phenotype_data[field] = result_dict[field]
+                                    except json.JSONDecodeError:
+                                        pass
+                                
+                                # Store directly in results table
+                                cursor.execute("""
+                                    INSERT INTO results (
+                                        species_file, binomial_name, model, system_template, user_template,
+                                        status, result, error, knowledge_group,
+                                        gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                                        biofilm_formation, animal_pathogenicity, biosafety_level,
+                                        health_association, host_association, plant_pathogenicity,
+                                        spore_formation, hemolysis, cell_shape
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    species_file, species_name, model, system_template, user_template,
+                                    status, result, error, knowledge_group,
+                                    phenotype_data.get('gram_staining'),
+                                    phenotype_data.get('motility'),
+                                    phenotype_data.get('aerophilicity'),
+                                    phenotype_data.get('extreme_environment_tolerance'),
+                                    phenotype_data.get('biofilm_formation'),
+                                    phenotype_data.get('animal_pathogenicity'),
+                                    phenotype_data.get('biosafety_level'),
+                                    phenotype_data.get('health_association'),
+                                    phenotype_data.get('host_association'),
+                                    phenotype_data.get('plant_pathogenicity'),
+                                    phenotype_data.get('spore_formation'),
+                                    phenotype_data.get('hemolysis'),
+                                    phenotype_data.get('cell_shape')
+                                ))
                                 conn.commit()
                                 
                                 print(f"    Stored result for {species_name}: status={status}")
@@ -332,14 +422,55 @@ class ProcessingManager:
                 try:
                     result, status, error = future.result(timeout=60)
                     
-                    cursor.execute("""
-                        INSERT INTO species_results (combination_id, binomial_name, result, status, error)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (combination_id, species_name, result, status, error))
+                    # Parse the result if it's JSON
+                    knowledge_group = None
+                    phenotype_data = {}
                     
-                    # Also store in results table for knowledge analysis
-                    self._store_in_results_table(cursor, species_name, species_file, model, 
-                                               system_template, user_template, result, status, error)
+                    if result and status == 'completed':
+                        try:
+                            result_dict = json.loads(result)
+                            knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
+                            if 'phenotypes' in result_dict:
+                                phenotype_data = result_dict['phenotypes']
+                            phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                                              'extreme_environment_tolerance', 'biofilm_formation',
+                                              'animal_pathogenicity', 'biosafety_level', 
+                                              'health_association', 'host_association',
+                                              'plant_pathogenicity', 'spore_formation', 
+                                              'hemolysis', 'cell_shape']
+                            for field in phenotype_fields:
+                                if field in result_dict and field not in phenotype_data:
+                                    phenotype_data[field] = result_dict[field]
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Store directly in results table
+                    cursor.execute("""
+                        INSERT INTO results (
+                            species_file, binomial_name, model, system_template, user_template,
+                            status, result, error, knowledge_group,
+                            gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                            biofilm_formation, animal_pathogenicity, biosafety_level,
+                            health_association, host_association, plant_pathogenicity,
+                            spore_formation, hemolysis, cell_shape
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        species_file, species_name, model, system_template, user_template,
+                        status, result, error, knowledge_group,
+                        phenotype_data.get('gram_staining'),
+                        phenotype_data.get('motility'),
+                        phenotype_data.get('aerophilicity'),
+                        phenotype_data.get('extreme_environment_tolerance'),
+                        phenotype_data.get('biofilm_formation'),
+                        phenotype_data.get('animal_pathogenicity'),
+                        phenotype_data.get('biosafety_level'),
+                        phenotype_data.get('health_association'),
+                        phenotype_data.get('host_association'),
+                        phenotype_data.get('plant_pathogenicity'),
+                        phenotype_data.get('spore_formation'),
+                        phenotype_data.get('hemolysis'),
+                        phenotype_data.get('cell_shape')
+                    ))
                     conn.commit()
                     
                     if status == 'completed':
@@ -432,70 +563,6 @@ class ProcessingManager:
             print(f"    ✗ Error processing {species}: {str(e)}")
             return None, 'failed', str(e)
     
-    def _store_in_results_table(self, cursor, binomial_name, species_file, model, 
-                               system_template, user_template, result_json, status, error):
-        """Store result in results table for knowledge analysis compatibility"""
-        try:
-            # Parse the result if it's JSON
-            knowledge_group = None
-            phenotype_data = {}
-            
-            if result_json and status == 'completed':
-                try:
-                    result_dict = json.loads(result_json)
-                    
-                    # Extract knowledge_group if present
-                    knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
-                    
-                    # Extract phenotypes if present
-                    if 'phenotypes' in result_dict:
-                        phenotype_data = result_dict['phenotypes']
-                    
-                    # Also check for individual phenotype fields at top level
-                    phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
-                                      'extreme_environment_tolerance', 'biofilm_formation',
-                                      'animal_pathogenicity', 'biosafety_level', 
-                                      'health_association', 'host_association',
-                                      'plant_pathogenicity', 'spore_formation', 
-                                      'hemolysis', 'cell_shape']
-                    
-                    for field in phenotype_fields:
-                        if field in result_dict and field not in phenotype_data:
-                            phenotype_data[field] = result_dict[field]
-                            
-                except json.JSONDecodeError:
-                    print(f"    Warning: Could not parse JSON result for {binomial_name}")
-            
-            # Insert into results table
-            cursor.execute("""
-                INSERT INTO results (
-                    species_file, binomial_name, model, system_template, user_template,
-                    status, result, error, timestamp, knowledge_group,
-                    gram_staining, motility, aerophilicity, extreme_environment_tolerance,
-                    biofilm_formation, animal_pathogenicity, biosafety_level,
-                    health_association, host_association, plant_pathogenicity,
-                    spore_formation, hemolysis, cell_shape
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                species_file, binomial_name, model, system_template, user_template,
-                status, result_json, error, datetime.now(), knowledge_group,
-                phenotype_data.get('gram_staining'),
-                phenotype_data.get('motility'),
-                phenotype_data.get('aerophilicity'),
-                phenotype_data.get('extreme_environment_tolerance'),
-                phenotype_data.get('biofilm_formation'),
-                phenotype_data.get('animal_pathogenicity'),
-                phenotype_data.get('biosafety_level'),
-                phenotype_data.get('health_association'),
-                phenotype_data.get('host_association'),
-                phenotype_data.get('plant_pathogenicity'),
-                phenotype_data.get('spore_formation'),
-                phenotype_data.get('hemolysis'),
-                phenotype_data.get('cell_shape')
-            ))
-            
-        except Exception as e:
-            print(f"    Warning: Failed to store in results table for {binomial_name}: {str(e)}")
     
     def _apply_rate_limit(self, model):
         """Apply rate limiting per model"""
@@ -561,10 +628,22 @@ class ProcessingManager:
         cursor = conn.cursor()
         
         try:
-            # Delete failed results
+            # Get combination details first
+            cursor.execute("""
+                SELECT species_file, model, system_template, user_template
+                FROM combinations WHERE id = ?
+            """, (combination_id,))
+            combo = cursor.fetchone()
+            
+            if not combo:
+                return False, "Combination not found"
+            
+            # Delete failed results from results table
             cursor.execute(
-                "DELETE FROM species_results WHERE combination_id = ? AND status != 'completed'",
-                (combination_id,)
+                """DELETE FROM results 
+                   WHERE species_file = ? AND model = ? AND system_template = ? 
+                   AND user_template = ? AND status != 'completed'""",
+                (combo[0], combo[1], combo[2], combo[3])
             )
             
             # Reset combination status
@@ -782,32 +861,18 @@ class ProcessingManager:
             conn.close()
             return jsonify({'error': 'Combination not found'}), 404
         
-        # First try to get species results from the species_results table (for new combinations)
+        # Get species results from the results table (single source of truth)
         cursor.execute("""
-            SELECT binomial_name, result, status, error
-            FROM species_results 
-            WHERE combination_id = ?
-        """, (combination_id,))
-        
+            SELECT binomial_name, result, status, error, knowledge_group,
+                   gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                   biofilm_formation, animal_pathogenicity, biosafety_level,
+                   health_association, host_association, plant_pathogenicity,
+                   spore_formation, hemolysis, cell_shape
+            FROM results 
+            WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+        """, (combo[1], combo[2], combo[3], combo[4]))
         species_results_raw = cursor.fetchall()
-        
-        # If no results in species_results, try the results table (for historical data)
-        if not species_results_raw:
-            print(f"No results in species_results for combination {combination_id}, checking results table...")
-            cursor.execute("""
-                SELECT binomial_name, result, status, error, knowledge_group,
-                       gram_staining, motility, aerophilicity, extreme_environment_tolerance,
-                       biofilm_formation, animal_pathogenicity, biosafety_level,
-                       health_association, host_association, plant_pathogenicity,
-                       spore_formation, hemolysis, cell_shape
-                FROM results 
-                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-            """, (combo[1], combo[2], combo[3], combo[4]))
-            species_results_raw = cursor.fetchall()
-            from_results_table = True
-        else:
-            from_results_table = False
-            print(f"Found {len(species_results_raw)} results in species_results for combination {combination_id}")
+        from_results_table = True
         
         species_results = []
         for row in species_results_raw:
@@ -1083,28 +1148,46 @@ class ProcessingManager:
                     
                     # Build result JSON
                     result_data = {}
-                    phenotype_fields = ['gram_stain', 'shape', 'aerobic', 'motility', 
-                                      'spore_forming', 'biofilm_forming']
+                    phenotype_mapping = {
+                        'gram_stain': 'gram_staining',
+                        'shape': 'cell_shape',
+                        'aerobic': 'aerophilicity',
+                        'motility': 'motility',
+                        'spore_forming': 'spore_formation',
+                        'biofilm_forming': 'biofilm_formation'
+                    }
                     
                     phenotypes = {}
-                    for field in phenotype_fields:
-                        if field in row and pd.notna(row[field]):
-                            phenotypes[field] = row[field]
+                    for csv_field, db_field in phenotype_mapping.items():
+                        if csv_field in row and pd.notna(row[csv_field]):
+                            phenotypes[db_field] = row[csv_field]
                     
                     if phenotypes:
                         result_data['phenotypes'] = phenotypes
                     
+                    knowledge_group = None
                     if 'knowledge_group' in row and pd.notna(row['knowledge_group']):
-                        result_data['knowledge_group'] = row['knowledge_group']
+                        knowledge_group = row['knowledge_group']
+                        result_data['knowledge_group'] = knowledge_group
                     
                     result_json = json.dumps(result_data) if result_data else None
                     
-                    # Insert species result
+                    # Insert into results table
                     cursor.execute(
-                        """INSERT OR REPLACE INTO species_results 
-                           (combination_id, binomial_name, result, status)
-                           VALUES (?, ?, ?, ?)""",
-                        (combination_id, binomial_name, result_json, status)
+                        """INSERT OR REPLACE INTO results 
+                           (species_file, binomial_name, model, system_template, user_template,
+                            status, result, error, knowledge_group,
+                            gram_staining, motility, aerophilicity, spore_formation,
+                            biofilm_formation, cell_shape)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (species_file, binomial_name, model, system_template, user_template,
+                         status, result_json, None, knowledge_group,
+                         phenotypes.get('gram_staining'),
+                         phenotypes.get('motility'),
+                         phenotypes.get('aerophilicity'),
+                         phenotypes.get('spore_formation'),
+                         phenotypes.get('biofilm_formation'),
+                         phenotypes.get('cell_shape'))
                     )
                     
                     imported += 1
@@ -1157,12 +1240,59 @@ class ProcessingManager:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            cursor.execute(
-                """INSERT INTO species_results 
-                   (combination_id, binomial_name, result, status, error)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (combination_id, species_name, result, status, error)
-            )
+            # Get species file from combination
+            cursor.execute("SELECT species_file FROM combinations WHERE id = ?", (combination_id,))
+            species_file = cursor.fetchone()[0]
+            
+            # Parse result for knowledge_group and phenotypes
+            knowledge_group = None
+            phenotype_data = {}
+            
+            if result and status == 'completed':
+                try:
+                    result_dict = json.loads(result)
+                    knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
+                    if 'phenotypes' in result_dict:
+                        phenotype_data = result_dict['phenotypes']
+                    phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                                      'extreme_environment_tolerance', 'biofilm_formation',
+                                      'animal_pathogenicity', 'biosafety_level', 
+                                      'health_association', 'host_association',
+                                      'plant_pathogenicity', 'spore_formation', 
+                                      'hemolysis', 'cell_shape']
+                    for field in phenotype_fields:
+                        if field in result_dict and field not in phenotype_data:
+                            phenotype_data[field] = result_dict[field]
+                except json.JSONDecodeError:
+                    pass
+            
+            # Insert into results table
+            cursor.execute("""
+                INSERT INTO results (
+                    species_file, binomial_name, model, system_template, user_template,
+                    status, result, error, knowledge_group,
+                    gram_staining, motility, aerophilicity, extreme_environment_tolerance,
+                    biofilm_formation, animal_pathogenicity, biosafety_level,
+                    health_association, host_association, plant_pathogenicity,
+                    spore_formation, hemolysis, cell_shape
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                species_file, species_name, model, system_template, user_template,
+                status, result, error, knowledge_group,
+                phenotype_data.get('gram_staining'),
+                phenotype_data.get('motility'),
+                phenotype_data.get('aerophilicity'),
+                phenotype_data.get('extreme_environment_tolerance'),
+                phenotype_data.get('biofilm_formation'),
+                phenotype_data.get('animal_pathogenicity'),
+                phenotype_data.get('biosafety_level'),
+                phenotype_data.get('health_association'),
+                phenotype_data.get('host_association'),
+                phenotype_data.get('plant_pathogenicity'),
+                phenotype_data.get('spore_formation'),
+                phenotype_data.get('hemolysis'),
+                phenotype_data.get('cell_shape')
+            ))
             
             conn.commit()
             conn.close()
@@ -1183,10 +1313,23 @@ class ProcessingManager:
         cursor = conn.cursor()
         
         try:
-            # Get all results for this combination
+            # Get combination details first
+            cursor.execute("""
+                SELECT species_file, model, system_template, user_template
+                FROM combinations WHERE id = ?
+            """, (combination_id,))
+            combo = cursor.fetchone()
+            
+            if not combo:
+                return 0
+            
+            # Get all results for this combination from results table
             cursor.execute(
-                "SELECT id, result FROM species_results WHERE combination_id = ? AND result IS NOT NULL",
-                (combination_id,)
+                """SELECT binomial_name, result 
+                   FROM results 
+                   WHERE species_file = ? AND model = ? AND system_template = ? 
+                   AND user_template = ? AND result IS NOT NULL""",
+                (combo[0], combo[1], combo[2], combo[3])
             )
             
             results = cursor.fetchall()
@@ -1229,18 +1372,22 @@ class ProcessingManager:
         
         try:
             # Get combination details
-            cursor.execute("SELECT * FROM combinations WHERE id = ?", (combination_id,))
+            cursor.execute("""
+                SELECT id, species_file, model, system_template, user_template
+                FROM combinations WHERE id = ?
+            """, (combination_id,))
             combo = cursor.fetchone()
             
             if not combo:
                 return jsonify({'success': False, 'error': 'Combination not found'}), 404
             
-            # Get failed species
+            # Get failed species from results table
             cursor.execute(
                 """SELECT DISTINCT binomial_name 
-                   FROM species_results 
-                   WHERE combination_id = ? AND status != 'completed'""",
-                (combination_id,)
+                   FROM results 
+                   WHERE species_file = ? AND model = ? AND system_template = ? 
+                   AND user_template = ? AND status != 'completed'""",
+                (combo[1], combo[2], combo[3], combo[4])
             )
             
             failed_species = [row[0] for row in cursor.fetchall()]
@@ -1251,10 +1398,12 @@ class ProcessingManager:
                     'error': 'No failed species found'
                 })
             
-            # Delete failed results
+            # Delete failed results from results table
             cursor.execute(
-                "DELETE FROM species_results WHERE combination_id = ? AND status != 'completed'",
-                (combination_id,)
+                """DELETE FROM results 
+                   WHERE species_file = ? AND model = ? AND system_template = ? 
+                   AND user_template = ? AND status != 'completed'""",
+                (combo[1], combo[2], combo[3], combo[4])
             )
             
             # Reset combination to pending
@@ -1434,8 +1583,20 @@ def delete_combination_api(combination_id):
     cursor = conn.cursor()
     
     try:
-        # Delete related species results first
-        cursor.execute("DELETE FROM species_results WHERE combination_id = ?", (combination_id,))
+        # Get combination details first
+        cursor.execute("""
+            SELECT species_file, model, system_template, user_template
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
+        combo = cursor.fetchone()
+        
+        if combo:
+            # Delete from results table
+            cursor.execute("""
+                DELETE FROM results 
+                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
+            """, (combo[0], combo[1], combo[2], combo[3]))
+        
         # Delete combination
         cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
         conn.commit()
@@ -2050,16 +2211,21 @@ def rerun_failed_species():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM combinations WHERE id = ?", (combination_id,))
+        cursor.execute("""
+            SELECT id, species_file, model, system_template, user_template
+            FROM combinations WHERE id = ?
+        """, (combination_id,))
         combination = cursor.fetchone()
         
         if not combination:
             return jsonify({'success': False, 'error': 'Combination not found'}), 404
         
-        # Delete the old failed result
+        # Delete the old failed result from results table
         cursor.execute(
-            "DELETE FROM species_results WHERE combination_id = ? AND binomial_name = ? AND status != 'completed'",
-            (combination_id, species_name)
+            """DELETE FROM results 
+               WHERE species_file = ? AND model = ? AND system_template = ? 
+               AND user_template = ? AND binomial_name = ? AND status != 'completed'""",
+            (combination[1], combination[2], combination[3], combination[4], species_name)
         )
         conn.commit()
         conn.close()

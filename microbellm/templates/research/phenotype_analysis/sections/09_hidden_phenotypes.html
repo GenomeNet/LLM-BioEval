@@ -1,0 +1,65 @@
+<div id="hiddenPhenotypesSection" style="margin: 24px 0;">
+    <!-- This will be populated by JavaScript -->
+</div>
+
+<style>
+    /* Hidden phenotypes info */
+    .hidden-phenotypes-info {
+        margin-bottom: calc(var(--spacing-element) * 1.04);
+        padding: var(--spacing-element);
+        background: #FAFAFA;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+    }
+    
+    .hidden-phenotypes-info h4 {
+        margin: 0 0 calc(var(--spacing-small) * 0.625) 0;
+        color: var(--gray-700);
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .hidden-phenotypes-info p {
+        margin: 0 0 calc(var(--spacing-small) * 0.625) 0;
+        color: var(--gray-600);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    
+    .hidden-phenotypes-info ul {
+        margin: 0;
+        padding-left: var(--spacing-element);
+        color: var(--gray-600);
+    }
+    
+    .hidden-phenotypes-info li {
+        margin-bottom: calc(var(--spacing-small) * 0.3125);
+        font-size: 14px;
+    }
+</style>
+
+<script>
+// Hidden phenotypes will be populated by the main phenotype analysis script
+// This is a placeholder for the component viewer
+(function() {
+    // Check if we're in component viewer context
+    if (window.location.pathname.includes('/components/')) {
+        // Provide mock data for component viewer
+        const mockHtml = '<div class="hidden-phenotypes-info">';
+        const mockHtml2 = '<h4>Hidden Phenotype Fields</h4>';
+        const mockHtml3 = '<p>The following phenotype fields are not shown because they are complex multi-select data types:</p>';
+        const mockHtml4 = '<ul>';
+        const mockHtml5 = '<li><strong>Host Association</strong> not shown since it is datatype multi-select</li>';
+        const mockHtml6 = '<li><strong>Extreme Environment Tolerance</strong> not shown since it is datatype multi-select</li>';
+        const mockHtml7 = '</ul>';
+        const mockHtml8 = '</div>';
+        
+        const fullMockHtml = mockHtml + mockHtml2 + mockHtml3 + mockHtml4 + mockHtml5 + mockHtml6 + mockHtml7 + mockHtml8;
+        
+        const container = document.getElementById('hiddenPhenotypesSection');
+        if (container) {
+            container.innerHTML = fullMockHtml;
+        }
+    }
+})();
+</script>
