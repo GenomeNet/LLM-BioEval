@@ -32,6 +32,8 @@ from microbellm.utils import (
 )
 from microbellm.predict import predict_binomial_name
 from microbellm import config
+from microbellm.unified_db import UnifiedDB
+from microbellm.unified_db import UnifiedDB
 
 # Create Flask app for admin
 app = Flask(__name__, 
@@ -49,108 +51,554 @@ db_path = JOBS_DB_PATH
 
 class ProcessingManager:
     def __init__(self):
-        self.running_combinations = {}
-        self.job_queue = []
-        self.paused_combinations = set()
-        self.stopped_combinations = set()
+        self.unified_db = UnifiedDB(db_path)
         self.requests_per_second = 30.0  # Default rate limit
         self.last_request_time = {}
-        self.max_concurrent_requests = 30  # Default concurrent requests
-        self.executor = None  # Thread pool executor
+        self.max_concurrent_requests = 10  # Default concurrent requests (optimal range: 5-10)
+        self.executor = None
+        self.job_queue = []
+        self.stopped_combinations = set()
+        self.paused_combinations = set()
+        self.running_combinations = {}  # Track running combinations
+        self.rate_limit_lock = threading.Lock()
+        self.request_times = []  # Track request times for rate limiting
         init_database(db_path)
     
+    def set_rate_limit(self, requests_per_second):
+        """Set the rate limit for API requests"""
+        self.requests_per_second = max(0.1, requests_per_second)
+    
     def set_max_concurrent_requests(self, max_concurrent):
-        """Set the maximum number of concurrent API requests"""
+        """Set the maximum number of concurrent requests"""
         self.max_concurrent_requests = max(1, max_concurrent)
-        # Restart executor with new thread count if it exists
+        # Recreate executor with new size
         if self.executor:
             self.executor.shutdown(wait=False)
-            self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_requests)
+            self.executor = None
     
     def _get_or_create_executor(self):
-        """Get or create the thread pool executor"""
-        if not self.executor:
+        """Get or create thread pool executor"""
+        if self.executor is None:
             self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_requests)
         return self.executor
     
-    def add_combination(self, combination_id):
-        """Add a combination to the processing queue"""
-        if combination_id not in self.running_combinations and combination_id not in self.job_queue:
-            self.job_queue.append(combination_id)
-            self.process_queue()
-    
-    def pause_combination(self, combination_id):
-        """Pause a running combination"""
-        self.paused_combinations.add(combination_id)
-        
-    def resume_combination(self, combination_id):
-        """Resume a paused combination"""
-        self.paused_combinations.discard(combination_id)
-        
-    def stop_combination(self, combination_id):
-        """Stop a running combination"""
-        self.stopped_combinations.add(combination_id)
-        if combination_id in self.running_combinations:
-            # The processing thread will check this and stop
-            pass
-            
     def process_queue(self):
-        """Process combinations in the queue"""
-        if not self.job_queue or len(self.running_combinations) >= 1:  # Process one at a time for now
-            return
-            
-        combination_id = self.job_queue.pop(0)
-        thread = threading.Thread(target=self.process_combination, args=(combination_id,))
-        thread.daemon = True
-        thread.start()
-        self.running_combinations[combination_id] = thread
+        """Process queued jobs if there's capacity"""
+        # This is a placeholder - implement if queue processing is needed
+        pass
 
-    def process_combination(self, combination_id):
-        """Process a single combination with proper error handling and status updates"""
+    def run_job(self, job_id):
+        """Run a complete job with parallel processing"""
+        print(f"\n=== Starting job {job_id} ===")
+        
+        # Update job status to running
+        self.unified_db.update_job_status(job_id, 'running', 'job_started_at')
+        
+        # Get job details
+        job_summary = self.unified_db.get_job_summary(job_id)
+        if not job_summary:
+            print(f"ERROR: Job {job_id} not found")
+            return False
+        
+        print(f"Processing {job_summary['total']} species with {job_summary['model']}")
+        print(f"Using {self.max_concurrent_requests} concurrent workers")
+        
+        # Get pending species
+        pending_species = self.unified_db.get_pending_species(job_id, limit=1000)
+        
+        # Read templates
         try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
+            system_prompt = read_template_from_file(job_summary['system_template'])
+            user_prompt = read_template_from_file(job_summary['user_template'])
+        except Exception as e:
+            print(f"ERROR reading templates: {e}")
+            self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
+            return False
+        
+        # Process species in parallel
+        successful = 0
+        failed = 0
+        results_lock = threading.Lock()
+        
+        def process_single_species(species_data):
+            """Process a single species"""
+            species_name = species_data['binomial_name']
+            model = species_data['model']
             
-            # Update status to running
-            cursor.execute("UPDATE combinations SET status = 'running', started_at = ? WHERE id = ?", 
-                         (datetime.now(), combination_id))
-            conn.commit()
+            try:
+                print(f"  Processing: {species_name}")
+                
+                # Update species status to running
+                self.unified_db.update_species_result(job_id, species_name, status='running')
+                
+                # Make prediction
+                result = predict_binomial_name(
+                    binomial_name=species_name,
+                    system_template=system_prompt,
+                    user_template=user_prompt,
+                    model=model,
+                    verbose=False
+                )
+                
+                if result:
+                    # Store raw result and parse phenotypes
+                    raw_result = json.dumps(result)
+                    phenotypes = self._parse_phenotypes(result)
+                    
+                    self.unified_db.update_species_result(
+                        job_id, species_name, 
+                        result=raw_result, 
+                        status='completed',
+                        phenotypes=phenotypes
+                    )
+                    print(f"  ✓ Completed: {species_name}")
+                    return True, None
+                else:
+                    self.unified_db.update_species_result(
+                        job_id, species_name, 
+                        status='failed', 
+                        error='No result returned'
+                    )
+                    print(f"  ✗ Failed: {species_name} - No result")
+                    return False, 'No result returned'
+                    
+            except Exception as e:
+                self.unified_db.update_species_result(
+                    job_id, species_name, 
+                    status='failed', 
+                    error=str(e)
+                )
+                print(f"  ✗ Error: {species_name} - {e}")
+                return False, str(e)
+        
+        # Get or create executor
+        executor = self._get_or_create_executor()
+        
+        # Submit all tasks
+        print(f"\nSubmitting {len(pending_species)} tasks to executor...")
+        futures = []
+        for species_data in pending_species:
+            future = executor.submit(process_single_species, species_data)
+            futures.append(future)
+        
+        # Process results as they complete
+        print(f"Processing results...")
+        for future in as_completed(futures):
+            try:
+                success, error = future.result()
+                with results_lock:
+                    if success:
+                        successful += 1
+                    else:
+                        failed += 1
+                    
+                    # Emit progress update
+                    if socketio:
+                        progress = successful + failed
+                        socketio.emit('progress_update', {
+                            'combination_id': job_id,
+                            'submitted': progress,
+                            'total': len(pending_species),
+                            'successful': successful,
+                            'failed': failed,
+                            'timeouts': 0
+                        })
+            except Exception as e:
+                print(f"Future error: {e}")
+                with results_lock:
+                    failed += 1
+        
+        # Update job status
+        if failed == 0:
+            self.unified_db.update_job_status(job_id, 'completed', 'job_completed_at')
+        else:
+            self.unified_db.update_job_status(job_id, 'completed', 'job_completed_at')  # Still completed, but with some failures
+        
+        print(f"\nJob completed: {successful} successful, {failed} failed")
+        return True
+    
+    def _parse_phenotypes(self, result):
+        """Parse phenotype data from LLM result"""
+        phenotypes = {}
+        
+        if not result:
+            return phenotypes
+        
+        # Extract knowledge_group
+        knowledge_group = result.get('knowledge_group') or result.get('knowledge_level')
+        if knowledge_group:
+            phenotypes['knowledge_group'] = knowledge_group
+        
+        # Extract phenotypes if present
+        if 'phenotypes' in result:
+            phenotype_data = result['phenotypes']
+        else:
+            phenotype_data = result
+        
+        # Map phenotype fields
+        phenotype_fields = [
+            'gram_staining', 'motility', 'aerophilicity', 
+            'extreme_environment_tolerance', 'biofilm_formation',
+            'animal_pathogenicity', 'biosafety_level', 
+            'health_association', 'host_association',
+            'plant_pathogenicity', 'spore_formation', 
+            'hemolysis', 'cell_shape'
+        ]
+        
+        for field in phenotype_fields:
+            if field in phenotype_data:
+                phenotypes[field] = phenotype_data[field]
+        
+        return phenotypes
+    
+    def _apply_rate_limit_old(self, model):
+        """Old rate limiting - replaced by better version"""
+        pass
+    
+    def start_job_async(self, job_id):
+        """Start a job asynchronously in a background thread"""
+        try:
+            # Check if job exists
+            job_summary = self.unified_db.get_job_summary(job_id)
+            if not job_summary:
+                print(f"ERROR: Job {job_id} not found")
+                return False
+                
+            if job_summary['job_status'] == 'running':
+                print(f"WARNING: Job {job_id} is already running")
+                return False
             
-            # Get combination details
-            cursor.execute("SELECT * FROM combinations WHERE id = ?", (combination_id,))
-            combination = cursor.fetchone()
+            # Start the job in a background thread
+            import threading
+            thread = threading.Thread(target=self.run_job, args=(job_id,))
+            thread.daemon = True
+            thread.start()
             
-            if not combination:
-                print(f"ERROR: Combination {combination_id} not found in database")
+            print(f"Started job {job_id} in background thread")
+            return True
+            
+        except Exception as e:
+            print(f"ERROR: Failed to start job {job_id} async: {e}")
+            return False
+    
+    def create_job(self, species_file, model, system_template, user_template):
+        """Create a new job - simplified version"""
+        print(f"Creating job: {species_file} + {model} + {system_template} + {user_template}")
+        
+        # Read species file to get species list
+        try:
+            # Resolve species file path
+            from microbellm.shared import PROJECT_ROOT
+            species_path = Path(species_file)
+            if not species_path.is_absolute():
+                species_dir = PROJECT_ROOT / config.SPECIES_DIR
+                full_path = species_dir / species_file
+                if full_path.exists():
+                    species_file_path = str(full_path)
+                    print(f"Resolved species file to: {species_file_path}")
+                else:
+                    raise FileNotFoundError(f"Species file not found: {species_file}")
+            else:
+                species_file_path = species_file
+            
+            # Read CSV file
+            df = pd.read_csv(species_file_path)
+            
+            # Find binomial_name column
+            binomial_col = None
+            for col in df.columns:
+                if col.lower().replace(' ', '_') in ['binomial_name', 'species', 'taxon_name', 'organism', 'species_name']:
+                    binomial_col = col
+                    break
+            
+            if not binomial_col:
+                raise ValueError("No binomial_name column found in species file")
+            
+            species_list = df[binomial_col].dropna().tolist()
+            print(f"Found {len(species_list)} species in file")
+            
+            # Create job in unified database
+            job_id = self.unified_db.create_job(
+                species_file=Path(species_file).name,  # Store basename
+                model=model,
+                system_template=system_template,
+                user_template=user_template,
+                species_list=species_list
+            )
+            
+            print(f"Created job {job_id} with {len(species_list)} species")
+            return job_id
+            
+        except Exception as e:
+            print(f"Error creating job: {e}")
+            raise e
+    
+    def get_all_jobs(self):
+        """Get list of all jobs with summary info"""
+        conn = sqlite3.connect(self.unified_db.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                job_id,
+                species_file,
+                model,
+                system_template,
+                user_template,
+                job_status,
+                job_created_at,
+                job_started_at,
+                job_completed_at,
+                COUNT(*) as total_species,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running
+            FROM processing_results
+            GROUP BY job_id
+            ORDER BY job_created_at DESC
+        """)
+        
+        jobs = []
+        for row in cursor.fetchall():
+            job = dict(row)
+            jobs.append(job)
+        
+        conn.close()
+        return jobs
+    
+    def get_job_results(self, job_id):
+        """Get detailed results for a specific job"""
+        conn = sqlite3.connect(self.unified_db.db_path)
+        cursor = conn.cursor()
+        
+        # Get job summary
+        cursor.execute("""
+            SELECT 
+                job_id,
+                species_file,
+                model,
+                system_template,
+                user_template,
+                job_status,
+                job_created_at,
+                job_started_at,
+                job_completed_at
+            FROM processing_results
+            WHERE job_id = ?
+            LIMIT 1
+        """, (job_id,))
+        
+        job_info = cursor.fetchone()
+        if not job_info:
+            return None
+        
+        # Get all species results
+        cursor.execute("""
+            SELECT 
+                binomial_name,
+                status,
+                result,
+                error,
+                created_at,
+                started_at,
+                completed_at,
+                knowledge_group,
+                gram_staining,
+                motility,
+                aerophilicity,
+                extreme_environment_tolerance,
+                biofilm_formation,
+                animal_pathogenicity,
+                biosafety_level,
+                health_association,
+                host_association,
+                plant_pathogenicity,
+                spore_formation,
+                hemolysis,
+                cell_shape
+            FROM processing_results
+            WHERE job_id = ?
+            ORDER BY binomial_name
+        """, (job_id,))
+        
+        species_results = []
+        for row in cursor.fetchall():
+            species_result = dict(row)
+            # Parse raw result if it exists
+            if species_result['result']:
+                try:
+                    species_result['raw_result'] = json.loads(species_result['result'])
+                except:
+                    species_result['raw_result'] = species_result['result']
+            species_results.append(species_result)
+        
+        conn.close()
+        
+        return {
+            'job_info': dict(job_info),
+            'species_results': species_results
+        }
+    
+    def get_available_models(self):
+        """Get list of available models from managed models and OpenRouter"""
+        conn = sqlite3.connect(self.unified_db.db_path)
+        cursor = conn.cursor()
+        
+        # Get models from managed_models table
+        cursor.execute("SELECT model FROM managed_models ORDER BY model")
+        managed_models = [row[0] for row in cursor.fetchall()]
+        
+        # Get popular OpenRouter models
+        openrouter_models = self.get_openrouter_models()
+        
+        # Combine both lists, removing duplicates
+        all_models = list(set(managed_models + openrouter_models))
+        
+        conn.close()
+        return sorted(all_models)
+    
+    def get_openrouter_models(self):
+        """Get list of popular OpenRouter models"""
+        # Return a curated list of popular models
+        # You can expand this list or make it dynamic by calling OpenRouter API
+        popular_models = [
+            "anthropic/claude-3-sonnet",
+            "anthropic/claude-3-haiku",
+            "openai/gpt-4o",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4-turbo",
+            "openai/gpt-3.5-turbo",
+            "meta-llama/llama-3.1-70b-instruct",
+            "meta-llama/llama-3.1-8b-instruct",
+            "google/gemini-pro",
+            "google/gemini-flash-1.5",
+            "mistralai/mistral-7b-instruct",
+            "mistralai/mixtral-8x7b-instruct",
+            "cohere/command-r",
+            "cohere/command-r-plus",
+            "moonshot/v1-8k",
+            "moonshot/v1-32k",
+            "moonshot/v1-128k"
+        ]
+        
+        # Optional: Try to get live model list from OpenRouter API
+        try:
+            import requests
+            from microbellm import config
+            
+            if hasattr(config, 'OPENROUTER_API_KEY') and config.OPENROUTER_API_KEY:
+                headers = {"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"}
+                response = requests.get("https://openrouter.ai/api/v1/models", headers=headers, timeout=5)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # Extract model IDs from the API response
+                    api_models = [model['id'] for model in data.get('data', [])]
+                    
+                    # Filter to include only the popular ones or top models
+                    filtered_models = [model for model in api_models if any(keyword in model.lower() for keyword in ['gpt', 'claude', 'llama', 'gemini', 'mistral', 'moonshot'])]
+                    
+                    return filtered_models[:20]  # Return top 20 models
+                    
+        except Exception as e:
+            print(f"Could not fetch OpenRouter models: {e}")
+            
+        return popular_models
+    
+    def get_available_species_files(self):
+        """Get list of available species files"""
+        conn = sqlite3.connect(self.unified_db.db_path)
+        cursor = conn.cursor()
+        
+        # Get species files from managed_species_files table
+        cursor.execute("SELECT species_file FROM managed_species_files ORDER BY species_file")
+        species_files = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+        return species_files
+    
+    def get_available_system_templates(self):
+        """Get list of available system templates"""
+        from microbellm.shared import PROJECT_ROOT
+        templates_dir = PROJECT_ROOT / config.TEMPLATES_DIR
+        
+        if not templates_dir.exists():
+            return []
+        
+        system_templates = []
+        for file in templates_dir.glob("**/system_*.txt"):
+            system_templates.append(str(file.relative_to(PROJECT_ROOT)))
+        
+        return sorted(system_templates)
+    
+    def get_available_user_templates(self):
+        """Get list of available user templates"""
+        from microbellm.shared import PROJECT_ROOT
+        templates_dir = PROJECT_ROOT / config.TEMPLATES_DIR
+        
+        if not templates_dir.exists():
+            return []
+        
+        user_templates = []
+        for file in templates_dir.glob("**/user_*.txt"):
+            user_templates.append(str(file.relative_to(PROJECT_ROOT)))
+        
+        return sorted(user_templates)
+    
+    def process_job_unified(self, job_id):
+        """Process a single job with proper error handling and status updates"""
+        try:
+            # Update job status to running
+            self.unified_db.update_job_status(job_id, 'running', 'job_started_at')
+            
+            # Get job summary
+            job_summary = self.unified_db.get_job_summary(job_id)
+            
+            if not job_summary:
+                print(f"ERROR: Job {job_id} not found in database")
                 return
                 
-            species_file = combination[1]
-            model = combination[2]
-            system_template = combination[3]
-            user_template = combination[4]
+            species_file = job_summary['species_file']
+            model = job_summary['model']
+            system_template = job_summary['system_template']
+            user_template = job_summary['user_template']
             
-            print(f"Processing combination {combination_id}:")
+            print(f"Processing job {job_id}:")
             print(f"  Species file: {species_file}")
             print(f"  Model: {model}")
             print(f"  System template: {system_template}")
             print(f"  User template: {user_template}")
             
+            # Read templates
+            try:
+                system_prompt = read_template_from_file(system_template)
+                user_prompt = read_template_from_file(user_template)
+            except Exception as e:
+                print(f"ERROR reading templates: {e}")
+                self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
+                return
+            
             # Read species file and templates
             try:
                 # Check if species file exists
+                species_file_path = species_file  # Keep original for file operations
                 if not Path(species_file).exists():
                     # Try to resolve relative to project root
                     from microbellm.shared import PROJECT_ROOT
                     species_path = PROJECT_ROOT / config.SPECIES_DIR / Path(species_file).name
                     if species_path.exists():
-                        species_file = str(species_path)
-                        print(f"  Resolved species file path to: {species_file}")
+                        species_file_path = str(species_path)  # Use full path for file operations
+                        print(f"  Resolved species file path to: {species_file_path}")
                     else:
                         raise FileNotFoundError(f"Species file not found: {species_file}")
                 
+                # Normalize species_file to basename for database storage
+                species_file = Path(species_file).name
+                
                 # Try to read the species file with different separators
                 # First, try to detect the separator by reading the first line
-                with open(species_file, 'r') as f:
+                with open(species_file_path, 'r') as f:
                     first_line = f.readline().strip()
                     if '\t' in first_line:
                         sep = '\t'
@@ -164,11 +612,11 @@ class ProcessingManager:
                 
                 try:
                     if sep:
-                        df = pd.read_csv(species_file, sep=sep)
+                        df = pd.read_csv(species_file_path, sep=sep)
                         print(f"  Read species file with {sep_name} separator")
                     else:
                         # Let pandas auto-detect
-                        df = pd.read_csv(species_file)
+                        df = pd.read_csv(species_file_path)
                         print(f"  Read species file with auto-detected separator")
                 except Exception as e:
                     raise ValueError(f"Failed to read species file: {e}")
@@ -231,28 +679,33 @@ class ProcessingManager:
             # Use ThreadPoolExecutor for concurrent processing
             executor = self._get_or_create_executor()
             futures = {}
+            species_index = 0
             
-            for i, species in enumerate(species_list):
+            # Submit initial batch of requests up to max_concurrent
+            while species_index < min(len(species_list), self.max_concurrent_requests):
+                species = species_list[species_index]
+                future = executor.submit(self._process_single_species, 
+                                       species, model, system_prompt, user_prompt, 
+                                       job_id)
+                futures[future] = species
+                species_index += 1
+                
+            print(f"  Submitted initial batch of {len(futures)} species for parallel processing")
+            
+            # Process results as they complete and submit new ones
+            while futures or species_index < len(species_list):
                 # Check if stopped
-                if combination_id in self.stopped_combinations:
-                    cursor.execute("UPDATE combinations SET status = 'interrupted' WHERE id = ?", 
-                                 (combination_id,))
-                    conn.commit()
+                if job_id in self.stopped_combinations:
+                    self.unified_db.update_job_status(job_id, 'interrupted', 'job_completed_at')
                     break
                     
                 # Check if paused
-                while combination_id in self.paused_combinations:
+                while job_id in self.paused_combinations:
                     time.sleep(1)
-                    
-                # Submit job to executor
-                future = executor.submit(self._process_single_species, 
-                                       species, model, system_prompt, user_prompt, 
-                                       combination_id)
-                futures[future] = species
                 
                 # Process completed futures
                 completed_futures = []
-                for future in futures:
+                for future in list(futures.keys()):
                     if future.done():
                         completed_futures.append(future)
                         
@@ -334,8 +787,17 @@ class ProcessingManager:
                         failed += 1
                         print(f"Error processing {species_name}: {e}")
                 
+                        # Submit a new species if we have more to process
+                        if species_index < len(species_list) and len(futures) < self.max_concurrent_requests:
+                            species = species_list[species_index]
+                            future = executor.submit(self._process_single_species, 
+                                                   species, model, system_prompt, user_prompt, 
+                                                   job_id)
+                            futures[future] = species
+                            species_index += 1
+                
                 # Emit progress update
-                submitted = len(futures) + successful + failed + timeouts
+                submitted = species_index
                 socketio.emit('progress_update', {
                     'combination_id': combination_id,
                     'submitted': submitted,
@@ -345,77 +807,9 @@ class ProcessingManager:
                     'timeouts': timeouts
                 })
                 
-                # Limit number of concurrent futures
-                while len(futures) >= self.max_concurrent_requests:
-                    time.sleep(0.1)
-                    # Check for completed futures again
-                    for future in list(futures.keys()):
-                        if future.done():
-                            species_name = futures.pop(future)
-                            try:
-                                result, status, error = future.result(timeout=1)
-                                
-                                # Parse the result if it's JSON
-                                knowledge_group = None
-                                phenotype_data = {}
-                                
-                                if result and status == 'completed':
-                                    try:
-                                        result_dict = json.loads(result)
-                                        knowledge_group = result_dict.get('knowledge_group') or result_dict.get('knowledge_level')
-                                        if 'phenotypes' in result_dict:
-                                            phenotype_data = result_dict['phenotypes']
-                                        phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
-                                                          'extreme_environment_tolerance', 'biofilm_formation',
-                                                          'animal_pathogenicity', 'biosafety_level', 
-                                                          'health_association', 'host_association',
-                                                          'plant_pathogenicity', 'spore_formation', 
-                                                          'hemolysis', 'cell_shape']
-                                        for field in phenotype_fields:
-                                            if field in result_dict and field not in phenotype_data:
-                                                phenotype_data[field] = result_dict[field]
-                                    except json.JSONDecodeError:
-                                        pass
-                                
-                                # Store directly in results table
-                                cursor.execute("""
-                                    INSERT INTO results (
-                                        species_file, binomial_name, model, system_template, user_template,
-                                        status, result, error, knowledge_group,
-                                        gram_staining, motility, aerophilicity, extreme_environment_tolerance,
-                                        biofilm_formation, animal_pathogenicity, biosafety_level,
-                                        health_association, host_association, plant_pathogenicity,
-                                        spore_formation, hemolysis, cell_shape
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                """, (
-                                    species_file, species_name, model, system_template, user_template,
-                                    status, result, error, knowledge_group,
-                                    phenotype_data.get('gram_staining'),
-                                    phenotype_data.get('motility'),
-                                    phenotype_data.get('aerophilicity'),
-                                    phenotype_data.get('extreme_environment_tolerance'),
-                                    phenotype_data.get('biofilm_formation'),
-                                    phenotype_data.get('animal_pathogenicity'),
-                                    phenotype_data.get('biosafety_level'),
-                                    phenotype_data.get('health_association'),
-                                    phenotype_data.get('host_association'),
-                                    phenotype_data.get('plant_pathogenicity'),
-                                    phenotype_data.get('spore_formation'),
-                                    phenotype_data.get('hemolysis'),
-                                    phenotype_data.get('cell_shape')
-                                ))
-                                conn.commit()
-                                
-                                print(f"    Stored result for {species_name}: status={status}")
-                                
-                                if status == 'completed':
-                                    successful += 1
-                                elif status == 'timeout':
-                                    timeouts += 1
-                                else:
-                                    failed += 1
-                            except Exception as e:
-                                failed += 1
+                # Small sleep to prevent CPU spinning
+                if futures:
+                    time.sleep(0.01)
                                 
             # Wait for remaining futures to complete
             for future, species_name in futures.items():
@@ -537,7 +931,7 @@ class ProcessingManager:
         # Rate limiting
         self._apply_rate_limit(model)
         
-        print(f"  Processing species: {species} with model: {model}")
+        # print(f"  Processing species: {species} with model: {model}")  # Commented for performance
         
         try:
             # Make prediction
@@ -546,7 +940,7 @@ class ProcessingManager:
                 system_template=system_prompt,
                 user_template=user_prompt,
                 model=model,
-                verbose=True  # Enable verbose logging
+                verbose=False  # Disable for better performance
             )
             
             if result:
@@ -565,452 +959,288 @@ class ProcessingManager:
     
     
     def _apply_rate_limit(self, model):
-        """Apply rate limiting per model"""
-        if self.requests_per_second <= 0:
-            return
-            
-        min_interval = 1.0 / self.requests_per_second
+        """Apply rate limiting using a sliding window approach"""
+        # Temporarily disable rate limiting for better performance
+        # The API provider (OpenRouter) has its own rate limiting
+        return
         
-        # Thread-safe rate limiting
-        with threading.Lock():
-            current_time = time.time()
-            last_time = self.last_request_time.get(model, 0)
-            elapsed = current_time - last_time
-            
-            if elapsed < min_interval:
-                sleep_time = min_interval - elapsed
-                time.sleep(sleep_time)
-                
-            self.last_request_time[model] = time.time()
+        # Original implementation commented out:
+        # if self.requests_per_second <= 0:
+        #     return
+        # 
+        # with self.rate_limit_lock:
+        #     current_time = time.time()
+        #     
+        #     # Remove old request times (older than 1 second)
+        #     self.request_times = [t for t in self.request_times if current_time - t < 1.0]
+        #     
+        #     # Check if we've hit the rate limit
+        #     if len(self.request_times) >= self.requests_per_second:
+        #         # Calculate how long to wait
+        #         oldest_request = self.request_times[0]
+        #         sleep_time = 1.0 - (current_time - oldest_request)
+        #         if sleep_time > 0:
+        #             time.sleep(sleep_time)
+        #             # Remove the oldest request time after sleeping
+        #             self.request_times.pop(0)
+        #     
+        #     # Add current request time
+        #     self.request_times.append(time.time())
     
     def set_rate_limit(self, requests_per_second):
         """Set the rate limit for API requests"""
         self.requests_per_second = max(0.1, requests_per_second)
     
     def start_combination(self, combination_id):
-        """Start processing a combination"""
-        print(f"\n=== Starting combination {combination_id} ===")
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check if combination exists and is not already running
-        cursor.execute("SELECT status, species_file, model, system_template, user_template FROM combinations WHERE id = ?", (combination_id,))
-        result = cursor.fetchone()
-        
-        if not result:
-            print(f"ERROR: Combination {combination_id} not found")
-            conn.close()
-            return False
+        """Start processing a combination - simplified synchronous version"""
+        try:
+            # Check if job exists
+            job_summary = self.unified_db.get_job_summary(combination_id)
+            if not job_summary:
+                print(f"ERROR: Job {combination_id} not found")
+                return False
+                
+            if job_summary['job_status'] == 'running':
+                print(f"WARNING: Job {combination_id} is already running")
+                return False
             
-        status, species_file, model, sys_tmpl, usr_tmpl = result
-        print(f"Current status: {status}")
-        print(f"Species file: {species_file}")
-        print(f"Model: {model}")
-        
-        if status == 'running':
-            print(f"WARNING: Combination {combination_id} is already running")
-            conn.close()
+            # Run the job synchronously
+            return self.run_job(combination_id)
+            
+        except Exception as e:
+            print(f"ERROR: Failed to start job {combination_id}: {e}")
             return False
-        
-        # Reset status to pending and add to queue
-        cursor.execute("UPDATE combinations SET status = 'pending' WHERE id = ?", (combination_id,))
-        conn.commit()
-        conn.close()
-        
-        print(f"Added combination {combination_id} to processing queue")
-        # Add to processing queue
-        self.add_combination(combination_id)
-        return True
     
     def restart_combination(self, combination_id):
-        """Restart a combination (retry failed species)"""
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
+        """Restart a combination (retry failed species) using unified database"""
         try:
-            # Get combination details first
-            cursor.execute("""
-                SELECT species_file, model, system_template, user_template
-                FROM combinations WHERE id = ?
-            """, (combination_id,))
-            combo = cursor.fetchone()
-            
-            if not combo:
+            # Check if job exists in unified database
+            job_summary = self.unified_db.get_job_summary(combination_id)
+            if not job_summary:
                 return False, "Combination not found"
             
-            # Delete failed results from results table
-            cursor.execute(
-                """DELETE FROM results 
-                   WHERE species_file = ? AND model = ? AND system_template = ? 
-                   AND user_template = ? AND status != 'completed'""",
-                (combo[0], combo[1], combo[2], combo[3])
-            )
+            # Reset all failed/timeout species back to pending in unified database
+            conn = sqlite3.connect(self.unified_db.db_path)
+            cursor = conn.cursor()
             
-            # Reset combination status
-            cursor.execute(
-                "UPDATE combinations SET status = 'pending', completed_at = NULL WHERE id = ?",
-                (combination_id,)
-            )
+            # Reset failed/timeout species to pending
+            cursor.execute("""
+                UPDATE processing_results 
+                SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL
+                WHERE job_id = ? AND status IN ('failed', 'timeout')
+            """, (combination_id,))
+            
+            # Reset job status to pending
+            cursor.execute("""
+                UPDATE processing_results 
+                SET job_status = 'pending'
+                WHERE job_id = ?
+            """, (combination_id,))
+            
             conn.commit()
+            conn.close()
             
             # Add to processing queue
             self.add_combination(combination_id)
             return True, "Combination restarted successfully"
+            
         except Exception as e:
             return False, str(e)
-        finally:
-            conn.close()
     
     def get_dashboard_data(self):
         """Get data for the dashboard matrix view"""
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Get all combinations - using the existing columns in the combinations table
-        cursor.execute('''
-            SELECT 
-                id, species_file, model, system_template, user_template, status,
-                total_species, successful_species, failed_species, timeout_species,
-                submitted_species, received_species
-            FROM combinations
-        ''')
-        
-        combinations = []
-        for row in cursor.fetchall():
-            combinations.append({
-                'id': row[0],
-                'species_file': row[1],
-                'model': row[2],
-                'system_template': row[3],
-                'user_template': row[4],
-                'status': row[5],
-                'total': row[6] or 0,
-                'successful': row[7] or 0,
-                'failed': row[8] or 0,
-                'timeouts': row[9] or 0,
-                'submitted': row[10] or 0,
-                'received': row[11] or 0
-            })
-        
-        # Get unique models from both combinations and managed_models
-        cursor.execute("""
-            SELECT DISTINCT model FROM (
-                SELECT DISTINCT model FROM combinations
-                UNION
-                SELECT model FROM managed_models
-            ) ORDER BY model
-        """)
-        models = [row[0] for row in cursor.fetchall()]
-        
-        # Get unique species files from both combinations and managed_species_files
-        # Also include files from results table for historical data
-        cursor.execute("""
-            SELECT DISTINCT species_file FROM (
-                SELECT DISTINCT species_file FROM combinations
-                UNION
-                SELECT species_file FROM managed_species_files
-                UNION
-                SELECT DISTINCT species_file FROM results
-            ) ORDER BY species_file
-        """)
-        
-        # Normalize paths to avoid duplicates
-        seen_files = set()
-        species_files = []
-        for row in cursor.fetchall():
-            file_path = row[0]
-            # Get just the filename for comparison
-            file_name = Path(file_path).name
-            if file_name not in seen_files:
-                seen_files.add(file_name)
-                species_files.append(file_path)
-        
-        # Get template display info from all available templates, not just used ones
-        template_info = []
-        available_templates = get_available_template_pairs()
-        
-        # First add all available templates
-        for template_pair in available_templates:
-            template_info.append({
-                'system_template': template_pair['system'],
-                'user_template': template_pair['user'],
-                'display_name': template_pair['name'],
-                'description': f'Template: {template_pair["name"]}',
-                'template_type': detect_template_type(template_pair['user']) if template_pair['user'] else 'unknown'
-            })
-        
-        # Also check if there are any templates in combinations that aren't in the filesystem
-        cursor.execute("SELECT DISTINCT system_template, user_template FROM combinations")
-        for row in cursor.fetchall():
-            # Check if this template is already in our list
-            found = False
-            for t in template_info:
-                if t['system_template'] == row[0] and t['user_template'] == row[1]:
-                    found = True
-                    break
-            if not found:
-                template_info.append({
-                    'system_template': row[0],
-                    'user_template': row[1],
-                    'display_name': Path(row[0]).stem,
-                    'description': f'Template: {Path(row[0]).stem} (from DB)',
-                    'template_type': detect_template_type(row[1]) if row[1] else 'unknown'
-                })
-        
-        # Create matrix structure
-        matrix = {}
-        
-        # Debug: Print what we have
-        
-        # Helper function to normalize paths for consistent keys
-        def normalize_key_path(species_file, sys_tmpl, usr_tmpl):
-            # Normalize species file to just the filename
-            species_name = Path(species_file).name
-            # Normalize template paths to just the filename
-            sys_name = Path(sys_tmpl).name if sys_tmpl else sys_tmpl
-            usr_name = Path(usr_tmpl).name if usr_tmpl else usr_tmpl
-            return f"{species_name}|{sys_name}|{usr_name}"
-        
-        # First, add data from combinations table
-        for combo in combinations:
-            # Use normalized key
-            key = normalize_key_path(combo['species_file'], combo['system_template'], combo['user_template'])
-            if key not in matrix:
-                matrix[key] = {'models': {}}
-            matrix[key]['models'][combo['model']] = {
-                'id': combo['id'],
-                'status': combo['status'],
-                'total': combo['total'],
-                'successful': combo['successful'],
-                'failed': combo['failed'],
-                'timeouts': combo['timeouts'],
-                'submitted': combo['submitted'] if combo['submitted'] else (combo['successful'] + combo['failed'] + combo['timeouts'])
-            }
-        
-        # Also check the results table for historical data
-        # Only add results that don't already have a combination entry
-        cursor.execute("""
-            SELECT r.species_file, r.model, r.system_template, r.user_template, 
-                   COUNT(*) as total,
-                   SUM(CASE WHEN r.status = 'completed' OR r.status IS NULL THEN 1 ELSE 0 END) as successful,
-                   SUM(CASE WHEN r.status = 'failed' THEN 1 ELSE 0 END) as failed,
-                   SUM(CASE WHEN r.status = 'timeout' THEN 1 ELSE 0 END) as timeouts
-            FROM results r
-            WHERE NOT EXISTS (
-                SELECT 1 FROM combinations c 
-                WHERE c.species_file = r.species_file 
-                AND c.model = r.model 
-                AND c.system_template = r.system_template 
-                AND c.user_template = r.user_template
-            )
-            GROUP BY r.species_file, r.model, r.system_template, r.user_template
-        """)
-        
-        # Add historical results to matrix if not already present
-        for row in cursor.fetchall():
-            species_file, model, sys_tmpl, usr_tmpl, total, successful, failed, timeouts = row
-            key = f"{species_file}|{sys_tmpl}|{usr_tmpl}"
-            
-            if key not in matrix:
-                matrix[key] = {'models': {}}
-            
-            # Only add if this model isn't already in the matrix for this key
-            if model not in matrix[key]['models']:
-                matrix[key]['models'][model] = {
-                    'id': None,  # No combination ID for historical data
-                    'status': 'completed',  # Historical data is completed
-                    'total': total,
-                    'successful': successful or 0,
-                    'failed': failed or 0,
-                    'timeouts': timeouts or 0,
-                    'submitted': total,
-                    'historical': True,  # Mark as historical data
-                    'orphaned': True  # Mark as orphaned (no combination)
-                }
-            
-            # Also make sure this model is in our models list
-            if model not in models:
-                models.append(model)
-        
-        # Re-sort models
-        models.sort()
-        
-        conn.close()
-        
-        return {
-            'combinations': combinations,
-            'models': models,
-            'species_files': species_files,
-            'template_display_info': template_info,
-            'matrix': matrix
-        }
+        # Use unified DB method
+        return self.unified_db.get_dashboard_data()
     
     def get_combination_details(self, combination_id):
-        """Get detailed information about a combination"""
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Get combination info with all columns
-        cursor.execute("""
-            SELECT id, species_file, model, system_template, user_template, status,
-                   total_species, successful_species, failed_species, timeout_species
-            FROM combinations WHERE id = ?
-        """, (combination_id,))
-        combo = cursor.fetchone()
-        
-        if not combo:
-            conn.close()
+        """Get detailed information about a combination/job"""
+        # Use job_id which is the combination_id
+        job_summary = self.unified_db.get_job_summary(combination_id)
+        if not job_summary:
             return jsonify({'error': 'Combination not found'}), 404
         
-        # Get species results from the results table (single source of truth)
-        cursor.execute("""
-            SELECT binomial_name, result, status, error, knowledge_group,
+        # Get species results from unified table
+        conn = get_db_connection(db_path)
+        cursor = conn.cursor()
+        
+        # First check if raw_response column exists
+        cursor.execute("PRAGMA table_info(processing_results)")
+        columns = [col[1] for col in cursor.fetchall()]
+        has_raw_response = 'raw_response' in columns
+        
+        # Build query based on available columns
+        select_fields = """binomial_name, status, error, knowledge_group, result,
                    gram_staining, motility, aerophilicity, extreme_environment_tolerance,
                    biofilm_formation, animal_pathogenicity, biosafety_level,
                    health_association, host_association, plant_pathogenicity,
-                   spore_formation, hemolysis, cell_shape
-            FROM results 
-            WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-        """, (combo[1], combo[2], combo[3], combo[4]))
-        species_results_raw = cursor.fetchall()
-        from_results_table = True
+                   spore_formation, hemolysis, cell_shape"""
+        
+        if has_raw_response:
+            select_fields += ", raw_response"
+            
+        cursor.execute(f"""
+            SELECT {select_fields}
+            FROM processing_results
+            WHERE job_id = ?
+            ORDER BY binomial_name
+        """, (combination_id,))
         
         species_results = []
-        for row in species_results_raw:
-            if from_results_table:
-                # Results table has more columns
-                result_data = {
-                    'binomial_name': row[0],
-                    'result': row[1],
-                    'status': row[2] or 'completed',  # Default to completed if no status
-                    'error': row[3],
-                    'knowledge_group': row[4] if len(row) > 4 else None
-                }
-                
-                # Collect phenotypes from individual columns if available
-                if len(row) > 5:
-                    phenotypes = {}
-                    phenotype_columns = [
-                        ('gram_staining', row[5]),
-                        ('motility', row[6]),
-                        ('aerophilicity', row[7]),
-                        ('extreme_environment_tolerance', row[8]),
-                        ('biofilm_formation', row[9]),
-                        ('animal_pathogenicity', row[10]),
-                        ('biosafety_level', row[11]),
-                        ('health_association', row[12]),
-                        ('host_association', row[13]),
-                        ('plant_pathogenicity', row[14]),
-                        ('spore_formation', row[15]),
-                        ('hemolysis', row[16]),
-                        ('cell_shape', row[17])
-                    ]
-                    
-                    for col_name, value in phenotype_columns:
-                        if value and value.strip():
-                            phenotypes[col_name] = value
-                    
-                    if phenotypes:
-                        result_data['phenotypes'] = phenotypes
-            else:
-                # species_results table has fewer columns
-                result_data = {
-                    'binomial_name': row[0],
-                    'result': row[1],
-                    'status': row[2] or 'completed',
-                    'error': row[3]
-                }
-                
-                # Try to parse result JSON if available
-                if row[1]:
-                    try:
-                        parsed_result = json.loads(row[1])
-                        if isinstance(parsed_result, dict):
-                            # Extract any fields from the parsed result
-                            if 'knowledge_group' in parsed_result:
-                                result_data['knowledge_group'] = parsed_result['knowledge_group']
-                            if 'phenotypes' in parsed_result:
-                                result_data['phenotypes'] = parsed_result['phenotypes']
-                    except json.JSONDecodeError:
-                        pass
+        for row in cursor.fetchall():
+            result_data = {
+                'binomial_name': row['binomial_name'],
+                'status': row['status'],
+                'error': row['error'],
+                'knowledge_group': row['knowledge_group'],
+                'result': row['result']
+            }
+            
+            # Add raw_response if column exists
+            if has_raw_response:
+                result_data['raw_response'] = row['raw_response']
+            elif row['result']:
+                # Use result field as fallback for raw response
+                result_data['raw_response'] = row['result']
+            
+            # Add individual phenotype fields to result_data
+            phenotype_fields = ['gram_staining', 'motility', 'aerophilicity', 
+                              'extreme_environment_tolerance', 'biofilm_formation',
+                              'animal_pathogenicity', 'biosafety_level', 
+                              'health_association', 'host_association',
+                              'plant_pathogenicity', 'spore_formation', 
+                              'hemolysis', 'cell_shape']
+            
+            # Add phenotypes both individually and as a group
+            phenotypes = {}
+            for field in phenotype_fields:
+                result_data[field] = row[field]  # Add individual field
+                if row[field]:
+                    phenotypes[field] = row[field]
+            
+            if phenotypes:
+                result_data['phenotypes'] = phenotypes
             
             species_results.append(result_data)
         
         conn.close()
         
-        # Use the stored counts from the combination table
+        # Return in the format expected by the dashboard and job results page
         return jsonify({
             'combination_info': {
-                'id': combo[0],
-                'species_file': combo[1],
-                'model': combo[2],
-                'system_template': combo[3],
-                'user_template': combo[4],
-                'status': combo[5],
-                'total_species': combo[6] or 0,
-                'successful_species': combo[7] or 0,
-                'failed_species': combo[8] or 0,
-                'timeout_species': combo[9] or 0
+                'id': job_summary['job_id'],
+                'species_file': job_summary['species_file'],
+                'model': job_summary['model'],
+                'system_template': job_summary['system_template'],
+                'user_template': job_summary['user_template'],
+                'status': job_summary['job_status'],
+                'total_species': job_summary['total'],
+                'successful_species': job_summary['successful'],
+                'failed_species': job_summary['failed'],
+                'timeout_species': job_summary['timeouts']
             },
-            'species_results': species_results
+            'species_results': species_results,
+            # Add these for job_results.html compatibility
+            'model': job_summary['model'],
+            'species_file': job_summary['species_file'],
+            'system_template': job_summary['system_template'],
+            'user_template': job_summary['user_template'],
+            'status': job_summary['job_status'],
+            'created_at': job_summary.get('job_created_at', ''),
+            'all_results': species_results,  # Include all results
+            # Detect template type to help with column display
+            'template_type': detect_template_type(job_summary['system_template'])
         })
     
     def create_combinations(self, species_file, models, template_pairs):
-        """Create new combinations for processing"""
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
+        """Create new combinations for processing using unified DB"""
+        print(f"DEBUG: create_combinations called with species_file={species_file}, models={models}, template_pairs={template_pairs}")
         created = []
         
         # Resolve full path for species file
         from microbellm.shared import PROJECT_ROOT
         species_path = Path(species_file)
+        species_file_path = species_file  # Keep original for file operations
+        print(f"DEBUG: Original species_file_path: {species_file_path}")
+        print(f"DEBUG: species_path.is_absolute(): {species_path.is_absolute()}")
+        
         if not species_path.is_absolute():
             # Try to find the file in the species directory
             species_dir = PROJECT_ROOT / config.SPECIES_DIR
             full_path = species_dir / species_file
+            print(f"DEBUG: Checking for file at: {full_path}")
             if full_path.exists():
-                species_file = str(full_path)
-                print(f"Resolved species file to: {species_file}")
+                species_file_path = str(full_path)  # Use full path for file operations
+                print(f"Resolved species file to: {species_file_path}")
             else:
                 print(f"WARNING: Could not find species file: {species_file} in {species_dir}")
+                print(f"DEBUG: Available files in {species_dir}:")
+                if species_dir.exists():
+                    for f in species_dir.iterdir():
+                        if f.is_file():
+                            print(f"  - {f.name}")
         
+        # Normalize species_file to basename for database storage
+        species_file = Path(species_file).name
+        print(f"DEBUG: Normalized species_file for DB: {species_file}")
+        
+        # Read species file to get species list
         try:
-            for model in models:
-                for pair in template_pairs:
-                    # Check if combination already exists
-                    cursor.execute(
-                        """SELECT id FROM combinations 
-                           WHERE species_file = ? AND model = ? 
-                           AND system_template = ? AND user_template = ?""",
-                        (species_file, model, pair['system'], pair['user'])
-                    )
-                    
-                    existing = cursor.fetchone()
-                    if not existing:
-                        # Create new combination
-                        cursor.execute(
-                            """INSERT INTO combinations 
-                               (species_file, model, system_template, user_template, status)
-                               VALUES (?, ?, ?, ?, 'pending')""",
-                            (species_file, model, pair['system'], pair['user'])
-                        )
-                        
-                        created.append({
-                            'id': cursor.lastrowid,
-                            'species_file': species_file,
-                            'model': model,
-                            'system_template': pair['system'],
-                            'user_template': pair['user']
-                        })
+            # Check if species file exists
+            print(f"DEBUG: Checking if species file exists: {species_file_path}")
+            if not Path(species_file_path).exists():
+                raise FileNotFoundError(f"Species file not found: {species_file_path}")
             
-            conn.commit()
+            # Read species file
+            print(f"DEBUG: Reading CSV file: {species_file_path}")
+            df = pd.read_csv(species_file_path)
+            print(f"DEBUG: CSV shape: {df.shape}")
+            print(f"DEBUG: CSV columns: {list(df.columns)}")
+            
+            # Find binomial_name column
+            binomial_col = None
+            for col in df.columns:
+                if col.lower().replace(' ', '_') in ['binomial_name', 'species', 'taxon_name', 'organism', 'species_name']:
+                    binomial_col = col
+                    break
+            
+            print(f"DEBUG: Found binomial column: {binomial_col}")
+            if not binomial_col:
+                raise ValueError("No binomial_name column found in species file")
+            
+            species_list = df[binomial_col].dropna().tolist()
+            print(f"DEBUG: Found {len(species_list)} species in file")
+            
         except Exception as e:
-            conn.rollback()
-            raise e
-        finally:
-            conn.close()
+            print(f"DEBUG: Exception reading species file: {e}")
+            raise ValueError(f"Failed to read species file: {e}")
         
+        # Create jobs
+        print(f"DEBUG: Creating jobs for {len(models)} models and {len(template_pairs)} template pairs")
+        for model in models:
+            for pair in template_pairs:
+                print(f"DEBUG: Creating job for model={model}, system={pair['system']}, user={pair['user']}")
+                try:
+                    job_id = self.unified_db.create_job(
+                        species_file=species_file,
+                        model=model,
+                        system_template=pair['system'],
+                        user_template=pair['user'],
+                        species_list=species_list
+                    )
+                    print(f"DEBUG: Created job with ID: {job_id}")
+                    
+                    created.append({
+                        'id': job_id,
+                        'species_file': species_file,
+                        'model': model,
+                        'system_template': pair['system'],
+                        'user_template': pair['user']
+                    })
+                except Exception as e:
+                    print(f"DEBUG: Failed to create job: {e}")
+                    raise e
+        
+        print(f"DEBUG: Successfully created {len(created)} combinations")
         return created
     
     def export_results_to_csv(self, species_file=None, model=None, system_template=None, user_template=None):
@@ -1510,6 +1740,17 @@ def get_available_template_pairs():
 
 # Routes
 @app.route('/')
+def index():
+    """Main dashboard page with table/matrix view"""
+    dashboard_data = processing_manager.get_dashboard_data()
+    
+    # Add additional data needed for the modals
+    dashboard_data['available_species_files'] = get_available_species_files()
+    dashboard_data['popular_models'] = get_popular_models()
+    dashboard_data['available_template_pairs'] = get_available_template_pairs()
+    
+    return render_template('dashboard.html', dashboard_data=dashboard_data)
+
 @app.route('/dashboard')
 def dashboard():
     """Technical dashboard for managing processing jobs"""
@@ -1522,14 +1763,14 @@ def dashboard():
     
     return render_template('dashboard.html', dashboard_data=dashboard_data)
 
-@app.route('/api/start_combination/<int:combination_id>', methods=['POST'])
+@app.route('/api/start_combination/<combination_id>', methods=['POST'])
 def start_combination_api(combination_id):
     if processing_manager.start_combination(combination_id):
         return jsonify({'success': True, 'message': f'Combination {combination_id} started successfully.'})
     else:
         return jsonify({'success': False, 'error': 'Failed to start combination'}), 500
 
-@app.route('/api/restart_combination/<int:combination_id>', methods=['POST'])
+@app.route('/api/restart_combination/<combination_id>', methods=['POST'])
 def restart_combination_api(combination_id):
     success, message = processing_manager.restart_combination(combination_id)
     if success:
@@ -1537,7 +1778,7 @@ def restart_combination_api(combination_id):
     else:
         return jsonify({'success': False, 'error': message}), 500
 
-@app.route('/api/pause_combination/<int:combination_id>', methods=['POST'])
+@app.route('/api/pause_combination/<combination_id>', methods=['POST'])
 def pause_combination_api(combination_id):
     success = processing_manager.pause_combination(combination_id)
     if success:
@@ -1545,7 +1786,7 @@ def pause_combination_api(combination_id):
     else:
         return jsonify({'success': False, 'error': 'Failed to pause combination'}), 500
 
-@app.route('/api/stop_combination/<int:combination_id>', methods=['POST'])
+@app.route('/api/stop_combination/<combination_id>', methods=['POST'])
 def stop_combination_api(combination_id):
     success = processing_manager.stop_combination(combination_id)
     if success:
@@ -1578,35 +1819,111 @@ def get_dashboard_data_api():
     data = processing_manager.get_dashboard_data()
     return jsonify(data)
 
-@app.route('/api/delete_combination/<int:combination_id>', methods=['DELETE'])
+@app.route('/api/delete_combination/<combination_id>', methods=['DELETE'])
 def delete_combination_api(combination_id):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
     try:
-        # Get combination details first
-        cursor.execute("""
-            SELECT species_file, model, system_template, user_template
-            FROM combinations WHERE id = ?
-        """, (combination_id,))
-        combo = cursor.fetchone()
+        print(f"DEBUG: Deleting combination/job: {combination_id}")
         
-        if combo:
-            # Delete from results table
-            cursor.execute("""
-                DELETE FROM results 
-                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-            """, (combo[0], combo[1], combo[2], combo[3]))
-        
-        # Delete combination
-        cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
-        conn.commit()
-        return jsonify({'success': True, 'message': 'Combination deleted successfully'})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
+        # Check if job exists first
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
+        count_before = cursor.fetchone()[0]
+        print(f"DEBUG: Found {count_before} entries for job {combination_id}")
         conn.close()
+        
+        # Use unified database to delete the job
+        from microbellm.unified_db import UnifiedDB
+        unified_db = UnifiedDB(db_path)
+        
+        # Delete all entries for this job_id
+        unified_db.delete_job(combination_id)
+        
+        # Verify deletion worked
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
+        count_after = cursor.fetchone()[0]
+        print(f"DEBUG: After deletion, found {count_after} entries for job {combination_id}")
+        
+        # Also clean up from legacy tables if they exist
+        cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
+        cursor.execute("DELETE FROM results WHERE id = ?", (combination_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'Job {combination_id} deleted. Removed {count_before} entries.'})
+    except Exception as e:
+        print(f"DEBUG: Error deleting job: {e}")
+        return jsonify({'success': False, 'message': f'Error deleting job: {e}'}), 500
+
+@app.route('/api/database_info')
+def database_info_api():
+    """Get database structure information"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = [row[0] for row in cursor.fetchall()]
+        
+        db_info = {
+            'database_path': db_path,
+            'tables': {}
+        }
+        
+        for table in tables:
+            # Get table info
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [{'name': row[1], 'type': row[2], 'not_null': bool(row[3]), 'primary_key': bool(row[5])} 
+                      for row in cursor.fetchall()]
+            
+            # Get row count
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            row_count = cursor.fetchone()[0]
+            
+            db_info['tables'][table] = {
+                'columns': columns,
+                'row_count': row_count
+            }
+        
+        conn.close()
+        return jsonify(db_info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/table_data/<table_name>')
+def table_data_api(table_name):
+    """Get sample data from a table"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Validate table name exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Table not found'}), 404
+        
+        # Get sample data (first 100 rows)
+        cursor.execute(f"SELECT * FROM {table_name} LIMIT 100")
+        rows = cursor.fetchall()
+        
+        # Get column names
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'table_name': table_name,
+            'columns': columns,
+            'rows': rows,
+            'sample_size': len(rows)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/cleanup_orphaned/<species_file>/<model>/<system_template>/<user_template>', methods=['DELETE'])
 def cleanup_orphaned_results_api(species_file, model, system_template, user_template):
@@ -1749,38 +2066,138 @@ def settings():
 
 # Removed duplicate /templates route - using templates_page() instead
 
-@app.route('/api/create_combination', methods=['POST'])
-def create_combination_api():
+@app.route('/api/create_job', methods=['POST'])
+def create_job_api():
     data = request.get_json()
     species_file = data.get('species_file')
     model = data.get('model')
     system_template = data.get('system_template')
     user_template = data.get('user_template')
     
+    print(f"Creating job: {model} + {system_template} + {user_template} + {species_file}")
+    
     if not all([species_file, model, system_template, user_template]):
-        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        missing = [k for k, v in {'species_file': species_file, 'model': model, 'system_template': system_template, 'user_template': user_template}.items() if not v]
+        return jsonify({'success': False, 'error': f'Missing required fields: {missing}'}), 400
     
     try:
-        # Create template pair
-        template_pairs = [{
-            'system': system_template,
-            'user': user_template
-        }]
+        # Create job using simplified method
+        job_id = processing_manager.create_job(species_file, model, system_template, user_template)
         
-        # Create combination
-        created_combinations = processing_manager.create_combinations(species_file, [model], template_pairs)
-        
-        if created_combinations:
-            combination_id = created_combinations[0]['id']
+        if job_id:
             return jsonify({
                 'success': True,
-                'combination_id': combination_id,
-                'message': 'Combination created successfully'
+                'job_id': job_id,
+                'combination_id': job_id,  # For backward compatibility
+                'message': 'Job created successfully'
             })
         else:
-            return jsonify({'success': False, 'error': 'Failed to create combination'}), 500
+            return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+            
     except Exception as e:
+        print(f"Error creating job: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# Alias for backward compatibility
+@app.route('/api/create_and_run_job', methods=['POST'])
+def create_and_run_job_api():
+    """Create and immediately start a job - async workflow"""
+    data = request.get_json()
+    species_file = data.get('species_file')
+    model = data.get('model')
+    system_template = data.get('system_template')
+    user_template = data.get('user_template')
+    
+    print(f"Creating and starting job: {model} + {system_template} + {user_template} + {species_file}")
+    
+    if not all([species_file, model, system_template, user_template]):
+        missing = [k for k, v in {'species_file': species_file, 'model': model, 'system_template': system_template, 'user_template': user_template}.items() if not v]
+        return jsonify({'success': False, 'error': f'Missing required fields: {missing}'}), 400
+    
+    try:
+        # Create the job
+        job_id = processing_manager.create_job(species_file, model, system_template, user_template)
+        
+        if job_id:
+            # Start the job asynchronously
+            success = processing_manager.start_job_async(job_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'job_id': job_id,
+                    'combination_id': job_id,  # For backward compatibility
+                    'message': 'Job created and started successfully'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'job_id': job_id,
+                    'error': 'Job created but failed to start'
+                }), 500
+        else:
+            return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+            
+    except Exception as e:
+        print(f"Error creating and starting job: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/create_combination', methods=['POST'])
+def create_combination_api():
+    """Backward compatibility alias for create_and_run_job_api"""
+    return create_and_run_job_api()
+
+@app.route('/api/run_job/<job_id>', methods=['POST'])
+def run_job_api(job_id):
+    try:
+        success = processing_manager.run_job(job_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Job completed successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Job failed'}), 500
+    except Exception as e:
+        print(f"Error running job: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/jobs')
+def get_jobs():
+    """Get list of all jobs"""
+    try:
+        jobs = processing_manager.get_all_jobs()
+        return jsonify({'success': True, 'jobs': jobs})
+    except Exception as e:
+        print(f"Error getting jobs: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/job/<job_id>/results')
+def get_job_results(job_id):
+    """Get detailed results for a job"""
+    try:
+        results = processing_manager.get_job_results(job_id)
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        print(f"Error getting job results: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/job/<job_id>/results')
+def job_results_page(job_id):
+    """Job results page"""
+    return render_template('job_results.html', job_id=job_id)
+
+@app.route('/job_results/<combination_id>')
+def job_results_detail_page(combination_id):
+    """Detailed job results page showing all species"""
+    # Use simpler template for now
+    return render_template('job_results_simple.html', combination_id=combination_id)
+
+@app.route('/database')
+def database_browser():
+    """Database browser page"""
+    return render_template('database_browser.html')
 
 @app.route('/api/add_model', methods=['POST'])
 def add_model_api():
@@ -1862,7 +2279,7 @@ def delete_species_file_api():
     finally:
         conn.close()
 
-@app.route('/api/combination_details/<int:combination_id>')
+@app.route('/api/combination_details/<combination_id>')
 def get_combination_details(combination_id):
     """Get detailed information about a combination and its results"""
     return processing_manager.get_combination_details(combination_id)
@@ -2278,12 +2695,12 @@ def rerun_failed_species():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/reparse_phenotype_data/<int:combination_id>', methods=['POST'])
+@app.route('/api/reparse_phenotype_data/<combination_id>', methods=['POST'])
 def reparse_phenotype_data(combination_id):
     """Re-parse phenotype data for a combination"""
     return processing_manager.reparse_phenotype_data(combination_id)
 
-@app.route('/api/rerun_all_failed/<int:combination_id>', methods=['POST'])
+@app.route('/api/rerun_all_failed/<combination_id>', methods=['POST'])
 def rerun_all_failed(combination_id):
     """Re-run all failed species for a combination"""
     return processing_manager.rerun_all_failed(combination_id)
