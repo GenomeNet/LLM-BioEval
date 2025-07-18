@@ -78,6 +78,13 @@
                 <i class="fas fa-arrow-left"></i> Back
             </button>
             
+            <div class="import-options mt-2">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="overwriteExisting">
+                    <span>Overwrite existing entries (update with new data)</span>
+                </label>
+            </div>
+            
             <div id="importStatus" class="mt-3"></div>
         </div>
     </div>
@@ -288,6 +295,44 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
+    
+    .import-options {
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    
+    .checkbox-label input[type="checkbox"] {
+        cursor: pointer;
+    }
+    
+    .skipped-entries {
+        margin-top: 12px;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .skipped-entries h6 {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .skipped-entry {
+        padding: 4px 0;
+        color: var(--gray-600);
+    }
 </style>
 
 <script>
@@ -409,19 +454,45 @@
             `<span class="column-item required">${col}</span>`
         ).join('');
         
+        // Load real examples from database
+        fetch(`/api/import_example/${selectedTemplate.type}?template=${encodeURIComponent(selectedTemplate.name)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.examples.length > 0) {
+                    // Use real data for example
+                    const example = data.examples[0];
+                    let columns = Object.keys(example).filter(k => k !== null && example[k] !== null);
+                    
+                    // Build CSV example with real data
+                    const headers = columns.join(',');
+                    const rows = data.examples.map(ex => 
+                        columns.map(col => ex[col] || '').join(',')
+                    ).join('\n');
+                    
+                    exampleCsv.textContent = `${headers}\n${rows}`;
+                    
+                    // Show note about species files and models
+                    if (data.species_files.length > 0) {
+                        exampleCsv.textContent += `\n\n# Common species_file values in your database:\n# ${data.species_files.join(', ')}`;
+                    }
+                    if (data.models.length > 0) {
+                        exampleCsv.textContent += `\n\n# Common model values in your database:\n# ${data.models.slice(0, 5).join(', ')}${data.models.length > 5 ? '...' : ''}`;
+                    }
+                } else {
+                    // Fallback to generic example
+                    showGenericExample();
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load examples:', err);
+                showGenericExample();
+            });
+        
         // Template-specific columns
         let optional = ['species_file', 'system_template', 'user_template', 'result'];
-        let exampleData = {};
         
         if (selectedTemplate.type === 'knowledge') {
             optional.push('knowledge_group');
-            exampleData = {
-                binomial_name: 'Escherichia coli',
-                model: 'openai/gpt-4',
-                status: 'completed',
-                knowledge_group: 'extensive',
-                result: '{"knowledge_group": "extensive"}'
-            };
         } else if (selectedTemplate.type === 'phenotype') {
             optional.push(
                 'knowledge_group', 'gram_staining', 'motility', 'aerophilicity',
@@ -429,27 +500,25 @@
                 'biosafety_level', 'health_association', 'host_association',
                 'plant_pathogenicity', 'spore_formation', 'hemolysis', 'cell_shape'
             );
-            exampleData = {
-                binomial_name: 'Bacillus subtilis',
-                model: 'openai/gpt-4',
-                status: 'completed',
-                gram_staining: 'gram stain positive',
-                motility: 'motile',
-                spore_formation: 'spore-forming'
-            };
         }
         
         optionalCols.innerHTML = optional.map(col => 
             `<span class="column-item">${col}</span>`
         ).join('');
-        
-        // Create example CSV
-        const headers = [...required, ...optional.slice(0, 5)].join(',');
-        const values = [...required, ...optional.slice(0, 5)].map(col => 
-            exampleData[col] || 'value'
-        ).join(',');
-        
-        exampleCsv.textContent = `${headers}\n${values}\n...`;
+    }
+    
+    // Generic example fallback
+    function showGenericExample() {
+        const exampleCsv = document.getElementById('exampleCsv');
+        if (selectedTemplate.type === 'knowledge') {
+            exampleCsv.textContent = `binomial_name,model,status,species_file,knowledge_group
+Escherichia coli,openai/gpt-4,completed,artificial.txt,extensive
+Bacillus subtilis,openai/gpt-4,completed,artificial.txt,extensive`;
+        } else {
+            exampleCsv.textContent = `binomial_name,model,status,species_file,gram_staining,motility
+Escherichia coli,openai/gpt-4,completed,artificial.txt,gram stain negative,motile
+Bacillus subtilis,openai/gpt-4,completed,artificial.txt,gram stain positive,motile`;
+        }
     }
     
     // Navigation functions
@@ -526,10 +595,13 @@
         const file = document.getElementById('csvFile').files[0];
         if (!file) return;
         
+        const overwrite = document.getElementById('overwriteExisting').checked;
+        
         const formData = new FormData();
         formData.append('file', file);
         formData.append('template', selectedTemplate.name);
         formData.append('template_type', selectedTemplate.type);
+        formData.append('overwrite', overwrite ? 'true' : 'false');
         
         const statusDiv = document.getElementById('importStatus');
         const importBtn = document.getElementById('importBtn');
@@ -557,6 +629,12 @@
                             <span>Successfully imported:</span>
                             <span>${data.imported}</span>
                         </div>
+                        ${data.updated > 0 ? `
+                        <div class="validation-stat success">
+                            <span>Updated existing:</span>
+                            <span>${data.updated}</span>
+                        </div>
+                        ` : ''}
                         <div class="validation-stat warning">
                             <span>Skipped (duplicates):</span>
                             <span>${data.skipped}</span>
@@ -585,6 +663,14 @@
                                         `<li>${model}</li>`
                                     ).join('')}
                                 </ul>
+                            </div>
+                        ` : ''}
+                        ${data.skipped_details && data.skipped_details.length > 0 ? `
+                            <div class="skipped-entries">
+                                <h6>Skipped entries (first 10):</h6>
+                                ${data.skipped_details.map(detail => 
+                                    `<div class="skipped-entry">Row ${detail.row}: ${detail.binomial_name} - ${detail.model}</div>`
+                                ).join('')}
                             </div>
                         ` : ''}
                     </div>

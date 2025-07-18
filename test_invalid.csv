@@ -1,4 +1,0 @@
-binomial_name;motility;gram_staining;aerophilicity;extreme_environment_tolerance;biofilm_formation;animal_pathogenicity;biosafety_level;health_association;host_association;plant_pathogenicity;spore_formation;hemolysis;cell_shape
-Test species 1;INVALID_MOTILITY;gram stain positive;aerobic;TRUE;TRUE;FALSE;biosafety level 1;FALSE;TRUE;FALSE;FALSE;alpha;bacillus
-Test species 2;TRUE;INVALID_GRAM;aerobic;FALSE;TRUE;TRUE;biosafety level 4;TRUE;FALSE;TRUE;TRUE;INVALID_HEMOLYSIS;coccus
-Test species 3;FALSE;gram stain negative;INVALID_AERO;TRUE;FALSE;FALSE;biosafety level 2;FALSE;TRUE;FALSE;FALSE;beta;INVALID_SHAPE 

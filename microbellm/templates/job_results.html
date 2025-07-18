@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Results - MicrobeLLM</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .back-link {
+            color: #007bff;
+            text-decoration: none;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .job-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .job-info h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #333;
+            word-break: break-all;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .stat {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .results-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .results-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .filter-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .results-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .results-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-completed { background-color: #d4edda; color: #155724; }
+        .status-failed { background-color: #f8d7da; color: #721c24; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        
+        .view-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .view-btn:hover {
+            background: #0056b3;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .json-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .error-text {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+            
+            .results-table {
+                font-size: 14px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <h1>Job Results</h1>
+    </div>
+    
+    <div class="job-info">
+        <h2>Job Information</h2>
+        <div id="jobInfo" class="loading">Loading job information...</div>
+    </div>
+    
+    <div class="results-section">
+        <h2>Species Results</h2>
+        
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+            <button class="filter-btn" data-filter="failed">Failed</button>
+            <button class="filter-btn" data-filter="pending">Pending</button>
+        </div>
+        
+        <div id="resultsTable" class="loading">Loading results...</div>
+    </div>
+    
+    <!-- Modal for viewing details -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Species Details</h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Immediate debug output
+        console.log('Script starting, URL:', window.location.pathname);
+        
+        // Check if this is a job_results page (with combination_id) or job page (with job_id)
+        const pathParts = window.location.pathname.split('/').filter(p => p);
+        const isCombinationView = pathParts[0] === 'job_results';
+        const id = isCombinationView ? pathParts[1] : pathParts[2];  // job_results/id vs job/id/results
+        let allResults = [];
+        let currentFilter = 'all';
+        let templateType = 'phenotype'; // default
+        
+        console.log('Path parts:', pathParts, 'ID:', id, 'Is combination view:', isCombinationView);
+        
+        if (!id) {
+            console.error('No ID found in URL');
+            document.getElementById('jobInfo').innerHTML = '<div class="error-text">Error: No job ID specified in URL</div>';
+            document.getElementById('resultsTable').innerHTML = '<div class="error-text">Error: No job ID specified in URL</div>';
+            return;
+        }
+        
+        // Load job results
+        async function loadJobResults() {
+            try {
+                console.log('Loading results for:', isCombinationView ? 'combination' : 'job', 'ID:', id);
+                
+                let url;
+                if (isCombinationView) {
+                    // Load combination details
+                    url = `/api/combination_details/${id}`;
+                } else {
+                    // Load job results
+                    url = `/api/job/${id}/results`;
+                }
+                
+                console.log('Fetching from URL:', url);
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received data:', data);
+                
+                if (isCombinationView && !data.error) {
+                    // Convert combination details to job format
+                    const jobInfo = {
+                        model: data.model,
+                        species_file: data.species_file,
+                        system_template: data.system_template,
+                        user_template: data.user_template,
+                        job_status: data.status,
+                        job_created_at: data.created_at
+                    };
+                    // Set template type from response
+                    templateType = data.template_type || 'phenotype';
+                    renderJobInfo(jobInfo);
+                    allResults = data.all_results || [];
+                    renderResults(allResults);
+                } else if (!isCombinationView && data.success) {
+                    renderJobInfo(data.results.job_info);
+                    allResults = data.results.species_results;
+                    renderResults(allResults);
+                } else {
+                    const error = data.error || 'Unknown error';
+                    document.getElementById('jobInfo').innerHTML = '<div class="error-text">Error loading job: ' + error + '</div>';
+                    document.getElementById('resultsTable').innerHTML = '<div class="error-text">Error loading results: ' + error + '</div>';
+                }
+            } catch (error) {
+                console.error('Error loading job results:', error);
+                document.getElementById('jobInfo').innerHTML = '<div class="error-text">Error loading job: ' + error.message + '</div>';
+                document.getElementById('resultsTable').innerHTML = '<div class="error-text">Error loading results: ' + error.message + '</div>';
+            }
+        }
+        
+        // Render job information
+        function renderJobInfo(jobInfo) {
+            const stats = calculateStats(allResults);
+            
+            document.getElementById('jobInfo').innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Model</div>
+                        <div class="info-value">${jobInfo.model}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Species File</div>
+                        <div class="info-value">${jobInfo.species_file}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">System Template</div>
+                        <div class="info-value">${jobInfo.system_template}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">User Template</div>
+                        <div class="info-value">${jobInfo.user_template}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">${jobInfo.job_status}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Created</div>
+                        <div class="info-value">${new Date(jobInfo.job_created_at).toLocaleString()}</div>
+                    </div>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value">${stats.total}</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${stats.completed}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${stats.failed}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${stats.pending}</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Calculate statistics
+        function calculateStats(results) {
+            return {
+                total: results.length,
+                completed: results.filter(r => r.status === 'completed').length,
+                failed: results.filter(r => r.status === 'failed').length,
+                pending: results.filter(r => r.status === 'pending').length
+            };
+        }
+        
+        // Render results table
+        function renderResults(results) {
+            const filteredResults = currentFilter === 'all' ? results : results.filter(r => r.status === currentFilter);
+            
+            if (filteredResults.length === 0) {
+                document.getElementById('resultsTable').innerHTML = '<div class="loading">No results found for current filter.</div>';
+                return;
+            }
+            
+            // Determine if this is a knowledge or phenotype template
+            const isKnowledgeTemplate = templateType === 'knowledge';
+            
+            let tableHTML = '<table class="results-table"><thead><tr>';
+            tableHTML += '<th>Species</th>';
+            tableHTML += '<th>Status</th>';
+            
+            if (isKnowledgeTemplate) {
+                // Only show knowledge group for knowledge templates
+                tableHTML += '<th>Knowledge Group</th>';
+            } else {
+                // For phenotype templates, just show a summary
+                tableHTML += '<th>Phenotype Summary</th>';
+            }
+            
+            tableHTML += '<th>Actions</th>';
+            tableHTML += '</tr></thead><tbody>';
+            
+            filteredResults.forEach(result => {
+                tableHTML += '<tr>';
+                tableHTML += `<td>${result.binomial_name || 'Unknown'}</td>`;
+                tableHTML += `<td><span class="status-badge status-${result.status || 'pending'}">${result.status || 'pending'}</span></td>`;
+                
+                if (isKnowledgeTemplate) {
+                    tableHTML += `<td>${result.knowledge_group || 'N/A'}</td>`;
+                } else {
+                    // Show a summary of how many phenotypes were predicted
+                    let phenotypeCount = 0;
+                    const phenotypeFields = ['gram_staining', 'motility', 'aerophilicity', 
+                                           'extreme_environment_tolerance', 'biofilm_formation',
+                                           'animal_pathogenicity', 'biosafety_level', 
+                                           'health_association', 'host_association',
+                                           'plant_pathogenicity', 'spore_formation', 
+                                           'hemolysis', 'cell_shape'];
+                    phenotypeFields.forEach(field => {
+                        if (result[field] && result[field] !== 'N/A') {
+                            phenotypeCount++;
+                        }
+                    });
+                    tableHTML += `<td>${phenotypeCount}/13 phenotypes predicted</td>`;
+                }
+                
+                const safeName = (result.binomial_name || 'Unknown').replace(/'/g, "\\'");
+                tableHTML += `<td><button class="view-btn" onclick="viewDetails('${safeName}')">View</button></td>`;
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody></table>';
+            
+            document.getElementById('resultsTable').innerHTML = tableHTML;
+        }
+        
+        // View species details
+        function viewDetails(speciesName) {
+            const result = allResults.find(r => r.binomial_name === speciesName);
+            if (!result) return;
+            
+            document.getElementById('modalTitle').textContent = `Details: ${speciesName}`;
+            
+            let content = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">${result.status}</div>
+                    </div>
+            `;
+            
+            if (templateType === 'knowledge') {
+                content += `
+                    <div class="info-item">
+                        <div class="info-label">Knowledge Group</div>
+                        <div class="info-value">${result.knowledge_group || 'N/A'}</div>
+                    </div>
+                `;
+            } else {
+                // Show all phenotype fields for phenotype templates
+                if (result.phenotypes) {
+                    Object.entries(result.phenotypes).forEach(([key, value]) => {
+                        const label = key.split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ');
+                        content += `
+                            <div class="info-item">
+                                <div class="info-label">${label}</div>
+                                <div class="info-value">${value || 'N/A'}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // Fallback to individual fields
+                    const phenotypeFields = ['gram_staining', 'motility', 'aerophilicity', 
+                                           'extreme_environment_tolerance', 'biofilm_formation',
+                                           'animal_pathogenicity', 'biosafety_level', 
+                                           'health_association', 'host_association',
+                                           'plant_pathogenicity', 'spore_formation', 
+                                           'hemolysis', 'cell_shape'];
+                    phenotypeFields.forEach(field => {
+                        if (result[field] !== undefined) {
+                            const label = field.split('_').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                            ).join(' ');
+                            content += `
+                                <div class="info-item">
+                                    <div class="info-label">${label}</div>
+                                    <div class="info-value">${result[field] || 'N/A'}</div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            }
+            
+            content += '</div>';
+            
+            if (result.error) {
+                content += `
+                    <h3>Error</h3>
+                    <div class="error-text">${result.error}</div>
+                `;
+            }
+            
+            if (result.raw_response || result.raw_result) {
+                content += `
+                    <h3>Raw LLM Response</h3>
+                    <div class="json-display">
+                        <pre>${result.raw_response || JSON.stringify(result.raw_result, null, 2)}</pre>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('detailModal').style.display = 'block';
+        }
+        
+        // Filter handling
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderResults(allResults);
+            });
+        });
+        
+        // Modal handling
+        document.querySelector('.close').addEventListener('click', () => {
+            document.getElementById('detailModal').style.display = 'none';
+        });
+        
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('detailModal')) {
+                document.getElementById('detailModal').style.display = 'none';
+            }
+        });
+        
+        // Initialize
+        if (id) {
+            console.log('Calling loadJobResults with ID:', id);
+            loadJobResults();
+        } else {
+            console.error('No ID found in URL');
+        }
+        
+        // Test fetch directly
+        console.log('Testing direct fetch...');
+        if (isCombinationView && id) {
+            fetch(`/api/combination_details/${id}`)
+                .then(r => {
+                    console.log('Direct fetch response:', r);
+                    return r.json();
+                })
+                .then(data => console.log('Direct fetch data:', data))
+                .catch(err => console.error('Direct fetch error:', err));
+        }
+    </script>
+</body>
+</html>

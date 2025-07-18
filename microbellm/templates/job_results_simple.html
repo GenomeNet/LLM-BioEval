@@ -1,0 +1,449 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Job Results - MicrobeLLM Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Job Results</h1>
+    <p class="page-subtitle">Detailed results for combination</p>
+</div>
+
+<div class="card" id="jobInfo">
+    <h2>Job Information</h2>
+    <div id="jobInfoContent" class="loading">Loading job information...</div>
+</div>
+
+<div class="card" id="results">
+    <h2>Species Results</h2>
+    <div id="resultsContent" class="loading">Loading results...</div>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h3 id="modalTitle">Species Details</h3>
+            <button onclick="closeModal()" class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="modalContent"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+    
+    .error-text {
+        color: #dc3545;
+        background: #f8d7da;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .info-item {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .info-label {
+        font-weight: bold;
+        color: #555;
+        margin-bottom: 5px;
+    }
+    
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .results-table th,
+    .results-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .results-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-completed { background-color: #d4edda; color: #155724; }
+    .status-failed { background-color: #f8d7da; color: #721c24; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    
+    /* Modal styles */
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: none;
+    }
+    
+    .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 900px;
+        max-height: 80vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+    }
+    
+    .modal-close:hover {
+        color: #000;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .detail-section {
+        margin-bottom: 25px;
+    }
+    
+    .detail-section h4 {
+        margin: 0 0 15px 0;
+        color: #333;
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 8px;
+    }
+    
+    .json-display {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .phenotype-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+    }
+    
+    .phenotype-item {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 3px solid #007bff;
+    }
+    
+    .phenotype-label {
+        font-weight: 600;
+        color: #555;
+        font-size: 13px;
+        margin-bottom: 3px;
+    }
+    
+    .phenotype-value {
+        color: #333;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get combination ID from URL
+    const pathParts = window.location.pathname.split('/');
+    const combinationId = pathParts[pathParts.length - 1];
+    
+    // Get model parameter from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelFilter = urlParams.get('model');
+    
+    console.log('Loading combination:', combinationId, 'Model filter:', modelFilter);
+    
+    // Load combination details with optional model filter
+    const apiUrl = modelFilter 
+        ? `/api/combination_details/${combinationId}?model=${encodeURIComponent(modelFilter)}`
+        : `/api/combination_details/${combinationId}`;
+        
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) throw new Error('Failed to load data');
+            return response.json();
+        })
+        .then(data => {
+            console.log('Data received:', data);
+            
+            // Update page title if filtering by model
+            if (data.combination_info && data.combination_info.filtered_by_model) {
+                document.querySelector('.page-subtitle').textContent = 
+                    `Detailed results for ${data.combination_info.filtered_by_model} in job ${combinationId}`;
+            }
+            
+            // Display job info
+            const jobInfoHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Model</div>
+                        <div>${data.combination_info ? data.combination_info.model : (data.model || 'N/A')}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Species File</div>
+                        <div>${data.species_file || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">System Template</div>
+                        <div>${data.system_template || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">User Template</div>
+                        <div>${data.user_template || 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('jobInfoContent').innerHTML = jobInfoHTML;
+            
+            // Display results
+            const results = data.all_results || data.species_results || [];
+            const isKnowledge = data.template_type === 'knowledge';
+            
+            // Add summary if we have combination_info
+            let summaryHTML = '';
+            if (data.combination_info) {
+                summaryHTML = `<div class="results-summary" style="margin-bottom: 20px;">
+                    <strong>Total:</strong> ${data.combination_info.total_species} | 
+                    <strong>Successful:</strong> ${data.combination_info.successful_species} | 
+                    <strong>Failed:</strong> ${data.combination_info.failed_species} | 
+                    <strong>Timeouts:</strong> ${data.combination_info.timeout_species}
+                </div>`;
+            }
+            
+            if (results.length === 0) {
+                document.getElementById('resultsContent').innerHTML = summaryHTML + '<p>No results found.</p>';
+                return;
+            }
+            
+            let tableHTML = '<table class="results-table"><thead><tr>';
+            tableHTML += '<th>Species</th><th>Status</th>';
+            
+            if (isKnowledge) {
+                tableHTML += '<th>Knowledge Group</th>';
+            } else {
+                tableHTML += '<th>Phenotype Summary</th>';
+            }
+            
+            tableHTML += '<th>Actions</th>';
+            tableHTML += '</tr></thead><tbody>';
+            
+            results.forEach(result => {
+                tableHTML += '<tr>';
+                tableHTML += `<td>${result.binomial_name || 'Unknown'}</td>`;
+                tableHTML += `<td><span class="status-badge status-${result.status}">${result.status}</span></td>`;
+                
+                if (isKnowledge) {
+                    tableHTML += `<td>${result.knowledge_group || 'N/A'}</td>`;
+                } else {
+                    // Count phenotypes
+                    let count = 0;
+                    const fields = ['gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance', 
+                                   'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 
+                                   'health_association', 'host_association', 'plant_pathogenicity', 
+                                   'spore_formation', 'hemolysis', 'cell_shape'];
+                    fields.forEach(f => {
+                        if (result[f] && result[f] !== 'N/A') count++;
+                    });
+                    tableHTML += `<td>${count}/13 phenotypes</td>`;
+                }
+                
+                tableHTML += `<td><button class="btn btn-sm btn-primary" onclick='viewDetails(${JSON.stringify(result).replace(/'/g, "&apos;")})'>View</button></td>`;
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody></table>';
+            document.getElementById('resultsContent').innerHTML = summaryHTML + tableHTML;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('jobInfoContent').innerHTML = `<div class="error-text">Error: ${error.message}</div>`;
+            document.getElementById('resultsContent').innerHTML = `<div class="error-text">Error: ${error.message}</div>`;
+        });
+});
+
+// Function to view details
+function viewDetails(result) {
+    console.log('Viewing details for:', result.binomial_name);
+    
+    // Set modal title
+    document.getElementById('modalTitle').textContent = `Details: ${result.binomial_name}`;
+    
+    let content = '';
+    
+    // Basic information
+    content += '<div class="detail-section">';
+    content += '<h4>Basic Information</h4>';
+    content += '<div class="info-grid">';
+    content += `<div class="info-item"><div class="info-label">Species</div><div>${result.binomial_name}</div></div>`;
+    content += `<div class="info-item"><div class="info-label">Status</div><div><span class="status-badge status-${result.status}">${result.status}</span></div></div>`;
+    
+    if (result.knowledge_group) {
+        content += `<div class="info-item"><div class="info-label">Knowledge Group</div><div>${result.knowledge_group}</div></div>`;
+    }
+    
+    content += '</div></div>';
+    
+    // Phenotypes (if available)
+    if (result.phenotypes || hasAnyPhenotype(result)) {
+        content += '<div class="detail-section">';
+        content += '<h4>Extracted Phenotypes</h4>';
+        content += '<div class="phenotype-grid">';
+        
+        const phenotypeFields = {
+            'gram_staining': 'Gram Staining',
+            'motility': 'Motility',
+            'aerophilicity': 'Aerophilicity',
+            'extreme_environment_tolerance': 'Extreme Environment Tolerance',
+            'biofilm_formation': 'Biofilm Formation',
+            'animal_pathogenicity': 'Animal Pathogenicity',
+            'biosafety_level': 'Biosafety Level',
+            'health_association': 'Health Association',
+            'host_association': 'Host Association',
+            'plant_pathogenicity': 'Plant Pathogenicity',
+            'spore_formation': 'Spore Formation',
+            'hemolysis': 'Hemolysis',
+            'cell_shape': 'Cell Shape'
+        };
+        
+        // Show from phenotypes object first
+        if (result.phenotypes) {
+            Object.entries(result.phenotypes).forEach(([key, value]) => {
+                const label = phenotypeFields[key] || key;
+                content += `<div class="phenotype-item">
+                    <div class="phenotype-label">${label}</div>
+                    <div class="phenotype-value">${value || 'N/A'}</div>
+                </div>`;
+            });
+        } else {
+            // Show from individual fields
+            Object.entries(phenotypeFields).forEach(([field, label]) => {
+                if (result[field]) {
+                    content += `<div class="phenotype-item">
+                        <div class="phenotype-label">${label}</div>
+                        <div class="phenotype-value">${result[field]}</div>
+                    </div>`;
+                }
+            });
+        }
+        
+        content += '</div></div>';
+    }
+    
+    // Raw response
+    if (result.raw_response || result.result) {
+        content += '<div class="detail-section">';
+        content += '<h4>Raw LLM Response</h4>';
+        content += '<div class="json-display">';
+        
+        const rawData = result.raw_response || result.result;
+        if (typeof rawData === 'string') {
+            content += escapeHtml(rawData);
+        } else {
+            content += escapeHtml(JSON.stringify(rawData, null, 2));
+        }
+        
+        content += '</div></div>';
+    }
+    
+    // Error (if any)
+    if (result.error) {
+        content += '<div class="detail-section">';
+        content += '<h4>Error</h4>';
+        content += `<div class="error-text">${result.error}</div>`;
+        content += '</div>';
+    }
+    
+    // Set content and show modal
+    document.getElementById('modalContent').innerHTML = content;
+    document.getElementById('detailsModal').style.display = 'block';
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('detailsModal').style.display = 'none';
+}
+
+// Helper function to check if result has any phenotype
+function hasAnyPhenotype(result) {
+    const fields = ['gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                   'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 
+                   'health_association', 'host_association', 'plant_pathogenicity',
+                   'spore_formation', 'hemolysis', 'cell_shape'];
+    return fields.some(field => result[field] && result[field] !== 'N/A');
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('detailsModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+</script>
+{% endblock %}

@@ -137,6 +137,34 @@
         opacity: 0.9;
     }
     
+    /* Force gradient backgrounds to override any parent styles */
+    .section-callout .bar-segment[style*="linear-gradient"],
+    .section-callout__content .bar-segment[style*="linear-gradient"],
+    .phenotype-card .bar-segment[style*="linear-gradient"] {
+        /* Preserve inline styles */
+    }
+    
+    /* Specific gradient classes for fallback */
+    .bar-segment.gradient-positive {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+    }
+    
+    .bar-segment.gradient-negative {
+        background: linear-gradient(135deg, #f44336 0%, #e53935 100%) !important;
+    }
+    
+    .bar-segment.gradient-true {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+    }
+    
+    .bar-segment.gradient-false {
+        background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%) !important;
+    }
+    
+    .bar-segment.gradient-na {
+        background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%) !important;
+    }
+    
     .bar-number {
         font-size: 11px;
         font-weight: 600;
@@ -196,6 +224,12 @@
         border: 1px solid rgba(0,0,0,0.1);
     }
     
+    /* Ensure legend colors work in section callouts */
+    .section-callout .legend-color[style*="linear-gradient"],
+    .section-callout__content .legend-color[style*="linear-gradient"] {
+        /* Preserve inline styles */
+    }
+    
     .legend-label {
         color: var(--gray-600);
     }
@@ -228,11 +262,14 @@
     let isComponentViewer = window.location.pathname.includes('/components/');
     let componentInitialized = false;
     
+    // Set flag to indicate component is loaded
+    window._phenotypeDistributionsReady = true;
+    
     // Wait for phenotype data to be available
     function waitForData() {
-        // In component viewer, use mock data
+        // In component viewer, try to fetch real data first
         if (isComponentViewer) {
-            initializeWithMockData();
+            fetchRealData();
             return;
         }
         
@@ -264,6 +301,157 @@
     function initializeWithMockData() {
         const mockData = createMockModelResults();
         renderDistributions(mockData);
+    }
+    
+    // Fetch real data in component viewer
+    async function fetchRealData() {
+        try {
+            console.log('[PhenotypeDistributions] Fetching real data...');
+            const response = await fetch('/api/phenotype_analysis');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.error || !data.files || data.files.length === 0) {
+                throw new Error('No data available');
+            }
+            
+            // Process the first file
+            const firstFile = data.files[0];
+            const fileData = data.data[firstFile];
+            
+            if (!fileData || fileData.length === 0) {
+                throw new Error('No data in file');
+            }
+            
+            // Transform data to expected format
+            const modelStats = {};
+            const phenotypes = {
+                'gram_staining': { name: 'Gram Staining' },
+                'motility': { name: 'Motility' },
+                'aerophilicity': { name: 'Aerophilicity' },
+                'biofilm_formation': { name: 'Biofilm Formation' },
+                'spore_formation': { name: 'Spore Formation' },
+                'cell_shape': { name: 'Cell Shape' }
+            };
+            
+            // Process data
+            fileData.forEach(item => {
+                const model = item.model;
+                if (!modelStats[model]) {
+                    modelStats[model] = {
+                        totalPredictions: 0,
+                        naCount: 0,
+                        phenotypeDistributions: {}
+                    };
+                }
+                
+                modelStats[model].totalPredictions++;
+                
+                // Process each phenotype
+                Object.keys(phenotypes).forEach(field => {
+                    if (!modelStats[model].phenotypeDistributions[field]) {
+                        modelStats[model].phenotypeDistributions[field] = {};
+                    }
+                    
+                    let value = item[field];
+                    
+                    // Handle null/undefined/NA
+                    if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
+                        value = 'NA';
+                        modelStats[model].naCount++;
+                    }
+                    
+                    // Handle string representations of arrays (e.g., "['aerobic']")
+                    if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
+                        try {
+                            // Parse the string as JSON after replacing single quotes with double quotes
+                            const arrayValue = JSON.parse(value.replace(/'/g, '"'));
+                            if (Array.isArray(arrayValue)) {
+                                // For simplicity, use the first value for categorical fields
+                                value = arrayValue[0] || 'NA';
+                            }
+                        } catch (e) {
+                            // If parsing fails, try to extract values manually
+                            const matches = value.match(/['"]([^'"]+)['"]/g);
+                            if (matches && matches.length > 0) {
+                                value = matches[0].replace(/['"]/g, '');
+                            }
+                        }
+                    }
+                    
+                    // Handle arrays
+                    if (Array.isArray(value)) {
+                        value = value.join(', ');
+                    }
+                    
+                    // Normalize boolean values
+                    if (typeof value === 'string') {
+                        if (value.toUpperCase() === 'TRUE') value = 'TRUE';
+                        else if (value.toUpperCase() === 'FALSE') value = 'FALSE';
+                        
+                        // Normalize gram staining values
+                        if (field === 'gram_staining') {
+                            if (value.toLowerCase().includes('positive') || value.toLowerCase().includes('gram-positive')) {
+                                value = 'Positive';
+                            } else if (value.toLowerCase().includes('negative') || value.toLowerCase().includes('gram-negative')) {
+                                value = 'Negative';
+                            }
+                        }
+                        
+                        // Normalize other values by removing underscores and proper casing
+                        if (field === 'cell_shape') {
+                            // Convert snake_case to proper case
+                            value = value.replace(/_/g, ' ')
+                                        .split(' ')
+                                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                        .join(' ');
+                        }
+                        
+                        // Normalize aerophilicity values
+                        if (field === 'aerophilicity') {
+                            const lowerValue = value.toLowerCase().trim();
+                            if (lowerValue === 'aerobic' || lowerValue === 'obligate aerobe') {
+                                value = 'Aerobic';
+                            } else if (lowerValue === 'anaerobic' || lowerValue === 'obligate anaerobe') {
+                                value = 'Anaerobic';
+                            } else if (lowerValue.includes('facultative') || lowerValue === 'facultatively anaerobic') {
+                                value = 'Facultative';
+                            } else {
+                                // Capitalize first letter for other values
+                                value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                            }
+                        }
+                    }
+                    
+                    modelStats[model].phenotypeDistributions[field][value] = 
+                        (modelStats[model].phenotypeDistributions[field][value] || 0) + 1;
+                });
+            });
+            
+            // Convert to array format
+            const modelResults = Object.entries(modelStats).map(([modelName, stats]) => ({
+                modelName,
+                totalPredictions: stats.totalPredictions,
+                naCount: stats.naCount,
+                naPercentage: (stats.naCount / (stats.totalPredictions * Object.keys(phenotypes).length)) * 100,
+                phenotypeDistributions: stats.phenotypeDistributions
+            }));
+            
+            // Sort by model name
+            modelResults.sort((a, b) => a.modelName.localeCompare(b.modelName));
+            
+            console.log('[PhenotypeDistributions] Rendering real data:', modelResults.length, 'models');
+            renderDistributions(modelResults);
+            
+        } catch (error) {
+            console.error('[PhenotypeDistributions] Failed to fetch real data:', error);
+            console.log('[PhenotypeDistributions] Falling back to mock data');
+            initializeWithMockData();
+        }
     }
     
     function createMockModelResults() {
@@ -409,14 +597,14 @@
         const legendData = getLegendData(phenotypeKey);
         legendData.forEach(item => {
             html += `<div class="legend-item">`;
-            html += `<div class="legend-color" style="background-color: ${item.background}; color: ${item.color};"></div>`;
+            html += `<div class="legend-color" style="background: ${item.background} !important; color: ${item.color} !important;"></div>`;
             html += `<span class="legend-label">${item.label}</span>`;
             html += `</div>`;
         });
         
         // Always add NA
         html += `<div class="legend-item">`;
-        html += `<div class="legend-color" style="background-color: #e2e3e5; color: #6c757d;"></div>`;
+        html += `<div class="legend-color" style="background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%) !important; color: #6c757d !important;"></div>`;
         html += `<span class="legend-label">NA/Not Available</span>`;
         html += `</div>`;
         
@@ -427,31 +615,31 @@
     function getLegendData(phenotypeKey) {
         const legends = {
             'gram_staining': [
-                { label: 'Positive', background: '#4caf50', color: 'white' },
-                { label: 'Negative', background: '#f44336', color: 'white' }
+                { label: 'Positive', background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)', color: 'white' },
+                { label: 'Negative', background: 'linear-gradient(135deg, #f44336 0%, #e53935 100%)', color: 'white' }
             ],
             'motility': [
-                { label: 'TRUE', background: '#22c55e', color: 'white' },
-                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+                { label: 'TRUE', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                { label: 'FALSE', background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             ],
             'biofilm_formation': [
-                { label: 'TRUE', background: '#22c55e', color: 'white' },
-                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+                { label: 'TRUE', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                { label: 'FALSE', background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             ],
             'spore_formation': [
-                { label: 'TRUE', background: '#22c55e', color: 'white' },
-                { label: 'FALSE', background: '#94a3b8', color: 'white' }
+                { label: 'TRUE', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                { label: 'FALSE', background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             ],
             'aerophilicity': [
-                { label: 'Aerobic', background: '#2196f3', color: 'white' },
-                { label: 'Anaerobic', background: '#ff9800', color: 'white' },
-                { label: 'Facultative', background: '#9c27b0', color: 'white' }
+                { label: 'Aerobic', background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)', color: 'white' },
+                { label: 'Anaerobic', background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white' },
+                { label: 'Facultative', background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)', color: 'white' }
             ],
             'cell_shape': [
-                { label: 'Coccus', background: '#3f51b5', color: 'white' },
-                { label: 'Bacillus', background: '#009688', color: 'white' },
-                { label: 'Spiral', background: '#ff5722', color: 'white' },
-                { label: 'Other', background: '#607d8b', color: 'white' }
+                { label: 'Coccus', background: 'linear-gradient(135deg, #3f51b5 0%, #303f9f 100%)', color: 'white' },
+                { label: 'Bacillus', background: 'linear-gradient(135deg, #009688 0%, #00796b 100%)', color: 'white' },
+                { label: 'Spiral', background: 'linear-gradient(135deg, #ff5722 0%, #e64a19 100%)', color: 'white' },
+                { label: 'Other', background: 'linear-gradient(135deg, #607d8b 0%, #455a64 100%)', color: 'white' }
             ]
         };
         
@@ -477,8 +665,27 @@
             const percentage = (count / total * 100);
             const colors = getValueColors(value, phenotypeKey);
             
+            // Log for debugging
+            if (componentInitialized && sortedValues.length > 0 && sortedValues[0] === [value, count]) {
+                console.log(`[PhenotypeDistributions] ${phenotypeKey} - ${value}: ${colors.background}`);
+            }
+            
             if (percentage > 0) {
-                html += `<div class="bar-segment" style="width: ${percentage}%; background-color: ${colors.background}; color: ${colors.color};">`;
+                // Add gradient class as fallback
+                let gradientClass = '';
+                if (value === 'NA') {
+                    gradientClass = 'gradient-na';
+                } else if (value.toLowerCase() === 'positive' || value.toLowerCase() === 'gram-positive') {
+                    gradientClass = 'gradient-positive';
+                } else if (value.toLowerCase() === 'negative' || value.toLowerCase() === 'gram-negative') {
+                    gradientClass = 'gradient-negative';
+                } else if (value.toLowerCase() === 'true') {
+                    gradientClass = 'gradient-true';
+                } else if (value.toLowerCase() === 'false') {
+                    gradientClass = 'gradient-false';
+                }
+                
+                html += `<div class="bar-segment ${gradientClass}" style="width: ${percentage}%; background: ${colors.background} !important; color: ${colors.color} !important;">`;
                 if (percentage > 5) {
                     html += `<span class="bar-number">${count}</span>`;
                 }
@@ -507,70 +714,74 @@
     
     function getValueColors(value, phenotypeKey) {
         if (value === 'NA' || value === 'N/A' || value === '') {
-            return { background: '#e2e3e5', color: '#6c757d' };
+            return { 
+                background: 'linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%)', 
+                color: '#6b7280' 
+            };
         }
         
         // Convert value to string for consistent comparison
         const valueStr = String(value);
         
+        // Use gradient styles for better visibility
         const colorMappings = {
             'gram_staining': {
-                'Positive': { background: '#4caf50', color: 'white' },
-                'Negative': { background: '#f44336', color: 'white' },
-                'positive': { background: '#4caf50', color: 'white' },
-                'negative': { background: '#f44336', color: 'white' },
-                'Gram-positive': { background: '#4caf50', color: 'white' },
-                'Gram-negative': { background: '#f44336', color: 'white' },
-                'gram-positive': { background: '#4caf50', color: 'white' },
-                'gram-negative': { background: '#f44336', color: 'white' }
+                'Positive': { background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)', color: 'white' },
+                'Negative': { background: 'linear-gradient(135deg, #f44336 0%, #e53935 100%)', color: 'white' },
+                'positive': { background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)', color: 'white' },
+                'negative': { background: 'linear-gradient(135deg, #f44336 0%, #e53935 100%)', color: 'white' },
+                'Gram-positive': { background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)', color: 'white' },
+                'Gram-negative': { background: 'linear-gradient(135deg, #f44336 0%, #e53935 100%)', color: 'white' },
+                'gram-positive': { background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)', color: 'white' },
+                'gram-negative': { background: 'linear-gradient(135deg, #f44336 0%, #e53935 100%)', color: 'white' }
             },
             'motility': {
-                'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' },
-                'True': { background: '#22c55e', color: 'white' },
-                'False': { background: '#94a3b8', color: 'white' },
-                'true': { background: '#22c55e', color: 'white' },
-                'false': { background: '#94a3b8', color: 'white' }
+                'TRUE': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'FALSE': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'True': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'False': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'true': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'false': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             },
             'biofilm_formation': {
-                'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' },
-                'True': { background: '#22c55e', color: 'white' },
-                'False': { background: '#94a3b8', color: 'white' },
-                'true': { background: '#22c55e', color: 'white' },
-                'false': { background: '#94a3b8', color: 'white' }
+                'TRUE': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'FALSE': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'True': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'False': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'true': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'false': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             },
             'spore_formation': {
-                'TRUE': { background: '#22c55e', color: 'white' },
-                'FALSE': { background: '#94a3b8', color: 'white' },
-                'True': { background: '#22c55e', color: 'white' },
-                'False': { background: '#94a3b8', color: 'white' },
-                'true': { background: '#22c55e', color: 'white' },
-                'false': { background: '#94a3b8', color: 'white' }
+                'TRUE': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'FALSE': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'True': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'False': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' },
+                'true': { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white' },
+                'false': { background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', color: 'white' }
             },
             'aerophilicity': {
-                'Aerobic': { background: '#2196f3', color: 'white' },
-                'Anaerobic': { background: '#ff9800', color: 'white' },
-                'Facultative': { background: '#9c27b0', color: 'white' },
-                'aerobic': { background: '#2196f3', color: 'white' },
-                'anaerobic': { background: '#ff9800', color: 'white' },
-                'facultative': { background: '#9c27b0', color: 'white' },
-                'Facultative anaerobe': { background: '#9c27b0', color: 'white' },
-                'facultative anaerobe': { background: '#9c27b0', color: 'white' },
-                'Obligate aerobe': { background: '#2196f3', color: 'white' },
-                'obligate aerobe': { background: '#2196f3', color: 'white' },
-                'Obligate anaerobe': { background: '#ff9800', color: 'white' },
-                'obligate anaerobe': { background: '#ff9800', color: 'white' }
+                'Aerobic': { background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)', color: 'white' },
+                'Anaerobic': { background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white' },
+                'Facultative': { background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)', color: 'white' },
+                'aerobic': { background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)', color: 'white' },
+                'anaerobic': { background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white' },
+                'facultative': { background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)', color: 'white' },
+                'Facultative anaerobe': { background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)', color: 'white' },
+                'facultative anaerobe': { background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)', color: 'white' },
+                'Obligate aerobe': { background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)', color: 'white' },
+                'obligate aerobe': { background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)', color: 'white' },
+                'Obligate anaerobe': { background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white' },
+                'obligate anaerobe': { background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white' }
             },
             'cell_shape': {
-                'Coccus': { background: '#3f51b5', color: 'white' },
-                'Bacillus': { background: '#009688', color: 'white' },
-                'Spiral': { background: '#ff5722', color: 'white' },
-                'Other': { background: '#607d8b', color: 'white' },
-                'coccus': { background: '#3f51b5', color: 'white' },
-                'bacillus': { background: '#009688', color: 'white' },
-                'spiral': { background: '#ff5722', color: 'white' },
-                'other': { background: '#607d8b', color: 'white' }
+                'Coccus': { background: 'linear-gradient(135deg, #3f51b5 0%, #303f9f 100%)', color: 'white' },
+                'Bacillus': { background: 'linear-gradient(135deg, #009688 0%, #00796b 100%)', color: 'white' },
+                'Spiral': { background: 'linear-gradient(135deg, #ff5722 0%, #e64a19 100%)', color: 'white' },
+                'Other': { background: 'linear-gradient(135deg, #607d8b 0%, #455a64 100%)', color: 'white' },
+                'coccus': { background: 'linear-gradient(135deg, #3f51b5 0%, #303f9f 100%)', color: 'white' },
+                'bacillus': { background: 'linear-gradient(135deg, #009688 0%, #00796b 100%)', color: 'white' },
+                'spiral': { background: 'linear-gradient(135deg, #ff5722 0%, #e64a19 100%)', color: 'white' },
+                'other': { background: 'linear-gradient(135deg, #607d8b 0%, #455a64 100%)', color: 'white' }
             }
         };
         
@@ -579,8 +790,11 @@
             return colorMappings[phenotypeKey][valueStr];
         }
         
-        // Fallback to gray
-        return { background: '#f8f9fa', color: '#495057' };
+        // Fallback to gray gradient
+        return { 
+            background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', 
+            color: '#495057' 
+        };
     }
     
     function formatModelName(modelName) {

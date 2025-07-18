@@ -5,6 +5,7 @@
 {% block body_class %}page-dashboard{% endblock %}
 
 {% block content %}
+    
     <div class="page-header">
         <h1 class="page-title">Processing Dashboard</h1>
         <p class="page-subtitle">Manage and monitor your microbial prediction jobs</p>
@@ -19,6 +20,9 @@
 
     <div class="dashboard-header">
         <div class="dashboard-controls">
+            <a href="/database" class="btn btn-secondary">
+                <i class="fas fa-database"></i> Database Browser
+            </a>
             <button onclick="refreshDashboard(true)" class="btn btn-secondary" id="refreshBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
@@ -26,45 +30,32 @@
     </div>
 
     {% if dashboard_data.matrix %}
-        <!-- Template Navigation -->
-        <div class="template-tabs">
-            {% set templates = dashboard_data.template_display_info %}
-            {% for template_info in templates %}
+        <!-- All Templates Displayed Vertically -->
+        <div class="all-templates-container">
+            {% for template_info in dashboard_data.template_display_info %}
+                {% set sys_template = template_info.system_template %}
+                {% set user_template = template_info.user_template %}
                 {% set i = loop.index0 %}
-                <button class="template-tab {% if i == 0 %}active{% endif %}"
-                        onclick="showTemplate({{ i }})"
-                        id="tab-{{ i }}"
-                        data-tooltip="{{ template_info.description }} ({{ template_info.template_type }} template)">
-                    {{ template_info.display_name }}
-                </button>
-            {% endfor %}
-            <button class="template-tab" 
-                    onclick="openTemplateManager()" 
-                    id="template-manage-btn"
-                    data-tooltip="Manage template names">
-                <i class="fas fa-edit"></i>
-            </button>
-        </div>
-
-        <!-- Template Sections -->
-        {% for template_info in dashboard_data.template_display_info %}
-            {% set sys_template = template_info.system_template %}
-            {% set user_template = template_info.user_template %}
-            {% set i = loop.index0 %}
-            {% set file_template_name = sys_template.split('/')[-1].replace('.txt', '') %}
-            <div class="template-section {% if i == 0 %}active{% endif %}" id="template-{{ i }}">
-                <div class="template-info card mb-3">
-                    <p class="text-muted mb-1">{{ template_info.description }}</p>
-                    <div class="text-small">
-                        System: <a href="/templates#{{ file_template_name }}" target="_blank">{{ sys_template.split('/')[-1] }}</a> | 
-                        User: <a href="/templates#{{ file_template_name }}" target="_blank">{{ user_template.split('/')[-1] }}</a>
+                {% set file_template_name = sys_template.split('/')[-1].replace('.txt', '') %}
+                <div class="template-section" id="template-{{ i }}">
+                    <div class="template-header">
+                        <h3 class="template-title">{{ template_info.display_name }}</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="openTemplateManager()" title="Manage template names">
+                            <i class="fas fa-edit"></i>
+                        </button>
                     </div>
-                </div>
+                    <div class="template-info card mb-3">
+                        <p class="text-muted mb-1">{{ template_info.description }}</p>
+                        <div class="text-small">
+                            System: <a href="/templates#{{ file_template_name }}" target="_blank">{{ sys_template.split('/')[-1] }}</a> | 
+                            User: <a href="/templates#{{ file_template_name }}" target="_blank">{{ user_template.split('/')[-1] }}</a>
+                            <span class="model-count" id="model-count-{{ i }}">
+                                | Models analyzed: <strong>0</strong>
+                            </span>
+                        </div>
+                    </div>
 
                 <div class="matrix-container">
-                    <button class="scroll-to-add-btn" onclick="scrollToAddColumn({{ i }})" title="Scroll to add column">
-                        <i class="fas fa-arrow-right"></i> Add Column
-                    </button>
                     <div class="matrix-scroll" id="matrix-scroll-{{ i }}">
                         <table class="processing-matrix">
                             <thead>
@@ -99,10 +90,11 @@
                                             <td class="matrix-cell" id="cell-{{ i }}-{{ species_file }}-{{ model }}">
                                                 {% if cell_data %}
                                                     <div class="status-cell status-{{ cell_data.status }} {% if cell_data.historical %}historical{% endif %} {% if cell_data.orphaned %}orphaned{% endif %}" 
-                                                         {% if cell_data.id %}onclick="showCombinationDetails({{ cell_data.id }})"{% elif cell_data.orphaned %}onclick="showOrphanedDetails('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')"{% endif %} 
-                                                         data-combination-id="{{ cell_data.id or 'orphaned' }}">
+                                                         {% if cell_data.id %}onclick="window.location.href='/job_results/{{ cell_data.id }}?model={{ model|urlencode }}'"{% elif cell_data.orphaned %}onclick="showOrphanedDetails('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')"{% endif %} 
+                                                         data-combination-id="{{ cell_data.id or 'orphaned' }}"
+                                                         style="cursor: pointer;">
                                                         {% if cell_data.id %}
-                                                            <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination({{ cell_data.id }})">&times;</button>
+                                                            <button class="delete-btn" onclick="event.stopPropagation(); deleteCombination('{{ cell_data.id }}')">&times;</button>
                                                         {% elif cell_data.orphaned %}
                                                             <button class="delete-btn" onclick="event.stopPropagation(); deleteOrphanedResults('{{ species_file }}', '{{ model }}', '{{ sys_template }}', '{{ user_template }}')" title="Delete orphaned results">&times;</button>
                                                         {% endif %}
@@ -138,15 +130,12 @@
                                                         {% endif %}
                                                         
                                                         <div class="cell-actions">
-                                                            {% if cell_data.status == 'pending' %}
-                                                                <button onclick="event.stopPropagation(); startCombination({{ cell_data.id }})" class="action-btn start-btn">Start</button>
-                                                            {% elif cell_data.status == 'running' %}
-                                                                <button onclick="event.stopPropagation(); pauseCombination({{ cell_data.id }})" class="action-btn pause-btn" title="Pause">Pause</button>
-                                                                <button onclick="event.stopPropagation(); stopCombination({{ cell_data.id }})" class="action-btn stop-btn" title="Stop">Stop</button>
-                                                            {% elif cell_data.status == 'completed' and cell_data.failed == 0 and cell_data.timeouts == 0 %}
+                                                            {% if cell_data.status == 'completed' and cell_data.failed == 0 and cell_data.timeouts == 0 %}
                                                                 <span class="status-label">Complete</span>
                                                             {% elif cell_data.status in ['completed', 'failed', 'interrupted'] %}
-                                                                <button onclick="event.stopPropagation(); restartCombination({{ cell_data.id }})" class="action-btn start-btn">Retry</button>
+                                                                <button onclick="event.stopPropagation(); restartCombination('{{ cell_data.id }}')" class="action-btn start-btn">Retry</button>
+                                                            {% elif cell_data.status == 'running' %}
+                                                                <span class="status-label">Running...</span>
                                                             {% endif %}
                                                         </div>
                                                     </div>
@@ -180,6 +169,7 @@
                 </div>
             </div>
         {% endfor %}
+        </div> <!-- Close all-templates-container -->
 
     {% else %}
         <div class="empty-state">
@@ -193,6 +183,7 @@
             </button>
         </div>
     {% endif %}
+
 
     <!-- Live Status Display -->
     <div id="liveStatusModal" class="modal">
@@ -349,6 +340,64 @@
         --accent-warning: #f59e0b;
     }
     
+    /* Full-width dashboard layout */
+    .admin-container.full-width {
+        padding: 16px;
+        min-height: calc(100vh - 64px);
+        overflow-y: auto;
+    }
+    
+    .admin-container.full-width .page-header {
+        margin-bottom: 16px;
+    }
+    
+    .admin-container.full-width .dashboard-header {
+        margin-bottom: 16px;
+    }
+    
+    .admin-container.full-width .all-templates-container {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    
+    .admin-container.full-width .template-section {
+        display: block;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-primary);
+        padding: 16px;
+    }
+    
+    .template-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .template-title {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .admin-container.full-width .template-info {
+        flex-shrink: 0;
+        margin-bottom: 16px;
+    }
+    
+    .admin-container.full-width .matrix-container {
+        overflow: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        max-height: 600px;
+        min-height: 300px;
+    }
+    
     /* Dashboard specific styles */
     .dashboard-header {
         margin-bottom: 24px;
@@ -357,14 +406,17 @@
         justify-content: space-between;
     }
     
-    /* Template section visibility */
-    .template-section {
-        display: none;
+    /* Ensure table cells have better height for visibility */
+    .processing-matrix td {
+        min-height: 60px;
+        padding: 8px;
     }
     
-    .template-section.active {
-        display: block;
+    .processing-matrix th {
+        padding: 10px 8px;
     }
+    
+    /* Template section - all visible by default */
     
     .dashboard-controls {
         display: flex;
@@ -377,6 +429,17 @@
         padding: 16px;
         border: 1px solid var(--border-color);
         border-radius: 8px;
+    }
+    
+    .model-count {
+        color: var(--admin-primary);
+        font-weight: 500;
+        margin-left: 8px;
+    }
+    
+    .model-count strong {
+        font-weight: 700;
+        color: var(--admin-primary-dark);
     }
     
     .cell-actions {
@@ -616,32 +679,6 @@
         min-width: 60px;
     }
     
-    /* Scroll to add button */
-    .scroll-to-add-btn {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 20;
-        background: var(--accent-primary);
-        color: var(--white);
-        border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.2s;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .scroll-to-add-btn:hover {
-        background: var(--blue-600);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
     
     /* Matrix cell styles */
     .matrix-cell {
@@ -863,9 +900,7 @@
         display: flex;
     }
     
-    .action-btn.start-btn,
-    .action-btn.pause-btn,
-    .action-btn.stop-btn {
+    .action-btn.start-btn {
         font-size: 9px;
         padding: 2px 8px;
     }
@@ -902,13 +937,58 @@
     }
     
     .species-list {
-        max-height: 600px;
+        max-height: 300px;
         overflow-y: auto;
         margin-top: 16px;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         padding: 8px;
         background: #fafafa;
+        position: relative;
+    }
+    
+    /* Custom scrollbar styling for species list */
+    .species-list::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .species-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .species-list::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .species-list::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    /* Add scroll indicator shadow */
+    .species-list::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.1), transparent);
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    .species-list::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to top, rgba(0,0,0,0.1), transparent);
+        pointer-events: none;
+        z-index: 1;
     }
     
     .species-result {
@@ -1401,6 +1481,123 @@
         margin-bottom: 12px;
     }
     
+    /* Response section styling */
+    .response-section {
+        margin-top: 15px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .processed-response {
+        padding: 12px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .processed-content {
+        margin-top: 8px;
+    }
+    
+    .knowledge-data {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .knowledge-label {
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .knowledge-value {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    .knowledge-value.limited {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .knowledge-value.moderate {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .knowledge-value.extensive {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .knowledge-value.na,
+    .knowledge-value.not-determined {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .phenotype-data {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .phenotype-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .phenotype-label {
+        font-weight: 500;
+        color: #495057;
+        text-transform: capitalize;
+    }
+    
+    .phenotype-value {
+        color: #212529;
+    }
+    
+    .no-processed-data {
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        font-style: italic;
+        text-align: center;
+    }
+    
+    .llm-response-details {
+        margin-top: 8px;
+    }
+    
+    .llm-response-details summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: #495057;
+        padding: 4px 0;
+    }
+    
+    .llm-response-details summary:hover {
+        color: #007bff;
+    }
+    
     .error-message {
         margin-top: 4px;
         padding: 8px;
@@ -1489,6 +1686,81 @@
         text-align: center;
         padding: 40px;
         color: var(--text-secondary);
+    }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.2s;
+    }
+    
+    .modal-content {
+        background-color: var(--white);
+        margin: 5% auto;
+        padding: 0;
+        width: 80%;
+        max-width: 600px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s;
+    }
+    
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 20px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .modal-close:hover {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
     }
 </style>
 
@@ -1658,14 +1930,12 @@
                 }
             });
         
-        // Initialize template tabs
-        const savedTab = localStorage.getItem('activeTemplateTab');
-        if (savedTab !== null && document.getElementById('tab-' + savedTab)) {
-            showTemplate(parseInt(savedTab));
-        } else {
-            // Make sure at least the first tab is active
-            showTemplate(0);
-        }
+        // Update model counts for each template
+        updateModelCounts();
+        
+        // Removed template tabs - all templates now shown vertically
+        // Clean up old localStorage
+        localStorage.removeItem('activeTemplateTab');
         
         // Load settings
         loadSettings();
@@ -1694,49 +1964,7 @@
         });
     });
     
-    // Template management
-    function showTemplate(index) {
-        console.log('Switching to template tab:', index);
-        activeTemplateIndex = index;
-        
-        // Save current scroll position
-        const currentActive = document.querySelector('.template-section.active');
-        if (currentActive) {
-            const currentScroll = currentActive.querySelector('.matrix-scroll');
-            if (currentScroll) {
-                const currentIndex = currentActive.id.split('-')[1];
-                saveScrollPosition(`template-${currentIndex}`);
-            }
-        }
-        
-        // Update tabs - exclude the manage button
-        const tabs = document.querySelectorAll('.template-tab:not(#template-manage-btn)');
-        tabs.forEach((tab, i) => {
-            if (i === index) {
-                tab.classList.add('active');
-            } else {
-                tab.classList.remove('active');
-            }
-        });
-        
-        // Update sections
-        const sections = document.querySelectorAll('.template-section');
-        sections.forEach((section, i) => {
-            if (i === index) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
-        });
-        
-        // Save preference
-        localStorage.setItem('activeTemplateTab', index);
-        
-        // Restore scroll position for new tab
-        setTimeout(() => {
-            restoreScrollPosition(`template-${index}`);
-        }, 10);
-    }
+    // Template management - removed as all templates are now shown vertically
     
     // API Key Management
     function checkApiKeyStatus() {
@@ -1808,9 +2036,13 @@
         fetch('/api/get_settings')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('rateLimitInput').value = data.rate_limit;
-                document.getElementById('concurrentInput').value = data.max_concurrent_requests;
-                document.getElementById('queueLength').textContent = data.queue_length;
+                const rateLimitInput = document.getElementById('rateLimitInput');
+                const concurrentInput = document.getElementById('concurrentInput');
+                const queueLength = document.getElementById('queueLength');
+                
+                if (rateLimitInput) rateLimitInput.value = data.rate_limit;
+                if (concurrentInput) concurrentInput.value = data.max_concurrent_requests;
+                if (queueLength) queueLength.textContent = data.queue_length;
             })
             .catch(error => console.error('Error loading settings:', error));
     }
@@ -1948,20 +2180,47 @@
         const failed_count = data.failed || 0;
         const timeout_count = data.timeouts || 0;
 
-        if (status === 'pending') {
-            newHtml = `<button onclick="event.stopPropagation(); startCombination(${combinationId})" class="action-btn start-btn">Start</button>`;
-        } else if (status === 'running') {
-            newHtml = `
-                <button onclick="event.stopPropagation(); pauseCombination(${combinationId})" class="action-btn pause-btn" title="Pause">Pause</button>
-                <button onclick="event.stopPropagation(); stopCombination(${combinationId})" class="action-btn stop-btn" title="Stop">Stop</button>
-            `;
-        } else if (status === 'completed' && failed_count === 0 && timeout_count === 0) {
+        if (status === 'completed' && failed_count === 0 && timeout_count === 0) {
             newHtml = `<span class="status-label">Complete</span>`;
         } else if (['completed', 'failed', 'interrupted'].includes(status)) {
-            newHtml = `<button onclick="event.stopPropagation(); restartCombination(${combinationId})" class="action-btn start-btn">Retry</button>`;
+            newHtml = `<button onclick="event.stopPropagation(); restartCombination('${combinationId}')" class="action-btn start-btn">Retry</button>`;
+        } else if (status === 'running') {
+            newHtml = `<span class="status-label">Running...</span>`;
         }
         
         actionsContainer.innerHTML = newHtml;
+    }
+    
+    // Update model counts for each template
+    function updateModelCounts() {
+        // Get all template sections
+        document.querySelectorAll('.template-section').forEach((section, index) => {
+            // Count unique models with data in this template
+            const cells = section.querySelectorAll('.status-cell:not(.status-empty)');
+            const models = new Set();
+            
+            cells.forEach(cell => {
+                // Get model from the column header
+                const cellElement = cell.closest('td');
+                if (cellElement) {
+                    const cellIndex = cellElement.cellIndex;
+                    const headerRow = section.querySelector('thead tr');
+                    if (headerRow && headerRow.cells[cellIndex]) {
+                        const modelHeader = headerRow.cells[cellIndex];
+                        const modelText = modelHeader.querySelector('.model-header') || modelHeader;
+                        if (modelText && modelText.textContent.trim()) {
+                            models.add(modelText.textContent.trim());
+                        }
+                    }
+                }
+            });
+            
+            // Update the counter
+            const countElement = document.getElementById(`model-count-${index}`);
+            if (countElement) {
+                countElement.querySelector('strong').textContent = models.size;
+            }
+        });
     }
     
     // Refresh dashboard with scroll preservation
@@ -1981,6 +2240,8 @@
             .then(data => {
                 // Update only changed elements
                 updateDashboardData(data);
+                // Update model counts after data refresh
+                updateModelCounts();
                 
                 // Restore scroll positions
                 setTimeout(() => {
@@ -2062,6 +2323,13 @@
         const info = data.combination_info || {};
         const results = data.species_results || [];
         
+        // Debug log to check if all species are received
+        console.log('generateDetailsContent received:', {
+            total_species: info.total_species,
+            species_results_count: results.length,
+            results: results
+        });
+        
         // Helper function to escape HTML
         function escapeHtml(text) {
             const map = {
@@ -2097,7 +2365,7 @@
                 </div>
                 ${info.failed_species > 0 ? `
                     <div class="rerun-all-container">
-                        <button onclick="rerunAllFailed(${info.id})" class="btn btn-warning">
+                        <button onclick="rerunAllFailed('${info.id}')" class="btn btn-warning">
                             <i class="fas fa-redo"></i> Re-run All Failed (${info.failed_species})
                         </button>
                     </div>
@@ -2121,7 +2389,7 @@
                 html += `
                     <div class="results-section failed-section">
                         <h5 class="section-title failed">Failed Species (${failed.length})</h5>
-                        ${failed.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0;">Scroll to see all ' + failed.length + ' species</p>' : ''}
+                        ${failed.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0; text-align: center;">📄 Scroll within the list below to see all ' + failed.length + ' species</p>' : ''}
                         <div class="species-list">
                 `;
                 
@@ -2139,9 +2407,37 @@
                                     <div class="error-message">${result.error || 'No specific error message'}</div>
                                 </div>
                                 ${result.result ? `
-                                    <div class="raw-response">
-                                        <strong>Raw Response:</strong>
-                                        <div class="response-text">${escapeHtml(result.result.substring(0, 500))}${result.result.length > 500 ? '...' : ''}</div>
+                                    <div class="response-section">
+                                        <div class="processed-response">
+                                            <strong>Processed Response:</strong>
+                                            <div class="processed-content">
+                                                ${result.knowledge_group ? 
+                                                    `<div class="knowledge-data">
+                                                        <span class="knowledge-label">Knowledge Level:</span>
+                                                        <span class="knowledge-value ${(result.knowledge_group || 'Not determined').toLowerCase().replace(' ', '-')}">${result.knowledge_group || 'Not determined'}</span>
+                                                    </div>` : 
+                                                    (result.phenotypes && Object.keys(result.phenotypes).length > 0 ? 
+                                                        `<div class="phenotype-data">
+                                                            ${Object.entries(result.phenotypes)
+                                                                .filter(([key, value]) => value)
+                                                                .map(([key, value]) => `<div class="phenotype-item">
+                                                                    <span class="phenotype-label">${key.replace(/_/g, ' ')}:</span>
+                                                                    <span class="phenotype-value">${value}</span>
+                                                                </div>`)
+                                                                .join('')}
+                                                        </div>` : 
+                                                        '<div class="no-processed-data">No structured data extracted (failed processing)</div>'
+                                                    )
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="raw-response">
+                                            <strong>Raw LLM Response:</strong>
+                                            <details class="llm-response-details">
+                                                <summary>Click to expand raw output</summary>
+                                                <pre class="response-text">${escapeHtml(result.result)}</pre>
+                                            </details>
+                                        </div>
                                     </div>
                                 ` : ''}
                                 <div class="rerun-container">
@@ -2195,7 +2491,7 @@
                 html += `
                     <div class="results-section success-section">
                         <h5 class="section-title success">Successful Species (${successful.length})</h5>
-                        ${successful.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0;">Scroll to see all ' + successful.length + ' species</p>' : ''}
+                        ${successful.length > 10 ? '<p style="font-size: 12px; color: #6b7280; margin: 8px 0; text-align: center;">📄 Scroll within the list below to see all ' + successful.length + ' species</p>' : ''}
                         <div class="species-list">
                 `;
                 
@@ -2244,12 +2540,37 @@
                             <div class="species-details" style="display: none;">
                                 ${mainContent}
                                 ${result.result ? `
-                                    <div class="raw-response">
-                                        <strong>Raw LLM Response:</strong>
-                                        <details class="llm-response-details">
-                                            <summary>Click to expand raw output</summary>
-                                            <pre class="response-text">${escapeHtml(result.result)}</pre>
-                                        </details>
+                                    <div class="response-section">
+                                        <div class="processed-response">
+                                            <strong>Processed Response:</strong>
+                                            <div class="processed-content">
+                                                ${isKnowledgeTemplate ? 
+                                                    `<div class="knowledge-data">
+                                                        <span class="knowledge-label">Knowledge Level:</span>
+                                                        <span class="knowledge-value ${(result.knowledge_group || 'Not determined').toLowerCase().replace(' ', '-')}">${result.knowledge_group || 'Not determined'}</span>
+                                                    </div>` : 
+                                                    (result.phenotypes && Object.keys(result.phenotypes).length > 0 ? 
+                                                        `<div class="phenotype-data">
+                                                            ${Object.entries(result.phenotypes)
+                                                                .filter(([key, value]) => value)
+                                                                .map(([key, value]) => `<div class="phenotype-item">
+                                                                    <span class="phenotype-label">${key.replace(/_/g, ' ')}:</span>
+                                                                    <span class="phenotype-value">${value}</span>
+                                                                </div>`)
+                                                                .join('')}
+                                                        </div>` : 
+                                                        '<div class="no-processed-data">No structured data extracted</div>'
+                                                    )
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="raw-response">
+                                            <strong>Raw LLM Response:</strong>
+                                            <details class="llm-response-details">
+                                                <summary>Click to expand raw output</summary>
+                                                <pre class="response-text">${escapeHtml(result.result)}</pre>
+                                            </details>
+                                        </div>
                                     </div>
                                 ` : ''}
                             </div>
@@ -2306,41 +2627,19 @@
     
     // Action Functions
     function startCombination(id) {
-        fetch(`/api/start_combination/${id}`, {method: 'POST'})
+        fetch(`/api/run_job/${id}`, {method: 'POST'})
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showNotification('Job started', 'success');
+                    showNotification('Job completed successfully!', 'success');
                     setTimeout(() => location.reload(), 500);
                 } else {
-                    showNotification('Error: ' + data.error, 'error');
-                }
-            });
-    }
-    
-    function pauseCombination(id) {
-        fetch(`/api/pause_combination/${id}`, {method: 'POST'})
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification('Job paused', 'success');
+                    showNotification('Job failed: ' + data.error, 'error');
                     setTimeout(() => location.reload(), 500);
                 }
             });
     }
     
-    function stopCombination(id) {
-        if (confirm('Are you sure you want to stop this job?')) {
-            fetch(`/api/stop_combination/${id}`, {method: 'POST'})
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showNotification('Job stopped', 'success');
-                        setTimeout(() => location.reload(), 500);
-                    }
-                });
-        }
-    }
     
     function restartCombination(id) {
         fetch(`/api/restart_combination/${id}`, {method: 'POST'})
@@ -2363,11 +2662,11 @@
                     return;
                 }
                 
-                const templateName = document.querySelector('.template-tab.active').textContent.trim();
+                const templateName = 'Template'; // Updated since tabs are removed
                 
-                showNotification('Creating combination...', 'info');
+                showNotification('Starting inference...', 'info');
                 
-                fetch('/api/create_combination', {
+                fetch('/api/create_and_run_job', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2380,13 +2679,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showNotification('Combination created successfully!', 'success');
-                        // Refresh the page to show the new combination
+                        showNotification('Inference completed successfully!', 'success');
+                        // Refresh the page to show the results
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
                     } else {
-                        showNotification('Error creating combination: ' + (data.error || 'Unknown error'), 'error');
+                        showNotification('Inference failed: ' + (data.error || 'Unknown error'), 'error');
+                        // Still refresh to show the failed job
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
                     }
                 })
                 .catch(error => {
@@ -2410,7 +2713,12 @@
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
+                    } else {
+                        showNotification(`Error: ${data.message}`, 'error');
                     }
+                })
+                .catch(error => {
+                    showNotification(`Error deleting combination: ${error}`, 'error');
                 });
         }
     }
@@ -2493,6 +2801,30 @@
                     showNotification('Failed to re-run failed samples', 'error');
                 });
         }
+    }
+    
+    function rerunSpecies(combinationId, species) {
+        if (confirm(`Re-run prediction for ${species}?`)) {
+            showNotification(`Re-running ${species}...`, 'info');
+            
+            // For now, just show a message - the backend would need an endpoint for this
+            showNotification('Re-running individual species not yet implemented', 'warning');
+        }
+    }
+    
+    function showRawResponseFromData(responseData) {
+        // Show raw response in a modal or alert
+        if (responseData) {
+            const formattedResponse = typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2);
+            alert('Raw Response:\n\n' + formattedResponse);
+        } else {
+            alert('No response data available');
+        }
+    }
+    
+    function switchResponseTab(tab) {
+        // Switch between response tabs (if implemented)
+        console.log('Switching to response tab:', tab);
     }
     
     // Model Management functions are already defined globally at the top
@@ -2915,7 +3247,7 @@
                 <div class="setting-group">
                     <label class="setting-label">Concurrent Requests</label>
                     <div class="input-group">
-                        <input type="number" id="concurrentInput" min="1" max="30" step="1" value="30">
+                        <input type="number" id="concurrentInput" min="1" max="20" step="1" value="10">
                         <span class="text-muted">workers</span>
                         <button onclick="updateConcurrency()" class="btn btn-primary btn-sm">Update</button>
                     </div>
@@ -3021,17 +3353,7 @@
         }
     }
     
-    // Scroll to add column button
-    function scrollToAddColumn(templateIndex) {
-        const container = document.getElementById(`matrix-scroll-${templateIndex}`);
-        if (container) {
-            // Scroll to the far right
-            container.scrollLeft = container.scrollWidth;
-        }
-    }
-    
     // Make all necessary functions globally accessible
-    window.scrollToAddColumn = scrollToAddColumn;
     window.confirmAddModel = confirmAddModel;
     window.confirmAddSpecies = confirmAddSpecies;
     window.switchInputMethod = switchInputMethod;
@@ -3040,12 +3362,44 @@
     window.deleteSpeciesFile = deleteSpeciesFile;
     window.createAndStartCombination = createAndStartCombination;
     window.startCombination = startCombination;
-    window.pauseCombination = pauseCombination;
-    window.stopCombination = stopCombination;
+    // Modal functions
+    function showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+    
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Restore scrolling
+        }
+        // Clear live status tracking if closing live status modal
+        if (modalId === 'liveStatusModal') {
+            liveStatusTracking = null;
+        }
+    }
+    
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            if (event.target.id === 'liveStatusModal') {
+                liveStatusTracking = null;
+            }
+        }
+    }
+    
     window.restartCombination = restartCombination;
     window.deleteCombination = deleteCombination;
     window.showCombinationDetails = showCombinationDetails;
-    window.showTemplate = showTemplate;
+    window.showModal = showModal;
+    window.closeModal = closeModal;
+    // showTemplate function removed - now showing all templates vertically
     window.toggleSettings = toggleSettings;
     window.toggleApiKeyVisibility = toggleApiKeyVisibility;
     window.updateApiKey = updateApiKey;
@@ -3058,5 +3412,115 @@
     window.rerunSpecies = rerunSpecies;
     window.showRawResponseFromData = showRawResponseFromData;
     window.switchResponseTab = switchResponseTab;
+    window.toggleDatabaseBrowser = toggleDatabaseBrowser;
+    window.loadDatabaseInfo = loadDatabaseInfo;
+    window.showDatabaseTable = showDatabaseTable;
+    window.closeDatabaseTable = closeDatabaseTable;
+    
+    // Database Browser Functions
+    function toggleDatabaseBrowser() {
+        const browser = document.getElementById('databaseBrowser');
+        const toggle = document.getElementById('dbBrowserToggle');
+        
+        if (browser.style.display === 'none') {
+            browser.style.display = 'block';
+            toggle.innerHTML = '<i class="fas fa-database"></i> Hide Database Structure';
+            loadDatabaseInfo();
+        } else {
+            browser.style.display = 'none';
+            toggle.innerHTML = '<i class="fas fa-database"></i> Show Database Structure';
+        }
+    }
+    
+    function loadDatabaseInfo() {
+        fetch('/api/database_info')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('databaseTables').innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                    return;
+                }
+                
+                document.getElementById('databasePath').textContent = `Database: ${data.database_path}`;
+                
+                let tablesHtml = '<div class="database-tree">';
+                
+                for (const [tableName, tableInfo] of Object.entries(data.tables)) {
+                    tablesHtml += `
+                        <div class="table-item">
+                            <div class="table-header" onclick="showDatabaseTable('${tableName}')">
+                                <i class="fas fa-table"></i>
+                                <strong>${tableName}</strong>
+                                <span class="table-count">(${tableInfo.row_count} rows)</span>
+                            </div>
+                            <div class="table-columns">
+                                ${tableInfo.columns.map(col => `
+                                    <div class="column-item">
+                                        <i class="fas fa-column"></i>
+                                        <span class="column-name">${col.name}</span>
+                                        <span class="column-type">${col.type}</span>
+                                        ${col.primary_key ? '<span class="column-pk">PK</span>' : ''}
+                                        ${col.not_null ? '<span class="column-nn">NOT NULL</span>' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                tablesHtml += '</div>';
+                document.getElementById('databaseTables').innerHTML = tablesHtml;
+            })
+            .catch(error => {
+                document.getElementById('databaseTables').innerHTML = `<p class="error">Error loading database info: ${error}</p>`;
+            });
+    }
+    
+    function showDatabaseTable(tableName) {
+        document.getElementById('currentTableName').textContent = tableName;
+        document.getElementById('tableViewer').style.display = 'block';
+        document.getElementById('databaseTables').style.display = 'none';
+        
+        fetch(`/api/table_data/${tableName}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('tableData').innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                    return;
+                }
+                
+                let tableHtml = `
+                    <div class="table-info">
+                        <p>Showing ${data.sample_size} rows from ${data.table_name}</p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table database-table">
+                            <thead>
+                                <tr>
+                                    ${data.columns.map(col => `<th>${col}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.rows.map(row => `
+                                    <tr>
+                                        ${row.map(cell => `<td>${cell !== null ? cell : '<em>NULL</em>'}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                document.getElementById('tableData').innerHTML = tableHtml;
+            })
+            .catch(error => {
+                document.getElementById('tableData').innerHTML = `<p class="error">Error loading table data: ${error}</p>`;
+            });
+    }
+    
+    function closeDatabaseTable() {
+        document.getElementById('tableViewer').style.display = 'none';
+        document.getElementById('databaseTables').style.display = 'block';
+    }
 </script>
 {% endblock %} 

@@ -218,6 +218,20 @@
             padding: 24px;
         }
         
+        /* Full-width container for dashboard */
+        .admin-container.full-width {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: calc(100vh - 64px);
+        }
+        
+        /* Override admin-main for full-width pages */
+        .admin-main:has(.admin-container.full-width) {
+            padding: 0;
+        }
+        
         /* Content wrapper for dashboard */
         .content-wrapper {
             background: var(--bg-primary);
@@ -493,7 +507,7 @@
     </nav>
     
     <main class="admin-main">
-        <div class="admin-container">
+        <div class="admin-container {% if request.endpoint == 'index' %}full-width{% endif %}">
             {% block content %}{% endblock %}
         </div>
     </main>
@@ -513,7 +527,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Max Concurrent Requests</label>
-                    <input type="number" id="maxConcurrentInput" class="form-control" value="30" min="1" max="100">
+                    <input type="number" id="maxConcurrentInput" class="form-control" value="10" min="1" max="20">
                 </div>
                 <div class="form-actions" style="margin-top: 24px;">
                     <button onclick="saveSettings()" class="btn btn-primary">Save Settings</button>
@@ -651,6 +665,7 @@
             const apiKey = document.getElementById('apiKeyInput').value;
             const maxConcurrent = document.getElementById('maxConcurrentInput').value;
             
+            // Save API key if provided
             if (apiKey) {
                 fetch('/api/set_api_key', {
                     method: 'POST',
@@ -660,16 +675,31 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert('Settings saved successfully!');
                         checkApiStatus();
-                        toggleSettings();
                     } else {
-                        alert('Error saving settings: ' + data.message);
+                        alert('Error saving API key: ' + data.message);
+                        return;
                     }
                 });
             }
             
-            // TODO: Save max concurrent requests
+            // Save max concurrent requests
+            if (maxConcurrent) {
+                fetch('/api/set_rate_limit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({max_concurrent_requests: parseInt(maxConcurrent)})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.message) {
+                        alert('Settings saved successfully!');
+                        toggleSettings();
+                    } else {
+                        alert('Error saving settings: ' + data.error);
+                    }
+                });
+            }
         }
         
         // Check API status on page load

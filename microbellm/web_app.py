@@ -26,6 +26,7 @@ from microbellm.research_config import (
     RESEARCH_PROJECTS, get_project_by_id, get_project_by_route, get_projects_for_page
 )
 import yaml
+from microbellm.unified_db import UnifiedDB
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
@@ -45,7 +46,9 @@ def load_page_manifest(page_name):
 
 # Global variables for job management
 processing_manager = None
-db_path = config.DATABASE_PATH
+# Use the jobs database which has the unified table
+from microbellm.shared import JOBS_DB_PATH
+db_path = JOBS_DB_PATH
 
 # Cache for search count correlation data
 _search_correlation_cache = {}
@@ -76,6 +79,7 @@ def reset_running_jobs_on_startup():
 
 class ProcessingManager:
     def __init__(self):
+        self.unified_db = UnifiedDB(db_path)
         self.running_combinations = {}
         self.job_queue = []
         self.paused_combinations = set()
@@ -913,168 +917,9 @@ class ProcessingManager:
 
     def get_dashboard_data(self):
         """Get data for the dashboard matrix view"""
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Get all combinations
-        cursor.execute('''
-            SELECT id, species_file, model, system_template, user_template, 
-                   status, total_species, completed_species, failed_species,
-                   submitted_species, received_species, successful_species, retried_species, timeout_species
-            FROM combinations
-        ''')
-        
-        combinations = []
-        for row in cursor.fetchall():
-            combinations.append({
-                'id': row[0],
-                'species_file': row[1],
-                'model': row[2],
-                'system_template': row[3],
-                'user_template': row[4],
-                'status': row[5],
-                'total_species': row[6],
-                'completed_species': row[7],
-                'failed_species': row[8],
-                'submitted_species': row[9] or 0,
-                'received_species': row[10] or 0,
-                'successful_species': row[11] or 0,
-                'retried_species': row[12] or 0,
-                'timeout_species': row[13] or 0
-            })
-        
-        conn.close()
-        
-        # Get managed models and species files to ensure they appear in the UI
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Ensure all models with results are in managed_models
-        cursor.execute("SELECT DISTINCT model FROM results")
-        models_in_results = set([row[0] for row in cursor.fetchall()])
-        
-        cursor.execute("SELECT model FROM managed_models")
-        managed_models_set = set([row[0] for row in cursor.fetchall()])
-        
-        missing_models = models_in_results - managed_models_set
-        if missing_models:
-            print(f"Found {len(missing_models)} models in results but not in managed_models. Adding them now.")
-            for model in missing_models:
-                cursor.execute("INSERT OR IGNORE INTO managed_models (model) VALUES (?)", (model,))
-            conn.commit()
-            print("Missing models added to managed_models.")
+        # Use unified database instead of old combinations table
+        return self.unified_db.get_dashboard_data()
 
-        cursor.execute("SELECT model FROM managed_models")
-        managed_models = set([row[0] for row in cursor.fetchall()])
-        
-        cursor.execute("SELECT species_file FROM managed_species_files")
-        managed_species = set([row[0] for row in cursor.fetchall()])
-        
-        conn.close()
-
-        # Get ALL available template pairs from filesystem
-        available_template_pairs = get_available_template_pairs()
-        
-        if not combinations and not managed_models and not managed_species and not available_template_pairs:
-            return {
-                'matrix': {},
-                'species_files': [],
-                'models': [],
-                'template_combinations': []
-            }
-        
-        # Organize data for template-based matrix view
-        species_from_combinations = set([c['species_file'] for c in combinations])
-        all_species_files = sorted(list(species_from_combinations.union(managed_species)))
-
-        models_from_combinations = set([c['model'] for c in combinations])
-        all_models = sorted(list(models_from_combinations.union(managed_models)))
-        
-        # Get unique template combinations from database
-        db_template_combinations = list(set([(c['system_template'], c['user_template']) for c in combinations]))
-        
-        # Combine filesystem and database template pairs
-        all_template_combinations = []
-        
-        # Add filesystem template pairs
-        for template_name, paths in available_template_pairs.items():
-            template_pair = (paths['system'], paths['user'])
-            all_template_combinations.append(template_pair)
-        
-        # Add any database template pairs that might not be in filesystem
-        for db_pair in db_template_combinations:
-            if db_pair not in all_template_combinations:
-                all_template_combinations.append(db_pair)
-        
-        # Use the comprehensive list
-        template_combinations = all_template_combinations
-        
-        # Create matrix organized by template combinations
-        matrix = {}
-        
-        for species_file in all_species_files:
-            for sys_template, user_template in template_combinations:
-                row_key = f"{species_file}|{sys_template}|{user_template}"
-                template_label = f"{sys_template.split('/')[-1].replace('.txt', '')} + {user_template.split('/')[-1].replace('.txt', '')}"
-                
-                matrix[row_key] = {
-                    'species_file': species_file,
-                    'template_label': template_label,
-                    'models': {}
-                }
-                
-                for model in all_models:
-                    # Find specific combination
-                    combo = next((c for c in combinations 
-                                if c['species_file'] == species_file and c['model'] == model 
-                                and c['system_template'] == sys_template and c['user_template'] == user_template), None)
-                    
-                    if combo:
-                        # Check if this combination was imported (no submitted_species means it was imported)
-                        was_imported = combo['submitted_species'] == 0 and combo['successful_species'] > 0
-                        
-                        matrix[row_key]['models'][model] = {
-                            'id': combo['id'],
-                            'completed': combo['completed_species'],
-                            'total': combo['total_species'],
-                            'status': combo['status'],
-                            'submitted': combo['submitted_species'],
-                            'received': combo['received_species'],
-                            'successful': combo['successful_species'],
-                            'failed': combo['failed_species'],
-                            'retried': combo['retried_species'],
-                            'timeouts': combo['timeout_species'],
-                            'imported': was_imported
-                        }
-                    else:
-                        matrix[row_key]['models'][model] = None
-        
-        # Get template metadata for display
-        template_metadata = get_template_metadata()
-        template_display_info = []
-        
-        for sys_template, user_template in sorted(template_combinations):
-            key = (sys_template, user_template)
-            if key in template_metadata:
-                display_info = template_metadata[key]
-            else:
-                display_info = get_template_display_info(sys_template, user_template)
-            
-            template_display_info.append({
-                'system_template': sys_template,
-                'user_template': user_template,
-                'display_name': display_info['display_name'],
-                'description': display_info['description']
-            })
-
-        return {
-            'matrix': matrix,
-            'species_files': all_species_files,
-            'models': all_models,
-            'template_combinations': sorted(template_combinations),
-            'template_display_info': template_display_info
-        }
-    
     def export_results_to_csv(self, species_file=None, model=None):
         """Export results to CSV format matching the example predictions.csv"""
         conn = sqlite3.connect(db_path)
@@ -1846,37 +1691,46 @@ def dashboard_data_api():
     data = processing_manager.get_dashboard_data()
     return jsonify(data)
 
-@app.route('/api/delete_combination/<int:combination_id>', methods=['DELETE'])
+@app.route('/api/delete_combination/<combination_id>', methods=['DELETE'])
 def delete_combination_api(combination_id):
     """API endpoint to delete a combination and its results."""
     try:
+        print(f"DEBUG: Deleting combination/job: {combination_id}")
+        
+        # Check if job exists first
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
+        count_before = cursor.fetchone()[0]
+        print(f"DEBUG: Found {count_before} entries for job {combination_id}")
+        conn.close()
         
-        # Get combination details to find associated results
-        cursor.execute('''
-            SELECT species_file, model, system_template, user_template 
-            FROM combinations WHERE id = ?
-        ''', (combination_id,))
-        combo = cursor.fetchone()
-
-        # Delete from combinations table
+        # Use unified database to delete the job
+        from microbellm.unified_db import UnifiedDB
+        unified_db = UnifiedDB(db_path)  # Use the same db_path as the API
+        
+        # Delete all entries for this job_id
+        unified_db.delete_job(combination_id)
+        
+        # Verify deletion worked
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
+        count_after = cursor.fetchone()[0]
+        print(f"DEBUG: After deletion, found {count_after} entries for job {combination_id}")
+        
+        # Also clean up from legacy tables if they exist
         cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
+        cursor.execute("DELETE FROM results WHERE id = ?", (combination_id,))
         
-        if combo:
-            # Delete associated results
-            cursor.execute('''
-                DELETE FROM results 
-                WHERE species_file = ? AND model = ? AND system_template = ? AND user_template = ?
-            ''', (combo[0], combo[1], combo[2], combo[3]))
-
         conn.commit()
         conn.close()
         
         socketio.emit('job_update', {'combination_id': combination_id, 'status': 'deleted'})
-        return jsonify({'message': f'Combination {combination_id} and its results have been deleted.'})
+        return jsonify({'success': True, 'message': f'Job {combination_id} deleted. Removed {count_before} entries.'})
     except Exception as e:
-        return jsonify({'message': f'Error deleting combination: {e}'}), 500
+        print(f"DEBUG: Error deleting job: {e}")
+        return jsonify({'success': False, 'message': f'Error deleting job: {e}'}), 500
 
 @app.route('/export')
 def export_page():
@@ -2445,7 +2299,7 @@ def get_search_count_correlation():
         cursor.execute("""
             SELECT r.binomial_name, r.species_file, r.model, r.knowledge_group, 
                    r.system_template, r.user_template
-            FROM results r
+            FROM processing_results r
             WHERE r.knowledge_group IS NOT NULL AND r.status = 'completed'
             ORDER BY r.species_file, r.model
         """)
@@ -2480,7 +2334,16 @@ def get_search_count_correlation():
                 
             search_count_mapping = {}
             try:
-                species_file_path = os.path.join(config.SPECIES_DIR, species_file)
+                # Handle both full paths and just filenames
+                if os.path.isabs(species_file):
+                    # Full path provided - use it directly but normalize the key
+                    species_file_path = species_file
+                    # Use basename as cache key for consistency
+                    cache_key = os.path.basename(species_file)
+                else:
+                    # Just filename provided - construct the path
+                    species_file_path = os.path.join(config.SPECIES_DIR, species_file)
+                    cache_key = species_file
                 
                 with open(species_file_path, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
@@ -2524,8 +2387,11 @@ def get_search_count_correlation():
             except Exception as e:
                 print(f"Error reading species file {species_file}: {e}")
             
-            # Cache the result
-            search_count_cache[species_file] = search_count_mapping
+            # Cache the result using normalized key
+            search_count_cache[cache_key] = search_count_mapping
+            # Also cache with original key for lookup
+            if cache_key != species_file:
+                search_count_cache[species_file] = search_count_mapping
             return search_count_mapping
         
         # Pre-fetch all search count mappings for files that appear in results
@@ -2753,7 +2619,7 @@ def get_knowledge_analysis_data():
         cursor.execute("""
             SELECT r.binomial_name, r.species_file, r.model, r.knowledge_group, 
                    r.system_template, r.user_template, r.status, r.result
-            FROM results r
+            FROM processing_results r
             WHERE (r.knowledge_group IS NOT NULL AND r.status = 'completed') 
                OR r.status = 'failed'
             ORDER BY r.species_file, r.binomial_name, r.model
@@ -2830,7 +2696,8 @@ def get_knowledge_analysis_data():
         
         for binomial_name, species_file, model, knowledge_group, system_template, user_template, status, raw_result in results:
             # Normalize species_file to just the basename for consistency
-            normalized_species_file = os.path.basename(species_file) if os.path.isabs(species_file) else species_file
+            # This handles both full paths and relative paths to ensure deduplication
+            normalized_species_file = os.path.basename(species_file)
             
             # Get type mapping for this species file
             if normalized_species_file not in species_type_cache:
@@ -3145,7 +3012,7 @@ def get_phenotype_analysis():
                    r.animal_pathogenicity, r.biosafety_level, r.health_association,
                    r.host_association, r.plant_pathogenicity, r.spore_formation,
                    r.hemolysis, r.cell_shape
-            FROM results r
+            FROM processing_results r
             WHERE r.user_template LIKE '%phenotype%'
                   AND (r.gram_staining IS NOT NULL OR r.motility IS NOT NULL 
                        OR r.aerophilicity IS NOT NULL OR r.biofilm_formation IS NOT NULL)
@@ -3157,7 +3024,7 @@ def get_phenotype_analysis():
         # Get list of unique species files that have phenotype data
         cursor.execute("""
             SELECT DISTINCT r.species_file
-            FROM results r
+            FROM processing_results r
             WHERE r.user_template LIKE '%phenotype%'
                   AND (r.gram_staining IS NOT NULL OR r.motility IS NOT NULL 
                        OR r.aerophilicity IS NOT NULL OR r.biofilm_formation IS NOT NULL)

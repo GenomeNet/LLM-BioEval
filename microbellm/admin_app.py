@@ -9,6 +9,7 @@ import io
 import json
 import threading
 import time
+import uuid
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
 from markupsafe import escape
@@ -1052,8 +1053,8 @@ class ProcessingManager:
         # Use unified DB method
         return self.unified_db.get_dashboard_data()
     
-    def get_combination_details(self, combination_id):
-        """Get detailed information about a combination/job"""
+    def get_combination_details(self, combination_id, model=None):
+        """Get detailed information about a combination/job, optionally filtered by model"""
         # Use job_id which is the combination_id
         job_summary = self.unified_db.get_job_summary(combination_id)
         if not job_summary:
@@ -1077,13 +1078,21 @@ class ProcessingManager:
         
         if has_raw_response:
             select_fields += ", raw_response"
+        
+        # Build query with optional model filter
+        query_params = [combination_id]
+        where_clause = "WHERE job_id = ?"
+        
+        if model:
+            where_clause += " AND model = ?"
+            query_params.append(model)
             
         cursor.execute(f"""
             SELECT {select_fields}
             FROM processing_results
-            WHERE job_id = ?
+            {where_clause}
             ORDER BY binomial_name
-        """, (combination_id,))
+        """, query_params)
         
         species_results = []
         for row in cursor.fetchall():
@@ -1124,19 +1133,35 @@ class ProcessingManager:
         
         conn.close()
         
+        # If filtering by model, calculate model-specific counts
+        if model:
+            total_species = len(species_results)
+            successful_species = sum(1 for r in species_results if r['status'] == 'completed')
+            failed_species = sum(1 for r in species_results if r['status'] == 'failed')
+            timeout_species = sum(1 for r in species_results if r['status'] == 'timeout')
+            display_model = model
+        else:
+            # Use job summary counts for full job
+            total_species = job_summary['total']
+            successful_species = job_summary['successful']
+            failed_species = job_summary['failed']
+            timeout_species = job_summary['timeouts']
+            display_model = job_summary['model']
+        
         # Return in the format expected by the dashboard and job results page
         return jsonify({
             'combination_info': {
                 'id': job_summary['job_id'],
                 'species_file': job_summary['species_file'],
-                'model': job_summary['model'],
+                'model': display_model,
                 'system_template': job_summary['system_template'],
                 'user_template': job_summary['user_template'],
                 'status': job_summary['job_status'],
-                'total_species': job_summary['total'],
-                'successful_species': job_summary['successful'],
-                'failed_species': job_summary['failed'],
-                'timeout_species': job_summary['timeouts']
+                'total_species': total_species,
+                'successful_species': successful_species,
+                'failed_species': failed_species,
+                'timeout_species': timeout_species,
+                'filtered_by_model': model  # Add this to indicate filtering
             },
             'species_results': species_results,
             # Add these for job_results.html compatibility
@@ -1446,7 +1471,7 @@ class ProcessingManager:
                 'error_message': str(e)
             }
     
-    def import_results_validated(self, csv_content, template_name, template_type):
+    def import_results_validated(self, csv_content, template_name, template_type, overwrite_existing=False):
         """Import results from CSV with validation using template configs"""
         try:
             df = pd.read_csv(io.StringIO(csv_content))
@@ -1465,8 +1490,14 @@ class ProcessingManager:
             
             imported = 0
             skipped = 0
+            updated = 0
             errors = 0
             validation_errors = []
+            skipped_details = []
+            
+            # Create a single job_id for this import batch
+            import_job_id = f"import_{uuid.uuid4().hex[:8]}"
+            print(f"[DEBUG] Created import_job_id: {import_job_id} for {len(df)} rows")
             
             for idx, row in df.iterrows():
                 try:
@@ -1490,16 +1521,7 @@ class ProcessingManager:
                     
                     unique_species_files.add(species_file)
                     
-                    # Check if entry already exists
-                    existing = self.unified_db.get_species_result_by_params(
-                        binomial_name, model, system_template, user_template
-                    )
-                    
-                    if existing:
-                        skipped += 1
-                        continue
-                    
-                    # Parse result field
+                    # Parse result field first (before checking existence)
                     result_json = row.get('result')
                     parsed_result = {}
                     
@@ -1539,8 +1561,54 @@ class ProcessingManager:
                         if value and pd.notna(value):
                             phenotype_data[field] = value
                     
-                    # Create job for imported data
-                    job_id = self.unified_db.create_import_job(
+                    # Check if entry already exists
+                    existing = self.unified_db.get_species_result_by_params(
+                        binomial_name, model, system_template, user_template
+                    )
+                    
+                    if existing:
+                        if overwrite_existing:
+                            # Delete the old entry and create a new one with the import job_id
+                            # This allows us to group all imports under one job_id
+                            conn = sqlite3.connect(db_path)
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                DELETE FROM processing_results 
+                                WHERE binomial_name = ? AND model = ? 
+                                AND system_template = ? AND user_template = ?
+                            """, (binomial_name, model, system_template, user_template))
+                            conn.commit()
+                            conn.close()
+                            
+                            # Now create new entry with import job_id
+                            self.unified_db.create_import_entry(
+                                job_id=import_job_id,
+                                species_file=species_file,
+                                model=model,
+                                system_template=system_template,
+                                user_template=user_template,
+                                binomial_name=binomial_name,
+                                status=status,
+                                result=json.dumps(parsed_result) if parsed_result else result_json,
+                                error=row.get('error'),
+                                knowledge_group=knowledge_group,
+                                **phenotype_data
+                            )
+                            updated += 1
+                        else:
+                            skipped += 1
+                            skipped_details.append({
+                                'row': idx + 1,
+                                'binomial_name': binomial_name,
+                                'model': model,
+                                'reason': 'Already exists in database'
+                            })
+                        continue
+                    
+                    # Create entry with shared job_id for this import batch
+                    print(f"[DEBUG] Creating entry for {binomial_name} with job_id: {import_job_id}")
+                    self.unified_db.create_import_entry(
+                        job_id=import_job_id,  # Use shared job_id
                         species_file=species_file,
                         model=model,
                         system_template=system_template,
@@ -1583,8 +1651,10 @@ class ProcessingManager:
                 'total_rows': len(df),
                 'imported': imported,
                 'skipped': skipped,
+                'updated': updated,
                 'errors': errors,
                 'validation_errors': validation_errors,
+                'skipped_details': skipped_details[:10],  # First 10 skipped entries
                 'new_models_added': list(unique_models),
                 'new_species_files_added': list(unique_species_files)
             }
@@ -2182,19 +2252,24 @@ def import_csv_validated():
     
     template_name = request.form.get('template')
     template_type = request.form.get('template_type')
+    overwrite = request.form.get('overwrite', 'false').lower() == 'true'
     
     try:
         # Read CSV content
         content = file.read().decode('utf-8')
-        import_results = processing_manager.import_results_validated(content, template_name, template_type)
+        import_results = processing_manager.import_results_validated(
+            content, template_name, template_type, overwrite_existing=overwrite
+        )
         
         return jsonify({
             'success': True,
             'total_rows': import_results['total_rows'],
             'imported': import_results['imported'],
             'skipped': import_results['skipped'],
+            'updated': import_results.get('updated', 0),
             'errors': import_results['errors'],
-            'validation_errors': import_results.get('validation_errors', [])
+            'validation_errors': import_results.get('validation_errors', []),
+            'skipped_details': import_results.get('skipped_details', [])
         })
     except Exception as e:
         return jsonify({
@@ -2202,6 +2277,118 @@ def import_csv_validated():
             'error': str(e),
             'validation_errors': [str(e)]
         }), 500
+
+@app.route('/api/import_example/<template_type>')
+def get_import_example(template_type):
+    """Get example data from existing results for import format guide"""
+    try:
+        # Get the template name from query parameter
+        template_name = request.args.get('template', '')
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Build template filter
+        template_filter = ""
+        if template_name:
+            template_filter = f"AND user_template LIKE '%{template_name}%'"
+        
+        # Get one complete example with all available fields
+        if template_type == 'knowledge':
+            cursor.execute(f"""
+                SELECT binomial_name, model, status, species_file, 
+                       system_template, user_template, knowledge_group, result
+                FROM processing_results 
+                WHERE status = 'completed' 
+                AND knowledge_group IS NOT NULL
+                AND result IS NOT NULL
+                {template_filter}
+                LIMIT 1
+            """)
+        else:  # phenotype
+            cursor.execute(f"""
+                SELECT binomial_name, model, status, species_file,
+                       system_template, user_template, result,
+                       knowledge_group, gram_staining, motility, aerophilicity,
+                       extreme_environment_tolerance, biofilm_formation, 
+                       animal_pathogenicity, biosafety_level, health_association, 
+                       host_association, plant_pathogenicity, spore_formation, 
+                       hemolysis, cell_shape
+                FROM processing_results 
+                WHERE status = 'completed' 
+                AND (gram_staining IS NOT NULL OR motility IS NOT NULL 
+                     OR spore_formation IS NOT NULL OR aerophilicity IS NOT NULL)
+                {template_filter}
+                LIMIT 1
+            """)
+        
+        row = cursor.fetchone()
+        if row:
+            # Convert to dict and remove None values
+            example = {k: v for k, v in dict(row).items() if v is not None}
+            # Remove internal fields
+            example.pop('result', None)  # Remove raw result field for cleaner example
+            examples = [example]
+        else:
+            examples = []
+        
+        # Get more examples with just core fields for variety
+        if template_type == 'knowledge':
+            cursor.execute(f"""
+                SELECT binomial_name, model, status, species_file, knowledge_group
+                FROM processing_results 
+                WHERE status = 'completed' 
+                AND knowledge_group IS NOT NULL
+                {template_filter}
+                ORDER BY RANDOM()
+                LIMIT 2
+            """)
+        else:
+            cursor.execute(f"""
+                SELECT binomial_name, model, status, species_file,
+                       gram_staining, motility, spore_formation, aerophilicity
+                FROM processing_results 
+                WHERE status = 'completed' 
+                AND (gram_staining IS NOT NULL OR motility IS NOT NULL)
+                {template_filter}
+                ORDER BY RANDOM()
+                LIMIT 2
+            """)
+        
+        for row in cursor.fetchall():
+            example_dict = {k: v for k, v in dict(row).items() if v is not None}
+            examples.append(example_dict)
+        
+        # Get common species files and models
+        cursor.execute("""
+            SELECT DISTINCT species_file 
+            FROM processing_results 
+            WHERE species_file IS NOT NULL 
+            ORDER BY species_file
+            LIMIT 10
+        """)
+        species_files = [row[0] for row in cursor.fetchall()]
+        
+        cursor.execute("""
+            SELECT DISTINCT model 
+            FROM processing_results 
+            WHERE model IS NOT NULL 
+            ORDER BY model
+            LIMIT 10
+        """)
+        models = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'examples': examples,
+            'species_files': species_files,
+            'models': models
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/export_csv')
 def export_csv_api():
@@ -2377,8 +2564,10 @@ def job_results_page(job_id):
 @app.route('/job_results/<combination_id>')
 def job_results_detail_page(combination_id):
     """Detailed job results page showing all species"""
+    # Get the model parameter from query string
+    model = request.args.get('model')
     # Use simpler template for now
-    return render_template('job_results_simple.html', combination_id=combination_id)
+    return render_template('job_results_simple.html', combination_id=combination_id, model=model)
 
 @app.route('/database')
 def database_browser():
@@ -2468,7 +2657,9 @@ def delete_species_file_api():
 @app.route('/api/combination_details/<combination_id>')
 def get_combination_details(combination_id):
     """Get detailed information about a combination and its results"""
-    return processing_manager.get_combination_details(combination_id)
+    # Get optional model filter from query parameters
+    model = request.args.get('model')
+    return processing_manager.get_combination_details(combination_id, model)
 
 @app.route('/api/api_key_status')
 def api_key_status():

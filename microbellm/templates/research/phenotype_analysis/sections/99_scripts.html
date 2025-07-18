@@ -341,41 +341,8 @@
         // Calculate consensus and deviation metrics
         const consensusAnalysis = calculateConsensusAnalysis(modelResults);
         
-        // Calculate and update dynamic stats
-        const avgNAPercentage = modelResults.reduce((sum, m) => sum + m.naPercentage, 0) / modelResults.length;
-        const totalPhenotypes = Object.keys(phenotypes).length;
-        const avgPredictionsPerModel = totalPredictions / modelResults.length;
-        
-        // Find best and worst performers based on NA rate
-        let bestModel = null;
-        let bestNARate = 100;
-        let worstModel = null;
-        let worstNARate = 0;
-        
-        modelResults.forEach(model => {
-            if (model.naPercentage < bestNARate) {
-                bestNARate = model.naPercentage;
-                bestModel = model.modelName;
-            }
-            if (model.naPercentage > worstNARate) {
-                worstNARate = model.naPercentage;
-                worstModel = model.modelName;
-            }
-        });
-        
-        // Update dynamic stats text
-        const dynamicStatsText =
-            `We analyzed <span class="stat-value">${modelResults.length}</span> language models across ` +
-            `<span class="stat-value">${totalPhenotypes}</span> bacterial phenotype categories, ` +
-            `generating an average of <span class="stat-value">${Math.round(avgPredictionsPerModel)}</span> predictions per model. ` +
-            `The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">${avgNAPercentage.toFixed(1)}%</span>. ` +
-            (bestModel ? `<span class="model-highlight">${formatModelName(bestModel)}</span> demonstrated the highest confidence ` +
-                `with only <span class="stat-value">${bestNARate.toFixed(1)}%</span> NA responses, ` : '') +
-            (worstModel && worstModel !== bestModel ? `while <span class="model-lowlight">${formatModelName(worstModel)}</span> ` +
-                `was more conservative with <span class="stat-value">${worstNARate.toFixed(1)}%</span> NA responses.` : '');
-        
-        const statsTarget = document.getElementById('dynamicStatsText');
-        if (statsTarget) statsTarget.innerHTML = dynamicStatsText;
+        // Dynamic stats are now handled by the self-contained component
+        // The component will fetch its own data and update itself
         
         // Consensus Agreement Ranking
         html += renderConsensusRanking(consensusAnalysis);

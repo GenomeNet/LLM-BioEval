@@ -94,12 +94,12 @@ class UnifiedDB:
             return dict(row)
         return None
     
-    def create_import_job(self, species_file: str, model: str, system_template: str,
+    def create_import_entry(self, job_id: str, species_file: str, model: str, system_template: str,
                          user_template: str, binomial_name: str, status: str = 'completed',
                          result: str = None, error: str = None, knowledge_group: str = None,
-                         **phenotype_data) -> str:
-        """Create a single entry for imported data"""
-        job_id = f"import_{uuid.uuid4().hex[:8]}"
+                         **phenotype_data):
+        """Create a single entry for imported data with provided job_id"""
+        print(f"[DEBUG unified_db] create_import_entry called with job_id: {job_id}, binomial_name: {binomial_name}")
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -131,8 +131,54 @@ class UnifiedDB:
             """, values)
             
             conn.commit()
-            return job_id
             
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+    
+    def update_import_result(self, job_id: str, binomial_name: str, result: str = None,
+                           knowledge_group: str = None, **phenotype_data):
+        """Update an existing result with new data from import"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Build update query dynamically
+            update_fields = []
+            values = []
+            
+            if result is not None:
+                update_fields.append('result = ?')
+                values.append(result)
+            
+            if knowledge_group is not None:
+                update_fields.append('knowledge_group = ?')
+                values.append(knowledge_group)
+            
+            # Add phenotype fields
+            for field, value in phenotype_data.items():
+                if value is not None:
+                    update_fields.append(f'{field} = ?')
+                    values.append(value)
+            
+            if update_fields:
+                # Add timestamp and where clause
+                update_fields.append('completed_at = ?')
+                values.append(datetime.now())
+                
+                values.extend([job_id, binomial_name])
+                
+                query = f"""
+                    UPDATE processing_results 
+                    SET {', '.join(update_fields)}
+                    WHERE job_id = ? AND binomial_name = ?
+                """
+                
+                cursor.execute(query, values)
+                conn.commit()
+                
         except Exception as e:
             conn.rollback()
             raise e
@@ -284,20 +330,28 @@ class UnifiedDB:
                 job_map[key] = {}
             job_map[key][job_data['model']] = job_data['job_id']
         
-        # Get statistics for each job
+        # Get statistics for each job-model combination
         cursor.execute("""
             SELECT 
                 job_id,
+                model,
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
                 SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status = 'timeout' THEN 1 ELSE 0 END) as timeouts,
                 SUM(CASE WHEN status IN ('running', 'completed', 'failed', 'timeout') THEN 1 ELSE 0 END) as submitted
             FROM processing_results
-            GROUP BY job_id
+            GROUP BY job_id, model
         """)
         
-        stats = {row['job_id']: dict(row) for row in cursor.fetchall()}
+        # Store stats by job_id and model
+        stats = {}
+        for row in cursor.fetchall():
+            job_id = row['job_id']
+            model = row['model']
+            if job_id not in stats:
+                stats[job_id] = {}
+            stats[job_id][model] = dict(row)
         
         # Get unique models from both processing_results and managed_models
         cursor.execute("SELECT DISTINCT model FROM processing_results ORDER BY model")
@@ -332,21 +386,23 @@ class UnifiedDB:
             if key not in matrix:
                 matrix[key] = {'models': {}}
             
-            job_stats = stats.get(job['job_id'], {})
+            # Get stats for this specific job-model combination
+            job_model_stats = stats.get(job['job_id'], {}).get(job['model'], {})
             matrix[key]['models'][job['model']] = {
                 'id': job['job_id'],
                 'status': job['job_status'],
-                'total': job_stats.get('total', 0),
-                'successful': job_stats.get('successful', 0),
-                'failed': job_stats.get('failed', 0),
-                'timeouts': job_stats.get('timeouts', 0),
-                'submitted': job_stats.get('submitted', 0)
+                'total': job_model_stats.get('total', 0),
+                'successful': job_model_stats.get('successful', 0),
+                'failed': job_model_stats.get('failed', 0),
+                'timeouts': job_model_stats.get('timeouts', 0),
+                'submitted': job_model_stats.get('submitted', 0)
             }
         
         # Convert job data to combination format for compatibility
         combinations = []
         for job in jobs:
-            job_stat = stats.get(job['job_id'], {})
+            # Get stats for this specific job-model combination
+            job_model_stat = stats.get(job['job_id'], {}).get(job['model'], {})
             combinations.append({
                 'id': job['job_id'],  # Dashboard expects 'id' field
                 'species_file': job['species_file'],
@@ -354,12 +410,12 @@ class UnifiedDB:
                 'system_template': job['system_template'],
                 'user_template': job['user_template'],
                 'status': job['job_status'],
-                'total': job_stat.get('total', 0),
-                'successful': job_stat.get('successful', 0),
-                'failed': job_stat.get('failed', 0),
-                'timeouts': job_stat.get('timeouts', 0),
-                'submitted': job_stat.get('submitted', 0),
-                'received': job_stat.get('submitted', 0)  # For compatibility
+                'total': job_model_stat.get('total', 0),
+                'successful': job_model_stat.get('successful', 0),
+                'failed': job_model_stat.get('failed', 0),
+                'timeouts': job_model_stat.get('timeouts', 0),
+                'submitted': job_model_stat.get('submitted', 0),
+                'received': job_model_stat.get('submitted', 0)  # For compatibility
             })
         
         # Build template display info from the data

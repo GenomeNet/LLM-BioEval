@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicrobeLLM - Simple Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .job-list {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .job-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .job-title {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .job-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending { background-color: #ffc107; color: #212529; }
+        .status-running { background-color: #17a2b8; color: white; }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-failed { background-color: #dc3545; color: white; }
+        
+        .job-details {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .job-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .stat {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 12px;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .notification.success { background-color: #28a745; }
+        .notification.error { background-color: #dc3545; }
+        .notification.info { background-color: #17a2b8; }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MicrobeLLM - Simple Dashboard</h1>
+    </div>
+    
+    <div class="section">
+        <h2>Create New Job</h2>
+        <form id="jobForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="model">Model:</label>
+                    <select id="model" name="model" required>
+                        <option value="">Select a model...</option>
+                        {% for model in models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="species_file">Species File:</label>
+                    <select id="species_file" name="species_file" required>
+                        <option value="">Select a species file...</option>
+                        {% for file in species_files %}
+                        <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="system_template">System Template:</label>
+                    <select id="system_template" name="system_template" required>
+                        <option value="">Select a system template...</option>
+                        {% for template in system_templates %}
+                        <option value="{{ template }}">{{ template }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="user_template">User Template:</label>
+                    <select id="user_template" name="user_template" required>
+                        <option value="">Select a user template...</option>
+                        {% for template in user_templates %}
+                        <option value="{{ template }}">{{ template }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <button type="submit" id="createJobBtn">Create Job</button>
+        </form>
+    </div>
+    
+    <div class="section">
+        <h2>Recent Jobs</h2>
+        <div id="jobsList" class="job-list">
+            <div class="loading">Loading jobs...</div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <script>
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Load jobs
+        async function loadJobs() {
+            try {
+                const response = await fetch('/api/jobs');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderJobs(data.jobs);
+                } else {
+                    document.getElementById('jobsList').innerHTML = '<div class="loading">Error loading jobs: ' + data.error + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('jobsList').innerHTML = '<div class="loading">Error loading jobs: ' + error.message + '</div>';
+            }
+        }
+        
+        // Render jobs
+        function renderJobs(jobs) {
+            const jobsList = document.getElementById('jobsList');
+            
+            if (jobs.length === 0) {
+                jobsList.innerHTML = '<div class="loading">No jobs found. Create your first job above!</div>';
+                return;
+            }
+            
+            jobsList.innerHTML = jobs.map(job => `
+                <div class="job-item">
+                    <div class="job-header">
+                        <div class="job-title">${job.model} → ${job.species_file}</div>
+                        <div class="job-status status-${job.job_status}">${job.job_status}</div>
+                    </div>
+                    <div class="job-details">
+                        System: ${job.system_template}<br>
+                        User: ${job.user_template}<br>
+                        Created: ${new Date(job.job_created_at).toLocaleString()}
+                    </div>
+                    <div class="job-stats">
+                        <div class="stat">
+                            Total: <span class="stat-value">${job.total_species}</span>
+                        </div>
+                        <div class="stat">
+                            Completed: <span class="stat-value">${job.completed}</span>
+                        </div>
+                        <div class="stat">
+                            Failed: <span class="stat-value">${job.failed}</span>
+                        </div>
+                        <div class="stat">
+                            Pending: <span class="stat-value">${job.pending}</span>
+                        </div>
+                        ${job.job_status === 'pending' ? `<button onclick="runJob('${job.job_id}')">Run Job</button>` : ''}
+                        ${job.job_status === 'completed' ? `<button onclick="viewResults('${job.job_id}')">View Results</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Create job
+        document.getElementById('jobForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            const createBtn = document.getElementById('createJobBtn');
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
+            
+            try {
+                const response = await fetch('/api/create_job', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Job created successfully!', 'success');
+                    document.getElementById('jobForm').reset();
+                    loadJobs();
+                } else {
+                    showNotification('Error creating job: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating job: ' + error.message, 'error');
+            } finally {
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create Job';
+            }
+        });
+        
+        // Run job
+        async function runJob(jobId) {
+            showNotification('Starting job...', 'info');
+            
+            try {
+                const response = await fetch(`/api/run_job/${jobId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Job completed successfully!', 'success');
+                    loadJobs();
+                } else {
+                    showNotification('Job failed: ' + result.error, 'error');
+                    loadJobs();
+                }
+            } catch (error) {
+                showNotification('Error running job: ' + error.message, 'error');
+            }
+        }
+        
+        // View results
+        function viewResults(jobId) {
+            window.location.href = `/job/${jobId}/results`;
+        }
+        
+        // Initialize
+        loadJobs();
+    </script>
+</body>
+</html>

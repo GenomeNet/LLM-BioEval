@@ -1,76 +1,253 @@
-<div id="dynamicStatsText">
-    <!-- This will be populated by JavaScript -->
+<div id="dynamicStatsText" class="article-text">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading statistics...</div>
+    </div>
 </div>
 
 <style>
-    /* Dynamic Stats Text */
-    #dynamicStatsText {
-        background: linear-gradient(135deg, 
-            rgba(34, 197, 94, 0.05) 0%,
-            rgba(16, 185, 129, 0.03) 50%,
-            rgba(5, 150, 105, 0.05) 100%);
-        border: 1px solid rgba(34, 197, 94, 0.1);
-        border-radius: 12px;
-        padding: 20px 28px;
-        margin-bottom: 48px;
-        font-size: 16px;
-        line-height: 1.8;
-        color: var(--gray-700);
-    }
-    
-    .stat-value {
-        display: inline-block;
-        font-weight: 700;
-        color: var(--gray-900);
-        background: rgba(34, 197, 94, 0.1);
-        border-radius: 6px;
-        margin: 0 2px;
-        padding: 2px 6px;
-        font-size: inherit;
-    }
-    
-    .model-highlight {
-        display: inline-block;
-        font-weight: 700;
-        color: #059669;
-        background: rgba(34, 197, 94, 0.1);
-        border-radius: 6px;
-        padding: 2px 8px;
-        font-size: inherit;
-    }
-    
-    .model-lowlight {
-        display: inline-block;
-        font-weight: 700;
-        color: #dc2626;
-        background: rgba(239, 68, 68, 0.1);
-        border-radius: 6px;
-        padding: 2px 8px;
-        font-size: inherit;
-    }
+/* Loading animation styles */
+.loading-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background: #f3f4f6;
+    border-radius: 2px;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background: #22c55e;
+    width: 30%;
+    border-radius: 2px;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+
+.loading-text {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.stat-value {
+    display: inline-block;
+    font-weight: 700;
+    color: var(--gray-900);
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 6px;
+    margin: 0 2px;
+    padding: 2px 8px;
+    font-size: inherit;
+}
+
+.model-highlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(34, 197, 94, 0.1);
+    color: #059669;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
+
+.model-lowlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
 </style>
 
 <script>
-// Dynamic stats will be populated by the main phenotype analysis script
-// This is just a placeholder for the component viewer
+// Self-contained script for dynamic phenotype stats
 (function() {
-    // Check if we're in component viewer context
-    if (window.location.pathname.includes('/components/')) {
-        // Provide mock data for component viewer
-        const mockStatsText = 
-            'We analyzed <span class="stat-value">25</span> language models across ' +
-            '<span class="stat-value">13</span> bacterial phenotype categories, ' +
-            'generating an average of <span class="stat-value">500</span> predictions per model. ' +
-            'The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">15.2%</span>. ' +
-            '<span class="model-highlight">GPT-4</span> demonstrated the highest confidence ' +
-            'with only <span class="stat-value">8.5%</span> NA responses, ' +
-            'while <span class="model-lowlight">Llama-2</span> ' +
-            'was more conservative with <span class="stat-value">22.3%</span> NA responses.';
-        
+    console.log('[PhenotypeDynamicStats] Script starting...');
+    
+    // Wait a bit for DOM to settle
+    setTimeout(function() {
+        console.log('[PhenotypeDynamicStats] Initializing...');
+        loadPhenotypeDynamicStats();
+    }, 100);
+    
+    // Load and process data
+    async function loadPhenotypeDynamicStats() {
         const container = document.getElementById('dynamicStatsText');
-        if (container) {
-            container.innerHTML = mockStatsText;
+        if (!container) {
+            console.error('[PhenotypeDynamicStats] Container not found');
+            return;
         }
+        
+        try {
+            console.log('[PhenotypeDynamicStats] Fetching from /api/phenotype_analysis...');
+            const response = await fetch('/api/phenotype_analysis');
+            console.log('[PhenotypeDynamicStats] Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[PhenotypeDynamicStats] Raw data received:', data);
+            
+            if (data.error) {
+                console.error('[PhenotypeDynamicStats] Error in response:', data.error);
+                container.innerHTML = `<div class="error-message">${data.error}</div>`;
+                return;
+            }
+            
+            if (!data.files || data.files.length === 0) {
+                console.error('[PhenotypeDynamicStats] No files in response');
+                container.innerHTML = '<div class="error-message">No phenotype prediction data found</div>';
+                return;
+            }
+            
+            // Process the first file by default
+            const firstFile = data.files[0];
+            const fileData = data.data[firstFile];
+            
+            if (!fileData) {
+                console.error('[PhenotypeDynamicStats] No data for file:', firstFile);
+                container.innerHTML = '<div class="error-message">No data available for analysis</div>';
+                return;
+            }
+            
+            // Generate the dynamic stats text
+            generatePhenotypeDynamicStats(fileData, container);
+            
+        } catch (error) {
+            console.error('[PhenotypeDynamicStats] Failed to load data:', error);
+            // Use mock data in component viewer context
+            if (window.location.pathname.includes('/components/')) {
+                console.log('[PhenotypeDynamicStats] Using mock data for component viewer');
+                const mockStatsText = 
+                    'We analyzed <span class="stat-value">25</span> language models across ' +
+                    '<span class="stat-value">13</span> bacterial phenotype categories, ' +
+                    'generating an average of <span class="stat-value">500</span> predictions per model. ' +
+                    'The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">15.2%</span>. ' +
+                    '<span class="model-highlight">GPT-4</span> demonstrated the highest confidence ' +
+                    'with only <span class="stat-value">8.5%</span> NA responses, ' +
+                    'while <span class="model-lowlight">Llama-2</span> ' +
+                    'was more conservative with <span class="stat-value">22.3%</span> NA responses.';
+                container.innerHTML = mockStatsText;
+            } else {
+                container.innerHTML = '<div class="error-message">Failed to load statistics. Please try again later.</div>';
+            }
+        }
+    }
+    
+    // Generate dynamic stats text from phenotype data
+    function generatePhenotypeDynamicStats(fileData, container) {
+        // Calculate statistics
+        const modelStats = {};
+        const phenotypes = [
+            'gram_staining', 'motility', 'aerophilicity', 
+            'extreme_environment_tolerance', 'biofilm_formation', 
+            'animal_pathogenicity', 'biosafety_level', 'health_association',
+            'host_association', 'plant_pathogenicity', 'spore_formation',
+            'hemolysis', 'cell_shape'
+        ];
+        
+        let totalPredictions = 0;
+        let totalNA = 0;
+        
+        // Process data by model
+        fileData.forEach(item => {
+            const model = item.model;
+            if (!modelStats[model]) {
+                modelStats[model] = {
+                    totalPredictions: 0,
+                    naCount: 0
+                };
+            }
+            
+            modelStats[model].totalPredictions++;
+            totalPredictions++;
+            
+            // Count NA responses
+            phenotypes.forEach(field => {
+                const value = item[field];
+                if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
+                    modelStats[model].naCount++;
+                    totalNA++;
+                }
+            });
+        });
+        
+        // Calculate metrics
+        const modelResults = Object.entries(modelStats).map(([modelName, stats]) => ({
+            modelName,
+            totalPredictions: stats.totalPredictions,
+            naCount: stats.naCount,
+            naPercentage: (stats.naCount / (stats.totalPredictions * phenotypes.length)) * 100
+        }));
+        
+        const totalModels = modelResults.length;
+        const avgNAPercentage = modelResults.reduce((sum, m) => sum + m.naPercentage, 0) / totalModels;
+        const avgPredictionsPerModel = totalPredictions / totalModels;
+        
+        // Find best and worst performers
+        let bestModel = null;
+        let bestNARate = 100;
+        let worstModel = null;
+        let worstNARate = 0;
+        
+        modelResults.forEach(model => {
+            if (model.naPercentage < bestNARate) {
+                bestNARate = model.naPercentage;
+                bestModel = model.modelName;
+            }
+            if (model.naPercentage > worstNARate) {
+                worstNARate = model.naPercentage;
+                worstModel = model.modelName;
+            }
+        });
+        
+        // Format model names
+        const formatModelName = (modelName) => {
+            if (!modelName.includes('/')) return modelName;
+            const [provider, model] = modelName.split('/');
+            const providerMap = {
+                'anthropic': 'Anthropic',
+                'openai': 'OpenAI',
+                'google': 'Google',
+                'meta-llama': 'Meta',
+                'mistralai': 'Mistral',
+                'cohere': 'Cohere',
+                'x-ai': 'xAI'
+            };
+            const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+            return `${displayProvider} ${model}`;
+        };
+        
+        // Generate the dynamic statistics text
+        const dynamicStatsText =
+            `We analyzed <span class="stat-value">${totalModels}</span> language models across ` +
+            `<span class="stat-value">${phenotypes.length}</span> bacterial phenotype categories, ` +
+            `generating an average of <span class="stat-value">${Math.round(avgPredictionsPerModel)}</span> predictions per model. ` +
+            `The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">${avgNAPercentage.toFixed(1)}%</span>. ` +
+            (bestModel ? `<span class="model-highlight">${formatModelName(bestModel)}</span> demonstrated the highest confidence ` +
+                `with only <span class="stat-value">${bestNARate.toFixed(1)}%</span> NA responses, ` : '') +
+            (worstModel && worstModel !== bestModel ? `while <span class="model-lowlight">${formatModelName(worstModel)}</span> ` +
+                `was more conservative with <span class="stat-value">${worstNARate.toFixed(1)}%</span> NA responses.` : '');
+        
+        container.innerHTML = dynamicStatsText;
     }
 })();
 </script>

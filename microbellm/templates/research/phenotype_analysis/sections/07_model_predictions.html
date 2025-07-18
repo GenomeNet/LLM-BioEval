@@ -213,3 +213,334 @@
         min-width: 160px;
     }
 </style>
+
+<script>
+(function() {
+    console.log('[ModelPredictions] Component initializing...');
+    
+    // Global variable to store results for other components
+    window._phenotypeModelResults = null;
+    
+    async function loadPhenotypeData() {
+        const container = document.getElementById('phenotypeContent');
+        if (!container) {
+            console.error('[ModelPredictions] Container not found');
+            return;
+        }
+        
+        try {
+            console.log('[ModelPredictions] Fetching data from /api/phenotype_analysis...');
+            const response = await fetch('/api/phenotype_analysis');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[ModelPredictions] Data received:', data);
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            if (!data.files || data.files.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No phenotype data available</h3>
+                        <p>No phenotype prediction results found in the database.</p>
+                    </div>`;
+                return;
+            }
+            
+            // Process and display the data
+            const processedData = processData(data);
+            
+            // Store results globally for other components
+            window._phenotypeModelResults = processedData.modelResults;
+            
+            // Notify other components that data is ready
+            if (window._phenotypeDistributionsReady) {
+                window.dispatchEvent(new CustomEvent('phenotypeDataUpdated', { 
+                    detail: processedData.modelResults 
+                }));
+            }
+            
+            // Render the content
+            renderContent(container, processedData);
+            
+        } catch (error) {
+            console.error('[ModelPredictions] Error loading data:', error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error loading data</h3>
+                    <p>${error.message}</p>
+                </div>`;
+        }
+    }
+    
+    function processData(data) {
+        // Get the first file's data
+        const firstFile = data.files[0];
+        const fileData = data.data[firstFile];
+        
+        // Group data by model
+        const modelStats = {};
+        const phenotypeFields = [
+            'gram_staining', 'motility', 'aerophilicity', 
+            'biofilm_formation', 'spore_formation', 'cell_shape'
+        ];
+        
+        fileData.forEach(item => {
+            const model = item.model;
+            if (!modelStats[model]) {
+                modelStats[model] = {
+                    totalPredictions: 0,
+                    naCount: 0,
+                    phenotypeDistributions: {},
+                    consensusDeviation: 0,
+                    significantDeviations: []
+                };
+            }
+            
+            modelStats[model].totalPredictions++;
+            
+            // Process each phenotype
+            phenotypeFields.forEach(field => {
+                if (!modelStats[model].phenotypeDistributions[field]) {
+                    modelStats[model].phenotypeDistributions[field] = {};
+                }
+                
+                let value = item[field];
+                
+                // Normalize value (handle arrays, NA, etc.)
+                value = normalizeValue(value, field);
+                
+                if (value === 'NA') {
+                    modelStats[model].naCount++;
+                }
+                
+                modelStats[model].phenotypeDistributions[field][value] = 
+                    (modelStats[model].phenotypeDistributions[field][value] || 0) + 1;
+            });
+        });
+        
+        // Convert to array and calculate consensus metrics
+        const modelResults = Object.entries(modelStats).map(([modelName, stats]) => ({
+            modelName,
+            totalPredictions: stats.totalPredictions,
+            naCount: stats.naCount,
+            naPercentage: (stats.naCount / (stats.totalPredictions * phenotypeFields.length)) * 100,
+            phenotypeDistributions: stats.phenotypeDistributions,
+            consensusDeviation: calculateConsensusDeviation(stats, modelStats),
+            significantDeviations: stats.significantDeviations
+        }));
+        
+        // Sort by consensus deviation (lower is better)
+        modelResults.sort((a, b) => a.consensusDeviation - b.consensusDeviation);
+        
+        return {
+            fileName: firstFile,
+            modelResults,
+            totalSpecies: fileData.length / Object.keys(modelStats).length
+        };
+    }
+    
+    function normalizeValue(value, field) {
+        // Handle null/undefined/NA
+        if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
+            return 'NA';
+        }
+        
+        // Handle string representations of arrays
+        if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
+            try {
+                const arrayValue = JSON.parse(value.replace(/'/g, '"'));
+                if (Array.isArray(arrayValue)) {
+                    value = arrayValue[0] || 'NA';
+                }
+            } catch (e) {
+                const matches = value.match(/['"]([^'"]+)['"]/g);
+                if (matches && matches.length > 0) {
+                    value = matches[0].replace(/['"]/g, '');
+                }
+            }
+        }
+        
+        // Normalize boolean values
+        if (typeof value === 'string') {
+            if (value.toUpperCase() === 'TRUE') return 'TRUE';
+            if (value.toUpperCase() === 'FALSE') return 'FALSE';
+            
+            // Normalize gram staining
+            if (field === 'gram_staining') {
+                if (value.toLowerCase().includes('positive')) return 'Positive';
+                if (value.toLowerCase().includes('negative')) return 'Negative';
+            }
+            
+            // Normalize aerophilicity
+            if (field === 'aerophilicity') {
+                const lower = value.toLowerCase().trim();
+                if (lower === 'aerobic' || lower.includes('obligate aerobe')) return 'Aerobic';
+                if (lower === 'anaerobic' || lower.includes('obligate anaerobe')) return 'Anaerobic';
+                if (lower.includes('facultative')) return 'Facultative';
+            }
+            
+            // Normalize cell shape
+            if (field === 'cell_shape') {
+                return value.replace(/_/g, ' ')
+                           .split(' ')
+                           .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                           .join(' ');
+            }
+        }
+        
+        return value;
+    }
+    
+    function calculateConsensusDeviation(modelStats, allModelStats) {
+        // Simple deviation metric: sum of squared differences from average
+        let totalDeviation = 0;
+        const phenotypeFields = Object.keys(modelStats.phenotypeDistributions);
+        
+        phenotypeFields.forEach(field => {
+            const modelDist = modelStats.phenotypeDistributions[field];
+            const totalForField = Object.values(modelDist).reduce((sum, count) => sum + count, 0);
+            
+            Object.entries(modelDist).forEach(([value, count]) => {
+                const modelProportion = count / totalForField;
+                
+                // Calculate average proportion across all models
+                let totalProportion = 0;
+                let modelCount = 0;
+                
+                Object.values(allModelStats).forEach(otherModel => {
+                    const otherDist = otherModel.phenotypeDistributions[field];
+                    if (otherDist && otherDist[value]) {
+                        const otherTotal = Object.values(otherDist).reduce((sum, c) => sum + c, 0);
+                        totalProportion += otherDist[value] / otherTotal;
+                        modelCount++;
+                    }
+                });
+                
+                const avgProportion = modelCount > 0 ? totalProportion / modelCount : 0;
+                const deviation = Math.pow(modelProportion - avgProportion, 2);
+                totalDeviation += deviation;
+                
+                // Track significant deviations
+                if (Math.abs(modelProportion - avgProportion) > 0.2) {
+                    modelStats.significantDeviations.push({
+                        field,
+                        value,
+                        modelProportion,
+                        avgProportion
+                    });
+                }
+            });
+        });
+        
+        return Math.sqrt(totalDeviation);
+    }
+    
+    function renderContent(container, data) {
+        let html = '';
+        
+        // Add controls
+        html += `
+            <div class="simple-controls">
+                <div class="control-item">
+                    <label>File:</label>
+                    <select id="fileSelect" disabled>
+                        <option value="${data.fileName}">${data.fileName}</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label>Species:</label>
+                    <span style="font-weight: 600; color: #495057;">${data.totalSpecies} species analyzed</span>
+                </div>
+            </div>
+        `;
+        
+        // Add model ranking table
+        html += `
+            <div class="model-ranking">
+                <h5>Model Consensus Ranking</h5>
+                <p class="ranking-explanation">
+                    Models are ranked by their agreement with the consensus predictions across all phenotypes. 
+                    Lower deviation scores indicate better agreement with other models.
+                </p>
+                <table class="consensus-ranking-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; width: 40%;">Model</th>
+                            <th>Deviation Score</th>
+                            <th>Significant Deviations</th>
+                            <th>NA Rate</th>
+                            <th>Agreement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        data.modelResults.forEach((model, index) => {
+            const agreementClass = model.consensusDeviation < 0.1 ? 'agreement-high' :
+                                 model.consensusDeviation < 0.2 ? 'agreement-moderate' :
+                                 model.consensusDeviation < 0.3 ? 'agreement-low' : 'agreement-outlier';
+            
+            const agreementLabel = model.consensusDeviation < 0.1 ? 'High' :
+                                 model.consensusDeviation < 0.2 ? 'Moderate' :
+                                 model.consensusDeviation < 0.3 ? 'Low' : 'Outlier';
+            
+            html += `
+                <tr>
+                    <td style="text-align: left;">
+                        <span class="model-name">${formatModelName(model.modelName)}</span>
+                    </td>
+                    <td>
+                        <span class="deviation-score">${model.consensusDeviation.toFixed(3)}</span>
+                    </td>
+                    <td>
+                        <span class="significant-count">${model.significantDeviations.length}</span>
+                        ${model.significantDeviations.length > 0 ? 
+                            `<div class="significant-phenotypes-list">
+                                ${model.significantDeviations.slice(0, 3).map(d => d.field).join(', ')}
+                                ${model.significantDeviations.length > 3 ? '...' : ''}
+                            </div>` : ''}
+                    </td>
+                    <td>${model.naPercentage.toFixed(1)}%</td>
+                    <td>
+                        <span class="agreement-badge ${agreementClass}">${agreementLabel}</span>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) {
+            return modelName;
+        }
+        
+        const parts = modelName.split('/');
+        return parts[parts.length - 1];
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadPhenotypeData);
+    } else {
+        // Small delay to ensure everything is loaded
+        setTimeout(loadPhenotypeData, 100);
+    }
+    
+    // Export for component viewer
+    window.initModelPredictions = loadPhenotypeData;
+})();
+</script>
