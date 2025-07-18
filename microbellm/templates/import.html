@@ -8,21 +8,55 @@
     <p class="page-subtitle">Import results from a CSV file</p>
 </div>
 
-<div class="card">
-    <h3>Import CSV File</h3>
+<!-- Step 1: Template Selection -->
+<div class="card" id="templateSelection">
+    <h3>Step 1: Select Template Type</h3>
+    <p class="text-muted mb-3">Choose the template that was used to generate your results</p>
+    
+    <div class="template-selection">
+        <div class="template-grid">
+            <!-- Templates will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Format Guide -->
+<div class="card" id="formatGuide" style="display: none;">
+    <h3>Step 2: Review Expected Format</h3>
+    
+    <div class="format-info">
+        <h4 class="text-small">Required Columns</h4>
+        <div id="requiredColumns" class="column-list"></div>
+        
+        <h4 class="text-small mt-3">Optional Columns</h4>
+        <div id="optionalColumns" class="column-list"></div>
+        
+        <div class="example-section mt-3">
+            <h4 class="text-small">Example CSV Format</h4>
+            <pre id="exampleCsv" class="example-csv"></pre>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <button onclick="continueToUpload()" class="btn btn-primary">
+            <i class="fas fa-arrow-right"></i> Continue to Upload
+        </button>
+        <button onclick="backToTemplateSelection()" class="btn btn-ghost">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+    </div>
+</div>
+
+<!-- Step 3: File Upload -->
+<div class="card" id="fileUpload" style="display: none;">
+    <h3>Step 3: Upload CSV File</h3>
     
     <div class="import-controls">
-        <div class="import-info card mb-3" style="background: var(--bg-secondary);">
-            <h4 class="text-small">Requirements</h4>
-            <ul class="text-small text-muted">
-                <li>CSV format with proper headers</li>
-                <li>Must include: species_file, binomial_name, model, status</li>
-                <li>Optional: system_template, user_template, phenotype predictions</li>
-                <li>Supports both exported files and external predictions</li>
-            </ul>
+        <div class="selected-template-info">
+            <strong>Selected Template:</strong> <span id="selectedTemplateName"></span>
         </div>
         
-        <div class="file-upload-area">
+        <div class="file-upload-area mt-3">
             <input type="file" id="csvFile" accept=".csv" style="display: none;">
             <div class="upload-zone" onclick="document.getElementById('csvFile').click()">
                 <i class="fas fa-cloud-upload-alt"></i>
@@ -37,11 +71,14 @@
         </div>
         
         <div class="import-actions mt-3">
-            <button onclick="importCsv()" id="importBtn" class="btn btn-primary" disabled>
-                <i class="fas fa-upload"></i> Import CSV
+            <button onclick="validateAndImport()" id="importBtn" class="btn btn-primary" disabled>
+                <i class="fas fa-check"></i> Validate & Import
+            </button>
+            <button onclick="backToFormatGuide()" class="btn btn-ghost">
+                <i class="fas fa-arrow-left"></i> Back
             </button>
             
-            <div id="importStatus" class="mt-2"></div>
+            <div id="importStatus" class="mt-3"></div>
         </div>
     </div>
 </div>
@@ -51,19 +88,85 @@
         max-width: 600px;
     }
     
-    .import-info {
-        padding: 16px;
+    .template-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
     }
     
-    .import-info h4 {
+    .template-card {
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--bg-secondary);
+    }
+    
+    .template-card:hover {
+        border-color: var(--admin-primary);
+        transform: translateY(-1px);
+    }
+    
+    .template-card.selected {
+        border-color: var(--admin-primary);
+        background: var(--admin-primary);
+        color: white;
+    }
+    
+    .template-card h4 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+    }
+    
+    .template-card .template-type {
+        font-size: 12px;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+    
+    .selected-template-info {
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .column-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .column-item {
+        padding: 4px 12px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: var(--font-mono);
+        border: 1px solid var(--border-color);
+    }
+    
+    .column-item.required {
+        border-color: var(--admin-primary);
+        background: rgba(99, 102, 241, 0.1);
+    }
+    
+    .example-csv {
+        background: var(--bg-secondary);
+        padding: 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        line-height: 1.5;
+    }
+    
+    .format-info h4 {
         margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-    
-    .import-info ul {
-        margin: 0;
-        padding-left: 20px;
     }
     
     .upload-zone {
@@ -112,12 +215,50 @@
         font-size: 14px;
     }
     
+    .validation-results {
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .validation-results h5 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .validation-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        font-size: 13px;
+    }
+    
+    .validation-stat.error {
+        color: var(--status-error);
+    }
+    
+    .validation-stat.warning {
+        color: var(--status-warning);
+    }
+    
+    .validation-stat.success {
+        color: var(--status-success);
+    }
+    
     .mt-2 {
         margin-top: 8px;
     }
     
     .mt-3 {
         margin-top: 16px;
+    }
+    
+    .mb-3 {
+        margin-bottom: 16px;
     }
     
     #importStatus {
@@ -150,65 +291,254 @@
 </style>
 
 <script>
-    // File handling
-    const fileInput = document.getElementById('csvFile');
-    const uploadZone = document.querySelector('.upload-zone');
+    // Global state
+    let selectedTemplate = null;
+    let templateConfigs = {};
     
-    fileInput.addEventListener('change', handleFileSelect);
-    
-    // Drag and drop
-    uploadZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadZone.classList.add('dragover');
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAvailableTemplates();
     });
     
-    uploadZone.addEventListener('dragleave', () => {
-        uploadZone.classList.remove('dragover');
-    });
-    
-    uploadZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadZone.classList.remove('dragover');
+    // Load available templates
+    function loadAvailableTemplates() {
+        // Hardcode templates for now since API might not be available
+        const templates = [
+            { name: 'template1_knowlege.txt', type: 'knowledge' },
+            { name: 'template2_knowlege.txt', type: 'knowledge' },
+            { name: 'template3_knowlege.txt', type: 'knowledge' },
+            { name: 'template1_phenotype.txt', type: 'phenotype' },
+            { name: 'template2_phenotype.txt', type: 'phenotype' }
+        ];
         
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            fileInput.files = files;
-            handleFileSelect();
+        displayTemplates(templates);
+        
+        // Try to load from API if available
+        fetch('/api/templates')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.templates.length > 0) {
+                    // Store validation configs
+                    templateConfigs = data.validation_configs || {};
+                    displayTemplates(data.templates);
+                }
+            })
+            .catch(err => {
+                // Silently fail, use hardcoded templates
+                console.log('Using hardcoded template list');
+            });
+    }
+    
+    // Display template selection cards
+    function displayTemplates(templates) {
+        const grid = document.querySelector('.template-grid');
+        grid.innerHTML = '';
+        
+        // Group templates by base name
+        const templateGroups = {};
+        templates.forEach(template => {
+            const baseName = template.name.replace(/\.(txt|md)$/, '');
+            if (!templateGroups[baseName]) {
+                templateGroups[baseName] = template;
+            }
+        });
+        
+        // Create template cards
+        Object.values(templateGroups).forEach(template => {
+            const templateType = detectTemplateType(template.name);
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.innerHTML = `
+                <h4>${formatTemplateName(template.name)}</h4>
+                <div class="template-type">${templateType.toUpperCase()}</div>
+            `;
+            card.onclick = () => selectTemplate(template.name, templateType);
+            grid.appendChild(card);
+        });
+    }
+    
+    // Detect template type from name
+    function detectTemplateType(templateName) {
+        if (templateName.includes('knowledge') || templateName.includes('knowlege')) {
+            return 'knowledge';
+        } else if (templateName.includes('phenotype')) {
+            return 'phenotype';
         }
-    });
+        return 'unknown';
+    }
+    
+    // Format template name for display
+    function formatTemplateName(name) {
+        return name.replace(/\.(txt|md)$/, '')
+                   .replace(/_/g, ' ')
+                   .replace(/knowlege/g, 'knowledge')
+                   .split(' ')
+                   .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                   .join(' ');
+    }
+    
+    // Select a template
+    function selectTemplate(templateName, templateType) {
+        selectedTemplate = {
+            name: templateName,
+            type: templateType
+        };
+        
+        // Update UI
+        document.querySelectorAll('.template-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+        
+        // Show format guide
+        showFormatGuide();
+    }
+    
+    // Show format guide for selected template
+    function showFormatGuide() {
+        document.getElementById('templateSelection').style.display = 'none';
+        document.getElementById('formatGuide').style.display = 'block';
+        
+        const requiredCols = document.getElementById('requiredColumns');
+        const optionalCols = document.getElementById('optionalColumns');
+        const exampleCsv = document.getElementById('exampleCsv');
+        
+        // Always required columns
+        const required = ['binomial_name', 'model', 'status'];
+        requiredCols.innerHTML = required.map(col => 
+            `<span class="column-item required">${col}</span>`
+        ).join('');
+        
+        // Template-specific columns
+        let optional = ['species_file', 'system_template', 'user_template', 'result'];
+        let exampleData = {};
+        
+        if (selectedTemplate.type === 'knowledge') {
+            optional.push('knowledge_group');
+            exampleData = {
+                binomial_name: 'Escherichia coli',
+                model: 'openai/gpt-4',
+                status: 'completed',
+                knowledge_group: 'extensive',
+                result: '{"knowledge_group": "extensive"}'
+            };
+        } else if (selectedTemplate.type === 'phenotype') {
+            optional.push(
+                'knowledge_group', 'gram_staining', 'motility', 'aerophilicity',
+                'extreme_environment_tolerance', 'biofilm_formation', 'animal_pathogenicity',
+                'biosafety_level', 'health_association', 'host_association',
+                'plant_pathogenicity', 'spore_formation', 'hemolysis', 'cell_shape'
+            );
+            exampleData = {
+                binomial_name: 'Bacillus subtilis',
+                model: 'openai/gpt-4',
+                status: 'completed',
+                gram_staining: 'gram stain positive',
+                motility: 'motile',
+                spore_formation: 'spore-forming'
+            };
+        }
+        
+        optionalCols.innerHTML = optional.map(col => 
+            `<span class="column-item">${col}</span>`
+        ).join('');
+        
+        // Create example CSV
+        const headers = [...required, ...optional.slice(0, 5)].join(',');
+        const values = [...required, ...optional.slice(0, 5)].map(col => 
+            exampleData[col] || 'value'
+        ).join(',');
+        
+        exampleCsv.textContent = `${headers}\n${values}\n...`;
+    }
+    
+    // Navigation functions
+    function backToTemplateSelection() {
+        document.getElementById('formatGuide').style.display = 'none';
+        document.getElementById('templateSelection').style.display = 'block';
+    }
+    
+    function continueToUpload() {
+        document.getElementById('formatGuide').style.display = 'none';
+        document.getElementById('fileUpload').style.display = 'block';
+        document.getElementById('selectedTemplateName').textContent = formatTemplateName(selectedTemplate.name);
+        
+        // Set up file upload handlers
+        setupFileUpload();
+    }
+    
+    function backToFormatGuide() {
+        document.getElementById('fileUpload').style.display = 'none';
+        document.getElementById('formatGuide').style.display = 'block';
+    }
+    
+    // File upload handling
+    function setupFileUpload() {
+        const fileInput = document.getElementById('csvFile');
+        const uploadZone = document.querySelector('.upload-zone');
+        
+        if (!fileInput._hasListeners) {
+            fileInput.addEventListener('change', handleFileSelect);
+            fileInput._hasListeners = true;
+            
+            // Drag and drop
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+            
+            uploadZone.addEventListener('dragleave', () => {
+                uploadZone.classList.remove('dragover');
+            });
+            
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect();
+                }
+            });
+        }
+    }
     
     function handleFileSelect() {
-        const file = fileInput.files[0];
+        const file = document.getElementById('csvFile').files[0];
         if (file) {
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileInfo').style.display = 'flex';
             document.getElementById('importBtn').disabled = false;
-            document.getElementById('importStatus').textContent = '';
+            document.getElementById('importStatus').innerHTML = '';
         }
     }
     
     function clearFile() {
-        fileInput.value = '';
+        document.getElementById('csvFile').value = '';
         document.getElementById('fileInfo').style.display = 'none';
         document.getElementById('importBtn').disabled = true;
-        document.getElementById('importStatus').textContent = '';
+        document.getElementById('importStatus').innerHTML = '';
     }
     
-    function importCsv() {
-        const file = fileInput.files[0];
+    // Validate and import CSV
+    function validateAndImport() {
+        const file = document.getElementById('csvFile').files[0];
         if (!file) return;
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('template', selectedTemplate.name);
+        formData.append('template_type', selectedTemplate.type);
         
         const statusDiv = document.getElementById('importStatus');
         const importBtn = document.getElementById('importBtn');
         
-        statusDiv.textContent = 'Importing...';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validating and importing...';
         statusDiv.className = '';
         importBtn.disabled = true;
         
-        fetch('/api/import_csv', {
+        fetch('/api/import_csv_validated', {
             method: 'POST',
             body: formData
         })
@@ -217,33 +547,71 @@
             if (data.success) {
                 statusDiv.className = 'success';
                 statusDiv.innerHTML = `
-                    Import completed successfully!
-                    <div class="import-summary">
-                        <h5>Summary</h5>
-                        <div>Total rows: ${data.total_rows}</div>
-                        <div>Imported: ${data.imported}</div>
-                        <div>Skipped: ${data.skipped}</div>
-                        <div>Errors: ${data.errors}</div>
+                    <div class="validation-results">
+                        <h5>Import Results</h5>
+                        <div class="validation-stat">
+                            <span>Total rows:</span>
+                            <span>${data.total_rows}</span>
+                        </div>
+                        <div class="validation-stat success">
+                            <span>Successfully imported:</span>
+                            <span>${data.imported}</span>
+                        </div>
+                        <div class="validation-stat warning">
+                            <span>Skipped (duplicates):</span>
+                            <span>${data.skipped}</span>
+                        </div>
+                        <div class="validation-stat error">
+                            <span>Failed validation:</span>
+                            <span>${data.errors}</span>
+                        </div>
+                        ${data.validation_errors && data.validation_errors.length > 0 ? `
+                            <div class="mt-3">
+                                <strong>Validation errors:</strong>
+                                <ul class="text-small mt-2">
+                                    ${data.validation_errors.slice(0, 5).map(err => 
+                                        `<li>${err}</li>`
+                                    ).join('')}
+                                    ${data.validation_errors.length > 5 ? 
+                                        `<li>... and ${data.validation_errors.length - 5} more</li>` : ''}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${data.new_models_added && data.new_models_added.length > 0 ? `
+                            <div class="mt-3">
+                                <strong>New models added to dashboard:</strong>
+                                <ul class="text-small mt-2">
+                                    ${data.new_models_added.map(model => 
+                                        `<li>${model}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 
-                // Clear file after successful import
-                setTimeout(() => {
-                    clearFile();
-                    // Optionally redirect to dashboard
-                    if (confirm('Import successful! Return to dashboard?')) {
-                        window.location.href = '/';
-                    }
-                }, 2000);
+                if (data.imported > 0) {
+                    setTimeout(() => {
+                        if (confirm('Import completed! Return to dashboard?')) {
+                            window.location.href = '/';
+                        }
+                    }, 2000);
+                }
             } else {
                 statusDiv.className = 'error';
-                statusDiv.textContent = 'Error: ' + (data.error || 'Import failed');
+                statusDiv.innerHTML = `
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Error: ${data.error || 'Import failed'}
+                `;
             }
         })
         .catch(error => {
             console.error('Import error:', error);
             statusDiv.className = 'error';
-            statusDiv.textContent = 'Error: Import failed. Please check your file format.';
+            statusDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> 
+                Error: Import failed. Please check your file format.
+            `;
         })
         .finally(() => {
             importBtn.disabled = false;

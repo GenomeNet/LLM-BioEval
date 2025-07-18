@@ -1446,6 +1446,159 @@ class ProcessingManager:
                 'error_message': str(e)
             }
     
+    def import_results_validated(self, csv_content, template_name, template_type):
+        """Import results from CSV with validation using template configs"""
+        try:
+            df = pd.read_csv(io.StringIO(csv_content))
+            
+            # Get validation config if available
+            validator = None
+            if template_name:
+                from microbellm.template_config import find_validation_config_for_template, TemplateValidator
+                config_path = find_validation_config_for_template(f"templates/{template_name}")
+                if config_path:
+                    validator = TemplateValidator(config_path)
+            
+            # Track unique models and species files for auto-registration
+            unique_models = set()
+            unique_species_files = set()
+            
+            imported = 0
+            skipped = 0
+            errors = 0
+            validation_errors = []
+            
+            for idx, row in df.iterrows():
+                try:
+                    # Required fields
+                    binomial_name = row.get('binomial_name')
+                    model = row.get('model')
+                    status = row.get('status', 'completed')
+                    
+                    if not all([binomial_name, model]):
+                        validation_errors.append(f"Row {idx+1}: Missing required fields (binomial_name, model)")
+                        errors += 1
+                        continue
+                    
+                    # Track models and species files
+                    unique_models.add(model)
+                    
+                    # Get template paths
+                    species_file = row.get('species_file', 'imported_species.txt')
+                    system_template = row.get('system_template', 'templates/system_phenotype.txt')
+                    user_template = row.get('user_template', f'templates/{template_name}' if template_name else 'unknown')
+                    
+                    unique_species_files.add(species_file)
+                    
+                    # Check if entry already exists
+                    existing = self.unified_db.get_species_result_by_params(
+                        binomial_name, model, system_template, user_template
+                    )
+                    
+                    if existing:
+                        skipped += 1
+                        continue
+                    
+                    # Parse result field
+                    result_json = row.get('result')
+                    parsed_result = {}
+                    
+                    if result_json and pd.notna(result_json):
+                        try:
+                            parsed_result = json.loads(result_json)
+                        except json.JSONDecodeError:
+                            # Try to parse as string
+                            parsed_result = {'raw_response': result_json}
+                    
+                    # Validate parsed result if validator available
+                    if validator and parsed_result:
+                        validated_data, val_errors = validator.validate_response(parsed_result)
+                        if val_errors:
+                            validation_errors.extend([f"Row {idx+1}: {err}" for err in val_errors])
+                        parsed_result = validated_data
+                    
+                    # Extract fields from CSV or parsed result
+                    knowledge_group = row.get('knowledge_group') or parsed_result.get('knowledge_group')
+                    
+                    # Get phenotype fields
+                    phenotype_fields = [
+                        'gram_staining', 'motility', 'aerophilicity', 
+                        'extreme_environment_tolerance', 'biofilm_formation',
+                        'animal_pathogenicity', 'biosafety_level', 
+                        'health_association', 'host_association',
+                        'plant_pathogenicity', 'spore_formation', 
+                        'hemolysis', 'cell_shape'
+                    ]
+                    
+                    phenotype_data = {}
+                    for field in phenotype_fields:
+                        # Check CSV first, then parsed result
+                        value = row.get(field)
+                        if pd.isna(value) or value is None:
+                            value = parsed_result.get(field)
+                        if value and pd.notna(value):
+                            phenotype_data[field] = value
+                    
+                    # Create job for imported data
+                    job_id = self.unified_db.create_import_job(
+                        species_file=species_file,
+                        model=model,
+                        system_template=system_template,
+                        user_template=user_template,
+                        binomial_name=binomial_name,
+                        status=status,
+                        result=json.dumps(parsed_result) if parsed_result else result_json,
+                        error=row.get('error'),
+                        knowledge_group=knowledge_group,
+                        **phenotype_data
+                    )
+                    
+                    imported += 1
+                    
+                except Exception as e:
+                    validation_errors.append(f"Row {idx+1}: {str(e)}")
+                    errors += 1
+            
+            # Auto-register any new models and species files
+            if unique_models or unique_species_files:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                try:
+                    # Add new models to managed_models table
+                    for model in unique_models:
+                        cursor.execute("INSERT OR IGNORE INTO managed_models (model) VALUES (?)", (model,))
+                    
+                    # Add new species files to managed_species_files table
+                    for species_file in unique_species_files:
+                        cursor.execute("INSERT OR IGNORE INTO managed_species_files (species_file) VALUES (?)", (species_file,))
+                    
+                    conn.commit()
+                except Exception as e:
+                    # Log but don't fail the import
+                    print(f"Warning: Failed to auto-register models/species files: {e}")
+                finally:
+                    conn.close()
+            
+            return {
+                'total_rows': len(df),
+                'imported': imported,
+                'skipped': skipped,
+                'errors': errors,
+                'validation_errors': validation_errors,
+                'new_models_added': list(unique_models),
+                'new_species_files_added': list(unique_species_files)
+            }
+            
+        except Exception as e:
+            return {
+                'total_rows': 0,
+                'imported': 0,
+                'skipped': 0,
+                'errors': 1,
+                'error_message': str(e),
+                'validation_errors': [str(e)]
+            }
+    
     def _rerun_single_species(self, combination_id, species_name, model, system_template, user_template):
         """Re-run a single species in a separate thread"""
         thread = threading.Thread(
@@ -2017,6 +2170,39 @@ def import_csv():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/import_csv_validated', methods=['POST'])
+def import_csv_validated():
+    """Import results from uploaded CSV file with validation"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    template_name = request.form.get('template')
+    template_type = request.form.get('template_type')
+    
+    try:
+        # Read CSV content
+        content = file.read().decode('utf-8')
+        import_results = processing_manager.import_results_validated(content, template_name, template_type)
+        
+        return jsonify({
+            'success': True,
+            'total_rows': import_results['total_rows'],
+            'imported': import_results['imported'],
+            'skipped': import_results['skipped'],
+            'errors': import_results['errors'],
+            'validation_errors': import_results.get('validation_errors', [])
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'validation_errors': [str(e)]
+        }), 500
+
 @app.route('/api/export_csv')
 def export_csv_api():
     """Export results as CSV with flexible filtering"""
@@ -2454,6 +2640,48 @@ def templates_page():
                         pass
     
     return render_template('view_template.html', template_data=template_data)
+
+@app.route('/api/templates')
+def get_templates_api():
+    """Get all available templates with validation configs"""
+    try:
+        # Get templates from disk
+        project_root = Path(__file__).parent.parent
+        template_dir = project_root / 'templates'
+        
+        templates = []
+        
+        # Find all user templates (these are what users select)
+        user_dir = template_dir / 'user'
+        if user_dir.exists():
+            for template_file in user_dir.glob('*.txt'):
+                template_name = template_file.name
+                templates.append({
+                    'name': template_name,
+                    'path': str(template_file),
+                    'type': detect_template_type(str(template_file))
+                })
+            
+            # Also check for markdown templates
+            for template_file in user_dir.glob('*.md'):
+                template_name = template_file.name
+                templates.append({
+                    'name': template_name,
+                    'path': str(template_file),
+                    'type': detect_template_type(str(template_file))
+                })
+        
+        # Get validation configs
+        from microbellm.template_config import get_all_template_validation_configs
+        validation_configs = get_all_template_validation_configs()
+        
+        return jsonify({
+            'success': True,
+            'templates': templates,
+            'validation_configs': validation_configs
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/view_template/<template_type>/<template_name>')
 def view_template_single(template_type, template_name):
