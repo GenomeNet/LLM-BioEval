@@ -104,8 +104,8 @@ class ProcessingManager:
         print(f"Processing {job_summary['total']} species with {job_summary['model']}")
         print(f"Using {self.max_concurrent_requests} concurrent workers")
         
-        # Get pending species
-        pending_species = self.unified_db.get_pending_species(job_id, limit=1000)
+        # Get all pending species (no limit)
+        pending_species = self.unified_db.get_pending_species(job_id)
         
         # Read templates
         try:
@@ -199,7 +199,7 @@ class ProcessingManager:
                         socketio.emit('progress_update', {
                             'combination_id': job_id,
                             'submitted': progress,
-                            'total': len(pending_species),
+                            'total': job_summary['total'],  # Use actual total from job summary
                             'successful': successful,
                             'failed': failed,
                             'timeouts': 0
@@ -547,8 +547,10 @@ class ProcessingManager:
         
         return sorted(user_templates)
     
-    def process_job_unified(self, job_id):
-        """Process a single job with proper error handling and status updates"""
+    # DEPRECATED: This method contains old buggy code and is not used anywhere
+    # Use run_job() instead which has the correct implementation
+    def process_job_unified_DEPRECATED(self, job_id):
+        """DEPRECATED: Process a single job with proper error handling and status updates"""
         try:
             # Update job status to running
             self.unified_db.update_job_status(job_id, 'running', 'job_started_at')
@@ -650,25 +652,16 @@ class ProcessingManager:
                 species_list = df['binomial_name'].tolist()
                 print(f"  Found {len(species_list)} species to process")
                 
-                system_prompt = read_template_from_file(system_template)
-                user_prompt = read_template_from_file(user_template)
-                print(f"  Successfully loaded templates")
-                
-                # Update total species count
-                cursor.execute("UPDATE combinations SET total_species = ? WHERE id = ?", 
-                             (len(species_list), combination_id))
-                conn.commit()
-                
             except Exception as e:
-                error_msg = f"Error reading files for combination {combination_id}: {str(e)}"
+                error_msg = f"Error reading files for job {job_id}: {str(e)}"
                 print(f"ERROR: {error_msg}")
-                cursor.execute("UPDATE combinations SET status = 'failed' WHERE id = ?", (combination_id,))
-                conn.commit()
+                self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
                 # Emit error to frontend
-                socketio.emit('job_error', {
-                    'combination_id': combination_id,
-                    'error': error_msg
-                })
+                if socketio:
+                    socketio.emit('job_error', {
+                        'combination_id': job_id,
+                        'error': error_msg
+                    })
                 return
             
             # Process species with rate limiting and concurrent execution
@@ -1031,19 +1024,20 @@ class ProcessingManager:
                 WHERE job_id = ? AND status IN ('failed', 'timeout')
             """, (combination_id,))
             
-            # Reset job status to pending
-            cursor.execute("""
-                UPDATE processing_results 
-                SET job_status = 'pending'
-                WHERE job_id = ?
-            """, (combination_id,))
+            # Get the count of reset species
+            reset_count = cursor.rowcount
             
             conn.commit()
             conn.close()
             
-            # Add to processing queue
-            self.add_combination(combination_id)
-            return True, "Combination restarted successfully"
+            if reset_count == 0:
+                return False, "No failed or timeout species to restart"
+            
+            # Start processing immediately
+            if self.start_job_async(combination_id):
+                return True, f"Restarted processing for {reset_count} failed species"
+            else:
+                return False, "Failed to start the job"
             
         except Exception as e:
             return False, str(e)
@@ -2000,6 +1994,178 @@ def restart_combination_api(combination_id):
         return jsonify({'success': True, 'message': message})
     else:
         return jsonify({'success': False, 'error': message}), 500
+
+@app.route('/api/restart_failed/<combination_id>', methods=['POST'])
+def restart_failed_api(combination_id):
+    """Restart only failed and timeout species for a job"""
+    try:
+        # Get count of failed/timeout species before restart
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM processing_results 
+            WHERE job_id = ? AND status IN ('failed', 'timeout')
+        """, (combination_id,))
+        reset_count = cursor.fetchone()[0]
+        conn.close()
+        
+        if reset_count == 0:
+            return jsonify({'success': False, 'error': 'No failed or timeout species to restart'}), 400
+        
+        # Use existing restart_combination method
+        success, message = processing_manager.restart_combination(combination_id)
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'reset_count': reset_count
+            })
+        else:
+            return jsonify({'success': False, 'error': message}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/check_missing_species/<combination_id>')
+def check_missing_species_api(combination_id):
+    """Check for missing species in a job"""
+    try:
+        # Get job info
+        job_summary = processing_manager.unified_db.get_job_summary(combination_id)
+        if not job_summary:
+            return jsonify({'success': False, 'error': 'Job not found'}), 404
+        
+        # Get current species in the job
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT binomial_name 
+            FROM processing_results 
+            WHERE job_id = ?
+        """, (combination_id,))
+        current_species = set(row[0] for row in cursor.fetchall())
+        current_count = len(current_species)
+        conn.close()
+        
+        # Read the species file to get expected species
+        species_file = job_summary['species_file']
+        species_path = Path(config.SPECIES_DIR) / species_file
+        
+        # Try to find the file
+        if not species_path.exists():
+            from microbellm.shared import PROJECT_ROOT
+            species_path = PROJECT_ROOT / config.SPECIES_DIR / species_file
+            
+        if not species_path.exists():
+            return jsonify({'success': False, 'error': f'Species file not found: {species_file}'}), 404
+        
+        # Read species from file
+        df = pd.read_csv(species_path)
+        
+        # Find binomial_name column
+        binomial_col = None
+        for col in df.columns:
+            if col.lower().replace(' ', '_') in ['binomial_name', 'species', 'taxon_name', 'organism', 'species_name']:
+                binomial_col = col
+                break
+        
+        if not binomial_col:
+            return jsonify({'success': False, 'error': 'No binomial_name column found in species file'}), 400
+        
+        expected_species = set(df[binomial_col].dropna().tolist())
+        expected_count = len(expected_species)
+        
+        # Find missing species
+        missing_species = expected_species - current_species
+        missing_count = len(missing_species)
+        
+        return jsonify({
+            'success': True,
+            'current_count': current_count,
+            'expected_count': expected_count,
+            'missing_count': missing_count,
+            'missing_species': list(missing_species)[:10]  # Show first 10 as example
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/add_missing_species/<combination_id>', methods=['POST'])
+def add_missing_species_api(combination_id):
+    """Add missing species to a job"""
+    try:
+        # First check what's missing
+        check_response = check_missing_species_api(combination_id)
+        check_data = check_response.get_json() if hasattr(check_response, 'get_json') else check_response[0].get_json()
+        
+        if not check_data['success']:
+            return jsonify(check_data), 400
+        
+        if check_data['missing_count'] == 0:
+            return jsonify({'success': False, 'error': 'No missing species to add'}), 400
+        
+        # Get job info
+        job_summary = processing_manager.unified_db.get_job_summary(combination_id)
+        
+        # Add missing species to the job
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get missing species list again (full list)
+        cursor.execute("""
+            SELECT DISTINCT binomial_name 
+            FROM processing_results 
+            WHERE job_id = ?
+        """, (combination_id,))
+        current_species = set(row[0] for row in cursor.fetchall())
+        
+        # Read the species file again
+        species_file = job_summary['species_file']
+        species_path = Path(config.SPECIES_DIR) / species_file
+        
+        if not species_path.exists():
+            from microbellm.shared import PROJECT_ROOT
+            species_path = PROJECT_ROOT / config.SPECIES_DIR / species_file
+            
+        df = pd.read_csv(species_path)
+        
+        # Find binomial_name column
+        binomial_col = None
+        for col in df.columns:
+            if col.lower().replace(' ', '_') in ['binomial_name', 'species', 'taxon_name', 'organism', 'species_name']:
+                binomial_col = col
+                break
+                
+        expected_species = set(df[binomial_col].dropna().tolist())
+        missing_species = expected_species - current_species
+        
+        # Insert missing species
+        added_count = 0
+        for species in missing_species:
+            cursor.execute("""
+                INSERT INTO processing_results 
+                (job_id, species_file, model, system_template, user_template, 
+                 binomial_name, status, job_status)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+            """, (combination_id, job_summary['species_file'], job_summary['model'], 
+                  job_summary['system_template'], job_summary['user_template'], 
+                  species, job_summary['job_status']))
+            added_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        # Start processing the job
+        processing_manager.start_job_async(combination_id)
+        
+        return jsonify({
+            'success': True,
+            'added_count': added_count,
+            'message': f'Added {added_count} missing species and started processing'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/pause_combination/<combination_id>', methods=['POST'])
 def pause_combination_api(combination_id):

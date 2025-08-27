@@ -1,11 +1,11 @@
 # Standard Workflow
 
-First, think through the problem, read the codebase for relevant files, and write a plan to [PROJECTPLAN.md](PROJECTPLAN.md).
-The plan should have a list of todo items that you can check off as you complete them. Before you begin working, check in with me and I will verify the plan. Then, begin working on the todo items, marking them as complete as you go. Please, at every step of the way, just give me a high-level explanation of what changes you made. Make every task and code change as simple as possible. We want to avoid making any massive or complex changes. Every change should impact as little code as possible. Everything is about simplicity. Finally, add a review section to the [PROJECTPLAN.md](PROJECTPLAN.md) file with a summary of the changes you made and any other relevant information.
-
 ## High-level architecture
 - **Frontend**: Flask web application, serving HTML templates and static assets. Main entry point is `microbellm/web_app.py`.
-- **Database**: Uses SQLite (`microbebench.db`) to store results, metadata, and user data. The database is created and managed automatically on first run.
+- **Database**: Dual SQLite database architecture:
+    - `microbellm.db`: Ground truth and reference data (static research data)
+    - `microbellm_jobs.db`: Job processing, results, and operational data
+    - See `docs/database_architecture.md` for detailed schema documentation
 - **Environment & Installation**: Setup is managed via `install.sh`, which:
     - Checks for conda and creates a `microbellm` conda environment using `environment.yml`.
     - Installs the package in editable mode (`pip install -e .`).

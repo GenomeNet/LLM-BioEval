@@ -197,6 +197,84 @@
     .phenotype-value {
         color: #333;
     }
+    
+    .results-summary {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+        border: 1px solid #ffc107;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-warning:hover:not(:disabled) {
+        background-color: #e0a800;
+        border-color: #d39e00;
+    }
+    
+    .btn-warning:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        border: 1px solid #007bff;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        background-color: #0056b3;
+        border-color: #004085;
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn-info {
+        background-color: #17a2b8;
+        color: white;
+        border: 1px solid #17a2b8;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-info:hover:not(:disabled) {
+        background-color: #138496;
+        border-color: #117a8b;
+    }
+    
+    .btn-info:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 </style>
 
 <script>
@@ -258,14 +336,46 @@ document.addEventListener('DOMContentLoaded', function() {
             const results = data.all_results || data.species_results || [];
             const isKnowledge = data.template_type === 'knowledge';
             
+            // Sort results to show failed ones first
+            results.sort((a, b) => {
+                const statusOrder = {'failed': 0, 'timeout': 1, 'pending': 2, 'completed': 3};
+                return (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
+            });
+            
             // Add summary if we have combination_info
             let summaryHTML = '';
             if (data.combination_info) {
+                const hasFailed = data.combination_info.failed_species > 0 || data.combination_info.timeout_species > 0;
+                const pendingCount = data.combination_info.total_species - data.combination_info.successful_species - data.combination_info.failed_species - data.combination_info.timeout_species;
+                const hasPending = pendingCount > 0;
+                
+                console.log('Debug - Counts:', {
+                    total: data.combination_info.total_species,
+                    successful: data.combination_info.successful_species,
+                    failed: data.combination_info.failed_species,
+                    timeout: data.combination_info.timeout_species,
+                    calculated_pending: pendingCount
+                });
+                
                 summaryHTML = `<div class="results-summary" style="margin-bottom: 20px;">
-                    <strong>Total:</strong> ${data.combination_info.total_species} | 
-                    <strong>Successful:</strong> ${data.combination_info.successful_species} | 
-                    <strong>Failed:</strong> ${data.combination_info.failed_species} | 
-                    <strong>Timeouts:</strong> ${data.combination_info.timeout_species}
+                    <div>
+                        <strong>Total:</strong> ${data.combination_info.total_species} | 
+                        <strong>Successful:</strong> ${data.combination_info.successful_species} | 
+                        <strong>Failed:</strong> ${data.combination_info.failed_species} | 
+                        <strong>Timeouts:</strong> ${data.combination_info.timeout_species}
+                        ${hasPending ? ` | <strong>Pending:</strong> ${pendingCount}` : ''}
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        ${hasFailed ? `<button class="btn btn-warning" onclick="restartFailed('${combinationId}')">
+                            <i class="fas fa-redo"></i> Restart Failed (${data.combination_info.failed_species + data.combination_info.timeout_species})
+                        </button>` : ''}
+                        ${hasPending ? `<button class="btn btn-primary" onclick="processPending('${combinationId}')">
+                            <i class="fas fa-play"></i> Process Pending (${pendingCount})
+                        </button>` : ''}
+                        <button class="btn btn-info" onclick="checkMissingSpecies('${combinationId}')">
+                            <i class="fas fa-search"></i> Check Missing Species
+                        </button>
+                    </div>
                 </div>`;
             }
             
@@ -444,6 +554,142 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closeModal();
     }
+}
+
+// Function to restart failed samples
+function restartFailed(combinationId) {
+    if (!confirm('Are you sure you want to restart processing for all failed and timeout species?')) {
+        return;
+    }
+    
+    const button = event.target;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restarting...';
+    
+    fetch(`/api/restart_failed/${combinationId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully restarted ${data.reset_count} failed species. The job is now running.`);
+            // Reload the page to show updated status
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(`Error: ${data.error}`);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-redo"></i> Restart Failed';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to restart processing');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-redo"></i> Restart Failed';
+    });
+}
+
+// Function to process pending samples
+function processPending(combinationId) {
+    if (!confirm('Are you sure you want to process all pending species?')) {
+        return;
+    }
+    
+    const button = event.target;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+    
+    // Use the start_combination endpoint to process pending species
+    fetch(`/api/start_combination/${combinationId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Successfully started processing pending species. The job is now running.');
+            // Reload the page to show updated status
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(`Error: ${data.error}`);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-play"></i> Process Pending';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to start processing');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-play"></i> Process Pending';
+    });
+}
+
+// Function to check for missing species
+function checkMissingSpecies(combinationId) {
+    const button = event.target;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+    
+    fetch(`/api/check_missing_species/${combinationId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.missing_count > 0) {
+                const message = `Found ${data.missing_count} missing species.\n` +
+                               `Expected: ${data.expected_count} species\n` +
+                               `Current: ${data.current_count} species\n\n` +
+                               `Do you want to add the missing species to this job?`;
+                
+                if (confirm(message)) {
+                    // Add missing species
+                    addMissingSpecies(combinationId, button);
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+                }
+            } else {
+                alert('No missing species found. All expected species are in the job.');
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+            }
+        } else {
+            alert(`Error: ${data.error}`);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to check missing species');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+    });
+}
+
+// Function to add missing species
+function addMissingSpecies(combinationId, button) {
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding missing species...';
+    
+    fetch(`/api/add_missing_species/${combinationId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully added ${data.added_count} missing species. Starting processing...`);
+            // Reload the page to show updated status
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(`Error: ${data.error}`);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to add missing species');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-search"></i> Check Missing Species';
+    });
 }
 </script>
 {% endblock %}

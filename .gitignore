@@ -6,5 +6,9 @@ __pycache__/
 .DS_Store
 .env
 *.log
-# Allow the main database with data
-!microbellm_jobs.db
+# Database files (generated locally)
+microbellm_jobs.db
+microbellm.db
+*.db
+# Local cleanup folder
+attic/

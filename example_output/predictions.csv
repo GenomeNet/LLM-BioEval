@@ -1,4 +1,0 @@
-Acetivibrio ethanolgignens;0;gram stain negative;TRUE;['anaerobic'];FALSE;FALSE;FALSE;biosafety level 1;FALSE;FALSE;FALSE;TRUE;non-hemolytic;bacillus;openai/chatgpt-4o-latest;templates/system/template1.txt;2024-09-02 21:21:41
-Akkermansia muciniphila;0;gram stain negative;FALSE;['anaerobic'];FALSE;FALSE;FALSE;biosafety level 1;TRUE;TRUE;FALSE;FALSE;non-hemolytic;bacillus;openai/chatgpt-4o-latest;templates/system/template1.txt;2024-09-02 21:21:44
-Acetivibrio alkalicellulosi;0;gram stain negative;TRUE;['anaerobic'];TRUE;FALSE;FALSE;biosafety level 1;FALSE;FALSE;FALSE;TRUE;non-hemolytic;bacillus;openai/chatgpt-4o-latest;templates/system/template1.txt;2024-09-02 21:21:47
-Lutimonas vermicola;0;gram stain negative;TRUE;['aerobic'];FALSE;TRUE;FALSE;biosafety level 1;FALSE;FALSE;FALSE;FALSE;non-hemolytic;bacillus;openai/chatgpt-4o-latest;templates/system/template1.txt;2024-09-02 21:21:51

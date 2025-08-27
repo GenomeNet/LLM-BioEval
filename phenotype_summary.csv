@@ -1,5 +1,0 @@
-Phenotype,Type,Dataset,Total_Species,Annotated_Species,Missing_Species,Annotation_Fraction_Percent,TRUE_count,FALSE_count
-Motility,Binary,WA,3876,2977,899,76.8,1385,1592
-Motility,Binary,LA,15257,6530,8727,42.8,2792,3738
-Spore formation,Binary,WA,3876,3642,234,94.0,868,2774
-Spore formation,Binary,LA,15257,11963,3294,78.4,2514,9449

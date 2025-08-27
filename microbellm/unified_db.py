@@ -273,17 +273,24 @@ class UnifiedDB:
         finally:
             conn.close()
     
-    def get_pending_species(self, job_id: str, limit: int = 10) -> List[Dict]:
+    def get_pending_species(self, job_id: str, limit: int = None) -> List[Dict]:
         """Get pending species for processing"""
         conn = get_db_connection(self.db_path)
         cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT binomial_name, species_file, model, system_template, user_template
-            FROM processing_results
-            WHERE job_id = ? AND status = 'pending'
-            LIMIT ?
-        """, (job_id, limit))
+        if limit:
+            cursor.execute("""
+                SELECT binomial_name, species_file, model, system_template, user_template
+                FROM processing_results
+                WHERE job_id = ? AND status = 'pending'
+                LIMIT ?
+            """, (job_id, limit))
+        else:
+            cursor.execute("""
+                SELECT binomial_name, species_file, model, system_template, user_template
+                FROM processing_results
+                WHERE job_id = ? AND status = 'pending'
+            """, (job_id,))
         
         results = [dict(row) for row in cursor.fetchall()]
         conn.close()
