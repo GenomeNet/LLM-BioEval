@@ -1,0 +1,108 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ section.id }} - Debug Viewer{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div style="padding: 20px;">
+        <h1 style="margin-bottom: 20px;">{{ section.id }} - Debug View</h1>
+
+        <!-- Debug Information Panel -->
+        <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+            <h2 style="margin-top: 0; color: #374151;">Debug Information</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h3 style="color: #6b7280; margin-bottom: 10px;">Section Properties</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>ID:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ section.id }}</td></tr>
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Type:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ section.type }}</td></tr>
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>File:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ section.file or 'N/A' }}</td></tr>
+                        {% if section.title %}<tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Title:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ section.title }}</td></tr>{% endif %}
+                        {% if section.text %}<tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Text:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ section.text }}</td></tr>{% endif %}
+                    </table>
+                </div>
+
+                <div>
+                    <h3 style="color: #6b7280; margin-bottom: 10px;">Page Information</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Page:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ page }}</td></tr>
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Project:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ project.id if project else 'N/A' }}</td></tr>
+                        <tr><td style="padding: 4px 8px; border: 1px solid #d1d5db; background: #f9fafb;"><strong>Color Theme:</strong></td><td style="padding: 4px 8px; border: 1px solid #d1d5db;">{{ manifest.page_config.color_theme }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Template Source (if available) -->
+        {% if section_raw_content %}
+        <div style="background: #1f2937; color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+            <h2 style="margin-top: 0; color: #f3f4f6;">Raw Template Source</h2>
+            <pre style="margin: 0; overflow-x: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.5;">{{ section_raw_content }}</pre>
+        </div>
+        {% endif %}
+
+        <!-- Rendered Component -->
+        <div style="border: 2px dashed #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 20px; position: relative;">
+            <div style="position: absolute; top: -12px; left: 20px; background: white; padding: 0 8px; color: #ef4444; font-weight: 600;">
+                COMPONENT BOUNDARY
+            </div>
+
+            {% if section.title %}
+                <h2 style="margin-top: 0; color: #374151;">{{ section.title }}</h2>
+            {% endif %}
+
+            {% if section.text %}
+                <p style="color: #6b7280; margin-bottom: 20px;">{{ section.text }}</p>
+            {% endif %}
+
+            <!-- Component Content -->
+            {% if section.type == 'article' %}
+                <article class="article-container">
+                    <div class="article-content">
+                        <div class="article-text">
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
+                </article>
+
+            {% elif section.type in ['section_callout', 'section_callout_dynamic'] %}
+                <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+                    <div class="section-callout__content">
+                        {% if section.title or section.text %}
+                        <div class="section-callout__header">
+                            {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                            {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% include 'research/' + page + '/' + section.file %}
+                    </div>
+                </section>
+
+            {% elif section.type == 'hero' %}
+                {% include 'research/' + page + '/' + section.file %}
+
+            {% else %}
+                <!-- Raw include for other component types -->
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px; padding: 12px; margin: 10px 0;">
+                    <strong>Debug:</strong> Unknown section type "<code>{{ section.type }}</code>" - including raw content:
+                </div>
+                {% include 'research/' + page + '/' + section.file %}
+            {% endif %}
+        </div>
+
+        <!-- Navigation -->
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="{{ url_for('components_index') }}" style="color: #6366f1; text-decoration: none; margin-right: 20px;">
+                ← Back to Components
+            </a>
+            <a href="/{{ page }}" style="color: #6366f1; text-decoration: none; margin-right: 20px;">
+                View Full Page →
+            </a>
+            <a href="{{ url_for('view_component', page=page, section_id=section.id, simple='false') }}" style="color: #059669; text-decoration: none;">
+                Simple View
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

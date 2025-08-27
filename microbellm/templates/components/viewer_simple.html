@@ -1,0 +1,63 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ section.id }} - Component Viewer{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div style="padding: 20px;">
+        <h1 style="margin-bottom: 20px;">{{ section.id }}</h1>
+
+        <!-- Simple view without boundaries -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background: white;">
+            {% if section.title %}
+                <h2 style="margin-top: 0; color: #374151;">{{ section.title }}</h2>
+            {% endif %}
+
+            {% if section.text %}
+                <p style="color: #6b7280; margin-bottom: 20px;">{{ section.text }}</p>
+            {% endif %}
+
+            <!-- Component Content -->
+            {% if section.type == 'article' %}
+                <article class="article-container">
+                    <div class="article-content">
+                        <div class="article-text">
+                            {% include 'research/' + page + '/' + section.file %}
+                        </div>
+                    </div>
+                </article>
+
+            {% elif section.type in ['section_callout', 'section_callout_dynamic'] %}
+                <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
+                    <div class="section-callout__content">
+                        {% if section.title or section.text %}
+                        <div class="section-callout__header">
+                            {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}
+                            {% if section.text %}<p class="section-callout__text">{{ section.text }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% include 'research/' + page + '/' + section.file %}
+                    </div>
+                </section>
+
+            {% elif section.type == 'hero' %}
+                {% include 'research/' + page + '/' + section.file %}
+
+            {% else %}
+                <!-- Raw include for other component types -->
+                {% include 'research/' + page + '/' + section.file %}
+            {% endif %}
+        </div>
+
+        <!-- Navigation -->
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="{{ url_for('components_index') }}" style="color: #6366f1; text-decoration: none; margin-right: 20px;">
+                ← Back to Components
+            </a>
+            <a href="/{{ page }}" style="color: #6366f1; text-decoration: none;">
+                View Full Page →
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
