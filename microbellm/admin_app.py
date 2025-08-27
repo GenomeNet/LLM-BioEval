@@ -34,16 +34,57 @@ from microbellm.utils import (
 from microbellm.predict import predict_binomial_name
 from microbellm import config
 from microbellm.unified_db import UnifiedDB
-from microbellm.unified_db import UnifiedDB
+
+# Database connection context manager
+class DatabaseConnection:
+    """Context manager for database connections to ensure proper cleanup"""
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.conn = None
+        self.cursor = None
+
+    def __enter__(self):
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        return self.conn, self.cursor
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.cursor:
+                self.cursor.close()
+        except Exception:
+            pass  # Ignore cursor close errors
+        try:
+            if self.conn:
+                self.conn.close()
+        except Exception:
+            pass  # Ignore connection close errors
 
 # Create Flask app for admin
-app = Flask(__name__, 
-    static_folder='static', 
+app = Flask(__name__,
+    static_folder='static',
     static_url_path='/static',
     template_folder='templates'
 )
 app.config['SECRET_KEY'] = 'microbellm-admin-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+def safe_socketio_emit(event, data, **kwargs):
+    """Safely emit SocketIO events with error handling"""
+    try:
+        if socketio:
+            socketio.emit(event, data, **kwargs)
+    except Exception as e:
+        # Log the error but don't crash the application
+        print(f"Warning: SocketIO emit failed for event '{event}': {e}")
+        # Don't re-raise the exception to prevent crashes
+
+def get_processing_manager():
+    """Safely get the processing manager with proper error handling"""
+    global processing_manager
+    if processing_manager is None:
+        raise RuntimeError("Processing manager not initialized. Please restart the application.")
+    return processing_manager
 
 # Global variables for job management
 processing_manager = None
@@ -62,6 +103,7 @@ class ProcessingManager:
         self.paused_combinations = set()
         self.running_combinations = {}  # Track running combinations
         self.rate_limit_lock = threading.Lock()
+        self.combination_lock = threading.Lock()  # Lock for combination state changes
         self.request_times = []  # Track request times for rate limiting
         init_database(db_path)
     
@@ -82,7 +124,23 @@ class ProcessingManager:
         if self.executor is None:
             self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_requests)
         return self.executor
-    
+
+    def cleanup(self):
+        """Clean up resources - shutdown executor and close connections"""
+        try:
+            if self.executor:
+                print("Shutting down thread pool executor...")
+                self.executor.shutdown(wait=True, timeout=30)
+                self.executor = None
+        except Exception as e:
+            print(f"Warning: Error shutting down executor: {e}")
+        finally:
+            # Clear any remaining state (thread-safe)
+            with self.combination_lock:
+                self.stopped_combinations.clear()
+                self.paused_combinations.clear()
+                self.running_combinations.clear()
+
     def process_queue(self):
         """Process queued jobs if there's capacity"""
         # This is a placeholder - implement if queue processing is needed
@@ -111,8 +169,12 @@ class ProcessingManager:
         try:
             system_prompt = read_template_from_file(job_summary['system_template'])
             user_prompt = read_template_from_file(job_summary['user_template'])
+        except (FileNotFoundError, PermissionError, IOError) as e:
+            print(f"ERROR reading template files: {e}")
+            self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
+            return False
         except Exception as e:
-            print(f"ERROR reading templates: {e}")
+            print(f"ERROR processing templates: {e}")
             self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
             return False
         
@@ -194,16 +256,15 @@ class ProcessingManager:
                         failed += 1
                     
                     # Emit progress update
-                    if socketio:
-                        progress = successful + failed
-                        socketio.emit('progress_update', {
-                            'combination_id': job_id,
-                            'submitted': progress,
-                            'total': job_summary['total'],  # Use actual total from job summary
-                            'successful': successful,
-                            'failed': failed,
-                            'timeouts': 0
-                        })
+                    progress = successful + failed
+                    safe_socketio_emit('progress_update', {
+                        'combination_id': job_id,
+                        'submitted': progress,
+                        'total': job_summary['total'],  # Use actual total from job summary
+                        'successful': successful,
+                        'failed': failed,
+                        'timeouts': 0
+                    })
             except Exception as e:
                 print(f"Future error: {e}")
                 with results_lock:
@@ -211,10 +272,22 @@ class ProcessingManager:
         
         # Update job status
         if failed == 0:
+            final_status = 'completed'
             self.unified_db.update_job_status(job_id, 'completed', 'job_completed_at')
         else:
-            self.unified_db.update_job_status(job_id, 'completed', 'job_completed_at')  # Still completed, but with some failures
-        
+            final_status = 'completed'  # Still completed, but with some failures
+            self.unified_db.update_job_status(job_id, 'completed', 'job_completed_at')
+
+        # Notify frontend of job completion
+        safe_socketio_emit('job_update', {
+            'combination_id': job_id,
+            'status': final_status,
+            'successful': successful,
+            'failed': failed,
+            'timeouts': 0,
+            'total': job_summary['total']
+        })
+
         print(f"\nJob completed: {successful} successful, {failed} failed")
         return True
     
@@ -336,37 +409,38 @@ class ProcessingManager:
     
     def get_all_jobs(self):
         """Get list of all jobs with summary info"""
-        conn = sqlite3.connect(self.unified_db.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT 
-                job_id,
-                species_file,
-                model,
-                system_template,
-                user_template,
-                job_status,
-                job_created_at,
-                job_started_at,
-                job_completed_at,
-                COUNT(*) as total_species,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running
-            FROM processing_results
-            GROUP BY job_id
-            ORDER BY job_created_at DESC
-        """)
-        
-        jobs = []
-        for row in cursor.fetchall():
-            job = dict(row)
-            jobs.append(job)
-        
-        conn.close()
-        return jobs
+        try:
+            with DatabaseConnection(self.unified_db.db_path) as (conn, cursor):
+                cursor.execute("""
+                    SELECT
+                        job_id,
+                        species_file,
+                        model,
+                        system_template,
+                        user_template,
+                        job_status,
+                        job_created_at,
+                        job_started_at,
+                        job_completed_at,
+                        COUNT(*) as total_species,
+                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running
+                    FROM processing_results
+                    GROUP BY job_id
+                    ORDER BY job_created_at DESC
+                """)
+
+                jobs = []
+                for row in cursor.fetchall():
+                    job = dict(row)
+                    jobs.append(job)
+
+                return jobs
+        except Exception as e:
+            print(f"Error getting all jobs: {e}")
+            return []
     
     def get_job_results(self, job_id):
         """Get detailed results for a specific job"""
@@ -509,15 +583,15 @@ class ProcessingManager:
     
     def get_available_species_files(self):
         """Get list of available species files"""
-        conn = sqlite3.connect(self.unified_db.db_path)
-        cursor = conn.cursor()
-        
-        # Get species files from managed_species_files table
-        cursor.execute("SELECT species_file FROM managed_species_files ORDER BY species_file")
-        species_files = [row[0] for row in cursor.fetchall()]
-        
-        conn.close()
-        return species_files
+        try:
+            with DatabaseConnection(self.unified_db.db_path) as (conn, cursor):
+                # Get species files from managed_species_files table
+                cursor.execute("SELECT species_file FROM managed_species_files ORDER BY species_file")
+                species_files = [row[0] for row in cursor.fetchall()]
+                return species_files
+        except Exception as e:
+            print(f"Error getting available species files: {e}")
+            return []
     
     def get_available_system_templates(self):
         """Get list of available system templates"""
@@ -547,9 +621,7 @@ class ProcessingManager:
         
         return sorted(user_templates)
     
-    # DEPRECATED: This method contains old buggy code and is not used anywhere
-    # Use run_job() instead which has the correct implementation
-    def process_job_unified_DEPRECATED(self, job_id):
+    # Removed deprecated function with buggy code - use run_job() instead
         """DEPRECATED: Process a single job with proper error handling and status updates"""
         try:
             # Update job status to running
@@ -657,11 +729,10 @@ class ProcessingManager:
                 print(f"ERROR: {error_msg}")
                 self.unified_db.update_job_status(job_id, 'failed', 'job_completed_at')
                 # Emit error to frontend
-                if socketio:
-                    socketio.emit('job_error', {
-                        'combination_id': job_id,
-                        'error': error_msg
-                    })
+                safe_socketio_emit('job_error', {
+                    'combination_id': job_id,
+                    'error': error_msg
+                })
                 return
             
             # Process species with rate limiting and concurrent execution
@@ -688,14 +759,20 @@ class ProcessingManager:
             
             # Process results as they complete and submit new ones
             while futures or species_index < len(species_list):
-                # Check if stopped
-                if job_id in self.stopped_combinations:
+                # Check if stopped (thread-safe)
+                with self.combination_lock:
+                    is_stopped = job_id in self.stopped_combinations
+                if is_stopped:
                     self.unified_db.update_job_status(job_id, 'interrupted', 'job_completed_at')
                     break
-                    
-                # Check if paused
-                while job_id in self.paused_combinations:
+
+                # Check if paused (thread-safe)
+                with self.combination_lock:
+                    is_paused = job_id in self.paused_combinations
+                while is_paused:
                     time.sleep(1)
+                    with self.combination_lock:
+                        is_paused = job_id in self.paused_combinations
                 
                 # Process completed futures
                 completed_futures = []
@@ -792,7 +869,7 @@ class ProcessingManager:
                 
                 # Emit progress update
                 submitted = species_index
-                socketio.emit('progress_update', {
+                safe_socketio_emit('progress_update', {
                     'combination_id': combination_id,
                     'submitted': submitted,
                     'total': total_species,
@@ -895,7 +972,7 @@ class ProcessingManager:
             conn.commit()
             
             # Final update
-            socketio.emit('job_update', {
+            safe_socketio_emit('job_update', {
                 'combination_id': combination_id,
                 'status': final_status,
                 'successful': successful,
@@ -913,10 +990,11 @@ class ProcessingManager:
         finally:
             if conn:
                 conn.close()
-            # Remove from running combinations
-            self.running_combinations.pop(combination_id, None)
-            self.stopped_combinations.discard(combination_id)
-            self.paused_combinations.discard(combination_id)
+            # Remove from running combinations (thread-safe)
+            with self.combination_lock:
+                self.running_combinations.pop(combination_id, None)
+                self.stopped_combinations.discard(combination_id)
+                self.paused_combinations.discard(combination_id)
             # Process next in queue
             self.process_queue()
     
@@ -957,17 +1035,24 @@ class ProcessingManager:
         # Temporarily disable rate limiting for better performance
         # The API provider (OpenRouter) has its own rate limiting
         return
-        
-        # Original implementation commented out:
+
+        # Fixed implementation (commented out but ready for future use):
         # if self.requests_per_second <= 0:
         #     return
-        # 
+        #
         # with self.rate_limit_lock:
         #     current_time = time.time()
-        #     
-        #     # Remove old request times (older than 1 second)
-        #     self.request_times = [t for t in self.request_times if current_time - t < 1.0]
-        #     
+        #
+        #     # Remove old request times (older than 1 second) and limit list size
+        #     cutoff_time = current_time - 1.0
+        #     self.request_times = [t for t in self.request_times if t > cutoff_time]
+        #
+        #     # Prevent memory leak by limiting the list size
+        #     max_list_size = int(self.requests_per_second * 2)  # Keep 2x the rate limit
+        #     if len(self.request_times) >= max_list_size:
+        #         # Remove oldest entries to prevent unbounded growth
+        #         self.request_times = self.request_times[-max_list_size:]
+        #
         #     # Check if we've hit the rate limit
         #     if len(self.request_times) >= self.requests_per_second:
         #         # Calculate how long to wait
@@ -975,11 +1060,13 @@ class ProcessingManager:
         #         sleep_time = 1.0 - (current_time - oldest_request)
         #         if sleep_time > 0:
         #             time.sleep(sleep_time)
-        #             # Remove the oldest request time after sleeping
-        #             self.request_times.pop(0)
-        #     
+        #             # Re-check and remove old entries after sleeping
+        #             current_time = time.time()
+        #             cutoff_time = current_time - 1.0
+        #             self.request_times = [t for t in self.request_times if t > cutoff_time]
+        #
         #     # Add current request time
-        #     self.request_times.append(time.time())
+        #     self.request_times.append(current_time)
     
     def set_rate_limit(self, requests_per_second):
         """Set the rate limit for API requests"""
@@ -1014,21 +1101,20 @@ class ProcessingManager:
                 return False, "Combination not found"
             
             # Reset all failed/timeout species back to pending in unified database
-            conn = sqlite3.connect(self.unified_db.db_path)
-            cursor = conn.cursor()
-            
-            # Reset failed/timeout species to pending
-            cursor.execute("""
-                UPDATE processing_results 
-                SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL
-                WHERE job_id = ? AND status IN ('failed', 'timeout')
-            """, (combination_id,))
-            
-            # Get the count of reset species
-            reset_count = cursor.rowcount
-            
-            conn.commit()
-            conn.close()
+            reset_count = 0
+            with DatabaseConnection(self.unified_db.db_path) as (conn, cursor):
+                # Reset failed/timeout species to pending
+                cursor.execute("""
+                    UPDATE processing_results
+                    SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL
+                    WHERE job_id = ? AND status IN ('failed', 'timeout')
+                """, (combination_id,))
+
+                # Get the count of reset species
+                reset_count = cursor.rowcount
+
+                # Commit the transaction
+                conn.commit()
             
             if reset_count == 0:
                 return False, "No failed or timeout species to restart"
@@ -1266,18 +1352,18 @@ class ProcessingManager:
         """Export results to CSV format with flexible filtering"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
+
         # Build query with dynamic filters
         query = """
-            SELECT r.binomial_name, r.result, r.status, r.error, 
+            SELECT r.binomial_name, r.result, r.status, r.error,
                    r.species_file, r.model, r.system_template, r.user_template,
                    r.knowledge_group,
-                   r.gram_staining, r.motility, r.aerophilicity, 
-                   r.extreme_environment_tolerance, r.biofilm_formation, 
-                   r.animal_pathogenicity, r.biosafety_level, r.health_association, 
-                   r.host_association, r.plant_pathogenicity, r.spore_formation, 
+                   r.gram_staining, r.motility, r.aerophilicity,
+                   r.extreme_environment_tolerance, r.biofilm_formation,
+                   r.animal_pathogenicity, r.biosafety_level, r.health_association,
+                   r.host_association, r.plant_pathogenicity, r.spore_formation,
                    r.hemolysis, r.cell_shape
-            FROM results r
+            FROM processing_results r
             WHERE 1=1
         """
         
@@ -1746,7 +1832,7 @@ class ProcessingManager:
             conn.close()
             
             # Emit update
-            socketio.emit('species_rerun_complete', {
+            safe_socketio_emit('species_rerun_complete', {
                 'combination_id': combination_id,
                 'species_name': species_name,
                 'status': status
@@ -1959,7 +2045,11 @@ def get_available_template_pairs():
 @app.route('/')
 def index():
     """Main dashboard page with table/matrix view"""
-    dashboard_data = processing_manager.get_dashboard_data()
+    try:
+        pm = get_processing_manager()
+        dashboard_data = pm.get_dashboard_data()
+    except RuntimeError as e:
+        return f"Error: {e}", 500
     
     # Add additional data needed for the modals
     dashboard_data['available_species_files'] = get_available_species_files()
@@ -1982,10 +2072,14 @@ def dashboard():
 
 @app.route('/api/start_combination/<combination_id>', methods=['POST'])
 def start_combination_api(combination_id):
-    if processing_manager.start_combination(combination_id):
-        return jsonify({'success': True, 'message': f'Combination {combination_id} started successfully.'})
-    else:
-        return jsonify({'success': False, 'error': 'Failed to start combination'}), 500
+    try:
+        pm = get_processing_manager()
+        if pm.start_combination(combination_id):
+            return jsonify({'success': True, 'message': f'Combination {combination_id} started successfully.'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to start combination'}), 500
+    except RuntimeError as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/restart_combination/<combination_id>', methods=['POST'])
 def restart_combination_api(combination_id):
@@ -2203,10 +2297,50 @@ def get_settings():
         'queue_length': len(processing_manager.job_queue)
     })
 
+@app.route('/api/models')
+def get_models_api():
+    """Get list of available models"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT model FROM managed_models ORDER BY model")
+        models = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(models)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'success': False
+        }), 500
+
+
+@app.route('/api/species_files')
+def get_species_files_api():
+    """Get list of available species files"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT species_file FROM managed_species_files ORDER BY species_file")
+        species_files = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(species_files)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'success': False
+        }), 500
+
+
 @app.route('/api/dashboard_data')
 def get_dashboard_data_api():
-    data = processing_manager.get_dashboard_data()
-    return jsonify(data)
+    try:
+        data = processing_manager.get_dashboard_data()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'success': False
+        }), 500
 
 @app.route('/api/delete_combination/<combination_id>', methods=['DELETE'])
 def delete_combination_api(combination_id):
@@ -2253,35 +2387,40 @@ def database_info_api():
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
+
         # Get all tables
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = [row[0] for row in cursor.fetchall()]
-        
-        db_info = {
-            'database_path': db_path,
-            'tables': {}
-        }
-        
+
+        tables_info = []
+
         for table in tables:
             # Get table info
             cursor.execute(f"PRAGMA table_info({table})")
-            columns = [{'name': row[1], 'type': row[2], 'not_null': bool(row[3]), 'primary_key': bool(row[5])} 
-                      for row in cursor.fetchall()]
-            
+            columns = cursor.fetchall()
+            column_count = len(columns)
+
             # Get row count
             cursor.execute(f"SELECT COUNT(*) FROM {table}")
             row_count = cursor.fetchone()[0]
-            
-            db_info['tables'][table] = {
-                'columns': columns,
-                'row_count': row_count
-            }
-        
+
+            tables_info.append({
+                'name': table,
+                'row_count': row_count,
+                'column_count': column_count
+            })
+
         conn.close()
-        return jsonify(db_info)
+        return jsonify({
+            'success': True,
+            'database_path': db_path,
+            'tables': tables_info
+        })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/table_data/<table_name>')
 def table_data_api(table_name):
@@ -2289,30 +2428,43 @@ def table_data_api(table_name):
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
+
         # Validate table name exists
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
         if not cursor.fetchone():
-            return jsonify({'error': 'Table not found'}), 404
-        
+            return jsonify({
+                'success': False,
+                'error': 'Table not found'
+            }), 404
+
         # Get sample data (first 100 rows)
         cursor.execute(f"SELECT * FROM {table_name} LIMIT 100")
         rows = cursor.fetchall()
-        
+
         # Get column names
         cursor.execute(f"PRAGMA table_info({table_name})")
         columns = [row[1] for row in cursor.fetchall()]
-        
+
         conn.close()
-        
+
+        # Convert rows to objects with column names
+        data = []
+        for row in rows:
+            row_obj = {}
+            for i, col in enumerate(columns):
+                row_obj[col] = row[i]
+            data.append(row_obj)
+
         return jsonify({
+            'success': True,
             'table_name': table_name,
-            'columns': columns,
-            'rows': rows,
-            'sample_size': len(rows)
+            'data': data
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/cleanup_orphaned/<species_file>/<model>/<system_template>/<user_template>', methods=['DELETE'])
 def cleanup_orphaned_results_api(species_file, model, system_template, user_template):
@@ -2352,30 +2504,38 @@ def cleanup_orphaned_results_api(species_file, model, system_template, user_temp
 @app.route('/export')
 def export_page():
     """Export page for downloading results"""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Get unique values from results table (not combinations)
-    cursor.execute("SELECT DISTINCT species_file FROM results ORDER BY species_file")
-    species_files = [row[0] for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT DISTINCT model FROM results ORDER BY model")
-    models = [row[0] for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT DISTINCT system_template, user_template FROM results ORDER BY system_template, user_template")
-    templates = [{'system': row[0], 'user': row[1]} for row in cursor.fetchall()]
-    
-    # Get result count for summary
-    cursor.execute("SELECT COUNT(*) FROM results")
-    total_results = cursor.fetchone()[0]
-    
-    conn.close()
-    
-    return render_template('export.html', 
-                         species_files=species_files, 
-                         models=models, 
-                         templates=templates,
-                         total_results=total_results)
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Get unique values from processing_results table (main table)
+        cursor.execute("SELECT DISTINCT species_file FROM processing_results ORDER BY species_file")
+        species_files = [row[0] for row in cursor.fetchall() if row[0]]
+
+        cursor.execute("SELECT DISTINCT model FROM processing_results ORDER BY model")
+        models = [row[0] for row in cursor.fetchall() if row[0]]
+
+        cursor.execute("SELECT DISTINCT system_template, user_template FROM processing_results ORDER BY system_template, user_template")
+        templates = [{'system': row[0], 'user': row[1]} for row in cursor.fetchall() if row[0] and row[1]]
+
+        # Get result count for summary
+        cursor.execute("SELECT COUNT(*) FROM processing_results")
+        total_results = cursor.fetchone()[0]
+
+        conn.close()
+
+        return render_template('export.html',
+                             species_files=species_files,
+                             models=models,
+                             templates=templates,
+                             total_results=total_results)
+    except Exception as e:
+        print(f"Error loading export page: {e}")
+        return render_template('export.html',
+                             species_files=[],
+                             models=[],
+                             templates=[],
+                             total_results=0)
 
 @app.route('/import')
 def import_page():
@@ -3189,15 +3349,204 @@ def api_delete_ground_truth_dataset(dataset_name):
             'error': str(e)
         })
 
+@app.route('/api/template_field_definitions')
+def api_template_field_definitions():
+    """Get template field definitions with color mappings and value orderings"""
+    template_name = request.args.get('template', '')
+
+    try:
+        # Phenotype template color mappings and configurations
+        phenotype_config = {
+            'field_definitions': {
+                'gram_staining': {
+                    'type': 'string',
+                    'allowed_values': ['Gram stain positive', 'Gram stain negative', 'Gram stain variable'],
+                    'display_name': 'Gram Staining'
+                },
+                'motility': {
+                    'type': 'string',
+                    'allowed_values': ['Motile', 'Non-motile', 'Variable motility'],
+                    'display_name': 'Motility'
+                },
+                'aerophilicity': {
+                    'type': 'string',
+                    'allowed_values': ['Aerobic', 'Anaerobic', 'Facultative anaerobic', 'Microaerophilic'],
+                    'display_name': 'Aerophilicity'
+                },
+                'extreme_environment_tolerance': {
+                    'type': 'string',
+                    'allowed_values': ['Thermophilic', 'Psychrophilic', 'Acidophilic', 'Alkaliphilic', 'Halophilic', 'No extreme tolerance'],
+                    'display_name': 'Extreme Environment Tolerance'
+                },
+                'biofilm_formation': {
+                    'type': 'string',
+                    'allowed_values': ['Biofilm former', 'Non-biofilm former', 'Variable biofilm formation'],
+                    'display_name': 'Biofilm Formation'
+                },
+                'animal_pathogenicity': {
+                    'type': 'string',
+                    'allowed_values': ['Pathogenic', 'Non-pathogenic', 'Opportunistic pathogen'],
+                    'display_name': 'Animal Pathogenicity'
+                },
+                'biosafety_level': {
+                    'type': 'string',
+                    'allowed_values': ['BSL-1', 'BSL-2', 'BSL-3', 'BSL-4'],
+                    'display_name': 'Biosafety Level'
+                },
+                'health_association': {
+                    'type': 'string',
+                    'allowed_values': ['Beneficial', 'Harmful', 'Neutral', 'Pathogenic', 'Commensal'],
+                    'display_name': 'Health Association'
+                },
+                'host_association': {
+                    'type': 'string',
+                    'allowed_values': ['Human', 'Animal', 'Plant', 'Environmental', 'Multiple hosts'],
+                    'display_name': 'Host Association'
+                },
+                'plant_pathogenicity': {
+                    'type': 'string',
+                    'allowed_values': ['Plant pathogen', 'Non-pathogenic', 'Endophyte', 'Plant growth promoter'],
+                    'display_name': 'Plant Pathogenicity'
+                },
+                'spore_formation': {
+                    'type': 'string',
+                    'allowed_values': ['Spore former', 'Non-spore former', 'Variable spore formation'],
+                    'display_name': 'Spore Formation'
+                },
+                'hemolysis': {
+                    'type': 'string',
+                    'allowed_values': ['Alpha hemolysis', 'Beta hemolysis', 'Gamma hemolysis', 'No hemolysis'],
+                    'display_name': 'Hemolysis'
+                },
+                'cell_shape': {
+                    'type': 'string',
+                    'allowed_values': ['Cocci', 'Bacilli', 'Spirilla', 'Vibrio', 'Coccobacilli', 'Filamentous'],
+                    'display_name': 'Cell Shape'
+                }
+            },
+            'color_mappings': {
+                'gram_staining': {
+                    'Gram stain positive': { 'background': '#28a745', 'color': '#ffffff' },
+                    'Gram stain negative': { 'background': '#dc3545', 'color': '#ffffff' },
+                    'Gram stain variable': { 'background': '#ffc107', 'color': '#000000' }
+                },
+                'motility': {
+                    'Motile': { 'background': '#007bff', 'color': '#ffffff' },
+                    'Non-motile': { 'background': '#6c757d', 'color': '#ffffff' },
+                    'Variable motility': { 'background': '#17a2b8', 'color': '#ffffff' }
+                },
+                'aerophilicity': {
+                    'Aerobic': { 'background': '#e3f2fd', 'color': '#1565c0' },
+                    'Anaerobic': { 'background': '#ffebee', 'color': '#c62828' },
+                    'Facultative anaerobic': { 'background': '#f3e5f5', 'color': '#7b1fa2' },
+                    'Microaerophilic': { 'background': '#e8f5e8', 'color': '#2e7d32' }
+                },
+                'extreme_environment_tolerance': {
+                    'Thermophilic': { 'background': '#ff5722', 'color': '#ffffff' },
+                    'Psychrophilic': { 'background': '#2196f3', 'color': '#ffffff' },
+                    'Acidophilic': { 'background': '#ff9800', 'color': '#ffffff' },
+                    'Alkaliphilic': { 'background': '#9c27b0', 'color': '#ffffff' },
+                    'Halophilic': { 'background': '#607d8b', 'color': '#ffffff' },
+                    'No extreme tolerance': { 'background': '#e0e0e0', 'color': '#333333' }
+                },
+                'biofilm_formation': {
+                    'Biofilm former': { 'background': '#4caf50', 'color': '#ffffff' },
+                    'Non-biofilm former': { 'background': '#f44336', 'color': '#ffffff' },
+                    'Variable biofilm formation': { 'background': '#ff9800', 'color': '#ffffff' }
+                },
+                'animal_pathogenicity': {
+                    'Pathogenic': { 'background': '#d32f2f', 'color': '#ffffff' },
+                    'Non-pathogenic': { 'background': '#388e3c', 'color': '#ffffff' },
+                    'Opportunistic pathogen': { 'background': '#f57c00', 'color': '#ffffff' }
+                },
+                'biosafety_level': {
+                    'BSL-1': { 'background': '#e8f5e8', 'color': '#2e7d32' },
+                    'BSL-2': { 'background': '#fff3e0', 'color': '#f57c00' },
+                    'BSL-3': { 'background': '#ffebee', 'color': '#c62828' },
+                    'BSL-4': { 'background': '#1a1a1a', 'color': '#ffffff' }
+                },
+                'health_association': {
+                    'Beneficial': { 'background': '#4caf50', 'color': '#ffffff' },
+                    'Harmful': { 'background': '#f44336', 'color': '#ffffff' },
+                    'Neutral': { 'background': '#9e9e9e', 'color': '#ffffff' },
+                    'Pathogenic': { 'background': '#d32f2f', 'color': '#ffffff' },
+                    'Commensal': { 'background': '#2196f3', 'color': '#ffffff' }
+                },
+                'host_association': {
+                    'Human': { 'background': '#f8bbd9', 'color': '#880e4f' },
+                    'Animal': { 'background': '#c8e6c9', 'color': '#2e7d32' },
+                    'Plant': { 'background': '#dcedc8', 'color': '#558b2f' },
+                    'Environmental': { 'background': '#b3e5fc', 'color': '#0277bd' },
+                    'Multiple hosts': { 'background': '#f3e5f5', 'color': '#7b1fa2' }
+                },
+                'plant_pathogenicity': {
+                    'Plant pathogen': { 'background': '#e53935', 'color': '#ffffff' },
+                    'Non-pathogenic': { 'background': '#43a047', 'color': '#ffffff' },
+                    'Endophyte': { 'background': '#fb8c00', 'color': '#ffffff' },
+                    'Plant growth promoter': { 'background': '#1e88e5', 'color': '#ffffff' }
+                },
+                'spore_formation': {
+                    'Spore former': { 'background': '#8d6e63', 'color': '#ffffff' },
+                    'Non-spore former': { 'background': '#bdbdbd', 'color': '#333333' },
+                    'Variable spore formation': { 'background': '#ffb74d', 'color': '#333333' }
+                },
+                'hemolysis': {
+                    'Alpha hemolysis': { 'background': '#90caf9', 'color': '#1565c0' },
+                    'Beta hemolysis': { 'background': '#ef5350', 'color': '#ffffff' },
+                    'Gamma hemolysis': { 'background': '#e0e0e0', 'color': '#333333' },
+                    'No hemolysis': { 'background': '#e0e0e0', 'color': '#333333' }
+                },
+                'cell_shape': {
+                    'Cocci': { 'background': '#f48fb1', 'color': '#880e4f' },
+                    'Bacilli': { 'background': '#81c784', 'color': '#2e7d32' },
+                    'Spirilla': { 'background': '#64b5f6', 'color': '#1565c0' },
+                    'Vibrio': { 'background': '#ffb74d', 'color': '#333333' },
+                    'Coccobacilli': { 'background': '#f06292', 'color': '#880e4f' },
+                    'Filamentous': { 'background': '#a1887f', 'color': '#ffffff' }
+                }
+            },
+            'value_orderings': {
+                'gram_staining': ['Gram stain positive', 'Gram stain negative', 'Gram stain variable'],
+                'motility': ['Motile', 'Non-motile', 'Variable motility'],
+                'aerophilicity': ['Aerobic', 'Anaerobic', 'Facultative anaerobic', 'Microaerophilic'],
+                'extreme_environment_tolerance': ['Thermophilic', 'Psychrophilic', 'Acidophilic', 'Alkaliphilic', 'Halophilic', 'No extreme tolerance'],
+                'biofilm_formation': ['Biofilm former', 'Non-biofilm former', 'Variable biofilm formation'],
+                'animal_pathogenicity': ['Pathogenic', 'Non-pathogenic', 'Opportunistic pathogen'],
+                'biosafety_level': ['BSL-1', 'BSL-2', 'BSL-3', 'BSL-4'],
+                'health_association': ['Beneficial', 'Harmful', 'Neutral', 'Pathogenic', 'Commensal'],
+                'host_association': ['Human', 'Animal', 'Plant', 'Environmental', 'Multiple hosts'],
+                'plant_pathogenicity': ['Plant pathogen', 'Non-pathogenic', 'Endophyte', 'Plant growth promoter'],
+                'spore_formation': ['Spore former', 'Non-spore former', 'Variable spore formation'],
+                'hemolysis': ['Alpha hemolysis', 'Beta hemolysis', 'Gamma hemolysis', 'No hemolysis'],
+                'cell_shape': ['Cocci', 'Bacilli', 'Spirilla', 'Vibrio', 'Coccobacilli', 'Filamentous']
+            }
+        }
+
+        # For now, return phenotype config for all templates
+        # In the future, this could be template-specific
+        return jsonify({
+            'success': True,
+            'template_name': template_name,
+            'field_definitions': phenotype_config['field_definitions'],
+            'color_mappings': phenotype_config['color_mappings'],
+            'value_orderings': phenotype_config['value_orderings']
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/ground_truth/distribution', methods=['GET'])
 def api_get_ground_truth_distribution():
     """Get phenotype distribution for all ground truth data"""
     try:
         dataset_name = request.args.get('dataset')
-        
+
         # Get all data for the dataset
         data = get_ground_truth_data(dataset_name=dataset_name)
-        
+
         # Calculate distribution
         phenotypes = [
             'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
@@ -3205,27 +3554,33 @@ def api_get_ground_truth_distribution():
             'health_association', 'host_association', 'plant_pathogenicity',
             'spore_formation', 'hemolysis', 'cell_shape'
         ]
-        
+
         distribution = {}
+        total_species = len(data)
+        total_annotated = 0
+
         for phenotype in phenotypes:
-            distribution[phenotype] = {
-                'total': len(data),
-                'annotated': 0,
-                'values': {}
-            }
-            
+            phenotype_values = {}
+            annotated_count = 0
+
             for record in data:
                 value = record.get(phenotype, '')
                 if value and value.lower() not in ['na', 'n/a', 'unknown', '']:
-                    distribution[phenotype]['annotated'] += 1
-                    if value not in distribution[phenotype]['values']:
-                        distribution[phenotype]['values'][value] = 0
-                    distribution[phenotype]['values'][value] += 1
-        
+                    annotated_count += 1
+                    if value not in phenotype_values:
+                        phenotype_values[value] = 0
+                    phenotype_values[value] += 1
+
+            # Only include phenotypes that have data
+            if phenotype_values:
+                distribution[phenotype] = phenotype_values
+                total_annotated += annotated_count
+
         return jsonify({
             'success': True,
             'distribution': distribution,
-            'total_species': len(data),
+            'total_species': total_species,
+            'total_annotated': total_annotated,
             'dataset_name': dataset_name
         })
     except Exception as e:
@@ -3233,6 +3588,216 @@ def api_get_ground_truth_distribution():
             'success': False,
             'error': str(e)
         })
+
+@app.route('/api/ground_truth/phenotype_statistics', methods=['GET'])
+def api_get_ground_truth_phenotype_statistics():
+    """Get detailed phenotype statistics for a ground truth dataset"""
+    try:
+        dataset_name = request.args.get('dataset_name')
+
+        # Get all data for the dataset
+        data = get_ground_truth_data(dataset_name=dataset_name)
+
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data found for dataset'
+            }), 404
+
+        # Define phenotype fields with their metadata
+        phenotype_definitions = {
+            'gram_staining': {
+                'label': 'Gram Staining',
+                'type': 'categorical',
+                'targets': ['gram_staining']
+            },
+            'motility': {
+                'label': 'Motility',
+                'type': 'categorical',
+                'targets': ['motility']
+            },
+            'aerophilicity': {
+                'label': 'Aerophilicity',
+                'type': 'categorical',
+                'targets': ['aerophilicity']
+            },
+            'extreme_environment_tolerance': {
+                'label': 'Extreme Environment Tolerance',
+                'type': 'categorical',
+                'targets': ['extreme_environment_tolerance']
+            },
+            'biofilm_formation': {
+                'label': 'Biofilm Formation',
+                'type': 'categorical',
+                'targets': ['biofilm_formation']
+            },
+            'animal_pathogenicity': {
+                'label': 'Animal Pathogenicity',
+                'type': 'categorical',
+                'targets': ['animal_pathogenicity']
+            },
+            'biosafety_level': {
+                'label': 'Biosafety Level',
+                'type': 'categorical',
+                'targets': ['biosafety_level']
+            },
+            'health_association': {
+                'label': 'Health Association',
+                'type': 'categorical',
+                'targets': ['health_association']
+            },
+            'host_association': {
+                'label': 'Host Association',
+                'type': 'categorical',
+                'targets': ['host_association']
+            },
+            'plant_pathogenicity': {
+                'label': 'Plant Pathogenicity',
+                'type': 'categorical',
+                'targets': ['plant_pathogenicity']
+            },
+            'spore_formation': {
+                'label': 'Spore Formation',
+                'type': 'categorical',
+                'targets': ['spore_formation']
+            },
+            'hemolysis': {
+                'label': 'Hemolysis',
+                'type': 'categorical',
+                'targets': ['hemolysis']
+            },
+            'cell_shape': {
+                'label': 'Cell Shape',
+                'type': 'categorical',
+                'targets': ['cell_shape']
+            }
+        }
+
+        statistics = []
+        total_species = len(data)
+
+        for phenotype_key, phenotype_info in phenotype_definitions.items():
+            # Count annotated and missing values
+            annotated_species = 0
+            missing_species = 0
+            value_distribution = {}
+
+            for record in data:
+                value = record.get(phenotype_key, '')
+                if value and value.lower() not in ['na', 'n/a', 'unknown', '']:
+                    annotated_species += 1
+                    if value not in value_distribution:
+                        value_distribution[value] = {'count': 0, 'percentage': 0}
+                    value_distribution[value]['count'] += 1
+                else:
+                    missing_species += 1
+
+            # Calculate percentages
+            annotation_fraction = (annotated_species / total_species * 100) if total_species > 0 else 0
+
+            # Calculate percentages for each value
+            for value, data_dict in value_distribution.items():
+                data_dict['percentage'] = (data_dict['count'] / total_species * 100) if total_species > 0 else 0
+
+            # Only include phenotypes that have at least some data
+            if annotated_species > 0:
+                statistics.append({
+                    'label': phenotype_info['label'],
+                    'type': phenotype_info['type'],
+                    'targets': phenotype_info['targets'],
+                    'annotated_species': annotated_species,
+                    'missing_species': missing_species,
+                    'total_species': total_species,
+                    'annotation_fraction': round(annotation_fraction, 1),
+                    'value_distribution': value_distribution
+                })
+
+        return jsonify({
+            'success': True,
+            'statistics': statistics,
+            'total_species': total_species,
+            'dataset_name': dataset_name
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/health')
+def health_check():
+    """Basic health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'MicrobeLLM Admin'
+    })
+
+
+@app.route('/health/detailed')
+def detailed_health_check():
+    """Detailed health check with component status"""
+    checks = {}
+
+    try:
+        # Database health check
+        conn = sqlite3.connect(db_path)
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        checks['database'] = {'status': 'healthy', 'message': 'Database connection successful'}
+    except Exception as e:
+        checks['database'] = {'status': 'unhealthy', 'message': str(e)}
+
+    try:
+        # File system check
+        templates_dir = Path('templates')
+        if templates_dir.exists() and templates_dir.is_dir():
+            checks['filesystem'] = {'status': 'healthy', 'message': 'File system accessible'}
+        else:
+            checks['filesystem'] = {'status': 'unhealthy', 'message': 'Templates directory not accessible'}
+    except Exception as e:
+        checks['filesystem'] = {'status': 'unhealthy', 'message': str(e)}
+
+    try:
+        # Memory usage check
+        import psutil
+        memory = psutil.virtual_memory()
+        memory_usage = memory.percent
+
+        if memory_usage < 90:
+            checks['memory'] = {
+                'status': 'healthy',
+                'message': '.1f',
+                'usage_percent': memory_usage
+            }
+        else:
+            checks['memory'] = {
+                'status': 'warning',
+                'message': '.1f',
+                'usage_percent': memory_usage
+            }
+    except ImportError:
+        checks['memory'] = {'status': 'info', 'message': 'psutil not available'}
+    except Exception as e:
+        checks['memory'] = {'status': 'unhealthy', 'message': str(e)}
+
+    # Overall status
+    overall_status = 'healthy'
+    for check in checks.values():
+        if check['status'] == 'unhealthy':
+            overall_status = 'unhealthy'
+            break
+        elif check['status'] == 'warning' and overall_status == 'healthy':
+            overall_status = 'warning'
+
+    return jsonify({
+        'status': overall_status,
+        'timestamp': datetime.now().isoformat(),
+        'service': 'MicrobeLLM Admin',
+        'checks': checks
+    })
+
 
 @app.route('/api/rerun_failed_species', methods=['POST'])
 def rerun_failed_species():
@@ -3290,24 +3855,44 @@ def rerun_all_failed(combination_id):
     """Re-run all failed species for a combination"""
     return processing_manager.rerun_all_failed(combination_id)
 
+def cleanup_resources():
+    """Clean up resources on application shutdown"""
+    global processing_manager
+    if processing_manager:
+        processing_manager.cleanup()
+
 def main():
     """Main entry point for the admin application"""
     import argparse
-    
+    import atexit
+    import signal
+
     parser = argparse.ArgumentParser(description="MicrobeLLM Admin Dashboard")
     parser.add_argument('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
     parser.add_argument('--port', type=int, default=5050, help='Port to bind to (default: 5050)')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    
+
     args = parser.parse_args()
-    
+
     # Initialize processing manager
     global processing_manager
     processing_manager = ProcessingManager()
-    
+
+    # Register cleanup function
+    atexit.register(cleanup_resources)
+
+    # Handle SIGTERM and SIGINT for graceful shutdown
+    def signal_handler(signum, frame):
+        print(f"\nReceived signal {signum}, shutting down gracefully...")
+        cleanup_resources()
+        exit(0)
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
     # Reset running jobs
     reset_running_jobs_on_startup(db_path)
-    
+
     # Check for API key
     if not os.getenv('OPENROUTER_API_KEY'):
         print("=" * 50)
@@ -3318,14 +3903,21 @@ def main():
         print("Then set it with: export OPENROUTER_API_KEY='your-api-key'")
         print("=" * 50)
         print()
-    
+
     print(f"Starting MicrobeLLM Admin Dashboard...")
     print(f"Access the dashboard at: http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop the server")
     print()
-    
-    # Run with SocketIO
-    socketio.run(app, host=args.host, port=args.port, debug=args.debug, use_reloader=args.debug, allow_unsafe_werkzeug=True)
+
+    try:
+        # Run with SocketIO
+        socketio.run(app, host=args.host, port=args.port, debug=args.debug, use_reloader=args.debug, allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        print("\nReceived keyboard interrupt, shutting down...")
+    except Exception as e:
+        print(f"\nError running server: {e}")
+    finally:
+        cleanup_resources()
 
 if __name__ == '__main__':
     main()

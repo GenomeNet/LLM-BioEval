@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Database Browser - MicrobeLLM{% endblock %}
 
@@ -26,6 +26,9 @@
             <div class="database-info">
                 <h3>Database Structure</h3>
                 <p id="databasePath"></p>
+                <div id="loadingIndicator" class="text-center" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading database structure...
+                </div>
                 <div class="database-tables" id="databaseTables">
                     <!-- Tables will be loaded here -->
                 </div>
@@ -174,13 +177,22 @@
 <script>
     // Database browser functionality
     function loadDatabaseInfo() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const tablesContainer = document.getElementById('databaseTables');
+
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+        tablesContainer.innerHTML = '';
+
         fetch('/api/database_info')
             .then(response => response.json())
             .then(data => {
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+
                 if (data.success) {
                     document.getElementById('databasePath').textContent = data.database_path;
-                    
-                    const tablesContainer = document.getElementById('databaseTables');
+
                     const tablesHtml = data.tables.map(table => `
                         <div class="table-item" onclick="loadTableData('${table.name}')">
                             <div class="table-info">
@@ -197,14 +209,18 @@
                             </div>
                         </div>
                     `).join('');
-                    
+
                     tablesContainer.innerHTML = tablesHtml;
                 } else {
                     console.error('Error loading database info:', data.error);
+                    tablesContainer.innerHTML = '<p class="error">Error loading database structure</p>';
                 }
             })
             .catch(error => {
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
                 console.error('Error loading database info:', error);
+                tablesContainer.innerHTML = '<p class="error">Failed to load database structure</p>';
             });
     }
     
@@ -260,7 +276,17 @@
     }
     
     function refreshDatabaseBrowser() {
+        const refreshBtn = document.getElementById('refreshBtn');
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+
         loadDatabaseInfo();
+
+        // Re-enable button after a short delay
+        setTimeout(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+        }, 1000);
     }
     
     // Initialize

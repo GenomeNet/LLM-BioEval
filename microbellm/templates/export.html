@@ -50,6 +50,14 @@
         <div class="export-filters">
             <h4 class="filter-title">Filter Results</h4>
             <p class="text-muted text-small mb-3">Leave empty to export all results</p>
+
+            {% if total_results == 0 %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>No Results Available</strong>
+                    <p class="mb-0">There are currently no processing results to export. Run some jobs first to generate data for export.</p>
+                </div>
+            {% endif %}
             
             <div class="filter-grid">
                 <div class="filter-group">
@@ -59,9 +67,12 @@
                         {% for file in species_files %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
+                        {% if not species_files %}
+                            <option value="" disabled>No species files available</option>
+                        {% endif %}
                     </select>
                 </div>
-                
+
                 <div class="filter-group">
                     <label class="setting-label">Model</label>
                     <select id="modelFilter" class="form-control">
@@ -69,10 +80,13 @@
                         {% for model in models %}
                             <option value="{{ model }}">{{ model }}</option>
                         {% endfor %}
+                        {% if not models %}
+                            <option value="" disabled>No models available</option>
+                        {% endif %}
                     </select>
                 </div>
             </div>
-            
+
             <div class="template-filter mt-3">
                 <label class="setting-label">Template Pair</label>
                 <select id="templateFilter" class="form-control">
@@ -82,6 +96,9 @@
                             {{ template.system.split('/')[-1] }} / {{ template.user.split('/')[-1] }}
                         </option>
                     {% endfor %}
+                    {% if not templates %}
+                        <option value="" disabled>No template pairs available</option>
+                    {% endif %}
                 </select>
             </div>
         </div>
@@ -361,7 +378,15 @@
         const templatePair = document.getElementById('templateFilter').value;
         const statusDiv = document.getElementById('exportStatus');
         const exportBtn = document.getElementById('exportBtn');
-        
+
+        // Check if there are any results to export
+        const totalResults = {{ total_results }};
+        if (totalResults === 0) {
+            statusDiv.textContent = 'No results available to export. Run some jobs first.';
+            statusDiv.className = 'error';
+            return;
+        }
+
         // Build query parameters
         const params = new URLSearchParams();
         if (speciesFile) params.append('species_file', speciesFile);
@@ -371,7 +396,7 @@
             params.append('system_template', sys);
             params.append('user_template', user);
         }
-        
+
         statusDiv.textContent = 'Preparing export...';
         statusDiv.className = '';
         exportBtn.disabled = true;

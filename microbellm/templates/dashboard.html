@@ -745,6 +745,13 @@
         background: #d4edda;
         border-color: #c3e6cb;
         color: #155724;
+        animation: completedPulse 0.5s ease-in-out;
+    }
+
+    @keyframes completedPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
     }
     
     .status-failed {
@@ -2112,9 +2119,10 @@
             // Only update progress if we have valid data (avoid showing 0/0 for completed jobs)
             if (total > 0) {
                 if (progressMain) {
-                    // For completed jobs, show final results
+                    // For completed jobs, show final results with status indicator
                     if (progressData.status === 'completed' || progressData.status === 'failed' || progressData.status === 'interrupted') {
-                        progressMain.innerHTML = `<span class="progress-completed">${processed}/${total}</span>`;
+                        const statusIcon = progressData.status === 'completed' ? '✓' : progressData.status === 'failed' ? '✗' : '⚠';
+                        progressMain.innerHTML = `<span class="progress-completed">${statusIcon} ${processed}/${total}</span>`;
                     } else {
                         progressMain.innerHTML = `<span class="progress-running">${processed}/${total}</span>`;
                     }
