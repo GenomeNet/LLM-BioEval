@@ -46,9 +46,9 @@ def load_page_manifest(page_name):
 
 # Global variables for job management
 processing_manager = None
-# Use the jobs database which has the unified table
-from microbellm.shared import JOBS_DB_PATH
-db_path = JOBS_DB_PATH
+# Use the unified database
+from microbellm.shared import DATABASE_PATH
+db_path = DATABASE_PATH
 
 # Cache for search count correlation data
 _search_correlation_cache = {}

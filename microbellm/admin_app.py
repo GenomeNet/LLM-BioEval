@@ -23,7 +23,7 @@ import requests
 # Import from shared utilities
 from microbellm.shared import (
     get_db_connection, reset_running_jobs_on_startup, init_database,
-    DATABASE_PATH, JOBS_DB_PATH
+    DATABASE_PATH
 )
 from microbellm.utils import (
     read_template_from_file, detect_template_type,
@@ -47,8 +47,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global variables for job management
 processing_manager = None
-# Use the jobs database which has all the existing data
-db_path = JOBS_DB_PATH
+# Use the unified database
+db_path = DATABASE_PATH
 
 class ProcessingManager:
     def __init__(self):

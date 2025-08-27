@@ -2,7 +2,7 @@ import os
 
 # --- General Configuration ---
 # Path to the SQLite database file
-DATABASE_PATH = 'microbellm_jobs.db'
+DATABASE_PATH = 'microbellm.db'
 
 # --- API Configuration ---
 # To use the application, you need an OpenRouter API key.

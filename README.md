@@ -61,6 +61,7 @@ Open your browser to `http://localhost:5000`
 
 View and manage results:
 
+
 ```bash
 microbellm-admin --debug
 ```
@@ -76,6 +77,10 @@ python test_admin.py
 ```
 
 This tests database operations, API endpoints, and UI functionality.
+
+## Documentation
+
+- [Database Architecture](docs/database_architecture.md) - Technical details about the database structure
 
 
 ## Input/Output

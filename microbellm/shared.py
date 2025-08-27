@@ -8,12 +8,11 @@ from pathlib import Path
 import yaml
 from microbellm import config
 
-# Database paths
+# Database path
 # Use absolute path relative to the project root
 PROJECT_ROOT = Path(__file__).parent.parent
-# Use the database path from config (microbellm_jobs.db)
+# Use the database path from config (microbellm.db)
 DATABASE_PATH = str(PROJECT_ROOT / config.DATABASE_PATH)
-JOBS_DB_PATH = DATABASE_PATH  # They're the same database
 
 # Cache configuration
 CACHE_DURATION = 300  # 5 minutes in seconds

@@ -16,8 +16,8 @@ from pathlib import Path
 
 # Configuration
 BASE_URL = "http://localhost:5050"
-TEST_DB = "test_microbellm_jobs.db"
-ORIGINAL_DB = "microbellm_jobs.db"
+TEST_DB = "test_microbellm.db"
+ORIGINAL_DB = "microbellm.db"
 TEST_MODEL = "test/model-v1"
 TEST_SPECIES_FILE = "test_data/test_species.csv"
 
