@@ -1,0 +1,1111 @@
+<!-- Model Accuracy Analysis Component -->
+<div class="accuracy-section">
+    <div class="accuracy-header">
+        <h3>Model Performance Against Ground Truth</h3>
+        <p>Compare language model predictions with validated bacterial phenotype data</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="accuracy-controls-panel">
+        <div class="dataset-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="groundTruthDataset" class="dataset-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="dataset-details" id="datasetDetails"></div>
+        </div>
+        <button id="analyzeBtn" class="action-button" disabled>
+            <span class="button-text">Analyze Accuracy</span>
+            <span class="button-loading" style="display: none;">Analyzing...</span>
+        </button>
+    </div>
+
+    <!-- Results Area -->
+    <div id="resultsArea" class="results-container" style="display: none;">
+        <!-- Performance Legend -->
+        <div class="performance-legend">
+            <h4>Performance Scale & Metrics</h4>
+            <div class="legend-container">
+                <div class="legend-section">
+                    <h5>Accuracy Levels:</h5>
+                    <div class="legend-grid">
+                        <div class="legend-entry">
+                            <span class="perf-box excellent"></span>
+                            <span>≥ 0.9 Excellent</span>
+                        </div>
+                        <div class="legend-entry">
+                            <span class="perf-box good"></span>
+                            <span>0.7-0.9 Good</span>
+                        </div>
+                        <div class="legend-entry">
+                            <span class="perf-box moderate"></span>
+                            <span>0.5-0.7 Moderate</span>
+                        </div>
+                        <div class="legend-entry">
+                            <span class="perf-box poor"></span>
+                            <span>< 0.5 Poor</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="legend-section">
+                    <h5>Metrics Explained:</h5>
+                    <div class="metrics-info">
+                        <div class="metric-desc">
+                            <strong>Bal.Acc</strong> (Balanced Accuracy): Average of sensitivity and specificity, handles imbalanced classes well
+                        </div>
+                        <div class="metric-desc">
+                            <strong>Prec.</strong> (Precision): Proportion of positive predictions that are correct
+                        </div>
+                        <div class="metric-desc">
+                            <span class="best-indicator">★</span> = Best performer for this phenotype
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-table-container">
+            <div id="resultsTable"></div>
+        </div>
+    </div>
+
+    <!-- Initial Message -->
+    <div id="initialMessage" class="info-message">
+        <i class="fas fa-chart-line"></i>
+        <p>Select a ground truth dataset and click "Analyze Accuracy" to compare model performance</p>
+    </div>
+</div>
+
+<style>
+/* Main container */
+.accuracy-section {
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    min-height: 400px;
+}
+
+.accuracy-header {
+    margin-bottom: 30px;
+}
+
+.accuracy-header h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 8px 0;
+}
+
+.accuracy-header p {
+    font-size: 14px;
+    color: #6c757d;
+    margin: 0;
+}
+
+/* Controls Panel */
+.accuracy-controls-panel {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.dataset-selector {
+    flex: 1;
+}
+
+.dataset-selector label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 14px;
+}
+
+.dataset-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: white;
+    color: #495057;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.dataset-select:focus {
+    outline: none;
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.dataset-details {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.action-button {
+    padding: 10px 24px;
+    background: #22c55e;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover:not(:disabled) {
+    background: #16a34a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+}
+
+.action-button:disabled {
+    background: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+.button-loading {
+    display: none;
+}
+
+.action-button.loading .button-text {
+    display: none;
+}
+
+.action-button.loading .button-loading {
+    display: inline-block;
+}
+
+/* Results Container */
+.results-container {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Performance Legend */
+.performance-legend {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.performance-legend h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.legend-container {
+    display: flex;
+    gap: 40px;
+}
+
+.legend-section {
+    flex: 1;
+}
+
+.legend-section h5 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+}
+
+.legend-grid {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.metrics-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.metric-desc {
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+.metric-desc strong {
+    color: #495057;
+    font-weight: 600;
+}
+
+.best-indicator {
+    color: #fbbf24;
+    font-size: 16px;
+    vertical-align: middle;
+}
+
+.legend-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #495057;
+}
+
+.perf-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.perf-box.excellent {
+    background: #22c55e;
+}
+
+.perf-box.good {
+    background: #3b82f6;
+}
+
+.perf-box.moderate {
+    background: #f59e0b;
+}
+
+.perf-box.poor {
+    background: #ef4444;
+}
+
+/* Results Table */
+.results-table-container {
+    overflow-x: auto;
+    overflow-y: visible;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    position: relative;
+}
+
+.accuracy-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.accuracy-results-table th,
+.accuracy-results-table td {
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.accuracy-results-table thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.accuracy-results-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.accuracy-results-table .model-column {
+    text-align: left;
+    font-weight: 500;
+    color: #2c3e50;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
+}
+
+.metric-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.metric-badge.excellent {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+}
+
+.metric-badge.good {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+}
+
+.metric-badge.moderate {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+}
+
+.metric-badge.poor {
+    background: rgba(239, 68, 68, 0.15);
+    color: #dc2626;
+}
+
+.metric-badge.na {
+    background: #e9ecef;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.sample-count {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+/* Best performer indicators */
+.best-cell {
+    position: relative;
+    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%) !important;
+}
+
+.best-cell::after {
+    content: '★';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    color: #fbbf24;
+    font-size: 12px;
+}
+
+.metric-badge.best {
+    box-shadow: 0 0 0 2px #fbbf24;
+}
+
+/* Metric cell styling */
+.metric-cell {
+    position: relative;
+    cursor: help;
+}
+
+.metric-cell:hover {
+    background: #f0f4f8;
+}
+
+/* Tooltip styling */
+.metric-tooltip {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    min-width: 280px;
+    max-width: 350px;
+    padding: 12px;
+    font-size: 12px;
+    pointer-events: auto;
+}
+
+.metric-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-left: none;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+/* When tooltip appears below the cell */
+.metric-tooltip.tooltip-below::before {
+    bottom: auto;
+    top: -6px;
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    border-right: none;
+}
+
+.tooltip-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e9ecef;
+    text-transform: capitalize;
+}
+
+.tooltip-stats {
+    margin-bottom: 12px;
+    color: #495057;
+}
+
+.tooltip-stats div {
+    margin: 4px 0;
+}
+
+.tooltip-stats strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.tooltip-matrix-title {
+    font-weight: 600;
+    font-size: 12px;
+    color: #495057;
+    margin: 12px 0 8px 0;
+}
+
+/* Confusion Matrix styling */
+.confusion-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 8px;
+}
+
+.confusion-matrix th,
+.confusion-matrix td {
+    padding: 6px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+.confusion-matrix thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.confusion-matrix tbody th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    text-align: right;
+}
+
+.matrix-cell {
+    background: white;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+/* Info Message */
+.info-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.info-message i {
+    font-size: 48px;
+    color: #dee2e6;
+    margin-bottom: 16px;
+}
+
+.info-message p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .accuracy-controls-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .action-button {
+        width: 100%;
+    }
+    
+    .legend-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .legend-grid {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+</style>
+
+<script>
+(function() {
+    'use strict';
+    
+    let groundTruthData = null;
+    let predictionData = null;
+    let fieldDefinitions = {};
+    
+    // Initialize when DOM is ready
+    function init() {
+        loadGroundTruthDatasets();
+        loadPredictionData();
+        
+        // Set up event listeners
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        if (analyzeBtn) {
+            analyzeBtn.addEventListener('click', performAnalysis);
+        }
+    }
+    
+    // Load available ground truth datasets
+    async function loadGroundTruthDatasets() {
+        try {
+            const response = await fetch('/api/ground_truth/datasets');
+            const result = await response.json();
+            
+            if (result.success && result.datasets) {
+                const select = document.getElementById('groundTruthDataset');
+                
+                if (result.datasets.length === 0) {
+                    select.innerHTML = '<option value="">No datasets available</option>';
+                    return;
+                }
+                
+                // Build options
+                let options = '<option value="">Select a dataset...</option>';
+                let waTestDataset = null;
+                
+                result.datasets.forEach(dataset => {
+                    options += `<option value="${dataset.dataset_name}" 
+                                data-template="${dataset.template_name}"
+                                data-count="${dataset.species_count}">
+                                ${dataset.dataset_name}
+                            </option>`;
+                    
+                    if (dataset.dataset_name === 'WA_Test_Dataset') {
+                        waTestDataset = dataset;
+                    }
+                });
+                
+                select.innerHTML = options;
+                select.addEventListener('change', updateDatasetInfo);
+                
+                // Enable analyze button
+                document.getElementById('analyzeBtn').disabled = false;
+                
+                // Auto-select WA_Test_Dataset if available
+                if (waTestDataset) {
+                    select.value = 'WA_Test_Dataset';
+                    updateDatasetInfo();
+                    // Auto-analyze after a short delay
+                    setTimeout(() => performAnalysis(), 500);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+            document.getElementById('groundTruthDataset').innerHTML = 
+                '<option value="">Error loading datasets</option>';
+        }
+    }
+    
+    // Load prediction data
+    async function loadPredictionData() {
+        try {
+            const response = await fetch('/api/phenotype_analysis');
+            const result = await response.json();
+            
+            if (!result.error && result.data) {
+                predictionData = result.data;
+            }
+        } catch (error) {
+            console.error('Error loading prediction data:', error);
+        }
+    }
+    
+    // Update dataset information display
+    function updateDatasetInfo() {
+        const select = document.getElementById('groundTruthDataset');
+        const details = document.getElementById('datasetDetails');
+        
+        if (select.value) {
+            const option = select.selectedOptions[0];
+            const count = option.getAttribute('data-count');
+            const template = option.getAttribute('data-template');
+            details.innerHTML = `${count} species | Template: ${template}`;
+        } else {
+            details.innerHTML = '';
+        }
+    }
+    
+    // Perform accuracy analysis
+    async function performAnalysis() {
+        const select = document.getElementById('groundTruthDataset');
+        const datasetName = select.value;
+        
+        if (!datasetName) {
+            alert('Please select a ground truth dataset');
+            return;
+        }
+        
+        if (!predictionData) {
+            alert('Prediction data is still loading. Please try again.');
+            return;
+        }
+        
+        const templateName = select.selectedOptions[0].getAttribute('data-template');
+        const btn = document.getElementById('analyzeBtn');
+        
+        // Show loading state
+        btn.classList.add('loading');
+        btn.disabled = true;
+        document.getElementById('initialMessage').style.display = 'none';
+        
+        try {
+            // Fetch template field definitions
+            const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+            const templateResult = await templateResp.json();
+            fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+            
+            // Fetch ground truth data
+            const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+            const gtResult = await gtResp.json();
+            
+            if (!gtResult.success) {
+                throw new Error('Failed to load ground truth data');
+            }
+            
+            // Create ground truth map
+            const gtMap = {};
+            gtResult.data.forEach(item => {
+                gtMap[item.binomial_name.toLowerCase()] = item;
+            });
+            
+            // Calculate metrics
+            const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+            
+            // Display results
+            displayResults(metrics);
+            document.getElementById('resultsArea').style.display = 'block';
+            
+        } catch (error) {
+            alert('Error analyzing accuracy: ' + error.message);
+            document.getElementById('initialMessage').style.display = 'block';
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+    
+    // Calculate accuracy metrics
+    function calculateMetrics(predictions, groundTruth, fields) {
+        const results = [];
+        const phenotypes = Object.keys(fields);
+        const allPreds = Object.values(predictions).flat();
+        const models = [...new Set(allPreds.map(p => p.model))];
+        
+        phenotypes.forEach(phenotype => {
+            models.forEach(model => {
+                const modelPreds = allPreds.filter(p => p.model === model);
+                const trueVals = [];
+                const predVals = [];
+                
+                modelPreds.forEach(pred => {
+                    const species = pred.binomial_name?.toLowerCase();
+                    if (species && groundTruth[species]) {
+                        const truth = groundTruth[species];
+                        const trueVal = normalizeValue(truth[phenotype]);
+                        const predVal = normalizeValue(pred[phenotype]);
+                        
+                        if (trueVal !== '' && predVal !== '') {
+                            trueVals.push(trueVal);
+                            predVals.push(predVal);
+                        }
+                    }
+                });
+                
+                if (trueVals.length > 0) {
+                    const metrics = computeMetrics(predVals, trueVals);
+                    results.push({
+                        model: model,
+                        phenotype: phenotype,
+                        balancedAcc: metrics.balancedAcc,
+                        precision: metrics.precision,
+                        sampleSize: metrics.sampleSize,
+                        confusionMatrix: metrics.confusionMatrix,
+                        labels: metrics.labels
+                    });
+                }
+            });
+        });
+        
+        return results;
+    }
+    
+    // Normalize values
+    function normalizeValue(value) {
+        if (value === null || value === undefined || value === 'N/A' || value === 'null' || value === '') {
+            return '';
+        }
+        return String(value).trim();
+    }
+    
+    // Compute metrics for predictions
+    function computeMetrics(preds, truths) {
+        // Check if binary
+        const uniqueVals = [...new Set([...preds, ...truths])];
+        const isBinary = uniqueVals.every(v => {
+            const lower = v.toLowerCase();
+            return ['true', 'false', 't', 'f', '0', '1', 'yes', 'no'].includes(lower);
+        });
+        
+        if (isBinary) {
+            // Binary classification metrics
+            let tp = 0, tn = 0, fp = 0, fn = 0;
+            
+            for (let i = 0; i < truths.length; i++) {
+                const trueVal = truths[i].toLowerCase() === 'true' || truths[i] === '1' || truths[i].toLowerCase() === 'yes';
+                const predVal = preds[i].toLowerCase() === 'true' || preds[i] === '1' || preds[i].toLowerCase() === 'yes';
+                
+                if (trueVal && predVal) tp++;
+                else if (!trueVal && !predVal) tn++;
+                else if (!trueVal && predVal) fp++;
+                else if (trueVal && !predVal) fn++;
+            }
+            
+            const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
+            const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
+            const balancedAcc = (sensitivity + specificity) / 2;
+            const precision = (tp + fp > 0) ? tp / (tp + fp) : 0;
+            
+            return { 
+                balancedAcc, 
+                precision, 
+                sampleSize: truths.length,
+                confusionMatrix: [[tn, fp], [fn, tp]],
+                labels: ['False', 'True']
+            };
+        } else {
+            // Multi-class metrics
+            const labels = [...new Set([...truths, ...preds])];
+            const confMatrix = {};
+            
+            labels.forEach(l => {
+                confMatrix[l] = {};
+                labels.forEach(l2 => {
+                    confMatrix[l][l2] = 0;
+                });
+            });
+            
+            for (let i = 0; i < truths.length; i++) {
+                confMatrix[truths[i]][preds[i]]++;
+            }
+            
+            // Calculate per-class metrics
+            let totalBalancedAcc = 0;
+            let totalPrecision = 0;
+            let classCount = 0;
+            
+            labels.forEach(label => {
+                const tp = confMatrix[label][label];
+                let fn = 0, fp = 0, tn = 0;
+                
+                labels.forEach(l2 => {
+                    if (l2 !== label) {
+                        fn += confMatrix[label][l2];
+                        fp += confMatrix[l2][label];
+                    }
+                });
+                
+                const total = truths.length;
+                tn = total - tp - fn - fp;
+                
+                const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
+                const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
+                const precision = (tp + fp > 0) ? tp / (tp + fp) : 0;
+                
+                totalBalancedAcc += (sensitivity + specificity) / 2;
+                totalPrecision += precision;
+                classCount++;
+            });
+            
+            // Create confusion matrix array
+            const confusionMatrixArray = labels.map(l1 => 
+                labels.map(l2 => confMatrix[l1][l2])
+            );
+            
+            return {
+                balancedAcc: totalBalancedAcc / classCount,
+                precision: totalPrecision / classCount,
+                sampleSize: truths.length,
+                confusionMatrix: confusionMatrixArray,
+                labels: labels
+            };
+        }
+    }
+    
+    // Display results
+    function displayResults(metrics) {
+        const models = [...new Set(metrics.map(m => m.model))].sort();
+        let phenotypes = [...new Set(metrics.map(m => m.phenotype))];
+        
+        // Calculate best accuracy for each phenotype to sort columns
+        const phenotypeMaxAccuracy = {};
+        phenotypes.forEach(pheno => {
+            const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
+            const maxAcc = Math.max(...phenoMetrics.map(m => m.balancedAcc).filter(v => !isNaN(v)));
+            phenotypeMaxAccuracy[pheno] = maxAcc;
+        });
+        
+        // Sort phenotypes by their best accuracy (descending)
+        phenotypes.sort((a, b) => (phenotypeMaxAccuracy[b] || 0) - (phenotypeMaxAccuracy[a] || 0));
+        
+        // Find best performers for each phenotype
+        const bestPerformers = {};
+        phenotypes.forEach(pheno => {
+            const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
+            const maxAcc = Math.max(...phenoMetrics.map(m => m.balancedAcc).filter(v => !isNaN(v)));
+            const bestModel = phenoMetrics.find(m => m.balancedAcc === maxAcc);
+            if (bestModel) {
+                bestPerformers[pheno] = bestModel.model;
+            }
+        });
+        
+        let html = '<table class="accuracy-results-table">';
+        html += '<thead><tr><th class="model-column">Model</th>';
+        
+        // Add phenotype headers (sorted by best accuracy)
+        phenotypes.forEach(pheno => {
+            const name = pheno.replace(/_/g, ' ');
+            const maxAcc = phenotypeMaxAccuracy[pheno];
+            html += `<th colspan="2">${name}${!isNaN(maxAcc) ? ` <small style="color: #6c757d;">(${maxAcc.toFixed(3)})</small>` : ''}</th>`;
+        });
+        html += '</tr><tr><th></th>';
+        
+        // Add metric subheaders
+        phenotypes.forEach(() => {
+            html += '<th>Bal.Acc</th><th>Prec.</th>';
+        });
+        html += '</tr></thead><tbody>';
+        
+        // Add data rows
+        models.forEach(model => {
+            const shortName = model.includes('/') ? model.split('/').pop() : model;
+            html += `<tr><td class="model-column">${shortName}</td>`;
+            
+            phenotypes.forEach(pheno => {
+                const metric = metrics.find(m => m.model === model && m.phenotype === pheno);
+                const isBest = bestPerformers[pheno] === model;
+                
+                if (metric) {
+                    const accClass = getPerformanceClass(metric.balancedAcc);
+                    const precClass = getPerformanceClass(metric.precision);
+                    const bestClass = isBest ? ' best' : '';
+                    const cellClass = isBest ? ' best-cell' : '';
+                    
+                    // Store metric data for tooltip
+                    const tooltipData = JSON.stringify({
+                        model: model,
+                        phenotype: pheno,
+                        metric: metric
+                    }).replace(/"/g, '&quot;');
+                    
+                    html += `<td class="metric-cell ${cellClass}" data-tooltip-data="${tooltipData}">
+                        <span class="metric-badge ${accClass}${bestClass}">${metric.balancedAcc.toFixed(3)}</span>
+                    </td>`;
+                    html += `<td class="metric-cell" data-tooltip-data="${tooltipData}">
+                        <span class="metric-badge ${precClass}">${metric.precision.toFixed(3)}</span>
+                    </td>`;
+                } else {
+                    html += '<td colspan="2"><span class="metric-badge na">N/A</span></td>';
+                }
+            });
+            
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        
+        // Add a single tooltip element that will be reused
+        html += '<div id="metricTooltip" class="metric-tooltip"></div>';
+        
+        document.getElementById('resultsTable').innerHTML = html;
+        
+        // Setup tooltips after rendering
+        setTimeout(setupTooltips, 100);
+    }
+    
+    // Create tooltip content
+    function createTooltipContent(metric, phenotype) {
+        const phenoName = phenotype.replace(/_/g, ' ');
+        let html = `<div class="tooltip-header">${phenoName}</div>`;
+        html += `<div class="tooltip-stats">`;
+        html += `<div><strong>Sample Size:</strong> ${metric.sampleSize}</div>`;
+        html += `<div><strong>Balanced Acc:</strong> ${metric.balancedAcc.toFixed(3)}</div>`;
+        html += `<div><strong>Precision:</strong> ${metric.precision.toFixed(3)}</div>`;
+        html += `</div>`;
+        
+        // Add confusion matrix if available
+        if (metric.confusionMatrix && metric.labels) {
+            html += `<div class="tooltip-matrix-title">Confusion Matrix:</div>`;
+            html += `<table class="confusion-matrix">`;
+            
+            // Header row
+            html += `<thead><tr><th></th>`;
+            metric.labels.forEach(label => {
+                html += `<th class="matrix-header">Pred: ${label}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            // Data rows
+            metric.labels.forEach((label, i) => {
+                html += `<tr><th class="matrix-header">True: ${label}</th>`;
+                metric.confusionMatrix[i].forEach(count => {
+                    html += `<td class="matrix-cell">${count}</td>`;
+                });
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table>`;
+        }
+        
+        return html;
+    }
+    
+    // Get performance class
+    function getPerformanceClass(value) {
+        if (isNaN(value)) return 'na';
+        if (value >= 0.9) return 'excellent';
+        if (value >= 0.7) return 'good';
+        if (value >= 0.5) return 'moderate';
+        return 'poor';
+    }
+    
+    // Position tooltip at mouse cursor
+    function positionTooltipAtMouse(event, tooltip) {
+        // Position tooltip at mouse cursor with offset
+        const offsetX = 15;
+        const offsetY = 15;
+        
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Get tooltip dimensions
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const tooltipWidth = tooltipRect.width;
+        const tooltipHeight = tooltipRect.height;
+        
+        // Calculate initial position (below and to the right of cursor)
+        let left = event.clientX + offsetX;
+        let top = event.clientY + offsetY;
+        
+        // Adjust if tooltip would go off the right edge
+        if (left + tooltipWidth > viewportWidth) {
+            left = event.clientX - tooltipWidth - offsetX;
+        }
+        
+        // Adjust if tooltip would go off the bottom edge
+        if (top + tooltipHeight > viewportHeight) {
+            top = event.clientY - tooltipHeight - offsetY;
+        }
+        
+        // Ensure tooltip doesn't go off the left edge
+        if (left < 0) {
+            left = offsetX;
+        }
+        
+        // Ensure tooltip doesn't go off the top edge
+        if (top < 0) {
+            top = offsetY;
+        }
+        
+        // Apply position
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        
+        // Hide arrow since position is dynamic
+        const arrow = tooltip.querySelector('.tooltip-arrow');
+        if (arrow) {
+            arrow.style.display = 'none';
+        }
+    }
+    
+    // Setup tooltip events
+    function setupTooltips() {
+        const tooltip = document.getElementById('metricTooltip');
+        if (!tooltip) return;
+        
+        const cells = document.querySelectorAll('.metric-cell');
+        let hideTimeout;
+        let currentCell = null;
+        
+        cells.forEach(cell => {
+            const tooltipDataStr = cell.getAttribute('data-tooltip-data');
+            if (!tooltipDataStr) return;
+            
+            cell.addEventListener('mouseenter', (e) => {
+                clearTimeout(hideTimeout);
+                currentCell = cell;
+                
+                try {
+                    const data = JSON.parse(tooltipDataStr.replace(/&quot;/g, '"'));
+                    const tooltipContent = createTooltipContent(data.metric, data.phenotype);
+                    tooltip.innerHTML = tooltipContent;
+                    tooltip.style.display = 'block';
+                    
+                    // Position at mouse location
+                    positionTooltipAtMouse(e, tooltip);
+                } catch (error) {
+                    console.error('Error parsing tooltip data:', error);
+                }
+            });
+            
+            cell.addEventListener('mousemove', (e) => {
+                if (currentCell === cell && tooltip.style.display === 'block') {
+                    positionTooltipAtMouse(e, tooltip);
+                }
+            });
+            
+            cell.addEventListener('mouseleave', () => {
+                currentCell = null;
+                hideTimeout = setTimeout(() => {
+                    tooltip.style.display = 'none';
+                }, 100);
+            });
+        });
+        
+        // Hide tooltip on scroll
+        window.addEventListener('scroll', () => {
+            tooltip.style.display = 'none';
+        }, { passive: true });
+        
+        // Keep tooltip visible if hovering over it
+        tooltip.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimeout);
+        });
+        
+        tooltip.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    }
+    
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>

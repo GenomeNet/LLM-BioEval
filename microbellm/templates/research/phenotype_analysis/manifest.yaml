@@ -99,6 +99,14 @@ sections:
     title: "Model Prediction Distributions by Phenotype"
     text: "Visual breakdown of how each model predicts different phenotype values, showing distribution patterns and confidence levels across bacterial characteristics."
     
+  # Model Accuracy Comparison - Dynamic Full Width
+  - id: "model_accuracy"
+    type: "section_callout_dynamic"
+    file: "sections/07c_model_accuracy_simple.html"
+    container_id: "modelAccuracyContent"
+    title: "Model Accuracy by Phenotype"
+    text: "Performance comparison of language models against ground truth data, showing balanced accuracy and precision metrics for each phenotype prediction."
+    
   # Placeholder text section 2
   - id: "placeholder_text_2"
     type: "article"
