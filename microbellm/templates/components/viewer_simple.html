@@ -1,301 +1,48 @@
 {% extends "admin_base.html" %}
 
-{% block title %}{{ section.id }} - Component Viewer{% endblock %}
-
-{% block extra_head %}
-<!-- Include component styles -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/research/' + page + '/page_specific.css') }}">
-
-<style>
-/* Component viewer specific styles */
-.viewer-container {
-    padding: 20px;
-    min-height: 100vh;
-    background: #f8f9fa;
-}
-
-.viewer-header {
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.viewer-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 8px 0;
-}
-
-.viewer-meta {
-    display: flex;
-    gap: 16px;
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.viewer-badge {
-    background: #e5e7eb;
-    color: #374151;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 12px;
-}
-
-.viewer-content-wrapper {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    overflow: hidden;
-    position: relative;
-}
-
-.viewer-content {
-    padding: 0;
-    margin: 0;
-}
-
-/* Ensure section callout components display properly in viewer */
-.viewer-content .section-callout {
-    margin: 0;
-    border-radius: 0;
-    border: none;
-}
-
-.viewer-content .section-callout__content {
-    padding: 32px;
-    max-width: none;
-}
-
-/* Fix for dynamic components */
-.viewer-content .model-accuracy-container {
-    margin: 0;
-    padding: 0;
-    min-height: 400px;
-}
-
-/* Navigation styles */
-.viewer-navigation {
-    margin-top: 24px;
-    text-align: center;
-    padding: 20px;
-}
-
-.viewer-nav-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: #6366f1;
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s;
-    margin: 0 8px;
-}
-
-.viewer-nav-link:hover {
-    background: #5048e5;
-    transform: translateY(-1px);
-}
-
-.viewer-nav-link.secondary {
-    background: #6b7280;
-}
-
-.viewer-nav-link.secondary:hover {
-    background: #4b5563;
-}
-
-/* Ensure interactive elements work */
-.viewer-content button,
-.viewer-content select,
-.viewer-content input {
-    cursor: pointer;
-}
-
-/* Fix loading overlays in viewer context */
-.viewer-content .loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
-}
-
-/* Ensure tables are responsive in viewer */
-.viewer-content .accuracy-table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-@media (max-width: 768px) {
-    .viewer-container {
-        padding: 12px;
-    }
-
-    .viewer-navigation {
-        padding: 12px;
-    }
-
-    .viewer-nav-link {
-        padding: 10px 16px;
-        font-size: 14px;
-    }
-}
-</style>
-{% endblock %}
+{% block title %}{{ section.id }}{% endblock %}
 
 {% block content %}
-<div class="viewer-container">
-    <!-- Header -->
-    <div class="viewer-header">
-        <h1 class="viewer-title">{{ section.id | replace('_', ' ') | title }}</h1>
-        <div class="viewer-meta">
-            <span class="viewer-badge">{{ section.type | replace('_', ' ') | title }}</span>
-            <span>Page: {{ page | replace('_', ' ') | title }}</span>
-            {% if section.file %}
-            <span>File: {{ section.file }}</span>
-            {% endif %}
-            {% if manifest.page_config.color_theme %}
-            <span>Theme: {{ manifest.page_config.color_theme }}</span>
-            {% endif %}
-        </div>
-    </div>
+<div style="padding: 20px;">
+    <h1 style="margin-bottom: 20px;">{{ section.id | replace('_', ' ') | title }}</h1>
+    <p style="color: #666; margin-bottom: 30px;">
+        <strong>Type:</strong> {{ section.type }} |
+        <strong>Page:</strong> {{ page }} |
+        {% if section.file %}<strong>File:</strong> {{ section.file }}{% endif %}
+    </p>
 
     <!-- Component Content -->
-    <div class="viewer-content-wrapper">
-        <div class="viewer-content">
-            {% if section.type == 'section_callout_dynamic' %}
-                <!-- Dynamic section callout - full width treatment -->
-                <section class="section-callout section-callout--{{ manifest.page_config.color_theme or 'purple' }}">
-                    <div class="section-callout__content">
-                        {% if section.title or section.text %}
-                        <div class="section-callout__header">
-                            {% if section.title %}
-                                <h3 class="section-callout__title">{{ section.title }}</h3>
-                            {% endif %}
-                            {% if section.text %}
-                                <p class="section-callout__text">{{ section.text }}</p>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        {% include 'research/' + page + '/' + section.file %}
-                    </div>
-                </section>
-
-            {% elif section.type == 'section_callout' %}
-                <!-- Regular section callout -->
-                <section class="section-callout section-callout--{{ manifest.page_config.color_theme or 'purple' }}">
-                    <div class="section-callout__content">
-                        {% if section.title or section.text %}
-                        <div class="section-callout__header">
-                            {% if section.title %}
-                                <h3 class="section-callout__title">{{ section.title }}</h3>
-                            {% endif %}
-                            {% if section.text %}
-                                <p class="section-callout__text">{{ section.text }}</p>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        {% include 'research/' + page + '/' + section.file %}
-                    </div>
-                </section>
-
-            {% elif section.type == 'callout_inline' %}
-                <!-- Inline callout -->
-                <div class="callout-container">
-                    {% set callout_content %}
-                        {% include 'research/' + page + '/' + section.file %}
-                    {% endset %}
-                    {% with type=section.callout_type or 'default', header=section.header, content=callout_content, compact=section.compact, in_viewer=true %}
-                        {% include 'partials/callout_box_wrapper.html' %}
-                    {% endwith %}
-                </div>
-
-            {% elif section.type == 'article' %}
-                <!-- Article content -->
-                <article class="article-container">
-                    <div class="article-content">
-                        {% if section.title %}
-                            <h2 class="main-section-title">{{ section.title }}</h2>
-                        {% endif %}
-                        <div class="article-text">
-                            {% include 'research/' + page + '/' + section.file %}
-                        </div>
-                    </div>
-                </article>
-
-            {% elif section.type == 'article_content' %}
-                <!-- Article content continuation -->
-                <div class="article-text">
+    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: white;">
+        {% if section.type == 'section_callout_dynamic' %}
+            <section class="section-callout section-callout--{{ manifest.page_config.color_theme or 'purple' }}">
+                <div class="section-callout__content">
+                    {% if section.title %}
+                        <h3 class="section-callout__title">{{ section.title }}</h3>
+                    {% endif %}
+                    {% if section.text %}
+                        <p class="section-callout__text">{{ section.text }}</p>
+                    {% endif %}
                     {% include 'research/' + page + '/' + section.file %}
                 </div>
-
-            {% elif section.type == 'hero' %}
-                <!-- Hero section -->
-                {% include 'research/' + page + '/' + section.file %}
-
-            {% else %}
-                <!-- Raw include for unknown types -->
-                <div style="padding: 24px;">
-                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                        <strong>⚠️ Unknown Component Type:</strong> <code>{{ section.type }}</code>
-                        <p style="margin: 8px 0 0 0;">This component type may not display correctly in the viewer.</p>
-                    </div>
-                    {% include 'research/' + page + '/' + section.file %}
-                </div>
-            {% endif %}
-        </div>
+            </section>
+        {% else %}
+            {% include 'research/' + page + '/' + section.file %}
+        {% endif %}
     </div>
 
     <!-- Navigation -->
-    <div class="viewer-navigation">
-        <a href="{{ url_for('components_index') }}" class="viewer-nav-link secondary">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z"/>
-            </svg>
-            Back to Components
-        </a>
-        <a href="/{{ page }}" class="viewer-nav-link">
-            View Full Page
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3.75a.75.75 0 0 1 0-1.5h7.44L8.22 4.03a.75.75 0 0 1 0-1.06Z"/>
-            </svg>
-        </a>
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="{{ url_for('components_index') }}" style="color: #666; text-decoration: none; margin-right: 20px;">← Back to Components</a>
+        <a href="/{{ page }}" style="color: #666; text-decoration: none;">View Full Page →</a>
     </div>
 </div>
 
-<!-- Include necessary JavaScript for dynamic components -->
-{% if section.type in ['section_callout_dynamic', 'callout_inline'] %}
+{% if section.type in ['section_callout_dynamic'] %}
 <script>
-// Initialize dynamic components when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Component Viewer: Initializing dynamic component...');
-
-    // Small delay to ensure scripts are loaded
     setTimeout(function() {
-        // Trigger initialization functions that components might use
         if (typeof initModelAccuracy === 'function' && '{{ section.id }}' === 'model_accuracy') {
-            console.log('Component Viewer: Initializing model accuracy component');
             initModelAccuracy();
-        }
-
-        // Add more component initializations as needed
-        if (typeof initPhenotypeContent === 'function' && '{{ section.id }}' === 'model_predictions') {
-            initPhenotypeContent();
-        }
-
-        if (typeof initPhenotypeDistributions === 'function' && '{{ section.id }}' === 'prediction_distributions') {
-            initPhenotypeDistributions();
         }
     }, 500);
 });
