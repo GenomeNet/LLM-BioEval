@@ -70,13 +70,35 @@ Access at `http://localhost:5050`
 
 ## Testing
 
-Run admin functionality tests:
+MicrobeLLM has two complementary testing approaches:
+
+### **1. Integration Testing (End-to-End)**
+Run full application integration tests:
 
 ```bash
 python test_admin.py
 ```
 
-This tests database operations, API endpoints, and UI functionality.
+This starts the Flask application and tests:
+- Database operations with real data
+- API endpoints with live HTTP requests
+- UI functionality and user workflows
+- End-to-end application behavior
+
+### **2. Unit & Component Testing**
+Run comprehensive unit tests:
+
+```bash
+pytest
+```
+
+This tests:
+- Individual functions and modules in isolation
+- API endpoints with mocked dependencies
+- Edge cases and error handling
+- Code coverage and quality metrics
+
+**Recommendation**: Run `pytest` for development and `python test_admin.py` for integration validation.
 
 ## Documentation
 

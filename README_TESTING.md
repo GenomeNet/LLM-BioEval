@@ -2,6 +2,26 @@
 
 This document explains how to set up and run the comprehensive test suite for MicrobeLLM.
 
+## Testing Strategy
+
+MicrobeLLM employs a **two-tier testing approach**:
+
+### **Tier 1: Unit & Component Testing (pytest)**
+- **Purpose**: Test individual components in isolation
+- **Scope**: Functions, classes, API endpoints, database operations
+- **Speed**: Fast (< 3 seconds)
+- **Dependencies**: Mocked/simulated
+- **Best for**: Development workflow, CI/CD, catching bugs early
+
+### **Tier 2: Integration Testing (test_admin.py)**
+- **Purpose**: Test full application behavior end-to-end
+- **Scope**: Complete user workflows, real HTTP requests, live database
+- **Speed**: Slower (~30-60 seconds)
+- **Dependencies**: Real Flask server, test database
+- **Best for**: Validating complete functionality, smoke testing
+
+**Use both approaches together for comprehensive test coverage!**
+
 ## 🧪 Test Structure
 
 ```
@@ -240,5 +260,25 @@ For questions about testing:
 4. Create issues for bugs or improvements
 
 ---
+
+## 🚀 Quick Reference
+
+### **Unit Testing (Development)**
+```bash
+# Run all unit tests
+pytest
+
+# Run with coverage
+pytest --cov=microbellm
+
+# Run specific tests
+pytest tests/test_api.py -v
+```
+
+### **Integration Testing (Validation)**
+```bash
+# Run end-to-end integration tests
+python test_admin.py
+```
 
 **Happy Testing! 🧪**
