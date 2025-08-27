@@ -35,11 +35,19 @@ export OPENROUTER_API_KEY='your-openrouter-api-key'
 
 ### 3. Launch Web Interface
 
-```bash
-microbellm-web
-```
+**Choose your interface:**
 
+**Research & Analysis Interface:**
+```bash
+microbellm-web --debug
+```
 Open your browser to `http://localhost:5000`
+
+**Administrative Interface:**
+```bash
+microbellm-admin --debug
+```
+Open your browser to `http://localhost:5050`
 
 ## Using the Web Interface
 
@@ -57,16 +65,39 @@ Open your browser to `http://localhost:5000`
 - **Error Tracking**: View detailed error logs and statistics
 - **Resume Capability**: Jobs automatically skip completed tasks when restarted
 
-## Admin Dashboard
+## Web Interfaces
 
-View and manage results:
+MicrobeLLM provides two different web interfaces for different use cases:
 
+### **1. User-Centric Research Interface**
+Interactive exploration and analysis of microbial data:
+
+```bash
+microbellm-web --debug
+```
+
+Access at `http://localhost:5000`
+
+**Features:**
+- Explore ground truth datasets
+- View phenotype distributions
+- Research project interfaces
+- Data visualization and analysis
+
+### **2. Admin Dashboard**
+Administrative interface for managing jobs and results:
 
 ```bash
 microbellm-admin --debug
 ```
 
 Access at `http://localhost:5050`
+
+**Features:**
+- Create and manage prediction jobs
+- Monitor job progress in real-time
+- View detailed error logs
+- Manage models and templates
 
 ## Testing
 
