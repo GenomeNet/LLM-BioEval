@@ -14,10 +14,6 @@
             </select>
             <div class="dataset-details" id="datasetDetails"></div>
         </div>
-        <button id="analyzeBtn" class="action-button" disabled>
-            <span class="button-text">Analyze Accuracy</span>
-            <span class="button-loading" style="display: none;">Analyzing...</span>
-        </button>
     </div>
 
     <!-- Results Area -->
@@ -157,41 +153,6 @@
     margin-top: 8px;
     font-size: 12px;
     color: #6c757d;
-}
-
-.action-button {
-    padding: 10px 24px;
-    background: #22c55e;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.action-button:hover:not(:disabled) {
-    background: #16a34a;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
-}
-
-.action-button:disabled {
-    background: #e9ecef;
-    color: #adb5bd;
-    cursor: not-allowed;
-}
-
-.button-loading {
-    display: none;
-}
-
-.action-button.loading .button-text {
-    display: none;
-}
-
-.action-button.loading .button-loading {
-    display: inline-block;
 }
 
 /* Results Container */
@@ -453,7 +414,7 @@
 /* Metric cell styling */
 .metric-cell {
     position: relative;
-    cursor: help;
+    cursor: default;
 }
 
 .metric-cell:hover {
@@ -476,29 +437,7 @@
     pointer-events: auto;
 }
 
-.metric-tooltip::before {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 12px;
-    height: 12px;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-top: none;
-    border-left: none;
-    transform: translateX(-50%) rotate(45deg);
-}
-
-/* When tooltip appears below the cell */
-.metric-tooltip.tooltip-below::before {
-    bottom: auto;
-    top: -6px;
-    border: 1px solid #dee2e6;
-    border-bottom: none;
-    border-right: none;
-}
+/* Removed tooltip arrow for cleaner look */
 
 .tooltip-header {
     font-weight: 600;
@@ -621,12 +560,6 @@
         loadGroundTruthDatasets();
         loadPredictionData();
         
-        // Set up event listeners
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        if (analyzeBtn) {
-            analyzeBtn.addEventListener('click', performAnalysis);
-        }
-        
         // Set up metric toggle listeners
         const toggleBalAcc = document.getElementById('toggleBalAcc');
         const togglePrecision = document.getElementById('togglePrecision');
@@ -706,7 +639,14 @@
                         waTestDataset = dataset;
                     }
                 });
-                select.addEventListener('change', updateDatasetInfo);
+                
+                // Add change listener to auto-analyze
+                select.addEventListener('change', () => {
+                    updateDatasetInfo();
+                    if (select.value && predictionData) {
+                        performAnalysis();
+                    }
+                });
                 
                 // Enable analyze button
                 document.getElementById('analyzeBtn').disabled = false;
@@ -747,11 +687,14 @@
         
         if (select.value) {
             const option = select.selectedOptions[0];
-            const count = option.getAttribute('data-count');
-            const template = option.getAttribute('data-template');
-            details.innerHTML = `${count} species | Template: ${template}`;
+            const count = option.dataset.count;
+            const template = option.dataset.template;
+            details.innerHTML = `<span>${count} species</span>`;
         } else {
             details.innerHTML = '';
+            // Hide results if no dataset selected
+            document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('initialMessage').style.display = 'block';
         }
     }
     
@@ -761,21 +704,17 @@
         const datasetName = select.value;
         
         if (!datasetName) {
-            alert('Please select a ground truth dataset');
-            return;
+            return;  // Just return if no dataset selected
         }
         
         if (!predictionData) {
-            alert('Prediction data is still loading. Please try again.');
+            console.log('Prediction data not loaded yet, will retry...');
             return;
         }
         
-        const templateName = select.selectedOptions[0].getAttribute('data-template');
-        const btn = document.getElementById('analyzeBtn');
+        const templateName = select.selectedOptions[0].dataset.template;
         
-        // Show loading state
-        btn.classList.add('loading');
-        btn.disabled = true;
+        // Hide initial message
         document.getElementById('initialMessage').style.display = 'none';
         
         try {
@@ -809,11 +748,10 @@
             document.getElementById('resultsArea').style.display = 'block';
             
         } catch (error) {
+            console.error('Error analyzing accuracy:', error);
             alert('Error analyzing accuracy: ' + error.message);
             document.getElementById('initialMessage').style.display = 'block';
-        } finally {
-            btn.classList.remove('loading');
-            btn.disabled = false;
+            document.getElementById('resultsArea').style.display = 'none';
         }
     }
     

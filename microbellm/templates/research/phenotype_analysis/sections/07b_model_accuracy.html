@@ -1,0 +1,761 @@
+<!-- Model Accuracy Comparison Section -->
+<div class="model-accuracy-container">
+    <!-- Controls Section -->
+    <div class="accuracy-controls">
+        <div class="control-group">
+            <label for="groundTruthSelect">Ground Truth Dataset:</label>
+            <select id="groundTruthSelect" class="form-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="dataset-info" id="datasetInfo"></div>
+        </div>
+        <button id="analyzeAccuracyBtn" class="analyze-button" disabled>
+            <i class="fas fa-chart-line"></i> Analyze Accuracy
+        </button>
+    </div>
+
+    <!-- Results Section -->
+    <div id="accuracyResults" style="display: none;">
+        <div class="accuracy-legend">
+            <div class="legend-title">Performance Levels (Balanced Accuracy):</div>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <span class="legend-color excellent"></span>
+                    <span>≥ 0.9 Excellent</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color good"></span>
+                    <span>0.7-0.9 Good</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color moderate"></span>
+                    <span>0.5-0.7 Moderate</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color poor"></span>
+                    <span>< 0.5 Poor</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accuracy-table-wrapper">
+            <div id="accuracyTableContent"></div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="accuracyLoading" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Calculating accuracy metrics...</span>
+        </div>
+    </div>
+    
+    <!-- Initial Loading Message -->
+    <div id="initialLoading" class="initial-loading">
+        <i class="fas fa-chart-line"></i>
+        <p>Preparing model accuracy analysis...</p>
+        <small>Loading ground truth datasets and prediction data</small>
+    </div>
+</div>
+
+<style>
+.model-accuracy-container {
+    padding: 24px;
+    min-height: 400px;
+    position: relative;
+}
+
+/* Override styles when in green section callout */
+.section-callout--green .model-accuracy-container {
+    color: white;
+}
+
+.section-callout--green .accuracy-controls {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.section-callout--green .control-group label,
+.section-callout--green .legend-title,
+.section-callout--green .accuracy-table thead th,
+.section-callout--green .accuracy-table .model-name {
+    color: white;
+}
+
+.section-callout--green .form-select {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.section-callout--green .form-select option {
+    background: #2c3e50;
+    color: white;
+}
+
+.section-callout--green .accuracy-legend,
+.section-callout--green .accuracy-table-wrapper {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.section-callout--green .accuracy-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.section-callout--green .accuracy-table th,
+.section-callout--green .accuracy-table td {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.section-callout--green .accuracy-table thead th {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.section-callout--green .legend-item,
+.section-callout--green .dataset-info,
+.section-callout--green .sample-size,
+.section-callout--green .initial-loading p,
+.section-callout--green .initial-loading small {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.accuracy-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.control-group {
+    flex: 1;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.dataset-info {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+.analyze-button {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.analyze-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(34, 197, 94, 0.3);
+}
+
+.analyze-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.accuracy-legend {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.legend-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #2c3e50;
+}
+
+.legend-items {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #495057;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.legend-color.excellent {
+    background: #22c55e;
+}
+
+.legend-color.good {
+    background: #3b82f6;
+}
+
+.legend-color.moderate {
+    background: #f59e0b;
+}
+
+.legend-color.poor {
+    background: #ef4444;
+}
+
+.accuracy-table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+}
+
+.accuracy-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.accuracy-table th,
+.accuracy-table td {
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.accuracy-table thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    position: sticky;
+    top: 0;
+}
+
+.accuracy-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.accuracy-table .model-name {
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
+}
+
+.metric-value {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.metric-value.excellent {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.metric-value.good {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.metric-value.moderate {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.metric-value.poor {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.metric-value.na {
+    background: #e9ecef;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.sample-size {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: white;
+}
+
+.loading-spinner i {
+    font-size: 32px;
+}
+
+.initial-loading {
+    text-align: center;
+    padding: 48px 24px;
+    color: #6c757d;
+}
+
+.initial-loading i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+    color: #22c55e;
+}
+
+.initial-loading p {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+}
+
+.initial-loading small {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .accuracy-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .analyze-button {
+        width: 100%;
+    }
+    
+    .legend-items {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+</style>
+
+<script>
+(function() {
+    // Component-specific variables
+    let groundTruthDatasets = [];
+    let predictionData = null;
+    let fieldDefinitions = {};
+    
+    // Initialize component when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initModelAccuracy();
+    });
+    
+    async function initModelAccuracy() {
+        try {
+            await Promise.all([
+                loadGroundTruthDatasets(),
+                loadPredictionData()
+            ]);
+            // Hide initial loading message once data is loaded
+            const initialLoading = document.getElementById('initialLoading');
+            if (initialLoading) {
+                initialLoading.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error initializing model accuracy component:', error);
+            const initialLoading = document.getElementById('initialLoading');
+            if (initialLoading) {
+                initialLoading.innerHTML = `
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                    <p>Error loading data</p>
+                    <small>${error.message || 'Please refresh the page and try again'}</small>
+                `;
+            }
+        }
+    }
+    
+    async function loadGroundTruthDatasets() {
+        try {
+            const response = await fetch('/api/ground_truth/datasets');
+            const result = await response.json();
+            if (result.success) {
+                groundTruthDatasets = result.datasets;
+                const select = document.getElementById('groundTruthSelect');
+                
+                if (result.datasets.length === 0) {
+                    select.innerHTML = '<option value="">No ground truth datasets available</option>';
+                    document.getElementById('datasetInfo').innerHTML = 
+                        '<i class="fas fa-info-circle"></i> Please import ground truth data first.';
+                } else {
+                    let html = '<option value="">Select dataset...</option>';
+                    result.datasets.forEach(dataset => {
+                        html += `<option value="${dataset.dataset_name}" 
+                                data-template="${dataset.template_name}" 
+                                data-species-count="${dataset.species_count}">
+                                ${dataset.dataset_name}
+                            </option>`;
+                    });
+                    select.innerHTML = html;
+                    document.getElementById('analyzeAccuracyBtn').disabled = false;
+                    
+                    // Auto-select WA_Test_dataset if available, or first dataset
+                    const waTestDataset = result.datasets.find(d => d.dataset_name === 'WA_Test_dataset');
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_dataset';
+                        updateDatasetInfo();
+                        // Auto-analyze if WA_Test_dataset is available
+                        setTimeout(() => analyzeAccuracy(), 500);
+                    } else if (result.datasets.length === 1) {
+                        select.value = result.datasets[0].dataset_name;
+                        updateDatasetInfo();
+                        // Auto-analyze if only one dataset
+                        setTimeout(() => analyzeAccuracy(), 500);
+                    }
+                }
+                
+                select.addEventListener('change', updateDatasetInfo);
+            }
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+            document.getElementById('groundTruthSelect').innerHTML = 
+                '<option value="">Error loading datasets</option>';
+        }
+    }
+    
+    async function loadPredictionData() {
+        try {
+            const response = await fetch('/api/phenotype_analysis');
+            const result = await response.json();
+            if (!result.error && result.data) {
+                predictionData = result.data;
+            }
+        } catch (error) {
+            console.error('Error loading prediction data:', error);
+        }
+    }
+    
+    function updateDatasetInfo() {
+        const select = document.getElementById('groundTruthSelect');
+        const infoDiv = document.getElementById('datasetInfo');
+        
+        if (select.value) {
+            const selectedOption = select.options[select.selectedIndex];
+            const speciesCount = selectedOption.getAttribute('data-species-count');
+            const templateName = selectedOption.getAttribute('data-template');
+            infoDiv.innerHTML = 
+                `<i class="fas fa-dna"></i> ${speciesCount} species | 
+                 <i class="fas fa-file-alt"></i> Template: ${templateName}`;
+        } else {
+            infoDiv.textContent = '';
+        }
+    }
+    
+    // Analyze button click handler
+    document.getElementById('analyzeAccuracyBtn').addEventListener('click', analyzeAccuracy);
+    
+    async function analyzeAccuracy() {
+        const datasetSelect = document.getElementById('groundTruthSelect');
+        const datasetName = datasetSelect.value;
+        
+        if (!datasetName) {
+            alert('Please select a ground truth dataset');
+            return;
+        }
+        
+        if (!predictionData) {
+            alert('Prediction data is not loaded yet. Please try again.');
+            return;
+        }
+        
+        const selectedOption = datasetSelect.options[datasetSelect.selectedIndex];
+        const templateName = selectedOption.getAttribute('data-template');
+        
+        const analyzeBtn = document.getElementById('analyzeAccuracyBtn');
+        const loadingDiv = document.getElementById('accuracyLoading');
+        const resultsDiv = document.getElementById('accuracyResults');
+        
+        // Hide any previous results while loading
+        resultsDiv.style.display = 'none';
+        
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        
+        // Show loading overlay after a brief delay to prevent flashing
+        setTimeout(() => {
+            if (analyzeBtn.disabled) {
+                loadingDiv.style.display = 'flex';
+            }
+        }, 200);
+        
+        try {
+            // Get field definitions
+            const templateResponse = await fetch(`/api/template_field_definitions?template=${templateName}`);
+            const templateResult = await templateResponse.json();
+            fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+            
+            // Get ground truth data
+            const groundTruthResponse = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+            const groundTruthResult = await groundTruthResponse.json();
+            
+            if (!groundTruthResult.success) {
+                throw new Error('Failed to load ground truth data');
+            }
+            
+            // Create ground truth map
+            const groundTruthMap = {};
+            groundTruthResult.data.forEach(item => {
+                groundTruthMap[item.binomial_name.toLowerCase()] = item;
+            });
+            
+            // Calculate metrics
+            const metrics = calculateMetrics(predictionData, groundTruthMap, fieldDefinitions);
+            
+            // Display results
+            displayAccuracyResults(metrics);
+            document.getElementById('accuracyResults').style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error analyzing accuracy:', error);
+            alert('Error analyzing accuracy: ' + error.message);
+        } finally {
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = '<i class="fas fa-chart-line"></i> Analyze Accuracy';
+            loadingDiv.style.display = 'none';
+        }
+    }
+    
+    function normalizeValue(value) {
+        if (value === null || value === undefined || value === 'N/A' || value === 'null') return '';
+        return String(value).trim();
+    }
+    
+    function calculateMetrics(predictionData, groundTruthMap, fieldDefinitions) {
+        const results = [];
+        const phenotypeFields = Object.keys(fieldDefinitions);
+        const allPredictions = Object.values(predictionData).flat();
+        const models = [...new Set(allPredictions.map(p => p.model))];
+        
+        phenotypeFields.forEach(phenotype => {
+            models.forEach(model => {
+                const modelPredictions = allPredictions.filter(p => p.model === model);
+                
+                let true_values = [];
+                let pred_values = [];
+                
+                modelPredictions.forEach(pred => {
+                    const speciesName = pred.binomial_name?.toLowerCase();
+                    if (speciesName && groundTruthMap[speciesName]) {
+                        const truth = groundTruthMap[speciesName];
+                        const true_val = normalizeValue(truth[phenotype]);
+                        const pred_val = normalizeValue(pred[phenotype]);
+                        
+                        if (true_val !== '' && pred_val !== '') {
+                            true_values.push(true_val);
+                            pred_values.push(pred_val);
+                        }
+                    }
+                });
+                
+                if (true_values.length > 0) {
+                    const metrics = calcMetrics(pred_values, true_values);
+                    if (metrics) {
+                        results.push({
+                            Model: model,
+                            Target: phenotype,
+                            BalancedAcc: metrics.balanced_accuracy,
+                            Precision: metrics.precision,
+                            SampleSize: metrics.sampleSize
+                        });
+                    }
+                }
+            });
+        });
+        
+        return results;
+    }
+    
+    function calcMetrics(pred_values, true_values) {
+        const convertToLogical = (val) => {
+            const lower = String(val).toLowerCase();
+            if (['true', 't', '1', 'yes'].includes(lower)) return true;
+            if (['false', 'f', '0', 'no'].includes(lower)) return false;
+            return null;
+        };
+        
+        if (true_values.length === 0 || [...new Set(true_values)].length < 2) {
+            return { balanced_accuracy: NaN, precision: NaN, sampleSize: 0 };
+        }
+        
+        const all_unique_values = [...new Set([...true_values, ...pred_values])];
+        const is_binary = all_unique_values.every(v => convertToLogical(v) !== null);
+        
+        if (is_binary) {
+            const true_logical = true_values.map(convertToLogical);
+            const pred_logical = pred_values.map(convertToLogical);
+            let tp = 0, tn = 0, fp = 0, fn = 0;
+            
+            for (let i = 0; i < true_logical.length; i++) {
+                if (true_logical[i] === true && pred_logical[i] === true) tp++;
+                else if (true_logical[i] === false && pred_logical[i] === false) tn++;
+                else if (true_logical[i] === false && pred_logical[i] === true) fp++;
+                else if (true_logical[i] === true && pred_logical[i] === false) fn++;
+            }
+            
+            const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
+            const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
+            const balanced_acc = (sensitivity + specificity) / 2;
+            const precision = (tp + fp > 0) ? tp / (tp + fp) : 0;
+            
+            return { balanced_accuracy: balanced_acc, precision: precision, sampleSize: true_values.length };
+        } else {
+            // Multi-class case
+            const all_labels = [...new Set([...true_values, ...pred_values])].sort();
+            const label_map = Object.fromEntries(all_labels.map((l, i) => [l, i]));
+            const num_labels = all_labels.length;
+            const cm = Array(num_labels).fill(0).map(() => Array(num_labels).fill(0));
+            
+            for (let i = 0; i < true_values.length; i++) {
+                const true_idx = label_map[true_values[i]];
+                const pred_idx = label_map[pred_values[i]];
+                if (true_idx !== undefined && pred_idx !== undefined) {
+                    cm[true_idx][pred_idx]++;
+                }
+            }
+            
+            const cm_sum = cm.flat().reduce((a, b) => a + b, 0);
+            let balanced_acc_per_class = [];
+            let precision_per_class = [];
+            
+            const true_labels_in_data = [...new Set(true_values)];
+            
+            for (let i = 0; i < num_labels; i++) {
+                const label = all_labels[i];
+                if (!true_labels_in_data.includes(label)) continue;
+                
+                const tp = cm[i][i];
+                const row_sum = cm[i].reduce((a, b) => a + b, 0);
+                const col_sum = cm.reduce((sum, row) => sum + row[i], 0);
+                const fn = row_sum - tp;
+                const fp = col_sum - tp;
+                const tn = cm_sum - tp - fn - fp;
+                
+                const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
+                const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
+                balanced_acc_per_class.push((sensitivity + specificity) / 2);
+                
+                const precision_i = (tp + fp > 0) ? tp / (tp + fp) : 0;
+                precision_per_class.push(precision_i);
+            }
+            
+            const balanced_acc = balanced_acc_per_class.length > 0 ? 
+                balanced_acc_per_class.reduce((a, b) => a + b, 0) / balanced_acc_per_class.length : NaN;
+            const precision = precision_per_class.length > 0 ? 
+                precision_per_class.reduce((a, b) => a + b, 0) / precision_per_class.length : NaN;
+            
+            return { balanced_accuracy: balanced_acc, precision: precision, sampleSize: true_values.length };
+        }
+    }
+    
+    function displayAccuracyResults(metrics) {
+        const models = [...new Set(metrics.map(m => m.Model))].sort();
+        const phenotypes = [...new Set(metrics.map(m => m.Target))].sort();
+        
+        let html = '<table class="accuracy-table">';
+        html += '<thead><tr><th class="model-name">Model</th>';
+        
+        // Add phenotype headers
+        phenotypes.forEach(pheno => {
+            const displayName = pheno.replace(/_/g, ' ');
+            html += `<th colspan="3">${displayName}</th>`;
+        });
+        html += '</tr><tr><th></th>';
+        
+        // Add metric subheaders
+        phenotypes.forEach(() => {
+            html += '<th>Bal. Acc.</th><th>Precision</th><th>N</th>';
+        });
+        html += '</tr></thead><tbody>';
+        
+        // Add data rows
+        models.forEach(model => {
+            html += `<tr><td class="model-name">${model}</td>`;
+            
+            phenotypes.forEach(pheno => {
+                const metric = metrics.find(m => m.Model === model && m.Target === pheno);
+                
+                if (metric) {
+                    const acc = metric.BalancedAcc;
+                    const prec = metric.Precision;
+                    const acc_val = isNaN(acc) ? 'N/A' : acc.toFixed(3);
+                    const prec_val = isNaN(prec) ? 'N/A' : prec.toFixed(3);
+                    const acc_class = isNaN(acc) ? 'na' : getPerformanceClass(acc);
+                    const prec_class = isNaN(prec) ? 'na' : getPerformanceClass(prec);
+                    
+                    html += `<td><span class="metric-value ${acc_class}">${acc_val}</span></td>`;
+                    html += `<td><span class="metric-value ${prec_class}">${prec_val}</span></td>`;
+                    html += `<td class="sample-size">${metric.SampleSize}</td>`;
+                } else {
+                    html += '<td colspan="3"><span class="metric-value na">N/A</span></td>';
+                }
+            });
+            
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        document.getElementById('accuracyTableContent').innerHTML = html;
+    }
+    
+    function getPerformanceClass(value) {
+        if (value >= 0.9) return 'excellent';
+        if (value >= 0.7) return 'good';
+        if (value >= 0.5) return 'moderate';
+        return 'poor';
+    }
+})();
+</script>
