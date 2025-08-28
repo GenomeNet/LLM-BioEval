@@ -579,27 +579,38 @@
                 const select = document.getElementById('groundTruthDataset');
                 
                 if (result.datasets.length === 0) {
-                    select.innerHTML = '<option value="">No datasets available</option>';
+                    // Clear and add empty option safely
+                    select.innerHTML = '';
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = 'No datasets available';
+                    select.appendChild(emptyOpt);
                     return;
                 }
                 
-                // Build options
-                let options = '<option value="">Select a dataset...</option>';
+                // Build options safely
+                select.innerHTML = '';
                 let waTestDataset = null;
                 
+                // Add default option
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = 'Select a dataset...';
+                select.appendChild(defaultOpt);
+                
+                // Add dataset options safely
                 result.datasets.forEach(dataset => {
-                    options += `<option value="${dataset.dataset_name}" 
-                                data-template="${dataset.template_name}"
-                                data-count="${dataset.species_count}">
-                                ${dataset.dataset_name}
-                            </option>`;
+                    const opt = document.createElement('option');
+                    opt.value = dataset.dataset_name;
+                    opt.textContent = dataset.dataset_name;  // Safe text content
+                    opt.dataset.template = dataset.template_name;
+                    opt.dataset.count = dataset.species_count;
+                    select.appendChild(opt);
                     
                     if (dataset.dataset_name === 'WA_Test_Dataset') {
                         waTestDataset = dataset;
                     }
                 });
-                
-                select.innerHTML = options;
                 select.addEventListener('change', updateDatasetInfo);
                 
                 // Enable analyze button
@@ -712,44 +723,46 @@
     function calculateMetrics(predictions, groundTruth, fields) {
         const results = [];
         const phenotypes = Object.keys(fields);
-        const allPreds = Object.values(predictions).flat();
-        const models = [...new Set(allPreds.map(p => p.model))];
         
-        phenotypes.forEach(phenotype => {
-            models.forEach(model => {
-                const modelPreds = allPreds.filter(p => p.model === model);
-                const trueVals = [];
-                const predVals = [];
+        for (const phenotype of phenotypes) {
+            // Use predictions for the current phenotype if available, otherwise use all
+            const pool = Array.isArray(predictions)
+                ? predictions
+                : Array.isArray(predictions[phenotype])
+                    ? predictions[phenotype]
+                    : Object.values(predictions).flat(); // fallback
+            
+            const models = [...new Set(pool.map(p => p.model))];
+            
+            for (const model of models) {
+                const rows = pool.filter(p => p.model === model);
+                const trueVals = [], predVals = [];
                 
-                modelPreds.forEach(pred => {
+                for (const pred of rows) {
                     const species = pred.binomial_name?.toLowerCase();
-                    if (species && groundTruth[species]) {
-                        const truth = groundTruth[species];
-                        const trueVal = normalizeValue(truth[phenotype]);
-                        const predVal = normalizeValue(pred[phenotype]);
-                        
-                        if (trueVal !== '' && predVal !== '') {
-                            trueVals.push(trueVal);
-                            predVals.push(predVal);
-                        }
+                    if (!species || !groundTruth[species]) continue;
+                    const t = normalizeValue(groundTruth[species][phenotype]);
+                    const y = normalizeValue(pred[phenotype]);
+                    if (t !== '' && y !== '') {
+                        trueVals.push(t);
+                        predVals.push(y);
                     }
-                });
+                }
                 
-                if (trueVals.length > 0) {
-                    const metrics = computeMetrics(predVals, trueVals);
+                if (trueVals.length) {
+                    const m = computeMetrics(predVals, trueVals);
                     results.push({
-                        model: model,
-                        phenotype: phenotype,
-                        balancedAcc: metrics.balancedAcc,
-                        precision: metrics.precision,
-                        sampleSize: metrics.sampleSize,
-                        confusionMatrix: metrics.confusionMatrix,
-                        labels: metrics.labels
+                        model,
+                        phenotype,
+                        balancedAcc: m.balancedAcc,
+                        precision: m.precision,
+                        sampleSize: m.sampleSize,
+                        confusionMatrix: m.confusionMatrix,
+                        labels: m.labels
                     });
                 }
-            });
-        });
-        
+            }
+        }
         return results;
     }
     
@@ -761,101 +774,86 @@
         return String(value).trim();
     }
     
+    // Convert to boolean with consistent handling
+    function toBoolean(v) {
+        if (v === null || v === undefined) return null;
+        const s = String(v).trim().toLowerCase();
+        if (['true','1','yes','t','y'].includes(s)) return true;
+        if (['false','0','no','f','n'].includes(s)) return false;
+        return null; // unknown token → treat as missing
+    }
+    
     // Compute metrics for predictions
     function computeMetrics(preds, truths) {
-        // Check if binary
-        const uniqueVals = [...new Set([...preds, ...truths])];
-        const isBinary = uniqueVals.every(v => {
-            const lower = v.toLowerCase();
-            return ['true', 'false', 't', 'f', '0', '1', 'yes', 'no'].includes(lower);
-        });
+        // Try binary first by converting both sides
+        const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
+                            .filter(([p, t]) => p !== null && t !== null);
         
-        if (isBinary) {
+        const allBinary = mapped.length > 0 && mapped.length === preds.length;
+        if (allBinary) {
             // Binary classification metrics
             let tp = 0, tn = 0, fp = 0, fn = 0;
-            
-            for (let i = 0; i < truths.length; i++) {
-                const trueVal = truths[i].toLowerCase() === 'true' || truths[i] === '1' || truths[i].toLowerCase() === 'yes';
-                const predVal = preds[i].toLowerCase() === 'true' || preds[i] === '1' || preds[i].toLowerCase() === 'yes';
-                
-                if (trueVal && predVal) tp++;
-                else if (!trueVal && !predVal) tn++;
-                else if (!trueVal && predVal) fp++;
-                else if (trueVal && !predVal) fn++;
+            for (const [p, t] of mapped) {
+                if (t && p) tp++;
+                else if (!t && !p) tn++;
+                else if (!t && p) fp++;
+                else fn++;
             }
-            
-            const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
-            const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
-            const balancedAcc = (sensitivity + specificity) / 2;
-            const precision = (tp + fp > 0) ? tp / (tp + fp) : 0;
-            
-            return { 
-                balancedAcc, 
-                precision, 
-                sampleSize: truths.length,
+            const sens = tp + fn ? tp / (tp + fn) : 0;
+            const spec = tn + fp ? tn / (tn + fp) : 0;
+            const prec = tp + fp ? tp / (tp + fp) : 0;
+            return {
+                balancedAcc: (sens + spec) / 2,
+                precision: prec,
+                sampleSize: mapped.length,
                 confusionMatrix: [[tn, fp], [fn, tp]],
                 labels: ['False', 'True']
             };
-        } else {
-            // Multi-class metrics
-            const labels = [...new Set([...truths, ...preds])];
-            const confMatrix = {};
-            
-            labels.forEach(l => {
-                confMatrix[l] = {};
-                labels.forEach(l2 => {
-                    confMatrix[l][l2] = 0;
-                });
-            });
-            
-            for (let i = 0; i < truths.length; i++) {
-                confMatrix[truths[i]][preds[i]]++;
-            }
-            
-            // Calculate per-class metrics
-            let totalBalancedAcc = 0;
-            let totalPrecision = 0;
-            let classCount = 0;
-            
-            labels.forEach(label => {
-                const tp = confMatrix[label][label];
-                let fn = 0, fp = 0, tn = 0;
-                
-                labels.forEach(l2 => {
-                    if (l2 !== label) {
-                        fn += confMatrix[label][l2];
-                        fp += confMatrix[l2][label];
-                    }
-                });
-                
-                const total = truths.length;
-                tn = total - tp - fn - fp;
-                
-                const sensitivity = (tp + fn > 0) ? tp / (tp + fn) : 0;
-                const specificity = (tn + fp > 0) ? tn / (tn + fp) : 0;
-                const precision = (tp + fp > 0) ? tp / (tp + fp) : 0;
-                
-                totalBalancedAcc += (sensitivity + specificity) / 2;
-                totalPrecision += precision;
-                classCount++;
-            });
-            
-            // Create confusion matrix array
-            const confusionMatrixArray = labels.map(l1 => 
-                labels.map(l2 => confMatrix[l1][l2])
-            );
-            
-            return {
-                balancedAcc: totalBalancedAcc / classCount,
-                precision: totalPrecision / classCount,
-                sampleSize: truths.length,
-                confusionMatrix: confusionMatrixArray,
-                labels: labels
-            };
         }
+        
+        // Multiclass: use standard macro-recall "balanced accuracy"
+        const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
+        const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
+        for (let i = 0; i < truths.length; i++) {
+            conf[String(truths[i])][String(preds[i])]++;
+        }
+        
+        let recallSum = 0, precSum = 0;
+        for (const lab of labels) {
+            const tp = conf[lab][lab];
+            let fn = 0, fp = 0;
+            for (const l2 of labels) {
+                if (l2 !== lab) {
+                    fn += conf[lab][l2];
+                    fp += conf[l2][lab];
+                }
+            }
+            const rec = tp + fn ? tp / (tp + fn) : 0;  // sensitivity/recall
+            const pre = tp + fp ? tp / (tp + fp) : 0;  // precision
+            recallSum += rec;
+            precSum += pre;
+        }
+        const confusionMatrixArray = labels.map(r => labels.map(c => conf[r][c]));
+        return {
+            balancedAcc: recallSum / labels.length,  // macro recall (standard multiclass balanced accuracy)
+            precision: precSum / labels.length,      // macro precision
+            sampleSize: truths.length,
+            confusionMatrix: confusionMatrixArray,
+            labels
+        };
     }
     
     // Display results
+    // Helper function to check if value is finite
+    function isFiniteNum(v) { 
+        return Number.isFinite(v); 
+    }
+    
+    // Format value safely
+    function fmt(v) { 
+        return isFiniteNum(v) ? v.toFixed(3) : 'N/A'; 
+    }
+    
     function displayResults(metrics) {
         const models = [...new Set(metrics.map(m => m.model))].sort();
         let phenotypes = [...new Set(metrics.map(m => m.phenotype))];
@@ -864,21 +862,29 @@
         const phenotypeMaxAccuracy = {};
         phenotypes.forEach(pheno => {
             const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
-            const maxAcc = Math.max(...phenoMetrics.map(m => m.balancedAcc).filter(v => !isNaN(v)));
+            const scores = phenoMetrics.map(m => m.balancedAcc).filter(isFiniteNum);
+            const maxAcc = scores.length ? Math.max(...scores) : NaN;
             phenotypeMaxAccuracy[pheno] = maxAcc;
         });
         
         // Sort phenotypes by their best accuracy (descending)
-        phenotypes.sort((a, b) => (phenotypeMaxAccuracy[b] || 0) - (phenotypeMaxAccuracy[a] || 0));
+        phenotypes.sort((a, b) => {
+            const aVal = isFiniteNum(phenotypeMaxAccuracy[a]) ? phenotypeMaxAccuracy[a] : -1;
+            const bVal = isFiniteNum(phenotypeMaxAccuracy[b]) ? phenotypeMaxAccuracy[b] : -1;
+            return bVal - aVal;
+        });
         
         // Find best performers for each phenotype
         const bestPerformers = {};
         phenotypes.forEach(pheno => {
             const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
-            const maxAcc = Math.max(...phenoMetrics.map(m => m.balancedAcc).filter(v => !isNaN(v)));
-            const bestModel = phenoMetrics.find(m => m.balancedAcc === maxAcc);
-            if (bestModel) {
-                bestPerformers[pheno] = bestModel.model;
+            const validMetrics = phenoMetrics.filter(m => isFiniteNum(m.balancedAcc));
+            if (validMetrics.length > 0) {
+                const maxAcc = Math.max(...validMetrics.map(m => m.balancedAcc));
+                const bestModel = validMetrics.find(m => m.balancedAcc === maxAcc);
+                if (bestModel) {
+                    bestPerformers[pheno] = bestModel.model;
+                }
             }
         });
         
@@ -889,7 +895,8 @@
         phenotypes.forEach(pheno => {
             const name = pheno.replace(/_/g, ' ');
             const maxAcc = phenotypeMaxAccuracy[pheno];
-            html += `<th colspan="2">${name}${!isNaN(maxAcc) ? ` <small style="color: #6c757d;">(${maxAcc.toFixed(3)})</small>` : ''}</th>`;
+            html += `<th colspan="2">${name}${isFiniteNum(maxAcc) ? 
+                ` <small style="color: #6c757d;">(${maxAcc.toFixed(3)})</small>` : ''}</th>`;
         });
         html += '</tr><tr><th></th>';
         
@@ -922,10 +929,10 @@
                     }).replace(/"/g, '&quot;');
                     
                     html += `<td class="metric-cell ${cellClass}" data-tooltip-data="${tooltipData}">
-                        <span class="metric-badge ${accClass}${bestClass}">${metric.balancedAcc.toFixed(3)}</span>
+                        <span class="metric-badge ${accClass}${bestClass}">${fmt(metric.balancedAcc)}</span>
                     </td>`;
                     html += `<td class="metric-cell" data-tooltip-data="${tooltipData}">
-                        <span class="metric-badge ${precClass}">${metric.precision.toFixed(3)}</span>
+                        <span class="metric-badge ${precClass}">${fmt(metric.precision)}</span>
                     </td>`;
                 } else {
                     html += '<td colspan="2"><span class="metric-badge na">N/A</span></td>';
@@ -952,8 +959,8 @@
         let html = `<div class="tooltip-header">${phenoName}</div>`;
         html += `<div class="tooltip-stats">`;
         html += `<div><strong>Sample Size:</strong> ${metric.sampleSize}</div>`;
-        html += `<div><strong>Balanced Acc:</strong> ${metric.balancedAcc.toFixed(3)}</div>`;
-        html += `<div><strong>Precision:</strong> ${metric.precision.toFixed(3)}</div>`;
+        html += `<div><strong>Balanced Acc:</strong> ${fmt(metric.balancedAcc)}</div>`;
+        html += `<div><strong>Precision:</strong> ${fmt(metric.precision)}</div>`;
         html += `</div>`;
         
         // Add confusion matrix if available
