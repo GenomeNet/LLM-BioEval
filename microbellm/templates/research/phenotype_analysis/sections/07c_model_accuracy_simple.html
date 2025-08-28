@@ -601,6 +601,9 @@
     async function loadGroundTruthDatasets() {
         try {
             const response = await fetch('/api/ground_truth/datasets');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const result = await response.json();
             
             if (result.success && result.datasets) {
@@ -648,9 +651,6 @@
                     }
                 });
                 
-                // Enable analyze button
-                document.getElementById('analyzeBtn').disabled = false;
-                
                 // Auto-select WA_Test_Dataset if available
                 if (waTestDataset) {
                     select.value = 'WA_Test_Dataset';
@@ -658,11 +658,19 @@
                     // Auto-analyze after a short delay
                     setTimeout(() => performAnalysis(), 500);
                 }
+            } else {
+                // Handle case where API returns but not successful
+                console.error('API returned without success:', result);
+                throw new Error(result.error || 'Failed to load datasets');
             }
         } catch (error) {
             console.error('Error loading datasets:', error);
-            document.getElementById('groundTruthDataset').innerHTML = 
-                '<option value="">Error loading datasets</option>';
+            const select = document.getElementById('groundTruthDataset');
+            select.innerHTML = '';
+            const errorOpt = document.createElement('option');
+            errorOpt.value = '';
+            errorOpt.textContent = 'Error loading datasets - please refresh';
+            select.appendChild(errorOpt);
         }
     }
     
