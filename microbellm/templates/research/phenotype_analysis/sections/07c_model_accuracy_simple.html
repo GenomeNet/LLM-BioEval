@@ -22,9 +22,18 @@
 
     <!-- Results Area -->
     <div id="resultsArea" class="results-container" style="display: none;">
+        <!-- Metric Toggle -->
+        <div class="metric-toggle-container">
+            <label class="metric-toggle-label">Display Metric:</label>
+            <div class="metric-toggle-group">
+                <button id="toggleBalAcc" class="metric-toggle-btn active">Balanced Accuracy</button>
+                <button id="togglePrecision" class="metric-toggle-btn">Precision</button>
+            </div>
+        </div>
+        
         <!-- Performance Legend -->
         <div class="performance-legend">
-            <h4>Performance Scale & Metrics</h4>
+            <h4>Performance Scale - <span id="legendMetricName">Balanced Accuracy</span></h4>
             <div class="legend-container">
                 <div class="legend-section">
                     <h5>Accuracy Levels:</h5>
@@ -48,13 +57,13 @@
                     </div>
                 </div>
                 <div class="legend-section">
-                    <h5>Metrics Explained:</h5>
+                    <h5>Metric Definition:</h5>
                     <div class="metrics-info">
-                        <div class="metric-desc">
-                            <strong>Bal.Acc</strong> (Balanced Accuracy): Average of sensitivity and specificity, handles imbalanced classes well
+                        <div id="metricDefBalAcc" class="metric-desc">
+                            <strong>Balanced Accuracy:</strong> Macro-average recall across all classes, providing equal weight to each class regardless of frequency
                         </div>
-                        <div class="metric-desc">
-                            <strong>Prec.</strong> (Precision): Proportion of positive predictions that are correct
+                        <div id="metricDefPrecision" class="metric-desc" style="display: none;">
+                            <strong>Precision:</strong> Macro-average precision, measuring the proportion of correct predictions for each class
                         </div>
                         <div class="metric-desc">
                             <span class="best-indicator">★</span> = Best performer for this phenotype
@@ -285,6 +294,54 @@
 
 .perf-box.poor {
     background: #ef4444;
+}
+
+/* Metric Toggle */
+.metric-toggle-container {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.metric-toggle-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.metric-toggle-group {
+    display: flex;
+    gap: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.metric-toggle-btn {
+    padding: 8px 16px;
+    border: none;
+    background: white;
+    color: #6c757d;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-right: 1px solid #dee2e6;
+}
+
+.metric-toggle-btn:last-child {
+    border-right: none;
+}
+
+.metric-toggle-btn:hover {
+    background: #f8f9fa;
+}
+
+.metric-toggle-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
 }
 
 /* Results Table */
@@ -556,6 +613,8 @@
     let groundTruthData = null;
     let predictionData = null;
     let fieldDefinitions = {};
+    let currentMetrics = null;  // Store metrics for re-rendering
+    let selectedMetric = 'balancedAcc';  // Default to balanced accuracy
     
     // Initialize when DOM is ready
     function init() {
@@ -566,6 +625,42 @@
         const analyzeBtn = document.getElementById('analyzeBtn');
         if (analyzeBtn) {
             analyzeBtn.addEventListener('click', performAnalysis);
+        }
+        
+        // Set up metric toggle listeners
+        const toggleBalAcc = document.getElementById('toggleBalAcc');
+        const togglePrecision = document.getElementById('togglePrecision');
+        
+        if (toggleBalAcc) {
+            toggleBalAcc.addEventListener('click', () => switchMetric('balancedAcc'));
+        }
+        
+        if (togglePrecision) {
+            togglePrecision.addEventListener('click', () => switchMetric('precision'));
+        }
+    }
+    
+    // Switch between metrics
+    function switchMetric(metric) {
+        if (metric === selectedMetric) return;
+        
+        selectedMetric = metric;
+        
+        // Update toggle buttons
+        document.getElementById('toggleBalAcc').classList.toggle('active', metric === 'balancedAcc');
+        document.getElementById('togglePrecision').classList.toggle('active', metric === 'precision');
+        
+        // Update legend
+        const metricName = metric === 'balancedAcc' ? 'Balanced Accuracy' : 'Precision';
+        document.getElementById('legendMetricName').textContent = metricName;
+        
+        // Update metric definition visibility
+        document.getElementById('metricDefBalAcc').style.display = metric === 'balancedAcc' ? 'block' : 'none';
+        document.getElementById('metricDefPrecision').style.display = metric === 'precision' ? 'block' : 'none';
+        
+        // Re-render table if we have metrics
+        if (currentMetrics) {
+            displayResults(currentMetrics);
         }
     }
     
@@ -705,6 +800,9 @@
             
             // Calculate metrics
             const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+            
+            // Store metrics for re-rendering when toggling
+            currentMetrics = metrics;
             
             // Display results
             displayResults(metrics);
@@ -858,19 +956,22 @@
         const models = [...new Set(metrics.map(m => m.model))].sort();
         let phenotypes = [...new Set(metrics.map(m => m.phenotype))];
         
-        // Calculate best accuracy for each phenotype to sort columns
-        const phenotypeMaxAccuracy = {};
+        // Use selected metric for sorting
+        const metricField = selectedMetric;  // 'balancedAcc' or 'precision'
+        
+        // Calculate best score for each phenotype to sort columns
+        const phenotypeMaxScore = {};
         phenotypes.forEach(pheno => {
             const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
-            const scores = phenoMetrics.map(m => m.balancedAcc).filter(isFiniteNum);
-            const maxAcc = scores.length ? Math.max(...scores) : NaN;
-            phenotypeMaxAccuracy[pheno] = maxAcc;
+            const scores = phenoMetrics.map(m => m[metricField]).filter(isFiniteNum);
+            const maxScore = scores.length ? Math.max(...scores) : NaN;
+            phenotypeMaxScore[pheno] = maxScore;
         });
         
-        // Sort phenotypes by their best accuracy (descending)
+        // Sort phenotypes by their best score (descending)
         phenotypes.sort((a, b) => {
-            const aVal = isFiniteNum(phenotypeMaxAccuracy[a]) ? phenotypeMaxAccuracy[a] : -1;
-            const bVal = isFiniteNum(phenotypeMaxAccuracy[b]) ? phenotypeMaxAccuracy[b] : -1;
+            const aVal = isFiniteNum(phenotypeMaxScore[a]) ? phenotypeMaxScore[a] : -1;
+            const bVal = isFiniteNum(phenotypeMaxScore[b]) ? phenotypeMaxScore[b] : -1;
             return bVal - aVal;
         });
         
@@ -878,10 +979,10 @@
         const bestPerformers = {};
         phenotypes.forEach(pheno => {
             const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
-            const validMetrics = phenoMetrics.filter(m => isFiniteNum(m.balancedAcc));
+            const validMetrics = phenoMetrics.filter(m => isFiniteNum(m[metricField]));
             if (validMetrics.length > 0) {
-                const maxAcc = Math.max(...validMetrics.map(m => m.balancedAcc));
-                const bestModel = validMetrics.find(m => m.balancedAcc === maxAcc);
+                const maxScore = Math.max(...validMetrics.map(m => m[metricField]));
+                const bestModel = validMetrics.find(m => m[metricField] === maxScore);
                 if (bestModel) {
                     bestPerformers[pheno] = bestModel.model;
                 }
@@ -891,18 +992,12 @@
         let html = '<table class="accuracy-results-table">';
         html += '<thead><tr><th class="model-column">Model</th>';
         
-        // Add phenotype headers (sorted by best accuracy)
+        // Add phenotype headers (sorted by best score)
         phenotypes.forEach(pheno => {
             const name = pheno.replace(/_/g, ' ');
-            const maxAcc = phenotypeMaxAccuracy[pheno];
-            html += `<th colspan="2">${name}${isFiniteNum(maxAcc) ? 
-                ` <small style="color: #6c757d;">(${maxAcc.toFixed(3)})</small>` : ''}</th>`;
-        });
-        html += '</tr><tr><th></th>';
-        
-        // Add metric subheaders
-        phenotypes.forEach(() => {
-            html += '<th>Bal.Acc</th><th>Prec.</th>';
+            const maxScore = phenotypeMaxScore[pheno];
+            html += `<th>${name}${isFiniteNum(maxScore) ? 
+                ` <small style="color: #6c757d;">(${maxScore.toFixed(3)})</small>` : ''}</th>`;
         });
         html += '</tr></thead><tbody>';
         
@@ -916,8 +1011,8 @@
                 const isBest = bestPerformers[pheno] === model;
                 
                 if (metric) {
-                    const accClass = getPerformanceClass(metric.balancedAcc);
-                    const precClass = getPerformanceClass(metric.precision);
+                    const value = metric[metricField];
+                    const perfClass = getPerformanceClass(value);
                     const bestClass = isBest ? ' best' : '';
                     const cellClass = isBest ? ' best-cell' : '';
                     
@@ -929,13 +1024,10 @@
                     }).replace(/"/g, '&quot;');
                     
                     html += `<td class="metric-cell ${cellClass}" data-tooltip-data="${tooltipData}">
-                        <span class="metric-badge ${accClass}${bestClass}">${fmt(metric.balancedAcc)}</span>
-                    </td>`;
-                    html += `<td class="metric-cell" data-tooltip-data="${tooltipData}">
-                        <span class="metric-badge ${precClass}">${fmt(metric.precision)}</span>
+                        <span class="metric-badge ${perfClass}${bestClass}">${fmt(value)}</span>
                     </td>`;
                 } else {
-                    html += '<td colspan="2"><span class="metric-badge na">N/A</span></td>';
+                    html += '<td><span class="metric-badge na">N/A</span></td>';
                 }
             });
             
