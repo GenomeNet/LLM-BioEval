@@ -344,12 +344,10 @@
     background: #f8f9fa;
 }
 
-.accuracy-results-table .model-column {
+.accuracy-results-table td.model-column {
     text-align: left;
-    font-weight: 500;
-    color: #2c3e50;
     font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 12px;
+    vertical-align: middle;
 }
 
 .metric-badge {
@@ -387,32 +385,69 @@
     font-style: italic;
 }
 
-/* Best Count column styling */
-.best-count-column {
-    background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
-    border-right: 2px solid #0ea5e9;
+/* Model column with integrated best count */
+.model-column {
+    min-width: 150px;
+    padding: 6px 12px !important;
+}
+
+.model-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.model-name {
     font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #0284c7;
-    padding: 12px 8px;
-    white-space: nowrap;
+    color: #2c3e50;
+    font-size: 13px;
+    flex-grow: 1;
 }
 
-.best-count-cell {
-    background: #f0f9ff;
-    border-right: 2px solid #e0f2fe;
-    text-align: center;
+.best-indicator {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    font-size: 11px;
+    min-width: 45px;
+    justify-content: center;
+}
+
+.best-indicator .best-count {
     font-weight: 700;
-    font-size: 16px;
-    color: #0369a1;
-    padding: 8px;
+    color: #64748b;
 }
 
-.best-count-cell:empty::after {
-    content: '0';
-    opacity: 0.5;
+.best-indicator .best-label {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.best-indicator.top-performer {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    box-shadow: 0 1px 3px rgba(251, 191, 36, 0.2);
+}
+
+.best-indicator.top-performer .best-count {
+    color: #d97706;
+}
+
+.best-indicator.top-performer .best-label {
+    color: #f59e0b;
+}
+
+.best-indicator.none {
+    background: transparent;
+    padding: 3px 6px;
+}
+
+.best-indicator .no-wins {
+    color: #cbd5e1;
+    font-size: 16px;
+    line-height: 1;
 }
 
 .sample-count {
@@ -981,7 +1016,6 @@
         
         let html = '<table class="accuracy-results-table">';
         html += '<thead><tr><th class="model-column">Model</th>';
-        html += '<th class="best-count-column">Best Count</th>';  // Add Best Count column header
         
         // Add phenotype headers (sorted by best score)
         phenotypes.forEach(pheno => {
@@ -996,8 +1030,23 @@
         models.forEach(model => {
             const shortName = model.includes('/') ? model.split('/').pop() : model;
             const bestCount = modelBestCounts[model];
-            html += `<tr><td class="model-column">${shortName}</td>`;
-            html += `<td class="best-count-cell">${bestCount}</td>`;  // Add best count value
+            
+            // Create model cell with integrated best count
+            const maxCount = Math.max(...Object.values(modelBestCounts));
+            const isTopPerformer = bestCount === maxCount && bestCount > 0;
+            
+            html += `<tr><td class="model-column">
+                <div class="model-info">
+                    <div class="model-name">${shortName}</div>
+                    ${bestCount > 0 ? 
+                        `<div class="best-indicator ${isTopPerformer ? 'top-performer' : ''}">
+                            <span class="best-count">${bestCount}</span>
+                            <span class="best-label">${bestCount === 1 ? 'win' : 'wins'}</span>
+                        </div>` : 
+                        '<div class="best-indicator none"><span class="no-wins">—</span></div>'
+                    }
+                </div>
+            </td>`;
             
             phenotypes.forEach(pheno => {
                 const metric = metrics.find(m => m.model === model && m.phenotype === pheno);
