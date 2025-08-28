@@ -387,6 +387,34 @@
     font-style: italic;
 }
 
+/* Best Count column styling */
+.best-count-column {
+    background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-right: 2px solid #0ea5e9;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #0284c7;
+    padding: 12px 8px;
+    white-space: nowrap;
+}
+
+.best-count-cell {
+    background: #f0f9ff;
+    border-right: 2px solid #e0f2fe;
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #0369a1;
+    padding: 8px;
+}
+
+.best-count-cell:empty::after {
+    content: '0';
+    opacity: 0.5;
+}
+
 .sample-count {
     font-size: 11px;
     color: #6c757d;
@@ -899,7 +927,7 @@
     }
     
     function displayResults(metrics) {
-        const models = [...new Set(metrics.map(m => m.model))].sort();
+        let models = [...new Set(metrics.map(m => m.model))];
         let phenotypes = [...new Set(metrics.map(m => m.phenotype))];
         
         // Use selected metric for sorting
@@ -935,8 +963,25 @@
             }
         });
         
+        // Count how many times each model is best
+        const modelBestCounts = {};
+        models.forEach(model => {
+            modelBestCounts[model] = 0;
+        });
+        Object.values(bestPerformers).forEach(model => {
+            if (model) modelBestCounts[model]++;
+        });
+        
+        // Sort models by best count (descending), then alphabetically
+        models.sort((a, b) => {
+            const countDiff = modelBestCounts[b] - modelBestCounts[a];
+            if (countDiff !== 0) return countDiff;
+            return a.localeCompare(b);
+        });
+        
         let html = '<table class="accuracy-results-table">';
         html += '<thead><tr><th class="model-column">Model</th>';
+        html += '<th class="best-count-column">Best Count</th>';  // Add Best Count column header
         
         // Add phenotype headers (sorted by best score)
         phenotypes.forEach(pheno => {
@@ -950,7 +995,9 @@
         // Add data rows
         models.forEach(model => {
             const shortName = model.includes('/') ? model.split('/').pop() : model;
+            const bestCount = modelBestCounts[model];
             html += `<tr><td class="model-column">${shortName}</td>`;
+            html += `<td class="best-count-cell">${bestCount}</td>`;  // Add best count value
             
             phenotypes.forEach(pheno => {
                 const metric = metrics.find(m => m.model === model && m.phenotype === pheno);
