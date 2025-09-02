@@ -323,9 +323,10 @@
 
 .accuracy-results-table th,
 .accuracy-results-table td {
-    padding: 10px 12px;
+    padding: 12px 10px;
     text-align: center;
     border: 1px solid #e9ecef;
+    vertical-align: middle;
 }
 
 .accuracy-results-table thead th {
@@ -387,33 +388,38 @@
 
 /* Model column with integrated best count */
 .model-column {
-    min-width: 150px;
-    padding: 6px 12px !important;
+    min-width: 180px;
+    padding: 8px 12px !important;
 }
 
 .model-info {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .model-name {
     font-weight: 600;
     color: #2c3e50;
     font-size: 13px;
-    flex-grow: 1;
+    line-height: 1.4;
 }
 
 .best-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 3px 8px;
-    border-radius: 12px;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 10px;
     background: #f1f5f9;
-    font-size: 11px;
-    min-width: 45px;
-    justify-content: center;
+    font-size: 10px;
+    align-self: flex-start;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.best-indicator:hover {
+    transform: translateY(-1px);
 }
 
 .best-indicator .best-count {
@@ -439,20 +445,30 @@
     color: #f59e0b;
 }
 
-.best-indicator.none {
-    background: transparent;
-    padding: 3px 6px;
+.best-indicator.zero-count {
+    background: #f8f9fa;
+    opacity: 0.6;
 }
 
-.best-indicator .no-wins {
+.best-indicator.zero-count .best-count {
+    color: #94a3b8;
+}
+
+.best-indicator.zero-count .best-label {
     color: #cbd5e1;
-    font-size: 16px;
-    line-height: 1;
 }
 
 .sample-count {
     font-size: 11px;
     color: #6c757d;
+}
+
+.sample-size {
+    display: block;
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 2px;
+    font-family: monospace;
 }
 
 /* Best performer indicators */
@@ -485,7 +501,8 @@
 }
 
 /* Tooltip styling */
-.metric-tooltip {
+.metric-tooltip,
+.best-tooltip {
     display: none;
     position: fixed;
     background: white;
@@ -493,11 +510,45 @@
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     z-index: 9999;
-    min-width: 280px;
-    max-width: 350px;
     padding: 12px;
     font-size: 12px;
     pointer-events: auto;
+}
+
+.metric-tooltip {
+    min-width: 280px;
+    max-width: 350px;
+}
+
+.best-tooltip {
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.best-tooltip-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.best-tooltip-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.best-tooltip-list li {
+    margin: 4px 0;
+    color: #495057;
+    font-size: 12px;
+}
+
+.best-tooltip-empty {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 12px;
 }
 
 /* Removed tooltip arrow for cleaner look */
@@ -534,37 +585,84 @@
 }
 
 /* Confusion Matrix styling */
+.confusion-matrix-wrapper {
+    position: relative;
+    padding-top: 20px;
+    padding-left: 35px;
+}
+
+.matrix-label-predicted {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.matrix-label-true {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: center;
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .confusion-matrix {
-    width: 100%;
+    width: auto;
     border-collapse: collapse;
     font-size: 11px;
-    margin-top: 8px;
+    margin: 0 auto;
 }
 
 .confusion-matrix th,
 .confusion-matrix td {
-    padding: 6px;
+    padding: 6px 10px;
     text-align: center;
     border: 1px solid #dee2e6;
+    min-width: 40px;
 }
 
-.confusion-matrix thead th {
+.matrix-corner {
+    border: none !important;
+    background: transparent !important;
+}
+
+.matrix-header-col {
     background: #f8f9fa;
     font-weight: 600;
     color: #495057;
+    border-bottom: 2px solid #dee2e6 !important;
 }
 
-.confusion-matrix tbody th {
+.matrix-header-row {
     background: #f8f9fa;
     font-weight: 600;
     color: #495057;
     text-align: right;
+    padding-right: 8px !important;
+    border-right: 2px solid #dee2e6 !important;
 }
 
 .matrix-cell {
     background: white;
     font-family: monospace;
     font-weight: 600;
+    color: #495057;
+}
+
+.matrix-cell.matrix-diagonal {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-weight: 700;
 }
 
 /* Info Message */
@@ -621,7 +719,7 @@
     // Initialize when DOM is ready
     function init() {
         loadGroundTruthDatasets();
-        loadPredictionData();
+        // Don't load prediction data upfront anymore - load on demand
         
         // Set up metric toggle listeners
         const toggleBalAcc = document.getElementById('toggleBalAcc');
@@ -709,7 +807,7 @@
                 // Add change listener to auto-analyze
                 select.addEventListener('change', () => {
                     updateDatasetInfo();
-                    if (select.value && predictionData) {
+                    if (select.value) {
                         performAnalysis();
                     }
                 });
@@ -737,17 +835,26 @@
         }
     }
     
-    // Load prediction data
-    async function loadPredictionData() {
+    // Load prediction data - now deferred until dataset is selected
+    async function loadPredictionData(speciesFile) {
+        if (!speciesFile) {
+            console.log('No species file specified, skipping data load');
+            return null;
+        }
+        
         try {
-            const response = await fetch('/api/phenotype_analysis');
+            // Use the new filtered endpoint to only load data for the selected dataset
+            const response = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
             const result = await response.json();
             
             if (!result.error && result.data) {
-                predictionData = result.data;
+                console.log(`Loaded ${result.total_results} predictions for ${speciesFile}`);
+                return result.data;
             }
+            return null;
         } catch (error) {
             console.error('Error loading prediction data:', error);
+            return null;
         }
     }
     
@@ -778,12 +885,34 @@
             return;  // Just return if no dataset selected
         }
         
+        const templateName = select.selectedOptions[0].dataset.template;
+        
+        // Determine species file from dataset name - WA_Test_Dataset maps to wa_with_gcount.txt
+        let speciesFile = 'wa_with_gcount.txt';  // Default for WA dataset
+        if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+            speciesFile = 'artificial.txt';
+        }
+        
+        // Load prediction data on demand for the specific species file
+        console.log(`Loading predictions for species file: ${speciesFile}`);
+        
+        // Show loading indicator in dataset details
+        const details = document.getElementById('datasetDetails');
+        details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+        
+        predictionData = await loadPredictionData(speciesFile);
+        
         if (!predictionData) {
-            console.log('Prediction data not loaded yet, will retry...');
+            console.error('Failed to load prediction data');
+            alert('Failed to load prediction data. Please try again.');
+            details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
             return;
         }
         
-        const templateName = select.selectedOptions[0].dataset.template;
+        // Update dataset details with loaded data info
+        const uniqueModels = [...new Set(predictionData.map(p => p.model))];
+        const uniqueSpecies = [...new Set(predictionData.map(p => p.binomial_name))];
+        details.innerHTML = `<span>${uniqueSpecies.length} species • ${uniqueModels.length} models • ${predictionData.length.toLocaleString()} total predictions</span>`;
         
         // Hide initial message
         document.getElementById('initialMessage').style.display = 'none';
@@ -802,14 +931,25 @@
                 throw new Error('Failed to load ground truth data');
             }
             
+            console.log(`Loaded ${gtResult.data.length} ground truth records for ${datasetName}`);
+            
             // Create ground truth map
             const gtMap = {};
             gtResult.data.forEach(item => {
                 gtMap[item.binomial_name.toLowerCase()] = item;
             });
             
+            console.log(`Ground truth map has ${Object.keys(gtMap).length} unique species`);
+            
             // Calculate metrics
             const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+            
+            // Debug: Log some sample sizes
+            console.log('Sample metrics calculation:');
+            const sampleMetrics = metrics.filter(m => m.model.includes('gemini') && m.phenotype === 'gram_staining');
+            sampleMetrics.forEach(m => {
+                console.log(`${m.model} - ${m.phenotype}: ${m.sampleSize} samples`);
+            });
             
             // Store metrics for re-rendering when toggling
             currentMetrics = metrics;
@@ -832,18 +972,20 @@
         const phenotypes = Object.keys(fields);
         
         for (const phenotype of phenotypes) {
-            // Use predictions for the current phenotype if available, otherwise use all
-            const pool = Array.isArray(predictions)
-                ? predictions
-                : Array.isArray(predictions[phenotype])
-                    ? predictions[phenotype]
-                    : Object.values(predictions).flat(); // fallback
+            // Predictions is now always an array
+            const pool = Array.isArray(predictions) ? predictions : [];
             
             const models = [...new Set(pool.map(p => p.model))];
             
             for (const model of models) {
                 const rows = pool.filter(p => p.model === model);
                 const trueVals = [], predVals = [];
+                
+                // Debug logging for first phenotype and specific model
+                if (phenotype === 'gram_staining' && model.includes('gemini-pro')) {
+                    console.log(`Processing ${model} for ${phenotype}:`);
+                    console.log(`- Total predictions: ${rows.length}`);
+                }
                 
                 for (const pred of rows) {
                     const species = pred.binomial_name?.toLowerCase();
@@ -854,6 +996,11 @@
                         trueVals.push(t);
                         predVals.push(y);
                     }
+                }
+                
+                // More debug logging
+                if (phenotype === 'gram_staining' && model.includes('gemini-pro')) {
+                    console.log(`- Matched samples: ${trueVals.length}`);
                 }
                 
                 if (trueVals.length) {
@@ -998,13 +1145,18 @@
             }
         });
         
-        // Count how many times each model is best
+        // Count how many times each model is best and track which phenotypes
         const modelBestCounts = {};
+        const modelBestPhenotypes = {};
         models.forEach(model => {
             modelBestCounts[model] = 0;
+            modelBestPhenotypes[model] = [];
         });
-        Object.values(bestPerformers).forEach(model => {
-            if (model) modelBestCounts[model]++;
+        Object.entries(bestPerformers).forEach(([pheno, model]) => {
+            if (model) {
+                modelBestCounts[model]++;
+                modelBestPhenotypes[model].push(pheno);
+            }
         });
         
         // Sort models by best count (descending), then alphabetically
@@ -1035,16 +1187,22 @@
             const maxCount = Math.max(...Object.values(modelBestCounts));
             const isTopPerformer = bestCount === maxCount && bestCount > 0;
             
+            // Store phenotypes data for tooltip
+            const bestPhenotypes = modelBestPhenotypes[model] || [];
+            const bestTooltipData = JSON.stringify({
+                model: model,
+                phenotypes: bestPhenotypes,
+                count: bestCount
+            }).replace(/"/g, '&quot;');
+            
             html += `<tr><td class="model-column">
                 <div class="model-info">
                     <div class="model-name">${shortName}</div>
-                    ${bestCount > 0 ? 
-                        `<div class="best-indicator ${isTopPerformer ? 'top-performer' : ''}">
-                            <span class="best-count">${bestCount}</span>
-                            <span class="best-label">${bestCount === 1 ? 'win' : 'wins'}</span>
-                        </div>` : 
-                        '<div class="best-indicator none"><span class="no-wins">—</span></div>'
-                    }
+                    <div class="best-indicator ${bestCount > 0 ? (isTopPerformer ? 'top-performer' : '') : 'zero-count'}" 
+                         data-best-tooltip="${bestTooltipData}">
+                        <span class="best-count">${bestCount}</span>
+                        <span class="best-label">best</span>
+                    </div>
                 </div>
             </td>`;
             
@@ -1067,6 +1225,7 @@
                     
                     html += `<td class="metric-cell ${cellClass}" data-tooltip-data="${tooltipData}">
                         <span class="metric-badge ${perfClass}${bestClass}">${fmt(value)}</span>
+                        <span class="sample-size">n=${metric.sampleSize}</span>
                     </td>`;
                 } else {
                     html += '<td><span class="metric-badge na">N/A</span></td>';
@@ -1078,8 +1237,9 @@
         
         html += '</tbody></table>';
         
-        // Add a single tooltip element that will be reused
+        // Add tooltip elements that will be reused
         html += '<div id="metricTooltip" class="metric-tooltip"></div>';
+        html += '<div id="bestTooltip" class="best-tooltip"></div>';
         
         document.getElementById('resultsTable').innerHTML = html;
         
@@ -1100,25 +1260,30 @@
         // Add confusion matrix if available
         if (metric.confusionMatrix && metric.labels) {
             html += `<div class="tooltip-matrix-title">Confusion Matrix:</div>`;
+            html += `<div class="confusion-matrix-wrapper">`;
+            html += `<div class="matrix-label-predicted">Predicted</div>`;
+            html += `<div class="matrix-label-true">True</div>`;
             html += `<table class="confusion-matrix">`;
             
-            // Header row
-            html += `<thead><tr><th></th>`;
+            // Header row with labels only
+            html += `<thead><tr><th class="matrix-corner"></th>`;
             metric.labels.forEach(label => {
-                html += `<th class="matrix-header">Pred: ${label}</th>`;
+                html += `<th class="matrix-header-col">${label}</th>`;
             });
             html += `</tr></thead><tbody>`;
             
-            // Data rows
+            // Data rows with row labels
             metric.labels.forEach((label, i) => {
-                html += `<tr><th class="matrix-header">True: ${label}</th>`;
-                metric.confusionMatrix[i].forEach(count => {
-                    html += `<td class="matrix-cell">${count}</td>`;
+                html += `<tr><th class="matrix-header-row">${label}</th>`;
+                metric.confusionMatrix[i].forEach((count, j) => {
+                    const isCorrect = i === j;
+                    html += `<td class="matrix-cell ${isCorrect ? 'matrix-diagonal' : ''}">${count}</td>`;
                 });
                 html += `</tr>`;
             });
             
             html += `</tbody></table>`;
+            html += `</div>`;
         }
         
         return html;
@@ -1185,60 +1350,117 @@
     
     // Setup tooltip events
     function setupTooltips() {
-        const tooltip = document.getElementById('metricTooltip');
-        if (!tooltip) return;
+        const metricTooltip = document.getElementById('metricTooltip');
+        const bestTooltip = document.getElementById('bestTooltip');
+        if (!metricTooltip || !bestTooltip) return;
         
-        const cells = document.querySelectorAll('.metric-cell');
         let hideTimeout;
-        let currentCell = null;
+        let currentElement = null;
         
+        // Setup metric cell tooltips
+        const cells = document.querySelectorAll('.metric-cell');
         cells.forEach(cell => {
             const tooltipDataStr = cell.getAttribute('data-tooltip-data');
             if (!tooltipDataStr) return;
             
             cell.addEventListener('mouseenter', (e) => {
                 clearTimeout(hideTimeout);
-                currentCell = cell;
+                currentElement = cell;
+                bestTooltip.style.display = 'none'; // Hide other tooltip
                 
                 try {
                     const data = JSON.parse(tooltipDataStr.replace(/&quot;/g, '"'));
                     const tooltipContent = createTooltipContent(data.metric, data.phenotype);
-                    tooltip.innerHTML = tooltipContent;
-                    tooltip.style.display = 'block';
-                    
-                    // Position at mouse location
-                    positionTooltipAtMouse(e, tooltip);
+                    metricTooltip.innerHTML = tooltipContent;
+                    metricTooltip.style.display = 'block';
+                    positionTooltipAtMouse(e, metricTooltip);
                 } catch (error) {
                     console.error('Error parsing tooltip data:', error);
                 }
             });
             
             cell.addEventListener('mousemove', (e) => {
-                if (currentCell === cell && tooltip.style.display === 'block') {
-                    positionTooltipAtMouse(e, tooltip);
+                if (currentElement === cell && metricTooltip.style.display === 'block') {
+                    positionTooltipAtMouse(e, metricTooltip);
                 }
             });
             
             cell.addEventListener('mouseleave', () => {
-                currentCell = null;
+                currentElement = null;
                 hideTimeout = setTimeout(() => {
-                    tooltip.style.display = 'none';
+                    metricTooltip.style.display = 'none';
                 }, 100);
             });
         });
         
-        // Hide tooltip on scroll
+        // Setup best indicator tooltips
+        const bestIndicators = document.querySelectorAll('.best-indicator[data-best-tooltip]');
+        bestIndicators.forEach(indicator => {
+            const tooltipDataStr = indicator.getAttribute('data-best-tooltip');
+            if (!tooltipDataStr) return;
+            
+            indicator.addEventListener('mouseenter', (e) => {
+                clearTimeout(hideTimeout);
+                currentElement = indicator;
+                metricTooltip.style.display = 'none'; // Hide other tooltip
+                
+                try {
+                    const data = JSON.parse(tooltipDataStr.replace(/&quot;/g, '"'));
+                    let tooltipContent = '<div class="best-tooltip-header">Best Performance</div>';
+                    
+                    if (data.count > 0 && data.phenotypes.length > 0) {
+                        tooltipContent += '<ul class="best-tooltip-list">';
+                        data.phenotypes.forEach(pheno => {
+                            tooltipContent += `<li>${pheno.replace(/_/g, ' ')}</li>`;
+                        });
+                        tooltipContent += '</ul>';
+                    } else {
+                        tooltipContent += '<div class="best-tooltip-empty">Not a best performer for any phenotype</div>';
+                    }
+                    
+                    bestTooltip.innerHTML = tooltipContent;
+                    bestTooltip.style.display = 'block';
+                    positionTooltipAtMouse(e, bestTooltip);
+                } catch (error) {
+                    console.error('Error parsing best tooltip data:', error);
+                }
+            });
+            
+            indicator.addEventListener('mousemove', (e) => {
+                if (currentElement === indicator && bestTooltip.style.display === 'block') {
+                    positionTooltipAtMouse(e, bestTooltip);
+                }
+            });
+            
+            indicator.addEventListener('mouseleave', () => {
+                currentElement = null;
+                hideTimeout = setTimeout(() => {
+                    bestTooltip.style.display = 'none';
+                }, 100);
+            });
+        });
+        
+        // Hide tooltips on scroll
         window.addEventListener('scroll', () => {
-            tooltip.style.display = 'none';
+            metricTooltip.style.display = 'none';
+            bestTooltip.style.display = 'none';
         }, { passive: true });
         
-        // Keep tooltip visible if hovering over it
-        tooltip.addEventListener('mouseenter', () => {
+        // Keep tooltips visible if hovering over them
+        metricTooltip.addEventListener('mouseenter', () => {
             clearTimeout(hideTimeout);
         });
         
-        tooltip.addEventListener('mouseleave', () => {
-            tooltip.style.display = 'none';
+        metricTooltip.addEventListener('mouseleave', () => {
+            metricTooltip.style.display = 'none';
+        });
+        
+        bestTooltip.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimeout);
+        });
+        
+        bestTooltip.addEventListener('mouseleave', () => {
+            bestTooltip.style.display = 'none';
         });
     }
     

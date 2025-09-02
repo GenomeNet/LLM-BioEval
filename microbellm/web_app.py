@@ -3083,6 +3083,81 @@ def get_phenotype_analysis():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/phenotype_analysis_filtered')
+def get_phenotype_analysis_filtered():
+    """Get filtered phenotype prediction data for model accuracy analysis"""
+    try:
+        # Get filter parameters - REQUIRE species_file to avoid loading all data
+        species_file = request.args.get('species_file')
+        
+        if not species_file:
+            # Return empty result if no species_file specified to avoid loading all data
+            return jsonify({
+                'data': [],
+                'total_results': 0,
+                'message': 'Please specify species_file parameter'
+            })
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Only get data for the specified species file to reduce data transfer
+        cursor.execute("""
+            SELECT r.binomial_name, r.model,
+                   r.gram_staining, r.motility, r.aerophilicity, 
+                   r.extreme_environment_tolerance, r.biofilm_formation,
+                   r.animal_pathogenicity, r.biosafety_level, r.health_association,
+                   r.host_association, r.plant_pathogenicity, r.spore_formation,
+                   r.hemolysis, r.cell_shape
+            FROM processing_results r
+            WHERE r.species_file = ?
+                  AND r.user_template LIKE '%phenotype%'
+                  AND (r.gram_staining IS NOT NULL OR r.motility IS NOT NULL 
+                       OR r.aerophilicity IS NOT NULL OR r.biofilm_formation IS NOT NULL)
+            ORDER BY r.model, r.binomial_name
+        """, (species_file,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        # Process data into simple list format
+        data = []
+        for row in results:
+            (binomial_name, model,
+             gram_staining, motility, aerophilicity,
+             extreme_environment_tolerance, biofilm_formation,
+             animal_pathogenicity, biosafety_level, health_association,
+             host_association, plant_pathogenicity, spore_formation,
+             hemolysis, cell_shape) = row
+            
+            entry = {
+                'binomial_name': binomial_name,
+                'model': model,
+                'gram_staining': gram_staining,
+                'motility': motility,
+                'aerophilicity': aerophilicity,
+                'extreme_environment_tolerance': extreme_environment_tolerance,
+                'biofilm_formation': biofilm_formation,
+                'animal_pathogenicity': animal_pathogenicity,
+                'biosafety_level': biosafety_level,
+                'health_association': health_association,
+                'host_association': host_association,
+                'plant_pathogenicity': plant_pathogenicity,
+                'spore_formation': spore_formation,
+                'hemolysis': hemolysis,
+                'cell_shape': cell_shape
+            }
+            data.append(entry)
+        
+        return jsonify({
+            'data': data,
+            'total_results': len(results),
+            'species_file': species_file
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/export_csv')
 def export_csv_api():
     """Export results as CSV"""
