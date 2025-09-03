@@ -565,10 +565,16 @@
     `;
     
     templateArray.forEach((template, idx) => {
+        const formattedName = template
+            .replace(/template(\d+)_/, 'Template $1: ')
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        
         html += `
             <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
                 <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);"></div>
-                <span>${template}</span>
+                <span>${formattedName}</span>
             </div>
         `;
     });
@@ -576,7 +582,32 @@
     html += `
         </div>
         <div style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-top: 16px;">
-            <div class="quality-score-chart" style="position: relative; padding: 20px;">
+            <!-- Template headers -->
+            <div style="display: flex; align-items: center; background: #F9FAFB; border-bottom: 1px solid #e5e7eb; padding: 12px 20px;">
+                <div style="width: 200px; padding-right: 24px;"></div>
+                <div style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 600px;">
+    `;
+    
+    // Add template names as column headers
+    templateArray.forEach((template, idx) => {
+        // Format template name: template1_knowledge -> Template 1: Knowledge
+        const formattedName = template
+            .replace(/template(\d+)_/, 'Template $1: ')
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        
+        html += `
+                    <div style="text-align: center; font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">
+                        ${formattedName}
+                    </div>
+        `;
+    });
+    
+    html += `
+                </div>
+            </div>
+            <div class="quality-score-chart" style="position: relative; padding: 16px 20px;">
     `;
     
     // Find max score for scaling
@@ -593,8 +624,8 @@
         const displayName = modelName.split('/').pop();
         
         html += `
-            <div class="score-bar-row" style="display: flex; align-items: center; padding: 12px 0; ${modelIndex < sortedModels.length - 1 ? 'border-bottom: 1px solid #f3f4f6;' : ''}">
-                <div class="model-label" style="width: 200px; font-size: 14px; color: #111827; font-weight: 500; text-align: right; padding-right: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
+            <div class="score-bar-row" style="display: flex; align-items: center; padding: 8px 0; ${modelIndex < sortedModels.length - 1 ? 'border-bottom: 1px solid #f3f4f6;' : ''}">
+                <div class="model-label" style="width: 200px; font-size: 13px; color: #111827; font-weight: 500; text-align: right; padding-right: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
                     ${displayName}
                 </div>
                 <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: center; max-width: 600px;">
@@ -605,7 +636,7 @@
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             
             html += `
-                <div class="template-bar-wrapper" style="position: relative; background: #f3f4f6; border-radius: 6px; overflow: hidden; height: 32px;">
+                <div class="template-bar-wrapper" style="position: relative; background: #f3f4f6; border-radius: 4px; overflow: hidden; height: 26px;">
                     <div class="template-bar" 
                         style="
                             width: ${percentage}%;
@@ -613,11 +644,11 @@
                             background: ${templateColors[idx]};
                             position: relative;
                             transition: all 0.3s ease;
-                            min-width: ${score > 0 ? '50px' : '0'};
+                            min-width: ${score > 0 ? '48px' : '0'};
                             display: flex;
                             align-items: center;
                             justify-content: flex-end;
-                            padding-right: 8px;
+                            padding-right: 6px;
                             cursor: pointer;
                         " 
                         title="${template}: ${score.toFixed(2)}"
@@ -625,7 +656,7 @@
                         onmouseout="hideBarTooltip()">
                         <span style="
                             color: white;
-                            font-size: 12px;
+                            font-size: 11px;
                             font-weight: 600;
                             white-space: nowrap;
                         ">${score > 0 ? score.toFixed(2) : ''}</span>
