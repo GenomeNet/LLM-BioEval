@@ -1,0 +1,729 @@
+<!-- Best Models Per Phenotype -->
+<div id="bestModelsContent">
+    <style>
+    /* Best Models Styles */
+    .best-models-section {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Controls Panel */
+    .best-models-controls {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .best-models-selector {
+        flex: 1;
+    }
+
+    .best-models-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .best-models-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: white;
+        color: #495057;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .best-models-select:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .best-models-details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    /* Results Container */
+    .best-models-results {
+        display: none;
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .best-models-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .best-models-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 8px 0;
+    }
+
+    .best-models-subtitle {
+        font-size: 15px;
+        color: #718096;
+    }
+
+    /* Metric Toggle */
+    .best-metric-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        margin-bottom: 24px;
+    }
+
+    .best-metric-btn {
+        padding: 8px 20px;
+        border: 1px solid #dee2e6;
+        background: white;
+        color: #6c757d;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .best-metric-btn:first-child {
+        border-radius: 8px 0 0 8px;
+    }
+
+    .best-metric-btn:last-child {
+        border-radius: 0 8px 8px 0;
+        border-left: none;
+    }
+
+    .best-metric-btn:hover {
+        background: #f8f9fa;
+    }
+
+    .best-metric-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+    }
+
+    /* Table Container */
+    .best-models-table-wrapper {
+        background: #fafbfc;
+        border: 1px solid #e1e4e8;
+        border-radius: 10px;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .best-models-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .best-models-table thead {
+        background: linear-gradient(135deg, #f7f9fc 0%, #f1f5f9 100%);
+    }
+
+    .best-models-table th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .best-models-table th:nth-child(2),
+    .best-models-table th:nth-child(4) {
+        text-align: center;
+    }
+
+    .best-models-table tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: background 0.2s;
+    }
+
+    .best-models-table tbody tr:hover {
+        background: #f8fafb;
+    }
+
+    .best-models-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .best-models-table td {
+        padding: 14px 16px;
+        color: #4a5568;
+    }
+
+    .best-models-table td:first-child {
+        font-weight: 500;
+        color: #2d3748;
+    }
+
+    .best-models-table td:nth-child(2),
+    .best-models-table td:nth-child(4) {
+        text-align: center;
+    }
+
+    /* Phenotype name */
+    .phenotype-name {
+        font-weight: 500;
+        color: #2d3748;
+        text-transform: capitalize;
+    }
+
+    /* Accuracy badge */
+    .accuracy-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-family: monospace;
+        font-size: 13px;
+    }
+
+    .accuracy-badge.excellent {
+        background: rgba(34, 197, 94, 0.15);
+        color: #16a34a;
+    }
+
+    .accuracy-badge.good {
+        background: rgba(59, 130, 246, 0.15);
+        color: #2563eb;
+    }
+
+    .accuracy-badge.moderate {
+        background: rgba(245, 158, 11, 0.15);
+        color: #d97706;
+    }
+
+    .accuracy-badge.poor {
+        background: rgba(239, 68, 68, 0.15);
+        color: #dc2626;
+    }
+
+    /* Model name */
+    .model-name {
+        font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        font-size: 12px;
+        background: #f1f5f9;
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    /* Sample size */
+    .sample-size {
+        font-family: monospace;
+        font-size: 13px;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Loading state */
+    .best-models-loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .best-models-loading i {
+        font-size: 48px;
+        color: #dee2e6;
+        margin-bottom: 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .best-models-table {
+            font-size: 12px;
+        }
+        
+        .best-models-table th,
+        .best-models-table td {
+            padding: 10px;
+        }
+    }
+    </style>
+
+    <!-- Controls -->
+    <div class="best-models-controls">
+        <div class="best-models-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="bestModelsDataset" class="best-models-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="best-models-details" id="bestModelsDetails"></div>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="bestModelsResults" class="best-models-results">
+        <div class="best-models-header">
+            <h2 class="best-models-title">Best Performing Models</h2>
+            <p class="best-models-subtitle">Top model for each phenotype prediction task</p>
+        </div>
+
+        <!-- Metric Toggle -->
+        <div class="best-metric-toggle">
+            <button id="bestToggleBalAcc" class="best-metric-btn active">Balanced Accuracy</button>
+            <button id="bestTogglePrecision" class="best-metric-btn">Precision</button>
+        </div>
+
+        <!-- Table -->
+        <div class="best-models-table-wrapper">
+            <table class="best-models-table">
+                <thead>
+                    <tr>
+                        <th>Phenotype</th>
+                        <th><span id="bestMetricHeader">Balanced Accuracy</span></th>
+                        <th>Best Model</th>
+                        <th>Sample Size</th>
+                    </tr>
+                </thead>
+                <tbody id="bestModelsTableBody">
+                    <!-- Will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Loading State -->
+    <div class="best-models-loading" id="bestModelsLoading">
+        <i class="fas fa-trophy"></i>
+        <p>Select a dataset to view best performing models</p>
+    </div>
+
+    <script>
+    /* ===== Best Models Per Phenotype ===== */
+    (function() {
+        'use strict';
+        
+        let currentMetrics = null;
+        let selectedMetric = 'balancedAcc';
+        
+        // Initialize
+        function initBestModels() {
+            loadGroundTruthDatasets();
+            
+            // Set up metric toggle
+            document.getElementById('bestToggleBalAcc').addEventListener('click', () => {
+                switchMetric('balancedAcc');
+            });
+            
+            document.getElementById('bestTogglePrecision').addEventListener('click', () => {
+                switchMetric('precision');
+            });
+        }
+        
+        // Switch metric
+        function switchMetric(metric) {
+            if (metric === selectedMetric) return;
+            
+            selectedMetric = metric;
+            
+            // Update toggle buttons
+            document.getElementById('bestToggleBalAcc').classList.toggle('active', metric === 'balancedAcc');
+            document.getElementById('bestTogglePrecision').classList.toggle('active', metric === 'precision');
+            
+            // Update header
+            document.getElementById('bestMetricHeader').textContent = 
+                metric === 'balancedAcc' ? 'Balanced Accuracy' : 'Precision';
+            
+            // Re-render if we have data
+            if (currentMetrics) {
+                displayBestModels(currentMetrics);
+            }
+        }
+        
+        // Load datasets
+        async function loadGroundTruthDatasets() {
+            try {
+                const response = await fetch('/api/ground_truth/datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                
+                if (result.success && result.datasets) {
+                    const select = document.getElementById('bestModelsDataset');
+                    
+                    if (result.datasets.length === 0) {
+                        select.innerHTML = '<option value="">No datasets available</option>';
+                        return;
+                    }
+                    
+                    // Build options
+                    select.innerHTML = '';
+                    let waTestDataset = null;
+                    
+                    // Add default option
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select a dataset...';
+                    select.appendChild(defaultOpt);
+                    
+                    // Add dataset options
+                    result.datasets.forEach(dataset => {
+                        const opt = document.createElement('option');
+                        opt.value = dataset.dataset_name;
+                        opt.textContent = dataset.dataset_name;
+                        opt.dataset.template = dataset.template_name;
+                        opt.dataset.count = dataset.species_count;
+                        select.appendChild(opt);
+                        
+                        if (dataset.dataset_name === 'WA_Test_Dataset') {
+                            waTestDataset = dataset;
+                        }
+                    });
+                    
+                    // Add change listener
+                    select.addEventListener('change', () => {
+                        updateDatasetInfo();
+                        if (select.value) {
+                            performAnalysis();
+                        }
+                    });
+                    
+                    // Auto-select WA_Test_Dataset
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_Dataset';
+                        updateDatasetInfo();
+                        setTimeout(() => performAnalysis(), 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+            }
+        }
+        
+        // Update dataset info
+        function updateDatasetInfo() {
+            const select = document.getElementById('bestModelsDataset');
+            const details = document.getElementById('bestModelsDetails');
+            
+            if (select.value) {
+                const option = select.selectedOptions[0];
+                const count = option.dataset.count;
+                details.innerHTML = `<span>${count} species</span>`;
+            } else {
+                details.innerHTML = '';
+                document.getElementById('bestModelsResults').style.display = 'none';
+                document.getElementById('bestModelsLoading').style.display = 'block';
+            }
+        }
+        
+        // Perform analysis
+        async function performAnalysis() {
+            const select = document.getElementById('bestModelsDataset');
+            const datasetName = select.value;
+            
+            if (!datasetName) return;
+            
+            const templateName = select.selectedOptions[0].dataset.template;
+            
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+            
+            // Show loading
+            const details = document.getElementById('bestModelsDetails');
+            details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+            
+            try {
+                // Load prediction data
+                const predResp = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+                const predResult = await predResp.json();
+                
+                if (!predResult.data) {
+                    throw new Error('Failed to load prediction data');
+                }
+                
+                // Load field definitions
+                const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+                const templateResult = await templateResp.json();
+                const fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+                
+                // Load ground truth data
+                const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+                const gtResult = await gtResp.json();
+                
+                if (!gtResult.success) {
+                    throw new Error('Failed to load ground truth data');
+                }
+                
+                // Create ground truth map
+                const gtMap = {};
+                gtResult.data.forEach(item => {
+                    gtMap[item.binomial_name.toLowerCase()] = item;
+                });
+                
+                // Calculate metrics
+                const metrics = calculateMetrics(predResult.data, gtMap, fieldDefinitions);
+                currentMetrics = metrics;
+                
+                // Display results
+                displayBestModels(metrics);
+                
+                // Update details
+                const uniqueModels = [...new Set(predResult.data.map(p => p.model))];
+                details.innerHTML = `<span>${gtResult.data.length} species • ${uniqueModels.length} models</span>`;
+                
+                // Show results
+                document.getElementById('bestModelsResults').style.display = 'block';
+                document.getElementById('bestModelsLoading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error analyzing data:', error);
+                details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+            }
+        }
+        
+        // Calculate metrics
+        function calculateMetrics(predictions, groundTruth, fields) {
+            const results = [];
+            const phenotypes = Object.keys(fields);
+            
+            for (const phenotype of phenotypes) {
+                const pool = Array.isArray(predictions) ? predictions : [];
+                const models = [...new Set(pool.map(p => p.model))];
+                
+                for (const model of models) {
+                    const rows = pool.filter(p => p.model === model);
+                    const trueVals = [], predVals = [];
+                    
+                    for (const pred of rows) {
+                        const species = pred.binomial_name?.toLowerCase();
+                        if (!species || !groundTruth[species]) continue;
+                        const t = normalizeValue(groundTruth[species][phenotype]);
+                        const y = normalizeValue(pred[phenotype]);
+                        if (t !== null && y !== null) {
+                            trueVals.push(t);
+                            predVals.push(y);
+                        }
+                    }
+                    
+                    if (trueVals.length) {
+                        const m = computeMetrics(predVals, trueVals);
+                        results.push({
+                            model,
+                            phenotype,
+                            balancedAcc: m.balancedAcc,
+                            precision: m.precision,
+                            sampleSize: m.sampleSize
+                        });
+                    }
+                }
+            }
+            return results;
+        }
+        
+        // Display best models
+        function displayBestModels(metrics) {
+            // Exclude low sample phenotypes
+            const excludedPhenotypes = ['aerophilicity', 'health_association', 'hemolysis'];
+            const filteredMetrics = metrics.filter(m => !excludedPhenotypes.includes(m.phenotype));
+            
+            // Find best model for each phenotype
+            const phenotypeMap = {};
+            filteredMetrics.forEach(m => {
+                if (!phenotypeMap[m.phenotype]) {
+                    phenotypeMap[m.phenotype] = [];
+                }
+                phenotypeMap[m.phenotype].push(m);
+            });
+            
+            const bestModels = [];
+            Object.keys(phenotypeMap).forEach(phenotype => {
+                const phenoMetrics = phenotypeMap[phenotype];
+                const metricField = selectedMetric;
+                
+                // Find best performer
+                let best = null;
+                let maxScore = -1;
+                phenoMetrics.forEach(m => {
+                    if (Number.isFinite(m[metricField]) && m[metricField] > maxScore) {
+                        maxScore = m[metricField];
+                        best = m;
+                    }
+                });
+                
+                if (best) {
+                    bestModels.push({
+                        phenotype: formatPhenotypeName(phenotype),
+                        accuracy: best[metricField],
+                        model: best.model,
+                        sampleSize: best.sampleSize
+                    });
+                }
+            });
+            
+            // Sort by accuracy (descending)
+            bestModels.sort((a, b) => b.accuracy - a.accuracy);
+            
+            // Render table
+            const tbody = document.getElementById('bestModelsTableBody');
+            tbody.innerHTML = '';
+            
+            bestModels.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                // Phenotype
+                const phenoTd = document.createElement('td');
+                phenoTd.innerHTML = `<span class="phenotype-name">${item.phenotype}</span>`;
+                tr.appendChild(phenoTd);
+                
+                // Accuracy
+                const accTd = document.createElement('td');
+                const perfClass = getPerformanceClass(item.accuracy);
+                accTd.innerHTML = `<span class="accuracy-badge ${perfClass}">${item.accuracy.toFixed(3)}</span>`;
+                tr.appendChild(accTd);
+                
+                // Model
+                const modelTd = document.createElement('td');
+                const shortName = item.model.includes('/') ? item.model.split('/').pop() : item.model;
+                modelTd.innerHTML = `<span class="model-name">${shortName}</span>`;
+                tr.appendChild(modelTd);
+                
+                // Sample size
+                const sizeTd = document.createElement('td');
+                sizeTd.innerHTML = `<span class="sample-size">${item.sampleSize}</span>`;
+                tr.appendChild(sizeTd);
+                
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // Get performance class
+        function getPerformanceClass(value) {
+            if (value >= 0.9) return 'excellent';
+            if (value >= 0.7) return 'good';
+            if (value >= 0.5) return 'moderate';
+            return 'poor';
+        }
+        
+        // Format phenotype name
+        function formatPhenotypeName(phenotype) {
+            return phenotype
+                .replace(/_/g, ' ')
+                .replace('extreme environment tolerance', 'extreme env. tolerance')
+                .replace('animal pathogenicity', 'animal pathogenicity')
+                .replace('plant pathogenicity', 'plant pathogenicity')
+                .replace('host association', 'host association')
+                .replace('spore formation', 'spore formation')
+                .replace('biosafety level', 'biosafety level')
+                .replace('gram staining', 'gram staining')
+                .replace('biofilm formation', 'biofilm formation');
+        }
+        
+        // Helper functions
+        function normalizeValue(value) {
+            const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+            
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            
+            const strValue = String(value).trim().toLowerCase();
+            
+            if (missingTokens.includes(strValue)) {
+                return null;
+            }
+            
+            if (strValue.includes(',') || strValue.includes(';')) {
+                const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+                return parts.sort().join(',');
+            }
+            
+            return strValue;
+        }
+        
+        function toBoolean(v) {
+            if (v === null || v === undefined) return null;
+            const s = String(v).trim().toLowerCase();
+            if (['true','1','yes','t','y'].includes(s)) return true;
+            if (['false','0','no','f','n'].includes(s)) return false;
+            return null;
+        }
+        
+        function computeMetrics(preds, truths) {
+            const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
+                                .filter(([p, t]) => p !== null && t !== null);
+            
+            const allBinary = mapped.length > 0 && mapped.length === preds.length;
+            if (allBinary) {
+                let tp = 0, tn = 0, fp = 0, fn = 0;
+                for (const [p, t] of mapped) {
+                    if (t && p) tp++;
+                    else if (!t && !p) tn++;
+                    else if (!t && p) fp++;
+                    else fn++;
+                }
+                const sens = tp + fn ? tp / (tp + fn) : 0;
+                const spec = tn + fp ? tn / (tn + fp) : 0;
+                const prec = tp + fp ? tp / (tp + fp) : 0;
+                return {
+                    balancedAcc: (sens + spec) / 2,
+                    precision: prec,
+                    sampleSize: mapped.length
+                };
+            }
+            
+            // Multiclass
+            const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
+            const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
+            for (let i = 0; i < truths.length; i++) {
+                conf[String(truths[i])][String(preds[i])]++;
+            }
+            
+            let recallSum = 0, precSum = 0;
+            for (const lab of labels) {
+                const tp = conf[lab][lab];
+                let fn = 0, fp = 0;
+                for (const l2 of labels) {
+                    if (l2 !== lab) {
+                        fn += conf[lab][l2];
+                        fp += conf[l2][lab];
+                    }
+                }
+                const rec = tp + fn ? tp / (tp + fn) : 0;
+                const pre = tp + fp ? tp / (tp + fp) : 0;
+                recallSum += rec;
+                precSum += pre;
+            }
+            
+            return {
+                balancedAcc: recallSum / labels.length,
+                precision: precSum / labels.length,
+                sampleSize: truths.length
+            };
+        }
+        
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initBestModels);
+        } else {
+            initBestModels();
+        }
+    })();
+    </script>
+</div>

@@ -1,0 +1,784 @@
+<!-- Overall Model Performance Ranking -->
+<div id="modelRankingContent">
+    <style>
+    /* Model Ranking Styles */
+    .ranking-section {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Controls Panel */
+    .ranking-controls-panel {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .ranking-dataset-selector {
+        flex: 1;
+    }
+
+    .ranking-dataset-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .ranking-dataset-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: white;
+        color: #495057;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .ranking-dataset-select:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .ranking-dataset-details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    /* Plot Container */
+    .ranking-plot-container {
+        display: none;
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .ranking-plot-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .ranking-plot-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 8px 0;
+    }
+
+    .ranking-plot-subtitle {
+        font-size: 15px;
+        color: #718096;
+        font-weight: 400;
+    }
+
+    /* Dual Panel Layout */
+    .ranking-panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .ranking-panel {
+        background: #fafbfc;
+        border: 1px solid #e1e4e8;
+        border-radius: 10px;
+        padding: 24px;
+        position: relative;
+    }
+
+    .panel-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0 0 24px 0;
+        text-align: center;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    /* SVG Container */
+    .ranking-svg-container {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    /* Loading State */
+    .ranking-loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .ranking-loading i {
+        font-size: 48px;
+        color: #dee2e6;
+        margin-bottom: 16px;
+    }
+
+    /* SVG Styles */
+    .ranking-model-label {
+        font-size: 11px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        fill: #4a5568;
+        font-weight: 500;
+    }
+
+    .ranking-bar {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .ranking-bar-balanced {
+        fill: url(#blueGradient);
+    }
+
+    .ranking-bar-balanced:hover {
+        filter: brightness(1.1);
+    }
+
+    .ranking-bar-precision {
+        fill: url(#purpleGradient);
+    }
+
+    .ranking-bar-precision:hover {
+        filter: brightness(1.1);
+    }
+
+    .ranking-value-label {
+        font-size: 10px;
+        font-weight: 700;
+        fill: #2d3748;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .ranking-axis-label {
+        font-size: 13px;
+        font-weight: 600;
+        fill: #4a5568;
+    }
+
+    .ranking-gridline {
+        stroke: #e2e8f0;
+        stroke-width: 0.5;
+        opacity: 0.5;
+    }
+
+    .ranking-axis-line {
+        stroke: #cbd5e0;
+        stroke-width: 1;
+    }
+
+    .ranking-value-dot {
+        fill: white;
+        stroke-width: 2;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .ranking-panels {
+            grid-template-columns: 1fr;
+        }
+    }
+    </style>
+
+    <!-- Dataset Selector -->
+    <div class="ranking-controls-panel">
+        <div class="ranking-dataset-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="rankingGroundTruthDataset" class="ranking-dataset-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="ranking-dataset-details" id="rankingDatasetDetails"></div>
+        </div>
+    </div>
+
+    <!-- Ranking Plot Container -->
+    <div id="rankingPlotContainer" class="ranking-plot-container">
+        <div class="ranking-plot-header">
+            <h2 class="ranking-plot-title">Overall LLM Performance</h2>
+            <p class="ranking-plot-subtitle">Average performance across all phenotypes</p>
+        </div>
+
+        <div class="ranking-panels">
+            <div class="ranking-panel">
+                <h3 class="panel-title">Balanced Accuracy</h3>
+                <div id="rankingBalAccSvg" class="ranking-svg-container"></div>
+            </div>
+            <div class="ranking-panel">
+                <h3 class="panel-title">Precision</h3>
+                <div id="rankingPrecisionSvg" class="ranking-svg-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="ranking-loading" id="rankingLoadingState">
+        <i class="fas fa-chart-bar"></i>
+        <p>Select a dataset to view overall model performance rankings</p>
+    </div>
+
+    <script>
+    /* ===== Model Ranking Visualization ===== */
+    (function() {
+        'use strict';
+        
+        let currentMetrics = null;
+        let predictionData = null;
+        let fieldDefinitions = {};
+        
+        // Initialize the ranking component
+        function initRanking() {
+            loadGroundTruthDatasets();
+        }
+        
+        // Load available ground truth datasets
+        async function loadGroundTruthDatasets() {
+            try {
+                const response = await fetch('/api/ground_truth/datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                
+                if (result.success && result.datasets) {
+                    const select = document.getElementById('rankingGroundTruthDataset');
+                    
+                    if (result.datasets.length === 0) {
+                        select.innerHTML = '';
+                        const emptyOpt = document.createElement('option');
+                        emptyOpt.value = '';
+                        emptyOpt.textContent = 'No datasets available';
+                        select.appendChild(emptyOpt);
+                        return;
+                    }
+                    
+                    // Build options
+                    select.innerHTML = '';
+                    let waTestDataset = null;
+                    
+                    // Add default option
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select a dataset...';
+                    select.appendChild(defaultOpt);
+                    
+                    // Add dataset options
+                    result.datasets.forEach(dataset => {
+                        const opt = document.createElement('option');
+                        opt.value = dataset.dataset_name;
+                        opt.textContent = dataset.dataset_name;
+                        opt.dataset.template = dataset.template_name;
+                        opt.dataset.count = dataset.species_count;
+                        select.appendChild(opt);
+                        
+                        if (dataset.dataset_name === 'WA_Test_Dataset') {
+                            waTestDataset = dataset;
+                        }
+                    });
+                    
+                    // Add change listener
+                    select.addEventListener('change', () => {
+                        updateDatasetInfo();
+                        if (select.value) {
+                            performAnalysis();
+                        }
+                    });
+                    
+                    // Auto-select WA_Test_Dataset if available
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_Dataset';
+                        updateDatasetInfo();
+                        setTimeout(() => performAnalysis(), 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+                const select = document.getElementById('rankingGroundTruthDataset');
+                select.innerHTML = '';
+                const errorOpt = document.createElement('option');
+                errorOpt.value = '';
+                errorOpt.textContent = 'Error loading datasets - please refresh';
+                select.appendChild(errorOpt);
+            }
+        }
+        
+        // Load prediction data
+        async function loadPredictionData(speciesFile) {
+            if (!speciesFile) {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+                const result = await response.json();
+                
+                if (!result.error && result.data) {
+                    console.log(`Loaded ${result.total_results} predictions for ${speciesFile}`);
+                    return result.data;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error loading prediction data:', error);
+                return null;
+            }
+        }
+        
+        // Update dataset information display
+        function updateDatasetInfo() {
+            const select = document.getElementById('rankingGroundTruthDataset');
+            const details = document.getElementById('rankingDatasetDetails');
+            
+            if (select.value) {
+                const option = select.selectedOptions[0];
+                const count = option.dataset.count;
+                details.innerHTML = `<span>${count} species</span>`;
+            } else {
+                details.innerHTML = '';
+                // Hide plot if no dataset selected
+                document.getElementById('rankingPlotContainer').style.display = 'none';
+                document.getElementById('rankingLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Perform analysis and render plot
+        async function performAnalysis() {
+            const select = document.getElementById('rankingGroundTruthDataset');
+            const datasetName = select.value;
+            
+            if (!datasetName) {
+                return;
+            }
+            
+            const templateName = select.selectedOptions[0].dataset.template;
+            
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+            
+            // Show loading
+            const details = document.getElementById('rankingDatasetDetails');
+            details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+            
+            predictionData = await loadPredictionData(speciesFile);
+            
+            if (!predictionData) {
+                console.error('Failed to load prediction data');
+                details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+                return;
+            }
+            
+            // Update details
+            const uniqueModels = [...new Set(predictionData.map(p => p.model))];
+            const uniqueSpecies = [...new Set(predictionData.map(p => p.binomial_name))];
+            details.innerHTML = `<span>${uniqueSpecies.length} species • ${uniqueModels.length} models</span>`;
+            
+            try {
+                // Fetch template field definitions
+                const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+                const templateResult = await templateResp.json();
+                fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+                
+                // Fetch ground truth data
+                const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+                const gtResult = await gtResp.json();
+                
+                if (!gtResult.success) {
+                    throw new Error('Failed to load ground truth data');
+                }
+                
+                // Create ground truth map
+                const gtMap = {};
+                gtResult.data.forEach(item => {
+                    gtMap[item.binomial_name.toLowerCase()] = item;
+                });
+                
+                // Calculate metrics
+                const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+                currentMetrics = metrics;
+                
+                // Calculate overall rankings
+                const rankings = calculateOverallRankings(metrics);
+                
+                // Render the rankings
+                renderRankings(rankings);
+                
+                // Show plot container
+                document.getElementById('rankingPlotContainer').style.display = 'block';
+                document.getElementById('rankingLoadingState').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error analyzing data:', error);
+                document.getElementById('rankingPlotContainer').style.display = 'none';
+                document.getElementById('rankingLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Calculate metrics (same as in other components)
+        function calculateMetrics(predictions, groundTruth, fields) {
+            const results = [];
+            const phenotypes = Object.keys(fields);
+            
+            for (const phenotype of phenotypes) {
+                const pool = Array.isArray(predictions) ? predictions : [];
+                const models = [...new Set(pool.map(p => p.model))];
+                
+                for (const model of models) {
+                    const rows = pool.filter(p => p.model === model);
+                    const trueVals = [], predVals = [];
+                    
+                    for (const pred of rows) {
+                        const species = pred.binomial_name?.toLowerCase();
+                        if (!species || !groundTruth[species]) continue;
+                        const t = normalizeValue(groundTruth[species][phenotype]);
+                        const y = normalizeValue(pred[phenotype]);
+                        if (t !== null && y !== null) {
+                            trueVals.push(t);
+                            predVals.push(y);
+                        }
+                    }
+                    
+                    if (trueVals.length) {
+                        const m = computeMetrics(predVals, trueVals);
+                        results.push({
+                            model,
+                            phenotype,
+                            balancedAcc: m.balancedAcc,
+                            precision: m.precision,
+                            sampleSize: m.sampleSize
+                        });
+                    }
+                }
+            }
+            return results;
+        }
+        
+        // Calculate overall rankings by averaging across phenotypes
+        function calculateOverallRankings(metrics) {
+            // Exclude phenotypes with low sample sizes
+            const excludedPhenotypes = ['aerophilicity', 'health_association', 'hemolysis'];
+            const filteredMetrics = metrics.filter(m => !excludedPhenotypes.includes(m.phenotype));
+            
+            // Group by model
+            const modelGroups = {};
+            filteredMetrics.forEach(m => {
+                if (!modelGroups[m.model]) {
+                    modelGroups[m.model] = {
+                        balancedAcc: [],
+                        precision: [],
+                        sampleSizes: []
+                    };
+                }
+                // Only include finite values
+                if (Number.isFinite(m.balancedAcc)) {
+                    modelGroups[m.model].balancedAcc.push(m.balancedAcc);
+                }
+                if (Number.isFinite(m.precision)) {
+                    modelGroups[m.model].precision.push(m.precision);
+                }
+                modelGroups[m.model].sampleSizes.push(m.sampleSize);
+            });
+            
+            // Calculate averages
+            const rankings = [];
+            Object.keys(modelGroups).forEach(model => {
+                const group = modelGroups[model];
+                
+                // Calculate average balanced accuracy
+                const avgBalAcc = group.balancedAcc.length > 0 
+                    ? group.balancedAcc.reduce((a, b) => a + b, 0) / group.balancedAcc.length 
+                    : null;
+                
+                // Calculate average precision
+                const avgPrecision = group.precision.length > 0
+                    ? group.precision.reduce((a, b) => a + b, 0) / group.precision.length
+                    : null;
+                
+                // Calculate average sample size
+                const avgSampleSize = group.sampleSizes.length > 0
+                    ? Math.round(group.sampleSizes.reduce((a, b) => a + b, 0) / group.sampleSizes.length)
+                    : 0;
+                
+                if (avgBalAcc !== null && avgPrecision !== null) {
+                    rankings.push({
+                        model,
+                        balancedAcc: avgBalAcc,
+                        precision: avgPrecision,
+                        phenotypeCount: group.balancedAcc.length,
+                        avgSampleSize
+                    });
+                }
+            });
+            
+            return rankings;
+        }
+        
+        // Render the ranking visualizations
+        function renderRankings(rankings) {
+            // Sort by balanced accuracy - use same order for both charts
+            const sortedByBalAcc = [...rankings].sort((a, b) => b.balancedAcc - a.balancedAcc);
+            
+            // Render both charts with same model order
+            renderChart('rankingBalAccSvg', sortedByBalAcc, 'balancedAcc', '#3b82f6');
+            renderChart('rankingPrecisionSvg', sortedByBalAcc, 'precision', '#8b5cf6');
+        }
+        
+        // Render individual chart
+        function renderChart(containerId, data, metric, color) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            // Dimensions - much more compact
+            const margin = { top: 10, right: 55, bottom: 35, left: 125 };
+            const width = 350;
+            const barHeight = 22;
+            const barSpacing = 4;
+            const height = (barHeight + barSpacing) * data.length + margin.top + margin.bottom;
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            // Create SVG
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            container.appendChild(svg);
+            
+            // Add gradients
+            const defs = document.createElementNS(svg.namespaceURI, 'defs');
+            
+            // Blue gradient for balanced accuracy
+            const blueGradient = document.createElementNS(svg.namespaceURI, 'linearGradient');
+            blueGradient.setAttribute('id', metric === 'balancedAcc' ? 'blueGradient' : 'blueGradient2');
+            blueGradient.setAttribute('x1', '0%');
+            blueGradient.setAttribute('x2', '100%');
+            
+            const blueStop1 = document.createElementNS(svg.namespaceURI, 'stop');
+            blueStop1.setAttribute('offset', '0%');
+            blueStop1.setAttribute('stop-color', '#60a5fa');
+            blueGradient.appendChild(blueStop1);
+            
+            const blueStop2 = document.createElementNS(svg.namespaceURI, 'stop');
+            blueStop2.setAttribute('offset', '100%');
+            blueStop2.setAttribute('stop-color', '#3b82f6');
+            blueGradient.appendChild(blueStop2);
+            
+            // Purple gradient for precision
+            const purpleGradient = document.createElementNS(svg.namespaceURI, 'linearGradient');
+            purpleGradient.setAttribute('id', metric === 'precision' ? 'purpleGradient' : 'purpleGradient2');
+            purpleGradient.setAttribute('x1', '0%');
+            purpleGradient.setAttribute('x2', '100%');
+            
+            const purpleStop1 = document.createElementNS(svg.namespaceURI, 'stop');
+            purpleStop1.setAttribute('offset', '0%');
+            purpleStop1.setAttribute('stop-color', '#a78bfa');
+            purpleGradient.appendChild(purpleStop1);
+            
+            const purpleStop2 = document.createElementNS(svg.namespaceURI, 'stop');
+            purpleStop2.setAttribute('offset', '100%');
+            purpleStop2.setAttribute('stop-color', '#8b5cf6');
+            purpleGradient.appendChild(purpleStop2);
+            
+            defs.appendChild(blueGradient);
+            defs.appendChild(purpleGradient);
+            svg.appendChild(defs);
+            
+            // Scale - adjust to actual data range for better space usage
+            const minValue = 0.45; // Start slightly below minimum value
+            const maxValue = Math.min(0.85, Math.max(...data.map(d => d[metric])) * 1.02);
+            const xScale = val => margin.left + ((val - minValue) / (maxValue - minValue)) * chartWidth;
+            const yScale = (idx) => margin.top + idx * (barHeight + barSpacing) + barHeight / 2;
+            
+            // Draw vertical axis line
+            const axisLine = document.createElementNS(svg.namespaceURI, 'line');
+            axisLine.setAttribute('x1', margin.left);
+            axisLine.setAttribute('x2', margin.left);
+            axisLine.setAttribute('y1', margin.top);
+            axisLine.setAttribute('y2', height - margin.bottom);
+            axisLine.setAttribute('class', 'ranking-axis-line');
+            svg.appendChild(axisLine);
+            
+            // Draw grid lines - adjusted for new scale
+            const gridValues = [0.5, 0.6, 0.7, 0.8];
+            gridValues.forEach(v => {
+                if (v >= minValue && v <= maxValue) {
+                    const x = xScale(v);
+                    const line = document.createElementNS(svg.namespaceURI, 'line');
+                    line.setAttribute('x1', x);
+                    line.setAttribute('x2', x);
+                    line.setAttribute('y1', margin.top);
+                    line.setAttribute('y2', height - margin.bottom);
+                    line.setAttribute('class', 'ranking-gridline');
+                    svg.appendChild(line);
+                    
+                    // Grid labels
+                    const gridLabel = document.createElementNS(svg.namespaceURI, 'text');
+                    gridLabel.setAttribute('x', x);
+                    gridLabel.setAttribute('y', height - margin.bottom + 15);
+                    gridLabel.setAttribute('text-anchor', 'middle');
+                    gridLabel.setAttribute('font-size', '10');
+                    gridLabel.setAttribute('fill', '#94a3b8');
+                    gridLabel.textContent = v.toFixed(1);
+                    svg.appendChild(gridLabel);
+                }
+            });
+            
+            // Draw bars and labels
+            data.forEach((item, idx) => {
+                const y = yScale(idx);
+                const barWidth = xScale(item[metric]) - margin.left;
+                
+                // Model name (shortened)
+                const shortName = item.model.includes('/') ? 
+                    item.model.split('/').pop() : 
+                    item.model;
+                
+                // Model label
+                const label = document.createElementNS(svg.namespaceURI, 'text');
+                label.setAttribute('x', margin.left - 10);
+                label.setAttribute('y', y);
+                label.setAttribute('text-anchor', 'end');
+                label.setAttribute('dominant-baseline', 'middle');
+                label.setAttribute('class', 'ranking-model-label');
+                label.textContent = shortName;
+                svg.appendChild(label);
+                
+                // Bar with gradient
+                const rect = document.createElementNS(svg.namespaceURI, 'rect');
+                rect.setAttribute('x', margin.left);
+                rect.setAttribute('y', y - barHeight/2);
+                rect.setAttribute('width', Math.max(0, barWidth));
+                rect.setAttribute('height', barHeight);
+                rect.setAttribute('rx', 4);
+                rect.setAttribute('class', `ranking-bar ${metric === 'balancedAcc' ? 'ranking-bar-balanced' : 'ranking-bar-precision'}`);
+                
+                // Tooltip
+                const tooltipText = `${item.model}\n${metric === 'balancedAcc' ? 'Balanced Accuracy' : 'Precision'}: ${item[metric].toFixed(3)}\nPhenotypes: ${item.phenotypeCount}\nAvg Sample Size: ${item.avgSampleSize}`;
+                rect.innerHTML = `<title>${tooltipText}</title>`;
+                
+                svg.appendChild(rect);
+                
+                // Value label (no background, positioned at end of bar)
+                const valueLabel = document.createElementNS(svg.namespaceURI, 'text');
+                valueLabel.setAttribute('x', xScale(item[metric]) + 8);
+                valueLabel.setAttribute('y', y);
+                valueLabel.setAttribute('text-anchor', 'start');
+                valueLabel.setAttribute('dominant-baseline', 'middle');
+                valueLabel.setAttribute('class', 'ranking-value-label');
+                valueLabel.textContent = item[metric].toFixed(2);
+                svg.appendChild(valueLabel);
+            });
+            
+            // X-axis label
+            const axisLabel = document.createElementNS(svg.namespaceURI, 'text');
+            axisLabel.setAttribute('x', margin.left + chartWidth / 2);
+            axisLabel.setAttribute('y', height - 5);
+            axisLabel.setAttribute('text-anchor', 'middle');
+            axisLabel.setAttribute('class', 'ranking-axis-label');
+            axisLabel.textContent = metric === 'balancedAcc' ? 'Balanced Accuracy' : 'Precision';
+            svg.appendChild(axisLabel);
+        }
+        
+        // Helper functions (same as accuracy component)
+        function normalizeValue(value) {
+            const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+            
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            
+            const strValue = String(value).trim().toLowerCase();
+            
+            if (missingTokens.includes(strValue)) {
+                return null;
+            }
+            
+            if (strValue.includes(',') || strValue.includes(';')) {
+                const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+                return parts.sort().join(',');
+            }
+            
+            return strValue;
+        }
+        
+        function toBoolean(v) {
+            if (v === null || v === undefined) return null;
+            const s = String(v).trim().toLowerCase();
+            if (['true','1','yes','t','y'].includes(s)) return true;
+            if (['false','0','no','f','n'].includes(s)) return false;
+            return null;
+        }
+        
+        function computeMetrics(preds, truths) {
+            const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
+                                .filter(([p, t]) => p !== null && t !== null);
+            
+            const allBinary = mapped.length > 0 && mapped.length === preds.length;
+            if (allBinary) {
+                let tp = 0, tn = 0, fp = 0, fn = 0;
+                for (const [p, t] of mapped) {
+                    if (t && p) tp++;
+                    else if (!t && !p) tn++;
+                    else if (!t && p) fp++;
+                    else fn++;
+                }
+                const sens = tp + fn ? tp / (tp + fn) : 0;
+                const spec = tn + fp ? tn / (tn + fp) : 0;
+                const prec = tp + fp ? tp / (tp + fp) : 0;
+                return {
+                    balancedAcc: (sens + spec) / 2,
+                    precision: prec,
+                    sampleSize: mapped.length
+                };
+            }
+            
+            // Multiclass
+            const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
+            const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
+            for (let i = 0; i < truths.length; i++) {
+                conf[String(truths[i])][String(preds[i])]++;
+            }
+            
+            let recallSum = 0, precSum = 0;
+            for (const lab of labels) {
+                const tp = conf[lab][lab];
+                let fn = 0, fp = 0;
+                for (const l2 of labels) {
+                    if (l2 !== lab) {
+                        fn += conf[lab][l2];
+                        fp += conf[l2][lab];
+                    }
+                }
+                const rec = tp + fn ? tp / (tp + fn) : 0;
+                const pre = tp + fp ? tp / (tp + fp) : 0;
+                recallSum += rec;
+                precSum += pre;
+            }
+            
+            return {
+                balancedAcc: recallSum / labels.length,
+                precision: precSum / labels.length,
+                sampleSize: truths.length
+            };
+        }
+        
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRanking);
+        } else {
+            initRanking();
+        }
+    })();
+    </script>
+</div>

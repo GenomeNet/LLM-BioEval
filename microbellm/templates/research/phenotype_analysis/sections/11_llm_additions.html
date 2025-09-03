@@ -1,0 +1,659 @@
+<!-- LLM Additions Raw Count Visualization -->
+<div id="llmAdditionsContent">
+    <style>
+    /* LLM Additions Styles */
+    .additions-section {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Controls Panel */
+    .additions-controls-panel {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .additions-dataset-selector {
+        flex: 1;
+    }
+
+    .additions-dataset-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .additions-dataset-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: white;
+        color: #495057;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .additions-dataset-select:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .additions-dataset-details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    /* Visualization Container */
+    .additions-viz-container {
+        display: none;
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .additions-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .additions-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 8px 0;
+    }
+
+    .additions-subtitle {
+        font-size: 15px;
+        color: #718096;
+        font-weight: 400;
+    }
+
+    /* Chart Container */
+    .additions-chart-wrapper {
+        background: #fafbfc;
+        border: 1px solid #e1e4e8;
+        border-radius: 10px;
+        padding: 24px;
+    }
+
+    .additions-chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .additions-chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .additions-summary {
+        font-size: 14px;
+        color: #718096;
+    }
+
+    .additions-summary strong {
+        color: #2d3748;
+        font-weight: 600;
+    }
+
+    /* SVG Container */
+    .additions-svg-container {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    /* Loading State */
+    .additions-loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .additions-loading i {
+        font-size: 48px;
+        color: #dee2e6;
+        margin-bottom: 16px;
+    }
+
+    /* Top Models Info */
+    .additions-info {
+        margin-top: 24px;
+        padding: 16px;
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .additions-info-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .additions-info-text {
+        font-size: 13px;
+        color: #718096;
+        line-height: 1.6;
+    }
+    </style>
+
+    <!-- Dataset Selector -->
+    <div class="additions-controls-panel">
+        <div class="additions-dataset-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="additionsGroundTruthDataset" class="additions-dataset-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="additions-dataset-details" id="additionsDatasetDetails"></div>
+        </div>
+    </div>
+
+    <!-- Visualization Container -->
+    <div id="additionsVizContainer" class="additions-viz-container">
+        <div class="additions-header">
+            <h2 class="additions-title">LLM Phenotype Predictions</h2>
+            <p class="additions-subtitle">Number of new annotations added by language models</p>
+        </div>
+
+        <div class="additions-chart-wrapper">
+            <div class="additions-chart-header">
+                <h3 class="additions-chart-title">Added Predictions per Phenotype</h3>
+                <div class="additions-summary">
+                    Total: <strong id="additionsTotalCount">0</strong> new annotations
+                </div>
+            </div>
+            <div id="additionsChart" class="additions-svg-container"></div>
+        </div>
+
+        <div class="additions-info">
+            <div class="additions-info-title">Analysis Notes</div>
+            <div class="additions-info-text" id="additionsInfoText">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="additions-loading" id="additionsLoadingState">
+        <i class="fas fa-plus-circle"></i>
+        <p>Select a dataset to view LLM-added predictions</p>
+    </div>
+
+    <script>
+    /* ===== LLM Additions Visualization ===== */
+    (function() {
+        'use strict';
+        
+        let groundTruthData = null;
+        let predictionData = null;
+        
+        // Initialize the component
+        function initAdditions() {
+            loadGroundTruthDatasets();
+        }
+        
+        // Load available ground truth datasets
+        async function loadGroundTruthDatasets() {
+            try {
+                const response = await fetch('/api/ground_truth/datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                
+                if (result.success && result.datasets) {
+                    const select = document.getElementById('additionsGroundTruthDataset');
+                    
+                    if (result.datasets.length === 0) {
+                        select.innerHTML = '';
+                        const emptyOpt = document.createElement('option');
+                        emptyOpt.value = '';
+                        emptyOpt.textContent = 'No datasets available';
+                        select.appendChild(emptyOpt);
+                        return;
+                    }
+                    
+                    // Build options
+                    select.innerHTML = '';
+                    let waTestDataset = null;
+                    
+                    // Add default option
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select a dataset...';
+                    select.appendChild(defaultOpt);
+                    
+                    // Add dataset options
+                    result.datasets.forEach(dataset => {
+                        const opt = document.createElement('option');
+                        opt.value = dataset.dataset_name;
+                        opt.textContent = dataset.dataset_name;
+                        opt.dataset.template = dataset.template_name;
+                        opt.dataset.count = dataset.species_count;
+                        select.appendChild(opt);
+                        
+                        if (dataset.dataset_name === 'WA_Test_Dataset') {
+                            waTestDataset = dataset;
+                        }
+                    });
+                    
+                    // Add change listener
+                    select.addEventListener('change', () => {
+                        updateDatasetInfo();
+                        if (select.value) {
+                            performAnalysis();
+                        }
+                    });
+                    
+                    // Auto-select WA_Test_Dataset if available
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_Dataset';
+                        updateDatasetInfo();
+                        setTimeout(() => performAnalysis(), 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+            }
+        }
+        
+        // Update dataset information display
+        function updateDatasetInfo() {
+            const select = document.getElementById('additionsGroundTruthDataset');
+            const details = document.getElementById('additionsDatasetDetails');
+            
+            if (select.value) {
+                const option = select.selectedOptions[0];
+                const count = option.dataset.count;
+                details.innerHTML = `<span>${count} species</span>`;
+            } else {
+                details.innerHTML = '';
+                document.getElementById('additionsVizContainer').style.display = 'none';
+                document.getElementById('additionsLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Load prediction data
+        async function loadPredictionData(speciesFile) {
+            if (!speciesFile) {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+                const result = await response.json();
+                
+                if (!result.error && result.data) {
+                    return result.data;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error loading prediction data:', error);
+                return null;
+            }
+        }
+        
+        // Perform analysis
+        async function performAnalysis() {
+            const select = document.getElementById('additionsGroundTruthDataset');
+            const datasetName = select.value;
+            
+            if (!datasetName) {
+                return;
+            }
+            
+            const templateName = select.selectedOptions[0].dataset.template;
+            
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+            
+            // Show loading
+            const details = document.getElementById('additionsDatasetDetails');
+            details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+            
+            try {
+                // Load ground truth data
+                const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+                const gtResult = await gtResp.json();
+                
+                if (!gtResult.success) {
+                    throw new Error('Failed to load ground truth data');
+                }
+                
+                groundTruthData = gtResult.data;
+                
+                // Load prediction data
+                predictionData = await loadPredictionData(speciesFile);
+                
+                if (!predictionData) {
+                    throw new Error('Failed to load prediction data');
+                }
+                
+                // Update details
+                const uniqueModels = [...new Set(predictionData.map(p => p.model))];
+                const uniqueSpecies = [...new Set(predictionData.map(p => p.binomial_name))];
+                details.innerHTML = `<span>${uniqueSpecies.length} species • ${uniqueModels.length} models</span>`;
+                
+                // Analyze and visualize
+                analyzeAdditions();
+                
+                // Show visualization
+                document.getElementById('additionsVizContainer').style.display = 'block';
+                document.getElementById('additionsLoadingState').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error analyzing data:', error);
+                details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+            }
+        }
+        
+        // Analyze LLM additions
+        function analyzeAdditions() {
+            // Get phenotype fields
+            const phenotypes = [
+                'motility',
+                'animal_pathogenicity',
+                'cell_shape',
+                'extreme_environment_tolerance',
+                'host_association',
+                'spore_formation',
+                'biosafety_level',
+                'plant_pathogenicity',
+                'gram_staining',
+                'biofilm_formation',
+                'hemolysis',
+                'antimicrobial_susceptibility',
+                'health_association',
+                'aerophilicity'
+            ];
+            
+            // Create ground truth map
+            const gtMap = {};
+            groundTruthData.forEach(item => {
+                gtMap[item.binomial_name.toLowerCase()] = item;
+            });
+            
+            // Count additions per phenotype (average across all models)
+            const additionsData = [];
+            
+            phenotypes.forEach(phenotype => {
+                let totalAdded = 0;
+                let modelCount = 0;
+                
+                // Group predictions by model
+                const modelGroups = {};
+                predictionData.forEach(pred => {
+                    if (!modelGroups[pred.model]) {
+                        modelGroups[pred.model] = [];
+                    }
+                    modelGroups[pred.model].push(pred);
+                });
+                
+                // Calculate additions for each model
+                Object.entries(modelGroups).forEach(([model, predictions]) => {
+                    let modelAdditions = 0;
+                    
+                    predictions.forEach(pred => {
+                        const species = pred.binomial_name?.toLowerCase();
+                        const gtEntry = gtMap[species];
+                        
+                        // Check if LLM has a value where ground truth doesn't
+                        const predValue = normalizeValue(pred[phenotype]);
+                        const gtValue = gtEntry ? normalizeValue(gtEntry[phenotype]) : null;
+                        
+                        if (predValue !== null && predValue !== '' && (gtValue === null || gtValue === '')) {
+                            modelAdditions++;
+                        }
+                    });
+                    
+                    totalAdded += modelAdditions;
+                    modelCount++;
+                });
+                
+                // Calculate average additions across models
+                const avgAdditions = modelCount > 0 ? Math.round(totalAdded / modelCount) : 0;
+                
+                if (avgAdditions > 0) {
+                    additionsData.push({
+                        phenotype: formatPhenotypeName(phenotype),
+                        rawPhenotype: phenotype,
+                        additions: avgAdditions
+                    });
+                }
+            });
+            
+            // Sort by additions (highest first)
+            additionsData.sort((a, b) => b.additions - a.additions);
+            
+            // Render chart
+            renderAdditionsChart(additionsData);
+            
+            // Update summary
+            const totalAdditions = additionsData.reduce((sum, d) => sum + d.additions, 0);
+            document.getElementById('additionsTotalCount').textContent = totalAdditions.toLocaleString();
+            
+            // Update info text
+            const topPhenotypes = additionsData.slice(0, 3);
+            const infoText = `Language models contributed most significantly to ${topPhenotypes[0].phenotype.toLowerCase()} (${topPhenotypes[0].additions} additions), ` +
+                           `${topPhenotypes[1].phenotype.toLowerCase()} (${topPhenotypes[1].additions}), and ${topPhenotypes[2].phenotype.toLowerCase()} (${topPhenotypes[2].additions}). ` +
+                           `These additions expand the dataset beyond traditional ground truth annotations, enabling broader phenotype coverage.`;
+            document.getElementById('additionsInfoText').textContent = infoText;
+        }
+        
+        // Render the additions chart
+        function renderAdditionsChart(data) {
+            const container = document.getElementById('additionsChart');
+            container.innerHTML = '';
+            
+            // Dimensions
+            const margin = { top: 20, right: 80, bottom: 60, left: 160 };
+            const width = 750;
+            const barHeight = 26;
+            const barSpacing = 6;
+            const height = (barHeight + barSpacing) * data.length + margin.top + margin.bottom;
+            const chartWidth = width - margin.left - margin.right;
+            
+            // Create SVG
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            container.appendChild(svg);
+            
+            // Add gradient
+            const defs = document.createElementNS(svg.namespaceURI, 'defs');
+            
+            // Green gradient for additions
+            const greenGradient = document.createElementNS(svg.namespaceURI, 'linearGradient');
+            greenGradient.setAttribute('id', 'additionsGreenGradient');
+            greenGradient.setAttribute('x1', '0%');
+            greenGradient.setAttribute('x2', '100%');
+            
+            const greenStop1 = document.createElementNS(svg.namespaceURI, 'stop');
+            greenStop1.setAttribute('offset', '0%');
+            greenStop1.setAttribute('stop-color', '#86efac');
+            greenGradient.appendChild(greenStop1);
+            
+            const greenStop2 = document.createElementNS(svg.namespaceURI, 'stop');
+            greenStop2.setAttribute('offset', '100%');
+            greenStop2.setAttribute('stop-color', '#22c55e');
+            greenGradient.appendChild(greenStop2);
+            
+            defs.appendChild(greenGradient);
+            svg.appendChild(defs);
+            
+            // Scale
+            const maxValue = Math.max(...data.map(d => d.additions));
+            const xScale = val => margin.left + (val / maxValue) * chartWidth;
+            const yScale = idx => margin.top + idx * (barHeight + barSpacing) + barHeight / 2;
+            
+            // Draw vertical axis line
+            const axisLine = document.createElementNS(svg.namespaceURI, 'line');
+            axisLine.setAttribute('x1', margin.left);
+            axisLine.setAttribute('x2', margin.left);
+            axisLine.setAttribute('y1', margin.top - 10);
+            axisLine.setAttribute('y2', height - margin.bottom);
+            axisLine.setAttribute('stroke', '#cbd5e0');
+            axisLine.setAttribute('stroke-width', '1');
+            svg.appendChild(axisLine);
+            
+            // Draw grid lines
+            const gridSteps = 5;
+            const stepSize = Math.ceil(maxValue / gridSteps);
+            for (let v = 0; v <= maxValue; v += stepSize) {
+                const x = xScale(v);
+                const line = document.createElementNS(svg.namespaceURI, 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('x2', x);
+                line.setAttribute('y1', margin.top - 10);
+                line.setAttribute('y2', height - margin.bottom);
+                line.setAttribute('stroke', '#e2e8f0');
+                line.setAttribute('stroke-width', '0.5');
+                line.setAttribute('opacity', '0.5');
+                svg.appendChild(line);
+                
+                // Grid label
+                const label = document.createElementNS(svg.namespaceURI, 'text');
+                label.setAttribute('x', x);
+                label.setAttribute('y', height - margin.bottom + 20);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('font-size', '11');
+                label.setAttribute('fill', '#94a3b8');
+                label.textContent = v;
+                svg.appendChild(label);
+            }
+            
+            // Draw bars
+            data.forEach((item, idx) => {
+                const y = yScale(idx);
+                const barWidth = xScale(item.additions) - margin.left;
+                
+                // Phenotype label
+                const label = document.createElementNS(svg.namespaceURI, 'text');
+                label.setAttribute('x', margin.left - 10);
+                label.setAttribute('y', y);
+                label.setAttribute('text-anchor', 'end');
+                label.setAttribute('dominant-baseline', 'middle');
+                label.setAttribute('font-size', '12');
+                label.setAttribute('font-weight', '500');
+                label.setAttribute('fill', '#4a5568');
+                label.textContent = item.phenotype;
+                svg.appendChild(label);
+                
+                // Bar
+                const bar = document.createElementNS(svg.namespaceURI, 'rect');
+                bar.setAttribute('x', margin.left);
+                bar.setAttribute('y', y - barHeight/2);
+                bar.setAttribute('width', barWidth);
+                bar.setAttribute('height', barHeight);
+                bar.setAttribute('rx', 4);
+                bar.setAttribute('fill', 'url(#additionsGreenGradient)');
+                bar.style.cursor = 'pointer';
+                bar.style.transition = 'opacity 0.2s';
+                
+                // Hover effect
+                bar.addEventListener('mouseenter', function() {
+                    this.style.opacity = '0.8';
+                });
+                bar.addEventListener('mouseleave', function() {
+                    this.style.opacity = '1';
+                });
+                
+                const tooltipText = `${item.phenotype}\n${item.additions} new annotations added`;
+                bar.innerHTML = `<title>${tooltipText}</title>`;
+                svg.appendChild(bar);
+                
+                // Value label
+                const valueLabel = document.createElementNS(svg.namespaceURI, 'text');
+                valueLabel.setAttribute('x', xScale(item.additions) + 8);
+                valueLabel.setAttribute('y', y);
+                valueLabel.setAttribute('dominant-baseline', 'middle');
+                valueLabel.setAttribute('font-size', '12');
+                valueLabel.setAttribute('font-weight', '600');
+                valueLabel.setAttribute('fill', '#2d3748');
+                valueLabel.textContent = item.additions;
+                svg.appendChild(valueLabel);
+            });
+            
+            // X-axis label
+            const xLabel = document.createElementNS(svg.namespaceURI, 'text');
+            xLabel.setAttribute('x', margin.left + chartWidth / 2);
+            xLabel.setAttribute('y', height - 10);
+            xLabel.setAttribute('text-anchor', 'middle');
+            xLabel.setAttribute('font-size', '13');
+            xLabel.setAttribute('font-weight', '600');
+            xLabel.setAttribute('fill', '#4a5568');
+            xLabel.textContent = 'Number of Added Annotations';
+            svg.appendChild(xLabel);
+        }
+        
+        // Helper function to normalize values
+        function normalizeValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            
+            const strValue = String(value).trim().toLowerCase();
+            const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+            
+            if (missingTokens.includes(strValue)) {
+                return null;
+            }
+            
+            return strValue;
+        }
+        
+        // Format phenotype name
+        function formatPhenotypeName(phenotype) {
+            return phenotype
+                .replace(/_/g, ' ')
+                .replace('extreme environment tolerance', 'Extreme env. tolerance')
+                .replace('animal pathogenicity', 'Animal pathogenicity')
+                .replace('plant pathogenicity', 'Plant pathogenicity')
+                .replace('host association', 'Host association')
+                .replace('spore formation', 'Spore formation')
+                .replace('biosafety level', 'Biosafety level')
+                .replace('gram staining', 'Gram staining')
+                .replace('biofilm formation', 'Biofilm formation')
+                .replace('antimicrobial susceptibility', 'Antimicrobial suscept.')
+                .replace('health association', 'Health association')
+                .replace('aerophilicity', 'Aerophilicity')
+                .replace('hemolysis', 'Hemolysis')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+        
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAdditions);
+        } else {
+            initAdditions();
+        }
+    })();
+    </script>
+</div>

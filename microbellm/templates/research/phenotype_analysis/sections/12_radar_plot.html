@@ -1,0 +1,885 @@
+<!-- Radar Plot Model Performance Visualization -->
+<div id="radarPlotContent">
+    <style>
+    /* Radar Plot Styles */
+    .radar-section {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Controls Panel */
+    .radar-controls-panel {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .radar-dataset-selector {
+        flex: 1;
+    }
+
+    .radar-dataset-selector label,
+    .radar-model-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .radar-dataset-select,
+    .radar-model-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: white;
+        color: #495057;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .radar-dataset-select:focus,
+    .radar-model-select:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .radar-dataset-details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .radar-model-selector {
+        flex: 1.5;
+    }
+
+    .model-selection-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .model-selection-mode {
+        display: flex;
+        gap: 0;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+
+    .mode-btn {
+        padding: 8px 16px;
+        border: none;
+        background: white;
+        color: #6c757d;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mode-btn:not(:last-child) {
+        border-right: 1px solid #dee2e6;
+    }
+
+    .mode-btn:hover {
+        background: #f8f9fa;
+    }
+
+    .mode-btn.active {
+        background: #22c55e;
+        color: white;
+    }
+
+    .models-multiselect {
+        position: relative;
+        width: 100%;
+    }
+
+    .multiselect-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 100;
+        display: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .multiselect-dropdown.show {
+        display: block;
+    }
+
+    .multiselect-option {
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .multiselect-option:hover {
+        background: #f8f9fa;
+    }
+
+    .multiselect-option input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .selected-models-display {
+        padding: 8px 12px;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        cursor: pointer;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .selected-model-tag {
+        background: #22c55e;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .selected-model-tag .remove {
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    /* Visualization Container */
+    .radar-viz-container {
+        display: none;
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .radar-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .radar-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 8px 0;
+    }
+
+    .radar-subtitle {
+        font-size: 15px;
+        color: #718096;
+    }
+
+    /* Chart Container */
+    .radar-chart-wrapper {
+        background: #fafbfc;
+        border: 1px solid #e1e4e8;
+        border-radius: 10px;
+        padding: 24px;
+        position: relative;
+    }
+
+    .radar-canvas-container {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        aspect-ratio: 1;
+    }
+
+    /* Loading state */
+    .radar-loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .radar-loading i {
+        font-size: 48px;
+        color: #dee2e6;
+        margin-bottom: 16px;
+    }
+
+    /* Legend */
+    .radar-legend {
+        margin-top: 24px;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 3px;
+        border-radius: 2px;
+    }
+    </style>
+
+    <!-- Include Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Controls -->
+    <div class="radar-controls-panel">
+        <div class="radar-dataset-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="radarGroundTruthDataset" class="radar-dataset-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="radar-dataset-details" id="radarDatasetDetails"></div>
+        </div>
+        
+        <div class="radar-model-selector">
+            <label>Model Selection:</label>
+            <div class="model-selection-mode">
+                <button class="mode-btn active" data-mode="top5">Top 5</button>
+                <button class="mode-btn" data-mode="custom">Custom</button>
+            </div>
+            <div class="models-multiselect">
+                <div class="selected-models-display" id="selectedModelsDisplay">
+                    <span style="color: #6c757d;">Top 5 performers will be selected automatically</span>
+                </div>
+                <div class="multiselect-dropdown" id="modelDropdown">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization Container -->
+    <div id="radarVizContainer" class="radar-viz-container">
+        <div class="radar-header">
+            <h2 class="radar-title">Model Performance Radar</h2>
+            <p class="radar-subtitle">Balanced accuracy across phenotypes for selected models</p>
+        </div>
+
+        <div class="radar-chart-wrapper">
+            <div class="radar-canvas-container">
+                <canvas id="radarChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="radar-loading" id="radarLoadingState">
+        <i class="fas fa-chart-radar"></i>
+        <p>Select a dataset to view performance radar plot</p>
+    </div>
+
+    <script>
+    /* ===== Radar Plot Visualization ===== */
+    (function() {
+        'use strict';
+        
+        let currentMetrics = null;
+        let radarChart = null;
+        let selectionMode = 'top5';
+        let selectedModels = new Set();
+        let availableModels = [];
+        
+        // Color palette for models
+        const modelColors = [
+            'rgba(239, 68, 68, 0.8)',   // Red
+            'rgba(245, 158, 11, 0.8)',  // Amber
+            'rgba(34, 197, 94, 0.8)',   // Green
+            'rgba(59, 130, 246, 0.8)',  // Blue
+            'rgba(139, 92, 246, 0.8)',  // Purple
+            'rgba(236, 72, 153, 0.8)',  // Pink
+            'rgba(14, 165, 233, 0.8)',  // Sky
+            'rgba(168, 85, 247, 0.8)',  // Violet
+            'rgba(251, 146, 60, 0.8)',  // Orange
+            'rgba(6, 182, 212, 0.8)',   // Cyan
+        ];
+        
+        // Initialize
+        function initRadar() {
+            loadGroundTruthDatasets();
+            setupModeToggle();
+            setupMultiselect();
+        }
+        
+        // Setup mode toggle
+        function setupModeToggle() {
+            const modeBtns = document.querySelectorAll('.mode-btn');
+            modeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectionMode = btn.dataset.mode;
+                    updateSelectionDisplay();
+                    
+                    if (currentMetrics) {
+                        renderRadarChart();
+                    }
+                });
+            });
+        }
+        
+        // Setup multiselect
+        function setupMultiselect() {
+            const display = document.getElementById('selectedModelsDisplay');
+            const dropdown = document.getElementById('modelDropdown');
+            
+            display.addEventListener('click', () => {
+                if (selectionMode === 'custom') {
+                    dropdown.classList.toggle('show');
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.models-multiselect')) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+        
+        // Update selection display
+        function updateSelectionDisplay() {
+            const display = document.getElementById('selectedModelsDisplay');
+            
+            if (selectionMode === 'top5') {
+                display.innerHTML = '<span style="color: #6c757d;">Top 5 performers will be selected automatically</span>';
+            } else {
+                if (selectedModels.size === 0) {
+                    display.innerHTML = '<span style="color: #6c757d;">Click to select models...</span>';
+                } else {
+                    display.innerHTML = Array.from(selectedModels).map(model => {
+                        const shortName = model.includes('/') ? model.split('/').pop() : model;
+                        return `<span class="selected-model-tag">${shortName} <span class="remove" data-model="${model}">×</span></span>`;
+                    }).join('');
+                    
+                    // Add remove handlers
+                    display.querySelectorAll('.remove').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const model = btn.dataset.model;
+                            selectedModels.delete(model);
+                            updateSelectionDisplay();
+                            updateModelCheckboxes();
+                            if (currentMetrics) {
+                                renderRadarChart();
+                            }
+                        });
+                    });
+                }
+            }
+        }
+        
+        // Update model checkboxes
+        function updateModelCheckboxes() {
+            document.querySelectorAll('.multiselect-option input').forEach(checkbox => {
+                checkbox.checked = selectedModels.has(checkbox.value);
+            });
+        }
+        
+        // Load datasets
+        async function loadGroundTruthDatasets() {
+            try {
+                const response = await fetch('/api/ground_truth/datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                
+                if (result.success && result.datasets) {
+                    const select = document.getElementById('radarGroundTruthDataset');
+                    
+                    if (result.datasets.length === 0) {
+                        select.innerHTML = '<option value="">No datasets available</option>';
+                        return;
+                    }
+                    
+                    // Build options
+                    select.innerHTML = '';
+                    let waTestDataset = null;
+                    
+                    // Add default option
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select a dataset...';
+                    select.appendChild(defaultOpt);
+                    
+                    // Add dataset options
+                    result.datasets.forEach(dataset => {
+                        const opt = document.createElement('option');
+                        opt.value = dataset.dataset_name;
+                        opt.textContent = dataset.dataset_name;
+                        opt.dataset.template = dataset.template_name;
+                        opt.dataset.count = dataset.species_count;
+                        select.appendChild(opt);
+                        
+                        if (dataset.dataset_name === 'WA_Test_Dataset') {
+                            waTestDataset = dataset;
+                        }
+                    });
+                    
+                    // Add change listener
+                    select.addEventListener('change', () => {
+                        updateDatasetInfo();
+                        if (select.value) {
+                            performAnalysis();
+                        }
+                    });
+                    
+                    // Auto-select WA_Test_Dataset
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_Dataset';
+                        updateDatasetInfo();
+                        setTimeout(() => performAnalysis(), 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+            }
+        }
+        
+        // Update dataset info
+        function updateDatasetInfo() {
+            const select = document.getElementById('radarGroundTruthDataset');
+            const details = document.getElementById('radarDatasetDetails');
+            
+            if (select.value) {
+                const option = select.selectedOptions[0];
+                const count = option.dataset.count;
+                details.innerHTML = `<span>${count} species</span>`;
+            } else {
+                details.innerHTML = '';
+                document.getElementById('radarVizContainer').style.display = 'none';
+                document.getElementById('radarLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Perform analysis
+        async function performAnalysis() {
+            const select = document.getElementById('radarGroundTruthDataset');
+            const datasetName = select.value;
+            
+            if (!datasetName) return;
+            
+            const templateName = select.selectedOptions[0].dataset.template;
+            
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+            
+            // Show loading
+            const details = document.getElementById('radarDatasetDetails');
+            details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+            
+            try {
+                // Load prediction data
+                const predResp = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+                const predResult = await predResp.json();
+                
+                if (!predResult.data) {
+                    throw new Error('Failed to load prediction data');
+                }
+                
+                // Load field definitions
+                const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+                const templateResult = await templateResp.json();
+                const fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+                
+                // Load ground truth data
+                const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+                const gtResult = await gtResp.json();
+                
+                if (!gtResult.success) {
+                    throw new Error('Failed to load ground truth data');
+                }
+                
+                // Create ground truth map
+                const gtMap = {};
+                gtResult.data.forEach(item => {
+                    gtMap[item.binomial_name.toLowerCase()] = item;
+                });
+                
+                // Calculate metrics
+                const metrics = calculateMetrics(predResult.data, gtMap, fieldDefinitions);
+                currentMetrics = metrics;
+                
+                // Update available models
+                availableModels = [...new Set(metrics.map(m => m.model))].sort();
+                updateModelDropdown();
+                
+                // Update details
+                details.innerHTML = `<span>${gtResult.data.length} species • ${availableModels.length} models</span>`;
+                
+                // Render chart
+                renderRadarChart();
+                
+                // Show visualization
+                document.getElementById('radarVizContainer').style.display = 'block';
+                document.getElementById('radarLoadingState').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error analyzing data:', error);
+                details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+            }
+        }
+        
+        // Update model dropdown
+        function updateModelDropdown() {
+            const dropdown = document.getElementById('modelDropdown');
+            dropdown.innerHTML = '';
+            
+            availableModels.forEach(model => {
+                const option = document.createElement('div');
+                option.className = 'multiselect-option';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = model;
+                checkbox.checked = selectedModels.has(model);
+                
+                const label = document.createElement('label');
+                const shortName = model.includes('/') ? model.split('/').pop() : model;
+                label.textContent = shortName;
+                label.style.cursor = 'pointer';
+                
+                option.appendChild(checkbox);
+                option.appendChild(label);
+                
+                option.addEventListener('click', (e) => {
+                    if (e.target === checkbox) return;
+                    checkbox.checked = !checkbox.checked;
+                    
+                    if (checkbox.checked) {
+                        selectedModels.add(model);
+                    } else {
+                        selectedModels.delete(model);
+                    }
+                    
+                    updateSelectionDisplay();
+                    renderRadarChart();
+                });
+                
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        selectedModels.add(model);
+                    } else {
+                        selectedModels.delete(model);
+                    }
+                    
+                    updateSelectionDisplay();
+                    renderRadarChart();
+                });
+                
+                dropdown.appendChild(option);
+            });
+        }
+        
+        // Render radar chart
+        function renderRadarChart() {
+            if (!currentMetrics) return;
+            
+            // Get models to display
+            let modelsToShow = [];
+            
+            if (selectionMode === 'top5') {
+                // Calculate average balanced accuracy for each model
+                const modelScores = {};
+                currentMetrics.forEach(m => {
+                    if (!modelScores[m.model]) {
+                        modelScores[m.model] = { total: 0, count: 0 };
+                    }
+                    if (Number.isFinite(m.balancedAcc)) {
+                        modelScores[m.model].total += m.balancedAcc;
+                        modelScores[m.model].count++;
+                    }
+                });
+                
+                // Calculate averages and sort
+                const avgScores = Object.entries(modelScores).map(([model, scores]) => ({
+                    model,
+                    avgScore: scores.count > 0 ? scores.total / scores.count : 0
+                }));
+                
+                avgScores.sort((a, b) => b.avgScore - a.avgScore);
+                modelsToShow = avgScores.slice(0, 5).map(s => s.model);
+            } else {
+                modelsToShow = Array.from(selectedModels);
+            }
+            
+            if (modelsToShow.length === 0) {
+                if (radarChart) {
+                    radarChart.destroy();
+                    radarChart = null;
+                }
+                return;
+            }
+            
+            // Get phenotypes (exclude low sample ones)
+            const excludedPhenotypes = ['aerophilicity', 'health_association', 'hemolysis'];
+            const phenotypes = [...new Set(currentMetrics.map(m => m.phenotype))]
+                .filter(p => !excludedPhenotypes.includes(p));
+            
+            // Prepare data for radar chart
+            const datasets = modelsToShow.map((model, idx) => {
+                const modelMetrics = currentMetrics.filter(m => m.model === model);
+                const data = phenotypes.map(phenotype => {
+                    const metric = modelMetrics.find(m => m.phenotype === phenotype);
+                    return metric && Number.isFinite(metric.balancedAcc) ? metric.balancedAcc : 0;
+                });
+                
+                const color = modelColors[idx % modelColors.length];
+                const shortName = model.includes('/') ? model.split('/').pop() : model;
+                
+                return {
+                    label: shortName,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color.replace('0.8', '0.2'),
+                    borderWidth: 2,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: color
+                };
+            });
+            
+            // Format labels
+            const labels = phenotypes.map(p => 
+                formatPhenotypeName(p)
+            );
+            
+            // Chart configuration
+            const config = {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.r.toFixed(3);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            suggestedMin: 0.5,
+                            suggestedMax: 1.0,
+                            ticks: {
+                                stepSize: 0.1,
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // Destroy existing chart if it exists
+            if (radarChart) {
+                radarChart.destroy();
+            }
+            
+            // Create new chart
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctx, config);
+        }
+        
+        // Calculate metrics (simplified version)
+        function calculateMetrics(predictions, groundTruth, fields) {
+            const results = [];
+            const phenotypes = Object.keys(fields);
+            
+            for (const phenotype of phenotypes) {
+                const pool = Array.isArray(predictions) ? predictions : [];
+                const models = [...new Set(pool.map(p => p.model))];
+                
+                for (const model of models) {
+                    const rows = pool.filter(p => p.model === model);
+                    const trueVals = [], predVals = [];
+                    
+                    for (const pred of rows) {
+                        const species = pred.binomial_name?.toLowerCase();
+                        if (!species || !groundTruth[species]) continue;
+                        const t = normalizeValue(groundTruth[species][phenotype]);
+                        const y = normalizeValue(pred[phenotype]);
+                        if (t !== null && y !== null) {
+                            trueVals.push(t);
+                            predVals.push(y);
+                        }
+                    }
+                    
+                    if (trueVals.length) {
+                        const m = computeMetrics(predVals, trueVals);
+                        results.push({
+                            model,
+                            phenotype,
+                            balancedAcc: m.balancedAcc,
+                            sampleSize: m.sampleSize
+                        });
+                    }
+                }
+            }
+            return results;
+        }
+        
+        // Format phenotype name
+        function formatPhenotypeName(phenotype) {
+            const shortened = phenotype
+                .replace(/_/g, ' ')
+                .replace('extreme environment tolerance', 'Extreme env.')
+                .replace('animal pathogenicity', 'Animal path.')
+                .replace('plant pathogenicity', 'Plant path.')
+                .replace('host association', 'Host assoc.')
+                .replace('spore formation', 'Spore form.')
+                .replace('biosafety level', 'Biosafety')
+                .replace('gram staining', 'Gram stain')
+                .replace('biofilm formation', 'Biofilm');
+            
+            return shortened.split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+        
+        // Helper functions
+        function normalizeValue(value) {
+            const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+            
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            
+            const strValue = String(value).trim().toLowerCase();
+            
+            if (missingTokens.includes(strValue)) {
+                return null;
+            }
+            
+            if (strValue.includes(',') || strValue.includes(';')) {
+                const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+                return parts.sort().join(',');
+            }
+            
+            return strValue;
+        }
+        
+        function toBoolean(v) {
+            if (v === null || v === undefined) return null;
+            const s = String(v).trim().toLowerCase();
+            if (['true','1','yes','t','y'].includes(s)) return true;
+            if (['false','0','no','f','n'].includes(s)) return false;
+            return null;
+        }
+        
+        function computeMetrics(preds, truths) {
+            const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
+                                .filter(([p, t]) => p !== null && t !== null);
+            
+            const allBinary = mapped.length > 0 && mapped.length === preds.length;
+            if (allBinary) {
+                let tp = 0, tn = 0, fp = 0, fn = 0;
+                for (const [p, t] of mapped) {
+                    if (t && p) tp++;
+                    else if (!t && !p) tn++;
+                    else if (!t && p) fp++;
+                    else fn++;
+                }
+                const sens = tp + fn ? tp / (tp + fn) : 0;
+                const spec = tn + fp ? tn / (tn + fp) : 0;
+                return {
+                    balancedAcc: (sens + spec) / 2,
+                    sampleSize: mapped.length
+                };
+            }
+            
+            // Multiclass
+            const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
+            const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
+            for (let i = 0; i < truths.length; i++) {
+                conf[String(truths[i])][String(preds[i])]++;
+            }
+            
+            let recallSum = 0;
+            for (const lab of labels) {
+                const tp = conf[lab][lab];
+                let fn = 0;
+                for (const l2 of labels) {
+                    if (l2 !== lab) {
+                        fn += conf[lab][l2];
+                    }
+                }
+                const rec = tp + fn ? tp / (tp + fn) : 0;
+                recallSum += rec;
+            }
+            
+            return {
+                balancedAcc: recallSum / labels.length,
+                sampleSize: truths.length
+            };
+        }
+        
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRadar);
+        } else {
+            initRadar();
+        }
+    })();
+    </script>
+</div>

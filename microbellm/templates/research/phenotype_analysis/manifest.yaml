@@ -114,6 +114,54 @@ sections:
     title: "Model Performance Overview"
     include_sidebar: false
     
+  # Model Performance Range Plot - New visualization
+  - id: "model_ranges"
+    type: "section_callout_dynamic"
+    file: "sections/07e_model_ranges.html"
+    container_id: "modelRangesContent"
+    title: "Model Performance Ranges"
+    text: "Visual comparison of model accuracy ranges across phenotypes, showing the spread of performance and highlighting the best performer for each characteristic."
+    
+  # Overall Model Ranking - New visualization
+  - id: "model_ranking"
+    type: "section_callout_dynamic"
+    file: "sections/07f_model_ranking.html"
+    container_id: "modelRankingContent"
+    title: "Overall Model Performance Ranking"
+    text: "Comprehensive ranking of language models based on average performance across all phenotypes, showing both balanced accuracy and precision metrics."
+    
+  # Best Models Per Phenotype
+  - id: "best_models"
+    type: "section_callout_dynamic"
+    file: "sections/07g_best_models.html"
+    container_id: "bestModelsContent"
+    title: "Best Models Per Phenotype"
+    text: "Condensed view showing only the top-performing model for each phenotype prediction task."
+    
+  # Radar Plot Visualization
+  - id: "radar_plot"
+    type: "section_callout_dynamic"
+    file: "sections/12_radar_plot.html"
+    container_id: "radarPlotContent"
+    title: "Model Performance Radar Plot"
+    text: "Interactive radar chart comparing model performance across all phenotypes, allowing for side-by-side comparison of model strengths and weaknesses."
+    
+  # Dataset Expansion Visualization
+  - id: "dataset_expansion"
+    type: "section_callout_dynamic"
+    file: "sections/10_dataset_expansion.html"
+    container_id: "datasetExpansionContent"
+    title: "Dataset Expansion Analysis"
+    text: "Comparison of LLM-generated annotations versus ground truth data, showing how language models expand the available phenotype annotations."
+    
+  # LLM Additions Raw Count
+  - id: "llm_additions"
+    type: "section_callout_dynamic"
+    file: "sections/11_llm_additions.html"
+    container_id: "llmAdditionsContent"
+    title: "LLM-Added Predictions"
+    text: "Raw counts of new phenotype annotations added by language models, ranked by contribution volume."
+    
   # Placeholder text section 2
   - id: "placeholder_text_2"
     type: "article"

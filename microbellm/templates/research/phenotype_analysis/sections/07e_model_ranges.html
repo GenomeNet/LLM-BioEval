@@ -1,0 +1,927 @@
+<!-- Model Performance Range Visualization -->
+<div id="modelRangesContent">
+    <style>
+    /* Range Plot Styles */
+    .range-plot-section {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Controls Panel */
+    .range-controls-panel {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .range-dataset-selector {
+        flex: 1;
+    }
+
+    .range-dataset-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .range-dataset-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: white;
+        color: #495057;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .range-dataset-select:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .range-dataset-details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .range-plot-header {
+        margin-bottom: 24px;
+        text-align: center;
+    }
+
+    .range-plot-header h4 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0 0 8px 0;
+    }
+
+    .range-plot-header small {
+        font-size: 14px;
+        color: #6c757d;
+    }
+
+    .range-plot-grid {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    .range-plot-svg {
+        background: #fafafa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px;
+        overflow-x: auto;
+    }
+
+    .range-plot-right {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .range-legend-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #495057;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .range-best-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .range-best-list li {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 8px;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+        font-size: 12px;
+    }
+
+    .range-best-list li:last-child {
+        border-bottom: none;
+    }
+
+    .range-best-list li span:first-child {
+        font-weight: 500;
+        color: #2c3e50;
+        text-transform: capitalize;
+    }
+
+    .range-best-list li span:nth-child(2) {
+        color: #6c757d;
+        font-family: monospace;
+        font-size: 11px;
+    }
+
+    .range-best-score {
+        font-weight: 600;
+        color: #22c55e;
+        font-family: monospace;
+    }
+
+    /* SVG styles */
+    .range-axis text {
+        font-size: 11px;
+        fill: #6c757d;
+    }
+
+    .range-tick {
+        stroke: #e9ecef;
+        stroke-width: 1;
+    }
+
+    .range-xlabel {
+        font-size: 12px;
+        font-weight: 600;
+        fill: #495057;
+    }
+
+    .range-row-label {
+        font-size: 12px;
+        fill: #2c3e50;
+        font-weight: 500;
+        alignment-baseline: middle;
+    }
+
+    .range-band {
+        fill: #cbd5e1;
+        opacity: 0.6;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .range-band:hover {
+        opacity: 0.8;
+    }
+
+    .range-line {
+        stroke: #94a3b8;
+        stroke-width: 1.5;
+        opacity: 0.4;
+        cursor: pointer;
+        transition: opacity 0.2s, stroke-width 0.2s;
+    }
+
+    .range-line:hover {
+        opacity: 0.8;
+        stroke-width: 2.5;
+    }
+
+    .range-dot-best {
+        fill: #dc2626;
+        stroke: white;
+        stroke-width: 2;
+        cursor: pointer;
+    }
+
+    .range-best-label {
+        font-size: 10px;
+        font-weight: 600;
+        fill: #dc2626;
+        text-anchor: start;
+        dominant-baseline: middle;
+        pointer-events: none;
+        text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+        .range-plot-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .range-plot-right {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    }
+
+    /* Loading state */
+    .range-loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+
+    .range-loading i {
+        font-size: 24px;
+        margin-bottom: 12px;
+        display: block;
+    }
+    </style>
+
+    <!-- Dataset Selector -->
+    <div class="range-controls-panel">
+        <div class="range-dataset-selector">
+            <label>Ground Truth Dataset:</label>
+            <select id="rangeGroundTruthDataset" class="range-dataset-select">
+                <option value="">Loading datasets...</option>
+            </select>
+            <div class="range-dataset-details" id="rangeDatasetDetails"></div>
+        </div>
+    </div>
+
+    <!-- Range Plot Container -->
+    <div id="rangePlotContainer" class="range-plot-section" style="display:none;">
+        <div class="range-plot-header">
+            <h4>Model Performance Range</h4>
+            <small>Metric: <span id="rangePlotMetricLabel">Balanced Accuracy</span></small>
+        </div>
+
+        <div class="range-plot-grid">
+            <div id="rangePlotSvgWrap" class="range-plot-svg"></div>
+            <div class="range-plot-right">
+                <div class="range-legend-title">Best Model per Phenotype</div>
+                <ul id="rangeBestList" class="range-best-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="range-loading" id="rangeLoadingState">
+        <i class="fas fa-chart-line"></i>
+        <p>Select a dataset above to view model performance ranges</p>
+    </div>
+
+    <script>
+    /* ===== Range Plot (Model Performance Visualization) ===== */
+
+    (function() {
+        'use strict';
+        
+        let currentMetrics = null;
+        let predictionData = null;
+        let fieldDefinitions = {};
+        
+        // Initialize the range plot component
+        function initRangePlot() {
+            loadGroundTruthDatasets();
+            
+            // Set up metric toggle if parent component exists
+            if (window.selectedMetric) {
+                window.addEventListener('metricChanged', (e) => {
+                    if (currentMetrics) {
+                        renderRangePlot(currentMetrics);
+                    }
+                });
+            }
+        }
+        
+        // Load available ground truth datasets
+        async function loadGroundTruthDatasets() {
+            try {
+                const response = await fetch('/api/ground_truth/datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                
+                if (result.success && result.datasets) {
+                    const select = document.getElementById('rangeGroundTruthDataset');
+                    
+                    if (result.datasets.length === 0) {
+                        select.innerHTML = '';
+                        const emptyOpt = document.createElement('option');
+                        emptyOpt.value = '';
+                        emptyOpt.textContent = 'No datasets available';
+                        select.appendChild(emptyOpt);
+                        return;
+                    }
+                    
+                    // Build options
+                    select.innerHTML = '';
+                    let waTestDataset = null;
+                    
+                    // Add default option
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select a dataset...';
+                    select.appendChild(defaultOpt);
+                    
+                    // Add dataset options
+                    result.datasets.forEach(dataset => {
+                        const opt = document.createElement('option');
+                        opt.value = dataset.dataset_name;
+                        opt.textContent = dataset.dataset_name;
+                        opt.dataset.template = dataset.template_name;
+                        opt.dataset.count = dataset.species_count;
+                        select.appendChild(opt);
+                        
+                        if (dataset.dataset_name === 'WA_Test_Dataset') {
+                            waTestDataset = dataset;
+                        }
+                    });
+                    
+                    // Add change listener
+                    select.addEventListener('change', () => {
+                        updateDatasetInfo();
+                        if (select.value) {
+                            performAnalysis();
+                        }
+                    });
+                    
+                    // Auto-select WA_Test_Dataset if available
+                    if (waTestDataset) {
+                        select.value = 'WA_Test_Dataset';
+                        updateDatasetInfo();
+                        setTimeout(() => performAnalysis(), 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+                const select = document.getElementById('rangeGroundTruthDataset');
+                select.innerHTML = '';
+                const errorOpt = document.createElement('option');
+                errorOpt.value = '';
+                errorOpt.textContent = 'Error loading datasets - please refresh';
+                select.appendChild(errorOpt);
+            }
+        }
+        
+        // Load prediction data
+        async function loadPredictionData(speciesFile) {
+            if (!speciesFile) {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+                const result = await response.json();
+                
+                if (!result.error && result.data) {
+                    console.log(`Loaded ${result.total_results} predictions for ${speciesFile}`);
+                    return result.data;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error loading prediction data:', error);
+                return null;
+            }
+        }
+        
+        // Update dataset information display
+        function updateDatasetInfo() {
+            const select = document.getElementById('rangeGroundTruthDataset');
+            const details = document.getElementById('rangeDatasetDetails');
+            
+            if (select.value) {
+                const option = select.selectedOptions[0];
+                const count = option.dataset.count;
+                details.innerHTML = `<span>${count} species</span>`;
+            } else {
+                details.innerHTML = '';
+                // Hide plot if no dataset selected
+                document.getElementById('rangePlotContainer').style.display = 'none';
+                document.getElementById('rangeLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Perform analysis and render plot
+        async function performAnalysis() {
+            const select = document.getElementById('rangeGroundTruthDataset');
+            const datasetName = select.value;
+            
+            if (!datasetName) {
+                return;
+            }
+            
+            const templateName = select.selectedOptions[0].dataset.template;
+            
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+            
+            // Show loading
+            const details = document.getElementById('rangeDatasetDetails');
+            details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+            
+            predictionData = await loadPredictionData(speciesFile);
+            
+            if (!predictionData) {
+                console.error('Failed to load prediction data');
+                details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+                return;
+            }
+            
+            // Update details
+            const uniqueModels = [...new Set(predictionData.map(p => p.model))];
+            const uniqueSpecies = [...new Set(predictionData.map(p => p.binomial_name))];
+            details.innerHTML = `<span>${uniqueSpecies.length} species • ${uniqueModels.length} models</span>`;
+            
+            try {
+                // Fetch template field definitions
+                const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+                const templateResult = await templateResp.json();
+                fieldDefinitions = templateResult.success ? templateResult.field_definitions : {};
+                
+                // Fetch ground truth data
+                const gtResp = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=10000`);
+                const gtResult = await gtResp.json();
+                
+                if (!gtResult.success) {
+                    throw new Error('Failed to load ground truth data');
+                }
+                
+                // Create ground truth map
+                const gtMap = {};
+                gtResult.data.forEach(item => {
+                    gtMap[item.binomial_name.toLowerCase()] = item;
+                });
+                
+                // Calculate metrics
+                const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+                currentMetrics = metrics;
+                
+                // Get phenotypes (exclude aerophilicity, health_association, and hemolysis due to low sample sizes)
+                const phenotypes = [...new Set(metrics.map(m => m.phenotype))]
+                    .filter(p => p !== 'aerophilicity' && p !== 'health_association' && p !== 'hemolysis');
+                
+                // Render the plot
+                renderRangePlot(metrics, phenotypes);
+                
+            } catch (error) {
+                console.error('Error analyzing data:', error);
+                document.getElementById('rangePlotContainer').style.display = 'none';
+                document.getElementById('rangeLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Calculate metrics (same as in accuracy component)
+        function calculateMetrics(predictions, groundTruth, fields) {
+            const results = [];
+            const phenotypes = Object.keys(fields);
+            
+            for (const phenotype of phenotypes) {
+                const pool = Array.isArray(predictions) ? predictions : [];
+                const models = [...new Set(pool.map(p => p.model))];
+                
+                for (const model of models) {
+                    const rows = pool.filter(p => p.model === model);
+                    const trueVals = [], predVals = [];
+                    
+                    for (const pred of rows) {
+                        const species = pred.binomial_name?.toLowerCase();
+                        if (!species || !groundTruth[species]) continue;
+                        const t = normalizeValue(groundTruth[species][phenotype]);
+                        const y = normalizeValue(pred[phenotype]);
+                        if (t !== null && y !== null) {
+                            trueVals.push(t);
+                            predVals.push(y);
+                        }
+                    }
+                    
+                    if (trueVals.length) {
+                        const m = computeMetrics(predVals, trueVals);
+                        results.push({
+                            model,
+                            phenotype,
+                            balancedAcc: m.balancedAcc,
+                            precision: m.precision,
+                            sampleSize: m.sampleSize
+                        });
+                    }
+                }
+            }
+            return results;
+        }
+        
+        // Helper functions (same as accuracy component)
+        function normalizeValue(value) {
+            const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+            
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            
+            const strValue = String(value).trim().toLowerCase();
+            
+            if (missingTokens.includes(strValue)) {
+                return null;
+            }
+            
+            if (strValue.includes(',') || strValue.includes(';')) {
+                const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+                return parts.sort().join(',');
+            }
+            
+            return strValue;
+        }
+        
+        function toBoolean(v) {
+            if (v === null || v === undefined) return null;
+            const s = String(v).trim().toLowerCase();
+            if (['true','1','yes','t','y'].includes(s)) return true;
+            if (['false','0','no','f','n'].includes(s)) return false;
+            return null;
+        }
+        
+        function computeMetrics(preds, truths) {
+            const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
+                                .filter(([p, t]) => p !== null && t !== null);
+            
+            const allBinary = mapped.length > 0 && mapped.length === preds.length;
+            if (allBinary) {
+                let tp = 0, tn = 0, fp = 0, fn = 0;
+                for (const [p, t] of mapped) {
+                    if (t && p) tp++;
+                    else if (!t && !p) tn++;
+                    else if (!t && p) fp++;
+                    else fn++;
+                }
+                const sens = tp + fn ? tp / (tp + fn) : 0;
+                const spec = tn + fp ? tn / (tn + fp) : 0;
+                const prec = tp + fp ? tp / (tp + fp) : 0;
+                return {
+                    balancedAcc: (sens + spec) / 2,
+                    precision: prec,
+                    sampleSize: mapped.length
+                };
+            }
+            
+            // Multiclass
+            const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
+            const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
+            for (let i = 0; i < truths.length; i++) {
+                conf[String(truths[i])][String(preds[i])]++;
+            }
+            
+            let recallSum = 0, precSum = 0;
+            for (const lab of labels) {
+                const tp = conf[lab][lab];
+                let fn = 0, fp = 0;
+                for (const l2 of labels) {
+                    if (l2 !== lab) {
+                        fn += conf[lab][l2];
+                        fp += conf[l2][lab];
+                    }
+                }
+                const rec = tp + fn ? tp / (tp + fn) : 0;
+                const pre = tp + fp ? tp / (tp + fp) : 0;
+                recallSum += rec;
+                precSum += pre;
+            }
+            
+            return {
+                balancedAcc: recallSum / labels.length,
+                precision: precSum / labels.length,
+                sampleSize: truths.length
+            };
+        }
+        
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRangePlot);
+        } else {
+            initRangePlot();
+        }
+    })();
+
+    function renderRangePlot(metrics, phenotypesOrdered) {
+        // Check if we have the necessary elements
+        const container = document.getElementById('rangePlotContainer');
+        const svgWrap = document.getElementById('rangePlotSvgWrap');
+        const bestList = document.getElementById('rangeBestList');
+        const loadingState = document.getElementById('rangeLoadingState');
+        
+        if (!container || !svgWrap || !bestList || !loadingState) {
+            console.error('Range plot elements not found');
+            return;
+        }
+        
+        // Hide loading state, show container
+        loadingState.style.display = 'none';
+        container.style.display = 'block';
+        
+        // Respect selected metric from the parent component
+        const metricField = window.selectedMetric === 'precision' ? 'precision' : 'balancedAcc';
+        const metricLabel = document.getElementById('rangePlotMetricLabel');
+        if (metricLabel) {
+            metricLabel.textContent = metricField === 'precision' ? 'Precision' : 'Balanced Accuracy';
+        }
+
+        // Build phenotype -> [{model, value}] map (exclude aerophilicity, health_association, and hemolysis)
+        const phSet = new Set(
+            (phenotypesOrdered && phenotypesOrdered.length
+                ? phenotypesOrdered
+                : [...new Set(metrics.map(m => m.phenotype))])
+                .filter(p => p !== 'aerophilicity' && p !== 'health_association' && p !== 'hemolysis')
+        );
+
+        const byPheno = {};
+        phSet.forEach(p => byPheno[p] = []);
+        
+        metrics.forEach(m => {
+            if (!phSet.has(m.phenotype)) return;
+            const v = Number.isFinite(m[metricField]) ? m[metricField] : NaN;
+            if (!Number.isFinite(v)) return;
+            byPheno[m.phenotype].push({ 
+                model: m.model, 
+                value: v, 
+                sampleSize: m.sampleSize 
+            });
+        });
+
+        // Compute per-phenotype best & worst
+        const rows = [];
+        for (const pheno of phSet) {
+            const points = byPheno[pheno] || [];
+            if (!points.length) continue;
+            
+            let min = Infinity, max = -Infinity, best = null;
+            for (const p of points) {
+                if (p.value < min) min = p.value;
+                if (p.value > max) { 
+                    max = p.value; 
+                    best = p; 
+                }
+            }
+            rows.push({ phenotype: pheno, points, min, max, best });
+        }
+        
+        if (!rows.length) {
+            container.style.display = 'none';
+            loadingState.style.display = 'block';
+            return;
+        }
+
+        // Sort rows by best score descending
+        rows.sort((a, b) => b.max - a.max);
+
+        // Set x-axis domain
+        const xMin = 0.5;
+        const xMax = 1.0;
+
+        // Layout dimensions
+        const leftPad = 180;   // Room for phenotype labels
+        const rightPad = 20;
+        const topPad = 30;
+        const bottomPad = 40;  // Room for x-axis label
+        const rowH = 32;       // Height per phenotype row
+        const h = topPad + bottomPad + rowH * rows.length;
+        const w = Math.max(700, svgWrap.clientWidth || 900);
+        const plotW = w - leftPad - rightPad;
+
+        const xScale = (v) => {
+            const t = (v - xMin) / (xMax - xMin);
+            return leftPad + Math.max(0, Math.min(1, t)) * plotW;
+        };
+        
+        const yForRow = (i) => topPad + rowH * i + rowH / 2;
+
+        // Clear and build SVG
+        svgWrap.innerHTML = '';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', h);
+        svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        svgWrap.appendChild(svg);
+
+        // X-axis grid and ticks
+        const axisG = document.createElementNS(svg.namespaceURI, 'g');
+        axisG.setAttribute('class', 'range-axis');
+        svg.appendChild(axisG);
+
+        for (let t = 0.5; t <= 1.0001; t += 0.1) {
+            const x = xScale(Number(t.toFixed(10)));
+            
+            // Gridline
+            const gl = document.createElementNS(svg.namespaceURI, 'line');
+            gl.setAttribute('x1', x); 
+            gl.setAttribute('x2', x);
+            gl.setAttribute('y1', topPad - 6); 
+            gl.setAttribute('y2', h - bottomPad + 6);
+            gl.setAttribute('class', 'range-tick');
+            axisG.appendChild(gl);
+            
+            // Tick label
+            const lbl = document.createElementNS(svg.namespaceURI, 'text');
+            lbl.setAttribute('x', x); 
+            lbl.setAttribute('y', h - bottomPad + 18);
+            lbl.setAttribute('text-anchor', 'middle');
+            lbl.textContent = t.toFixed(1);
+            axisG.appendChild(lbl);
+        }
+        
+        // X-axis label
+        const xlabel = document.createElementNS(svg.namespaceURI, 'text');
+        xlabel.setAttribute('x', leftPad + plotW / 2);
+        xlabel.setAttribute('y', h - 8);
+        xlabel.setAttribute('text-anchor', 'middle');
+        xlabel.setAttribute('class', 'range-xlabel');
+        xlabel.textContent = metricField === 'precision' ? 'Precision' : 'Balanced Accuracy';
+        svg.appendChild(xlabel);
+
+        // Get or create tooltip (reuse existing tooltip positioning function)
+        let rangeTooltip = document.getElementById('rangeTooltip');
+        if (!rangeTooltip) {
+            rangeTooltip = document.createElement('div');
+            rangeTooltip.id = 'rangeTooltip';
+            rangeTooltip.className = 'metric-tooltip';
+            document.body.appendChild(rangeTooltip);
+        }
+        
+        const hideTooltip = () => { 
+            rangeTooltip.style.display = 'none'; 
+        };
+        
+        const showTooltip = (html, evt) => {
+            rangeTooltip.innerHTML = html;
+            rangeTooltip.style.display = 'block';
+            // Use the existing positionTooltipAtMouse function from parent
+            if (typeof positionTooltipAtMouse === 'function') {
+                positionTooltipAtMouse(evt, rangeTooltip);
+            }
+        };
+
+        // Clear best list
+        bestList.innerHTML = '';
+
+        // Draw each phenotype row
+        rows.forEach((row, i) => {
+            const y = yForRow(i);
+            
+            // Format phenotype name
+            const phenoName = row.phenotype.replace(/_/g, ' ')
+                .replace('extreme environment tolerance', 'extreme env.')
+                .replace('biofilm formation', 'biofilm')
+                .replace('animal pathogenicity', 'animal path.')
+                .replace('host association', 'host assoc.')
+                .replace('plant pathogenicity', 'plant path.')
+                .replace('spore formation', 'spore form.')
+                .replace('biosafety level', 'biosafety')
+                .replace('gram staining', 'gram stain');
+
+            // Phenotype label (left side)
+            const lab = document.createElementNS(svg.namespaceURI, 'text');
+            lab.setAttribute('x', 10);
+            lab.setAttribute('y', y + 4);
+            lab.setAttribute('class', 'range-row-label');
+            lab.textContent = phenoName;
+            svg.appendChild(lab);
+
+            // Range band (worst to best)
+            const x1 = xScale(row.min);
+            const x2 = xScale(row.max);
+            const rect = document.createElementNS(svg.namespaceURI, 'rect');
+            rect.setAttribute('x', Math.min(x1, x2));
+            rect.setAttribute('y', y - 8);
+            rect.setAttribute('width', Math.max(2, Math.abs(x2 - x1)));
+            rect.setAttribute('height', 16);
+            rect.setAttribute('rx', 8);
+            rect.setAttribute('class', 'range-band');
+            
+            rect.addEventListener('mouseenter', (e) => {
+                const html = `
+                    <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+                    <div class="tooltip-stats">
+                        <div><strong>Range:</strong> ${row.min.toFixed(3)} → ${row.max.toFixed(3)}</div>
+                        <div><strong>Best:</strong> ${row.best.model} (${row.max.toFixed(3)})</div>
+                        <div><strong>Models:</strong> ${row.points.length}</div>
+                    </div>`;
+                showTooltip(html, e);
+            });
+            
+            rect.addEventListener('mousemove', (e) => {
+                if (typeof positionTooltipAtMouse === 'function') {
+                    positionTooltipAtMouse(e, rangeTooltip);
+                }
+            });
+            
+            rect.addEventListener('mouseleave', hideTooltip);
+            svg.appendChild(rect);
+
+            // Draw non-best models as vertical lines
+            row.points.forEach((p) => {
+                const x = xScale(p.value);
+                const isBest = p === row.best;
+                
+                if (!isBest) {
+                    // Draw vertical line for non-best models
+                    const line = document.createElementNS(svg.namespaceURI, 'line');
+                    line.setAttribute('x1', x);
+                    line.setAttribute('x2', x);
+                    line.setAttribute('y1', y - 6);
+                    line.setAttribute('y2', y + 6);
+                    line.setAttribute('class', 'range-line');
+                    
+                    // Tooltip for line
+                    line.addEventListener('mouseenter', (e) => {
+                        const html = `
+                            <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+                            <div class="tooltip-stats">
+                                <div><strong>Model:</strong> ${p.model}</div>
+                                <div><strong>${metricField === 'precision' ? 'Precision' : 'Balanced Acc'}:</strong> ${p.value.toFixed(3)}</div>
+                                <div><strong>Sample size:</strong> ${p.sampleSize}</div>
+                            </div>`;
+                        showTooltip(html, e);
+                    });
+                    
+                    line.addEventListener('mousemove', (e) => {
+                        if (typeof positionTooltipAtMouse === 'function') {
+                            positionTooltipAtMouse(e, rangeTooltip);
+                        }
+                    });
+                    
+                    line.addEventListener('mouseleave', hideTooltip);
+                    svg.appendChild(line);
+                }
+            });
+            
+            // Draw best model as prominent dot with label
+            if (row.best) {
+                const x = xScale(row.best.value);
+                
+                // Create group for best model
+                const bestG = document.createElementNS(svg.namespaceURI, 'g');
+                
+                // Draw best model dot (centered, no jitter)
+                const circle = document.createElementNS(svg.namespaceURI, 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', 5);
+                circle.setAttribute('class', 'range-dot-best');
+                bestG.appendChild(circle);
+                
+                // Add model name label to the right of the dot
+                const label = document.createElementNS(svg.namespaceURI, 'text');
+                label.setAttribute('x', x + 8);
+                label.setAttribute('y', y);
+                label.setAttribute('class', 'range-best-label');
+                
+                // Shorten model name for display
+                const shortName = row.best.model.includes('/') ? 
+                    row.best.model.split('/').pop() : 
+                    row.best.model.replace('gemini', 'gem').replace('claude', 'cl');
+                label.textContent = shortName;
+                bestG.appendChild(label);
+                
+                // Tooltip for best model
+                bestG.addEventListener('mouseenter', (e) => {
+                    const html = `
+                        <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+                        <div class="tooltip-stats">
+                            <div><strong>Model:</strong> ${row.best.model}</div>
+                            <div><strong>${metricField === 'precision' ? 'Precision' : 'Balanced Acc'}:</strong> ${row.best.value.toFixed(3)}</div>
+                            <div><strong>Sample size:</strong> ${row.best.sampleSize}</div>
+                            <div style="color: #dc2626; font-weight: 600;">★ Best performer for this phenotype</div>
+                        </div>`;
+                    showTooltip(html, e);
+                });
+                
+                bestG.addEventListener('mousemove', (e) => {
+                    if (typeof positionTooltipAtMouse === 'function') {
+                        positionTooltipAtMouse(e, rangeTooltip);
+                    }
+                });
+                
+                bestG.addEventListener('mouseleave', hideTooltip);
+                svg.appendChild(bestG);
+            }
+
+            // Add to best list (right panel)
+            const li = document.createElement('li');
+            const name = document.createElement('span');
+            name.textContent = phenoName;
+            const bestName = document.createElement('span');
+            bestName.textContent = row.best.model.replace('/', '/\u200B'); // Add zero-width space for wrapping
+            const bestScore = document.createElement('span');
+            bestScore.className = 'range-best-score';
+            bestScore.textContent = row.max.toFixed(3);
+            li.appendChild(name);
+            li.appendChild(bestName);
+            li.appendChild(bestScore);
+            bestList.appendChild(li);
+        });
+
+        // Hide tooltip on scroll
+        window.addEventListener('scroll', hideTooltip, { passive: true });
+    }
+
+    // Make function globally available
+    window.renderRangePlot = renderRangePlot;
+    
+    console.log('Range plot function loaded and available globally');
+    </script>
+</div>

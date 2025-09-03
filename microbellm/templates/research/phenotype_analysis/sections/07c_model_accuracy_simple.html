@@ -307,12 +307,14 @@
 
 /* Results Table */
 .results-table-container {
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow-x: auto;  /* Enable horizontal scrolling */
+    overflow-y: hidden;  /* Prevent vertical scroll */
     background: white;
     border: 1px solid #dee2e6;
     border-radius: 8px;
     position: relative;
+    max-width: 100%;  /* Ensure container doesn't exceed viewport */
+    display: block;  /* Ensure block display */
 }
 
 /* Frozen first column */
@@ -335,29 +337,36 @@
 }
 
 .accuracy-results-table {
-    width: 100%;
+    width: auto;  /* Let table size to content */
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12px;  /* Smaller base font */
 }
 
 .accuracy-results-table th,
 .accuracy-results-table td {
-    padding: 12px 10px;
+    padding: 4px 3px;  /* Even smaller padding */
     text-align: center;
     border: 1px solid #e9ecef;
     vertical-align: middle;
+    white-space: nowrap;  /* Prevent text wrapping */
+    min-width: 60px;  /* Minimum width for cells */
+    max-width: 90px;  /* Maximum width for cells */
+    overflow: hidden;  /* Hide overflow */
+    text-overflow: ellipsis;  /* Show ellipsis for long text */
 }
 
 .accuracy-results-table thead th {
     background: #f8f9fa;
     font-weight: 600;
     color: #495057;
-    font-size: 12px;
+    font-size: 9px;  /* Very small header font */
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0;  /* No letter spacing */
     position: sticky;
     top: 0;
     z-index: 10;
+    padding: 4px 2px;  /* Minimal padding for headers */
+    line-height: 1.1;
 }
 
 .accuracy-results-table tbody tr:hover {
@@ -373,11 +382,11 @@
 
 .metric-badge {
     display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 1px 4px;  /* Minimal padding */
+    border-radius: 3px;
     font-weight: 600;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 10px;  /* Even smaller font */
 }
 
 .metric-badge.excellent {
@@ -408,8 +417,14 @@
 
 /* Model column with integrated best count */
 .model-column {
-    min-width: 180px;
-    padding: 8px 12px !important;
+    min-width: 120px !important;  /* Even narrower */
+    max-width: 140px !important;  /* Smaller max */
+    padding: 4px 6px !important;
+    font-size: 11px !important;  /* Smaller font */
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 5;
 }
 
 .model-info {
@@ -421,18 +436,21 @@
 .model-name {
     font-weight: 600;
     color: #2c3e50;
-    font-size: 13px;
-    line-height: 1.4;
+    font-size: 11px;  /* Smaller model name */
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .best-indicator {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    border-radius: 10px;
+    gap: 2px;  /* Smaller gap */
+    padding: 1px 4px;  /* Smaller padding */
+    border-radius: 8px;
     background: #f1f5f9;
-    font-size: 10px;
+    font-size: 9px;  /* Smaller font */
     align-self: flex-start;
     cursor: pointer;
     transition: transform 0.1s ease;
@@ -485,10 +503,11 @@
 
 .sample-size {
     display: block;
-    font-size: 10px;
+    font-size: 8px;  /* Tiny sample size text */
     color: #94a3b8;
-    margin-top: 2px;
+    margin-top: 0px;
     font-family: monospace;
+    opacity: 0.8;  /* Slightly faded */
 }
 
 /* Best performer indicators */
@@ -777,6 +796,13 @@
         // Re-render table if we have metrics
         if (currentMetrics) {
             displayResults(currentMetrics);
+            
+            // Update range plot if available
+            if (typeof window.renderRangePlot === 'function') {
+                const phenotypes = [...new Set(currentMetrics.map(m => m.phenotype))]
+                    .filter(p => p !== 'aerophilicity' && p !== 'health_association');
+                window.renderRangePlot(currentMetrics, phenotypes);
+            }
         }
     }
     
@@ -1168,7 +1194,9 @@
     
     function displayResults(metrics) {
         let models = [...new Set(metrics.map(m => m.model))];
-        let phenotypes = [...new Set(metrics.map(m => m.phenotype))];
+        // Filter out aerophilicity and health_association from display (low sample sizes)
+        let phenotypes = [...new Set(metrics.map(m => m.phenotype))]
+            .filter(p => p !== 'aerophilicity' && p !== 'health_association');
         
         // Use selected metric for sorting
         const metricField = selectedMetric;  // 'balancedAcc' or 'precision'
@@ -1227,12 +1255,21 @@
         let html = '<table class="accuracy-results-table">';
         html += '<thead><tr><th class="model-column">Model</th>';
         
-        // Add phenotype headers (sorted by best score)
+        // Add phenotype headers (sorted by best score) with shortened names
         phenotypes.forEach(pheno => {
-            const name = pheno.replace(/_/g, ' ');
+            const fullName = pheno.replace(/_/g, ' ');
+            // Shorten names for compact display
+            const shortName = fullName
+                .replace('extreme environment tolerance', 'extreme env.')
+                .replace('biofilm formation', 'biofilm')
+                .replace('animal pathogenicity', 'animal path.')
+                .replace('host association', 'host assoc.')
+                .replace('plant pathogenicity', 'plant path.')
+                .replace('spore formation', 'spore form.')
+                .replace('biosafety level', 'biosafety')
+                .replace('gram staining', 'gram stain');
             const maxScore = phenotypeMaxScore[pheno];
-            html += `<th>${name}${isFiniteNum(maxScore) ? 
-                ` <small style="color: #6c757d;">(${maxScore.toFixed(3)})</small>` : ''}</th>`;
+            html += `<th title="${fullName}" style="width: 70px; max-width: 70px;">${shortName}</th>`;
         });
         html += '</tr></thead><tbody>';
         
@@ -1317,6 +1354,15 @@
         
         // Setup tooltips after rendering
         setTimeout(setupTooltips, 100);
+        
+        // Render range plot if available
+        console.log('Checking for range plot function:', typeof window.renderRangePlot);
+        if (typeof window.renderRangePlot === 'function') {
+            console.log('Calling range plot with metrics:', metrics.length, 'phenotypes:', phenotypes.length);
+            window.renderRangePlot(metrics, phenotypes);
+        } else {
+            console.log('Range plot function not available yet');
+        }
     }
     
     // Create tooltip content
