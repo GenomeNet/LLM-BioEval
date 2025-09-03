@@ -561,7 +561,7 @@
     
     html += `
         <!-- Legend -->
-        <div class="legend" style="margin-bottom: 16px;">
+        <div class="legend" style="margin-bottom: 12px;">
     `;
     
     templateArray.forEach((template, idx) => {
@@ -581,16 +581,12 @@
     
     html += `
         </div>
-        <div style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-top: 16px;">
-            <!-- Template headers -->
-            <div style="display: flex; align-items: center; background: #F9FAFB; border-bottom: 1px solid #e5e7eb; padding: 12px 20px;">
-                <div style="width: 200px; padding-right: 24px;"></div>
-                <div style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 600px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;">
     `;
     
-    // Add template names as column headers
-    templateArray.forEach((template, idx) => {
-        // Format template name: template1_knowledge -> Template 1: Knowledge
+    // Create a section for each template
+    templateArray.forEach((template, templateIdx) => {
+        // Format template name
         const formattedName = template
             .replace(/template(\d+)_/, 'Template $1: ')
             .split('_')
@@ -598,68 +594,62 @@
             .join(' ');
         
         html += `
-                    <div style="text-align: center; font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">
+            <div style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                <!-- Template header -->
+                <div style="background: #F9FAFB; border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: center;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">
                         ${formattedName}
                     </div>
-        `;
-    });
-    
-    html += `
                 </div>
-            </div>
-            <div class="quality-score-chart" style="position: relative; padding: 16px 20px;">
-    `;
+                <div style="padding: 10px;">
+        `;
     
-    // Find max score for scaling
-    let maxScore = 0;
-    sortedModels.forEach(([modelName, scores]) => {
-        templateArray.forEach(template => {
+        // Find max score for this template for scaling
+        let maxScore = 0;
+        sortedModels.forEach(([modelName, scores]) => {
             if (scores[template] && scores[template] > maxScore) {
                 maxScore = scores[template];
             }
         });
-    });
-    
-    sortedModels.forEach(([modelName, scores], modelIndex) => {
-        const displayName = modelName.split('/').pop();
         
-        html += `
-            <div class="score-bar-row" style="display: flex; align-items: center; padding: 8px 0; ${modelIndex < sortedModels.length - 1 ? 'border-bottom: 1px solid #f3f4f6;' : ''}">
-                <div class="model-label" style="width: 200px; font-size: 13px; color: #111827; font-weight: 500; text-align: right; padding-right: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
-                    ${displayName}
-                </div>
-                <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: center; max-width: 600px;">
-        `;
-        
-        templateArray.forEach((template, idx) => {
+        // Render bars for this template
+        sortedModels.forEach(([modelName, scores], modelIndex) => {
+            const displayName = modelName.split('/').pop();
             const score = scores[template] || 0;
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             
             html += `
-                <div class="template-bar-wrapper" style="position: relative; background: #f3f4f6; border-radius: 4px; overflow: hidden; height: 26px;">
-                    <div class="template-bar" 
-                        style="
-                            width: ${percentage}%;
-                            height: 100%;
-                            background: ${templateColors[idx]};
-                            position: relative;
-                            transition: all 0.3s ease;
-                            min-width: ${score > 0 ? '48px' : '0'};
-                            display: flex;
-                            align-items: center;
-                            justify-content: flex-end;
-                            padding-right: 6px;
-                            cursor: pointer;
-                        " 
-                        title="${template}: ${score.toFixed(2)}"
-                        onmouseover="showBarTooltip(event, this, '${template}', ${score.toFixed(2)}, '${templateColors[idx]}')"
-                        onmouseout="hideBarTooltip()">
-                        <span style="
-                            color: white;
-                            font-size: 11px;
-                            font-weight: 600;
-                            white-space: nowrap;
-                        ">${score > 0 ? score.toFixed(2) : ''}</span>
+                <div style="display: flex; align-items: center; margin-bottom: ${modelIndex < sortedModels.length - 1 ? '4px' : '0'};">
+                    <div style="width: 85px; font-size: 10px; color: #111827; font-weight: 500; text-align: right; padding-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
+                        ${displayName}
+                    </div>
+                    <div style="flex: 1; position: relative;">
+                        <div style="position: relative; background: #f3f4f6; border-radius: 3px; overflow: hidden; height: 20px;">
+                            <div class="template-bar" 
+                                style="
+                                    width: ${percentage}%;
+                                    height: 100%;
+                                    background: ${templateColors[templateIdx]};
+                                    position: relative;
+                                    transition: all 0.3s ease;
+                                    min-width: ${score > 0 ? '40px' : '0'};
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: flex-end;
+                                    padding-right: 4px;
+                                    cursor: pointer;
+                                " 
+                                title="${template}: ${score.toFixed(2)}"
+                                onmouseover="showBarTooltip(event, this, '${template}', ${score.toFixed(2)}, '${templateColors[templateIdx]}')"
+                                onmouseout="hideBarTooltip()">
+                                <span style="
+                                    color: white;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    white-space: nowrap;
+                                ">${score > 0 ? score.toFixed(2) : ''}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -672,7 +662,6 @@
     });
     
     html += `
-            </div>
         </div>
     </div>
     `;
