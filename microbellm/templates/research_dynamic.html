@@ -138,6 +138,13 @@ html, body {
     box-sizing: border-box;
 }
 
+/* Allow flow diagram to wrap on small screens */
+@media (max-width: 900px) {
+    .flow-diagram {
+        flex-wrap: wrap !important;
+    }
+}
+
 /* Ensure all elements use border-box */
 .section-callout * {
     box-sizing: border-box;
@@ -179,31 +186,41 @@ html, body {
     min-width: 320px; /* Minimum width for the card */
 }
 
-/* Customize inline callout box width */
-.callout {
-    width: 900px; /* Fixed width for all callout boxes */
-    min-width: 900px; /* Ensure minimum width */
+/* CSS Variables */
+:root {
+    --padding-container: 48px;
+    --callout-indent: 120px;
+    /* Reduce the left gutter globally on desktop (48px base − 24px = 24px) */
+    --content-left-bias: -24px;
 }
 
-/* Optional: Different widths for different callout types */
-.callout-definition {
-    width: 900px; /* Fixed width for definition boxes */
-    min-width: 900px;
+@media (max-width: 1200px) {
+    :root {
+        --content-left-bias: 0px; /* keep mobile comfy */
+    }
 }
 
-.callout-template {
-    width: 900px; /* Fixed width for template boxes */
-    min-width: 900px;
+@media (max-width: 768px) {
+    :root { 
+        --callout-indent: 20px;
+    }
 }
 
+.callout,
+.callout-definition,
+.callout-template,
 .callout-compact {
-    width: 900px; /* Fixed width for compact callouts */
-    min-width: 900px;
+    margin-left: var(--callout-indent) !important;
+    width: calc(100% - var(--callout-indent)) !important;
+    max-width: calc(100% - var(--callout-indent)) !important;
+    min-width: 0 !important;          /* allow shrink in grid */
+    box-sizing: border-box !important; /* include padding in width calc */
 }
 
 /* Customize article content width */
 .article-container {
     max-width: 1200px; /* Adjust this to control article width */
+    left: 0 !important; /* Prevent off-screen shift */
 }
 
 .article-content {
@@ -211,22 +228,98 @@ html, body {
     width: 100%;
     margin-left: 0; /* Remove any left margin */
     padding-left: 0; /* Remove any left padding */
+    min-width: 0 !important; /* Allow shrinking on small screens */
 }
 
 .article-section-spacing {
     max-width: 850px; /* Control article content sections */
     width: 100%;
+    min-width: 0 !important; /* Allow shrinking on small screens */
 }
 
 /* Customize main article sections (type: "article" in manifest) */
 .article-main {
     max-width: 900px; /* Control the main article area width */
     width: 100%;
+    min-width: 0 !important; /* Allow shrinking on small screens */
 }
 
 .article-section {
     max-width: 850px; /* Control individual article sections */
     width: 100%;
+    min-width: 0 !important; /* Allow shrinking on small screens */
+}
+
+/* Grid children should shrink */
+.article-sidebar {
+    min-width: 0 !important;
+}
+
+/* Ensure embedded media never overflows */
+.article-content img,
+.article-content svg,
+.article-content canvas,
+.article-content video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Tables responsive */
+.article-content table {
+    display: block;
+    overflow-x: auto;
+}
+
+/* Apply the same left start to ALL content wrappers (incl. callout dynamic) */
+.hero-content,
+.article-container,
+.section-wide__content,
+.section-content-container,
+.section-callout__content,
+.section-callout__content--full-width {
+    padding-left: calc(var(--padding-container) + var(--content-left-bias)) !important;
+}
+
+/* Kill the old left shift so types line up */
+.article-main {
+    margin-left: 0 !important;
+}
+
+/* Keep container positioned normally */
+.article-container {
+    left: 0 !important;
+}
+
+/* Make sure the main column can actually shrink when the viewport narrows */
+.article-container { 
+    grid-template-columns: minmax(0, 1fr) 240px;
+}
+
+/* Ensure grid can shrink on wider screens too */
+@media (min-width: 1280px) {
+    .article-container {
+        grid-template-columns: minmax(0, 1fr) 240px;
+    }
+}
+
+/* Additional mobile adjustments */
+@media (max-width: 768px) {
+    .article-container {
+        padding: 0 24px;
+    }
+    
+    .section-callout__content {
+        padding: 16px 24px;
+    }
+    
+    .article-sidebar {
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .paper-info-card {
+        min-width: 0;
+    }
 }
 </style>
 {% endblock %}
@@ -245,7 +338,7 @@ html, body {
     {# Handle section callouts #}
     {% elif section.type == 'section_callout' or section.type == 'section_callout_dynamic' %}
         <section class="section-callout section-callout--{{ manifest.page_config.color_theme }}">
-            <div class="section-callout__content{% if section.full_width %}--full-width{% endif %}">
+            <div class="section-callout__content{% if section.full_width %} section-callout__content--full-width{% endif %}">
                 {% if section.title or section.text %}
                 <div class="section-callout__header">
                     {% if section.title %}<h3 class="section-callout__title">{{ section.title }}</h3>{% endif %}

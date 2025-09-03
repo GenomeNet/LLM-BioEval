@@ -43,14 +43,16 @@
     min-height: calc(100vh - 64px);
     position: relative;
     padding: 0;
-    overflow-x: visible; /* Allow full-width sections to break out */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    width: 100%; /* Ensure proper width constraint */
 }
 
 /* Page content spacing */
 .page-content {
     padding-top: 0; /* Remove top padding - hero has its own padding */
     min-height: calc(100vh - 64px);
-    overflow-x: visible; /* Allow full-width sections */
+    overflow-x: hidden; /* Prevent horizontal overflow */
+    width: 100%; /* Ensure proper width constraint */
 }
 
 /* =====================================================
@@ -188,6 +190,8 @@
     line-height: 1.7;
     color: var(--gray-700);
     margin-bottom: var(--spacing-element);
+    overflow-wrap: break-word; /* Break long words if needed */
+    word-wrap: break-word; /* Legacy support */
 }
 
 .article-text p {
@@ -277,8 +281,11 @@
     border-radius: 12px;
     box-shadow: var(--shadow-sm);
     width: calc(100% - 120px);
+    max-width: calc(100vw - 120px - 48px); /* Prevent viewport overflow */
     font-size: 13px;
     line-height: 1.5;
+    overflow-wrap: break-word; /* Break long words if needed */
+    word-wrap: break-word; /* Legacy support */
 }
 
 /* Callout with purple gradient background */
@@ -582,6 +589,7 @@
     .callout {
         margin-left: 20px;
         width: calc(100% - 20px);
+        max-width: calc(100vw - 40px); /* Account for padding on mobile */
         padding: var(--spacing-small) calc(var(--spacing-small) * 1.25);
     }
     
