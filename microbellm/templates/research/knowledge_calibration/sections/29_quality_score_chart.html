@@ -560,28 +560,7 @@
     }
     
     html += `
-        <!-- Legend -->
-        <div class="legend" style="margin-bottom: 12px;">
-    `;
-    
-    templateArray.forEach((template, idx) => {
-        const formattedName = template
-            .replace(/template(\d+)_/, 'Template $1: ')
-            .split('_')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        
-        html += `
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
-                <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);"></div>
-                <span>${formattedName}</span>
-            </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
     `;
     
     // Create a section for each template
