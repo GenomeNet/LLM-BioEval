@@ -561,21 +561,22 @@
     
     html += `
         <!-- Legend -->
-        <div class="legend">
+        <div class="legend" style="margin-bottom: 16px;">
     `;
     
     templateArray.forEach((template, idx) => {
         html += `
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
-                <span style="font-size: 13px; color: var(--gray-700); font-weight: 500;">${template}</span>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);">
+                <div style="width: 14px; height: 14px; background: ${templateColors[idx]}; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);"></div>
+                <span>${template}</span>
             </div>
         `;
     });
     
     html += `
         </div>
-        <div class="quality-score-chart" style="position: relative; background: #FAFAFA; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+        <div style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-top: 16px;">
+            <div class="quality-score-chart" style="position: relative; padding: 20px;">
     `;
     
     // Find max score for scaling
@@ -592,11 +593,11 @@
         const displayName = modelName.split('/').pop();
         
         html += `
-            <div class="score-bar-row" style="display: flex; align-items: center; margin-bottom: ${modelIndex === sortedModels.length - 1 ? '0' : '4px'}; padding: 4px 0;">
-                <div class="model-label" style="width: 180px; font-size: 12px; color: var(--gray-700); text-align: right; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;" title="${modelName}">
+            <div class="score-bar-row" style="display: flex; align-items: center; padding: 12px 0; ${modelIndex < sortedModels.length - 1 ? 'border-bottom: 1px solid #f3f4f6;' : ''}">
+                <div class="model-label" style="width: 200px; font-size: 14px; color: #111827; font-weight: 500; text-align: right; padding-right: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
                     ${displayName}
                 </div>
-                <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; align-items: center;">
+                <div class="score-bar-container" style="flex: 1; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: center; max-width: 600px;">
         `;
         
         templateArray.forEach((template, idx) => {
@@ -604,20 +605,19 @@
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             
             html += `
-                <div class="template-bar-wrapper" style="position: relative; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
+                <div class="template-bar-wrapper" style="position: relative; background: #f3f4f6; border-radius: 6px; overflow: hidden; height: 32px;">
                     <div class="template-bar" 
                         style="
                             width: ${percentage}%;
-                            height: 24px;
+                            height: 100%;
                             background: ${templateColors[idx]};
                             position: relative;
                             transition: all 0.3s ease;
-                            min-width: ${score > 0 ? '45px' : '0'};
+                            min-width: ${score > 0 ? '50px' : '0'};
                             display: flex;
                             align-items: center;
                             justify-content: flex-end;
-                            padding-right: 6px;
-                            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+                            padding-right: 8px;
                             cursor: pointer;
                         " 
                         title="${template}: ${score.toFixed(2)}"
@@ -625,10 +625,9 @@
                         onmouseout="hideBarTooltip()">
                         <span style="
                             color: white;
-                            font-size: 11px;
+                            font-size: 12px;
                             font-weight: 600;
                             white-space: nowrap;
-                            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
                         ">${score > 0 ? score.toFixed(2) : ''}</span>
                     </div>
                 </div>
@@ -642,6 +641,7 @@
     });
     
     html += `
+            </div>
         </div>
     </div>
     `;
