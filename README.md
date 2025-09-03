@@ -39,13 +39,13 @@ export OPENROUTER_API_KEY='your-openrouter-api-key'
 
 **Research & Analysis Interface:**
 ```bash
-microbellm-web --debug
+microbellm-web --debug --port 5050
 ```
 Open your browser to `http://localhost:5000`
 
 **Administrative Interface:**
 ```bash
-microbellm-admin --debug
+microbellm-admin --debug --port 5051
 ```
 Open your browser to `http://localhost:5050`
 

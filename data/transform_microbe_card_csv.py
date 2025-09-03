@@ -40,6 +40,10 @@ def transform_csv(input_file, output_file=None):
         if old_col in df.columns:
             transformed[new_col] = df[old_col]
     
+    # Map Animal pathogenicity if it exists in the input
+    if 'Animal pathogenicity' in df.columns:
+        transformed['animal_pathogenicity'] = df['Animal pathogenicity']
+    
     # Fix boolean columns - convert True/False/1/0 to TRUE/FALSE strings
     boolean_columns = [
         'motility', 'extreme_environment_tolerance', 'biofilm_formation',

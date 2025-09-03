@@ -107,6 +107,13 @@ sections:
     title: "Model Accuracy by Phenotype"
     text: "Performance comparison of language models against ground truth data, showing balanced accuracy and precision metrics for each phenotype prediction."
     
+  # Model Performance Overview - New section
+  - id: "model_performance_overview"
+    type: "article"
+    file: "sections/07d_model_performance_overview.html"
+    title: "Model Performance Overview"
+    include_sidebar: false
+    
   # Placeholder text section 2
   - id: "placeholder_text_2"
     type: "article"

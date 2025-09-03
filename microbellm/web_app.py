@@ -3158,6 +3158,85 @@ def get_phenotype_analysis_filtered():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/phenotype_datasets')
+def get_phenotype_datasets():
+    """Get list of available phenotype datasets"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT DISTINCT species_file, COUNT(DISTINCT binomial_name) as count
+            FROM processing_results
+            WHERE user_template LIKE '%phenotype%'
+            GROUP BY species_file
+            ORDER BY count DESC
+        """)
+        
+        datasets = []
+        for row in cursor.fetchall():
+            species_file, count = row
+            if species_file:
+                # Create display name from file name
+                display_name = species_file.replace('.txt', '').replace('_', ' ').title()
+                if 'wa_with_gcount' in species_file.lower():
+                    display_name = 'WA Dataset'
+                elif 'artificial' in species_file.lower():
+                    display_name = 'Artificial Dataset'
+                
+                datasets.append({
+                    'species_file': species_file,
+                    'display_name': display_name,
+                    'count': count
+                })
+        
+        conn.close()
+        return jsonify(datasets)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phenotype_ground_truth')
+def get_phenotype_ground_truth():
+    """Get ground truth data for phenotype analysis"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT binomial_name, gram_staining, motility, aerophilicity,
+                   extreme_environment_tolerance, biofilm_formation,
+                   animal_pathogenicity, biosafety_level, health_association,
+                   host_association, plant_pathogenicity, spore_formation,
+                   hemolysis, cell_shape
+            FROM ground_truth
+        """)
+        
+        data = []
+        for row in cursor.fetchall():
+            data.append({
+                'binomial_name': row[0],
+                'gram_staining': row[1],
+                'motility': row[2],
+                'aerophilicity': row[3],
+                'extreme_environment_tolerance': row[4],
+                'biofilm_formation': row[5],
+                'animal_pathogenicity': row[6],
+                'biosafety_level': row[7],
+                'health_association': row[8],
+                'host_association': row[9],
+                'plant_pathogenicity': row[10],
+                'spore_formation': row[11],
+                'hemolysis': row[12],
+                'cell_shape': row[13]
+            })
+        
+        conn.close()
+        return jsonify({'data': data})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/export_csv')
 def export_csv_api():
     """Export results as CSV"""

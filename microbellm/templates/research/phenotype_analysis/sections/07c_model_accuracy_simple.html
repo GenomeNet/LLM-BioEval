@@ -315,6 +315,25 @@
     position: relative;
 }
 
+/* Frozen first column */
+.accuracy-results-table thead th:first-child,
+.accuracy-results-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: white;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.08);
+}
+
+.accuracy-results-table thead th:first-child {
+    background: #f8f9fa;
+    z-index: 11;
+}
+
+.accuracy-results-table tbody tr:hover td:first-child {
+    background: #f8f9fa;
+}
+
 .accuracy-results-table {
     width: 100%;
     border-collapse: collapse;
@@ -349,6 +368,7 @@
     text-align: left;
     font-family: 'Monaco', 'Menlo', monospace;
     vertical-align: middle;
+    white-space: nowrap;
 }
 
 .metric-badge {
@@ -504,15 +524,17 @@
 .metric-tooltip,
 .best-tooltip {
     display: none;
-    position: fixed;
-    background: white;
+    position: fixed;  /* Critical for proper positioning */
+    background: rgba(255, 255, 255, 0.98);
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    z-index: 9999;
+    z-index: 99999;  /* Ensure it's above everything */
     padding: 12px;
     font-size: 12px;
-    pointer-events: auto;
+    pointer-events: none;  /* Prevent hover interference */
+    transform: translate3d(0,0,0);  /* Hardware acceleration */
+    will-change: left, top;  /* Optimize for animation */
 }
 
 .metric-tooltip {
@@ -992,7 +1014,9 @@
                     if (!species || !groundTruth[species]) continue;
                     const t = normalizeValue(groundTruth[species][phenotype]);
                     const y = normalizeValue(pred[phenotype]);
-                    if (t !== '' && y !== '') {
+                    // Only include if BOTH values are non-null
+                    // This ensures we don't count missing predictions or missing ground truth
+                    if (t !== null && y !== null) {
                         trueVals.push(t);
                         predVals.push(y);
                     }
@@ -1001,6 +1025,21 @@
                 // More debug logging
                 if (phenotype === 'gram_staining' && model.includes('gemini-pro')) {
                     console.log(`- Matched samples: ${trueVals.length}`);
+                    // Log sample of excluded data
+                    let excluded = 0;
+                    for (const pred of rows.slice(0, 10)) {
+                        const species = pred.binomial_name?.toLowerCase();
+                        const gt = groundTruth[species];
+                        const t = gt ? normalizeValue(gt[phenotype]) : null;
+                        const y = normalizeValue(pred[phenotype]);
+                        if (!gt || t === '' || y === '') {
+                            excluded++;
+                            console.log(`  Excluded ${pred.binomial_name}: pred="${pred[phenotype]}", truth="${gt ? gt[phenotype] : 'no GT'}"`);
+                        }
+                    }
+                    if (excluded > 0) {
+                        console.log(`  Total excluded in sample: ${excluded}/10`);
+                    }
                 }
                 
                 if (trueVals.length) {
@@ -1020,12 +1059,31 @@
         return results;
     }
     
-    // Normalize values
+    // Normalize values with deterministic handling
     function normalizeValue(value) {
-        if (value === null || value === undefined || value === 'N/A' || value === 'null' || value === '') {
-            return '';
+        // Handle various representations of missing/null values
+        const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
+        
+        if (value === null || value === undefined || value === '') {
+            return null;
         }
-        return String(value).trim();
+        
+        // Convert to string and normalize
+        const strValue = String(value).trim().toLowerCase();
+        
+        // Check if it's a missing token
+        if (missingTokens.includes(strValue)) {
+            return null;
+        }
+        
+        // For multi-value fields (like aerophilicity), parse and sort
+        if (strValue.includes(',') || strValue.includes(';')) {
+            const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+            return parts.sort().join(',');  // Normalize to comma-separated sorted list
+        }
+        
+        // Return normalized string
+        return strValue;
     }
     
     // Convert to boolean with consistent handling
@@ -1237,11 +1295,25 @@
         
         html += '</tbody></table>';
         
-        // Add tooltip elements that will be reused
-        html += '<div id="metricTooltip" class="metric-tooltip"></div>';
-        html += '<div id="bestTooltip" class="best-tooltip"></div>';
-        
         document.getElementById('resultsTable').innerHTML = html;
+        
+        // Ensure tooltip elements exist at document root (not inside scrollable container)
+        let metricTooltip = document.getElementById('metricTooltip');
+        let bestTooltip = document.getElementById('bestTooltip');
+        
+        if (!metricTooltip) {
+            metricTooltip = document.createElement('div');
+            metricTooltip.id = 'metricTooltip';
+            metricTooltip.className = 'metric-tooltip';
+            document.body.appendChild(metricTooltip);
+        }
+        
+        if (!bestTooltip) {
+            bestTooltip = document.createElement('div');
+            bestTooltip.id = 'bestTooltip';
+            bestTooltip.className = 'best-tooltip';
+            document.body.appendChild(bestTooltip);
+        }
         
         // Setup tooltips after rendering
         setTimeout(setupTooltips, 100);
@@ -1298,54 +1370,40 @@
         return 'poor';
     }
     
-    // Position tooltip at mouse cursor
+    // Position tooltip at mouse cursor with smart edge detection
     function positionTooltipAtMouse(event, tooltip) {
-        // Position tooltip at mouse cursor with offset
-        const offsetX = 15;
-        const offsetY = 15;
+        if (!tooltip || tooltip.style.display === 'none') return;
         
-        // Get viewport dimensions
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
+        const pad = 12;  // Offset from cursor
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
         
-        // Get tooltip dimensions
-        const tooltipRect = tooltip.getBoundingClientRect();
-        const tooltipWidth = tooltipRect.width;
-        const tooltipHeight = tooltipRect.height;
+        // Get tooltip dimensions after it's visible
+        const rect = tooltip.getBoundingClientRect();
+        const tooltipWidth = rect.width;
+        const tooltipHeight = rect.height;
         
-        // Calculate initial position (below and to the right of cursor)
-        let left = event.clientX + offsetX;
-        let top = event.clientY + offsetY;
+        // Start to the bottom-right of cursor
+        let x = event.clientX + pad;
+        let y = event.clientY + pad;
         
-        // Adjust if tooltip would go off the right edge
-        if (left + tooltipWidth > viewportWidth) {
-            left = event.clientX - tooltipWidth - offsetX;
+        // Flip horizontally if overflowing right edge
+        if (x + tooltipWidth > vw - 4) {
+            x = event.clientX - tooltipWidth - pad;
         }
         
-        // Adjust if tooltip would go off the bottom edge
-        if (top + tooltipHeight > viewportHeight) {
-            top = event.clientY - tooltipHeight - offsetY;
+        // Flip vertically if overflowing bottom edge
+        if (y + tooltipHeight > vh - 4) {
+            y = event.clientY - tooltipHeight - pad;
         }
         
-        // Ensure tooltip doesn't go off the left edge
-        if (left < 0) {
-            left = offsetX;
-        }
+        // Clamp to viewport with small margin
+        x = Math.max(4, Math.min(x, vw - tooltipWidth - 4));
+        y = Math.max(4, Math.min(y, vh - tooltipHeight - 4));
         
-        // Ensure tooltip doesn't go off the top edge
-        if (top < 0) {
-            top = offsetY;
-        }
-        
-        // Apply position
-        tooltip.style.left = left + 'px';
-        tooltip.style.top = top + 'px';
-        
-        // Hide arrow since position is dynamic
-        const arrow = tooltip.querySelector('.tooltip-arrow');
-        if (arrow) {
-            arrow.style.display = 'none';
-        }
+        // Apply position using fixed coordinates
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
     }
     
     // Setup tooltip events
@@ -1381,7 +1439,8 @@
             
             cell.addEventListener('mousemove', (e) => {
                 if (currentElement === cell && metricTooltip.style.display === 'block') {
-                    positionTooltipAtMouse(e, metricTooltip);
+                    // Use requestAnimationFrame for smooth updates
+                    requestAnimationFrame(() => positionTooltipAtMouse(e, metricTooltip));
                 }
             });
             
@@ -1428,7 +1487,7 @@
             
             indicator.addEventListener('mousemove', (e) => {
                 if (currentElement === indicator && bestTooltip.style.display === 'block') {
-                    positionTooltipAtMouse(e, bestTooltip);
+                    requestAnimationFrame(() => positionTooltipAtMouse(e, bestTooltip));
                 }
             });
             

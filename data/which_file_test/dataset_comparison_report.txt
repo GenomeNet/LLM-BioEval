@@ -1,0 +1,255 @@
+================================================================================
+DATASET COMPARISON REPORT
+Generated: 2025-09-02 18:57:14
+================================================================================
+
+DATASET OVERVIEW
+----------------------------------------
+Dataset 1: s6_missing_phenotypes.tsv
+  - Shape: 69794 rows × 17 columns
+  - Unique binomial names: 3884
+
+Dataset 2: s6_old.tsv
+  - Shape: 69794 rows × 17 columns
+  - Unique binomial names: 3884
+
+COLUMN COMPARISON
+----------------------------------------
+Common columns: 16
+Columns only in s6_missing_phenotypes.tsv: 1
+  - Unnamed: 1
+
+Columns only in s6_old.tsv: 1
+  - Animal pathogenicity
+
+BINOMIAL NAME COMPARISON
+----------------------------------------
+Common binomial names: 3884
+Names only in s6_missing_phenotypes.tsv: 0
+Names only in s6_old.tsv: 0
+
+VALUE DISTRIBUTIONS FOR COMMON COLUMNS
+----------------------------------------
+
+BINARY/BOOLEAN COLUMNS:
+
+  Biofilm formation:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 61839 (88.6%)
+      - False: 7953 (11.4%)
+    In s6_old.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 61839 (88.6%)
+      - False: 7953 (11.4%)
+
+  Extreme environment tolerance:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 0 (0.0%)
+      - False: 43509 (62.3%)
+      - True: 26285 (37.7%)
+    In s6_old.tsv:
+      - Null/NaN: 0 (0.0%)
+      - False: 43509 (62.3%)
+      - True: 26285 (37.7%)
+
+  Health association:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 48923 (70.1%)
+      - False: 20869 (29.9%)
+    In s6_old.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 35696 (51.1%)
+      - False: 34096 (48.9%)
+
+  Host association:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 35696 (51.1%)
+      - False: 34096 (48.9%)
+    In s6_old.tsv:
+      - Null/NaN: 2 (0.0%)
+      - True: 48923 (70.1%)
+      - False: 20869 (29.9%)
+
+  Motility:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 0 (0.0%)
+      - True: 39584 (56.7%)
+      - False: 30210 (43.3%)
+    In s6_old.tsv:
+      - Null/NaN: 0 (0.0%)
+      - True: 39584 (56.7%)
+      - False: 30210 (43.3%)
+
+  Plant pathogenicity:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 1 (0.0%)
+      - False: 61883 (88.7%)
+      - True: 7910 (11.3%)
+    In s6_old.tsv:
+      - Null/NaN: 1 (0.0%)
+      - False: 61883 (88.7%)
+      - True: 7910 (11.3%)
+
+  Query template:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 0 (0.0%)
+      - templates/query_template_system_pred1.txt: 69794 (100.0%)
+    In s6_old.tsv:
+      - Null/NaN: 0 (0.0%)
+      - Query template 4: 69794 (100.0%)
+
+  Spore formation:
+    In s6_missing_phenotypes.tsv:
+      - Null/NaN: 1 (0.0%)
+      - False: 55063 (78.9%)
+      - True: 14730 (21.1%)
+    In s6_old.tsv:
+      - Null/NaN: 1 (0.0%)
+      - False: 55063 (78.9%)
+      - True: 14730 (21.1%)
+
+CATEGORICAL COLUMNS:
+
+  Aerophilicity:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 11
+      - Null/NaN: 18006 (25.8%)
+      - aerobic, facultatively anaerobic: 19852 (28.4%)
+      - aerobic: 16611 (23.8%)
+      - facultatively anaerobic: 7458 (10.7%)
+      - aerotolerant: 1975 (2.8%)
+      ... and 6 more values
+    In s6_old.tsv:
+      - Unique values: 247
+      - Null/NaN: 0 (0.0%)
+      - ['aerobic', 'facultatively anaerobic']: 19723 (28.3%)
+      - ['aerobic']: 16368 (23.5%)
+      - ['aerobic', 'aerotolerant']: 13656 (19.6%)
+      - ['facultatively anaerobic']: 6883 (9.9%)
+      - ['aerotolerant']: 1885 (2.7%)
+      ... and 242 more values
+
+  Biosafety level:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 4
+      - Null/NaN: 23 (0.0%)
+      - biosafety level 1: 42840 (61.4%)
+      - biosafety level 2: 25904 (37.1%)
+      - biosafety level 3: 1027 (1.5%)
+    In s6_old.tsv:
+      - Unique values: 4
+      - Null/NaN: 23 (0.0%)
+      - biosafety level 1: 42840 (61.4%)
+      - biosafety level 2: 25904 (37.1%)
+      - biosafety level 3: 1027 (1.5%)
+
+  Cell shape:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 5
+      - Null/NaN: 81 (0.1%)
+      - bacillus: 57872 (82.9%)
+      - coccus: 10198 (14.6%)
+      - spirillum: 1641 (2.4%)
+      - tail: 2 (0.0%)
+    In s6_old.tsv:
+      - Unique values: 5
+      - Null/NaN: 81 (0.1%)
+      - bacillus: 57872 (82.9%)
+      - coccus: 10198 (14.6%)
+      - spirillum: 1641 (2.4%)
+      - tail: 2 (0.0%)
+
+  Gram staining:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 4
+      - Null/NaN: 118 (0.2%)
+      - gram stain negative: 41167 (59.0%)
+      - gram stain positive: 26130 (37.4%)
+      - gram stain variable: 2379 (3.4%)
+    In s6_old.tsv:
+      - Unique values: 4
+      - Null/NaN: 118 (0.2%)
+      - gram stain negative: 41167 (59.0%)
+      - gram stain positive: 26130 (37.4%)
+      - gram stain variable: 2379 (3.4%)
+
+  Hemolysis:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 5
+      - Null/NaN: 1492 (2.1%)
+      - non-hemolytic: 60223 (86.3%)
+      - gamma: 2910 (4.2%)
+      - beta: 2910 (4.2%)
+      - alpha: 2259 (3.2%)
+    In s6_old.tsv:
+      - Unique values: 5
+      - Null/NaN: 1492 (2.1%)
+      - non-hemolytic: 60223 (86.3%)
+      - gamma: 2910 (4.2%)
+      - beta: 2910 (4.2%)
+      - alpha: 2259 (3.2%)
+
+  Infrence date and time:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 7560
+      - Null/NaN: 0 (0.0%)
+      - 2024-07-12 13:24:08: 35 (0.1%)
+      - 2024-07-12 13:52:44: 35 (0.1%)
+      - 2024-07-12 13:49:46: 33 (0.0%)
+      - 2024-07-12 13:01:58: 33 (0.0%)
+      - 2024-07-12 13:00:17: 33 (0.0%)
+      ... and 7555 more values
+    In s6_old.tsv:
+      - Unique values: 7560
+      - Null/NaN: 0 (0.0%)
+      - 2024-07-12 13:24:08: 35 (0.1%)
+      - 2024-07-12 13:52:44: 35 (0.1%)
+      - 2024-07-12 13:49:46: 33 (0.0%)
+      - 2024-07-12 12:53:35: 33 (0.0%)
+      - 2024-07-12 13:01:58: 33 (0.0%)
+      ... and 7555 more values
+
+  Model:
+    In s6_missing_phenotypes.tsv:
+      - Unique values: 18
+      - Null/NaN: 0 (0.0%)
+      - openai/gpt-3.5-turbo-0125: 3884 (5.6%)
+      - openai/gpt-4: 3884 (5.6%)
+      - meta-llama/llama-3-8b-instruct:nitro: 3884 (5.6%)
+      - mistralai/mixtral-8x7b-instruct:nitro: 3884 (5.6%)
+      - openai/gpt-4o: 3884 (5.6%)
+      ... and 13 more values
+    In s6_old.tsv:
+      - Unique values: 18
+      - Null/NaN: 0 (0.0%)
+      - openai/gpt-3.5-turbo-0125: 3884 (5.6%)
+      - openai/gpt-4: 3884 (5.6%)
+      - meta-llama/llama-3-8b-instruct:nitro: 3884 (5.6%)
+      - mistralai/mixtral-8x7b-instruct:nitro: 3884 (5.6%)
+      - openai/gpt-4o: 3884 (5.6%)
+      ... and 13 more values
+
+========================================
+COLUMNS UNIQUE TO S6_MISSING_PHENOTYPES.TSV
+----------------------------------------
+
+  Unnamed: 1:
+    - Unique values: 1
+    - Null/NaN: 69794 (100.0%)
+
+========================================
+COLUMNS UNIQUE TO S6_OLD.TSV
+----------------------------------------
+
+  Animal pathogenicity:
+    - Unique values: 2
+    - Null/NaN: 0 (0.0%)
+    - False: 49225 (70.5%)
+    - True: 20569 (29.5%)
+
+================================================================================
+END OF REPORT
+================================================================================

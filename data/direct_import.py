@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 
-def import_csv_to_db(csv_file, db_path='microbellm.db'):
+def import_csv_to_db(csv_file, db_path='../microbellm.db'):
     """Import CSV directly to database preserving all values"""
     
     # Read CSV - force boolean columns to be read as strings

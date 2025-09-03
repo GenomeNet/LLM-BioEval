@@ -1,0 +1,511 @@
+<!-- Model Performance Overview Section -->
+<style>
+    .performance-overview-container {
+        padding: var(--spacing-component) 0;
+    }
+    
+    .dataset-selector {
+        margin-bottom: var(--spacing-component);
+        text-align: center;
+    }
+    
+    .dataset-selector select {
+        padding: 8px 16px;
+        font-size: 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+    }
+    
+    .performance-chart-wrapper {
+        display: flex;
+        gap: var(--spacing-component);
+        margin-bottom: var(--spacing-component);
+        flex-wrap: wrap;
+    }
+    
+    .performance-chart {
+        flex: 1;
+        min-width: 400px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+    }
+    
+    .chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: var(--spacing-element);
+        text-align: center;
+        color: var(--text-primary);
+    }
+    
+    
+    .phenotype-info {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+        margin-top: var(--spacing-component);
+    }
+    
+    .phenotype-info h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: var(--spacing-small);
+        color: var(--text-primary);
+    }
+    
+    .phenotype-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: var(--spacing-small);
+    }
+    
+    .phenotype-item {
+        padding: 8px 12px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .phenotype-name {
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+    
+    .sample-count {
+        color: var(--text-secondary);
+        font-size: 12px;
+    }
+    
+    .loading-indicator {
+        text-align: center;
+        padding: var(--spacing-component);
+        color: var(--text-secondary);
+    }
+    
+    .error-message {
+        background: #fee;
+        color: #c00;
+        padding: var(--spacing-element);
+        border-radius: 8px;
+        margin: var(--spacing-element) 0;
+    }
+    
+    .metric-legend {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-element);
+        margin-bottom: var(--spacing-element);
+        flex-wrap: wrap;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+    
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+</style>
+
+<article class="article-container">
+    <div class="article-content">
+        <h2 class="section-title">Model Performance Overview</h2>
+        
+        <p class="article-text">
+            This visualization shows the average performance of each model across all phenotype predictions.
+            Models are ranked by their balanced accuracy, with precision shown as a secondary metric.
+            The averages are computed across all phenotypes where the model made predictions with sufficient sample size.
+        </p>
+        
+        <div class="performance-overview-container">
+            <div class="dataset-selector">
+                <label for="datasetSelect" style="margin-right: 12px; font-weight: 500;">Select Dataset:</label>
+                <select id="datasetSelect">
+                    <option value="">Loading datasets...</option>
+                </select>
+            </div>
+            
+            <div class="loading-indicator" id="loadingIndicator">
+                Loading performance data...
+            </div>
+            
+            <div class="performance-chart-wrapper" id="chartWrapper" style="display: none;">
+                <div class="performance-chart">
+                    <div class="chart-title">Balanced Accuracy</div>
+                    <div class="metric-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #60A5FA;"></div>
+                            <span>Balanced Accuracy</span>
+                        </div>
+                    </div>
+                    <canvas id="accuracyChart" width="400" height="600"></canvas>
+                </div>
+                
+                <div class="performance-chart">
+                    <div class="chart-title">Precision</div>
+                    <div class="metric-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #C084FC;"></div>
+                            <span>Precision</span>
+                        </div>
+                    </div>
+                    <canvas id="precisionChart" width="400" height="600"></canvas>
+                </div>
+            </div>
+            
+            <div class="phenotype-info" id="phenotypeInfo" style="display: none;">
+                <h4>Included Phenotypes</h4>
+                <div class="phenotype-list" id="phenotypeList"></div>
+            </div>
+        </div>
+    </div>
+</article>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let predictionData = null;
+    let groundTruthData = null;
+    let accuracyChart = null;
+    let precisionChart = null;
+    
+    // Initialize dataset selector
+    initializeDatasetSelector();
+    
+    async function initializeDatasetSelector() {
+        try {
+            const response = await fetch('/api/phenotype_datasets');
+            const datasets = await response.json();
+            
+            const select = document.getElementById('datasetSelect');
+            select.innerHTML = '<option value="">Select a dataset...</option>';
+            
+            datasets.forEach(dataset => {
+                const option = document.createElement('option');
+                option.value = dataset.species_file;
+                option.textContent = `${dataset.display_name} (${dataset.count.toLocaleString()} species)`;
+                select.appendChild(option);
+                
+                // Auto-select WA dataset
+                if (dataset.species_file === 'wa_with_gcount.txt') {
+                    option.selected = true;
+                }
+            });
+            
+            // Load data if WA is selected
+            if (select.value) {
+                await loadPerformanceData(select.value);
+            }
+            
+            select.addEventListener('change', async (e) => {
+                if (e.target.value) {
+                    await loadPerformanceData(e.target.value);
+                } else {
+                    document.getElementById('chartWrapper').style.display = 'none';
+                    document.getElementById('phenotypeInfo').style.display = 'none';
+                }
+            });
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+        }
+    }
+    
+    async function loadPerformanceData(speciesFile) {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const chartWrapper = document.getElementById('chartWrapper');
+        const phenotypeInfo = document.getElementById('phenotypeInfo');
+        
+        loadingIndicator.style.display = 'block';
+        chartWrapper.style.display = 'none';
+        phenotypeInfo.style.display = 'none';
+        
+        try {
+            // Load prediction data
+            const predResponse = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+            const predResult = await predResponse.json();
+            predictionData = predResult.data;
+            
+            // Load ground truth data
+            const gtResponse = await fetch('/api/phenotype_ground_truth');
+            const gtResult = await gtResponse.json();
+            groundTruthData = gtResult.data;
+            
+            if (!predictionData || predictionData.length === 0) {
+                loadingIndicator.innerHTML = '<div class="error-message">No prediction data available for this dataset</div>';
+                return;
+            }
+            
+            // Calculate performance metrics
+            const performanceData = calculateAveragePerformance();
+            
+            // Display charts
+            displayPerformanceCharts(performanceData);
+            
+            loadingIndicator.style.display = 'none';
+            chartWrapper.style.display = 'flex';
+            phenotypeInfo.style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error loading performance data:', error);
+            loadingIndicator.innerHTML = '<div class="error-message">Error loading data. Please try again.</div>';
+        }
+    }
+    
+    function calculateAveragePerformance() {
+        const phenotypes = [
+            'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+            'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 
+            'health_association', 'host_association', 'plant_pathogenicity',
+            'spore_formation', 'hemolysis', 'cell_shape'
+        ];
+        
+        // Group predictions by model
+        const modelGroups = {};
+        predictionData.forEach(pred => {
+            if (!modelGroups[pred.model]) {
+                modelGroups[pred.model] = [];
+            }
+            modelGroups[pred.model].push(pred);
+        });
+        
+        // Calculate metrics for each model
+        const modelPerformance = {};
+        const phenotypeStats = {};
+        
+        Object.keys(modelGroups).forEach(model => {
+            const predictions = modelGroups[model];
+            const metrics = { balanced_accuracy: [], precision: [], recall: [], f1: [] };
+            
+            phenotypes.forEach(phenotype => {
+                const result = calculateMetricsForPhenotype(predictions, phenotype);
+                if (result && result.sampleSize >= 100) { // Minimum sample size threshold
+                    metrics.balanced_accuracy.push(result.balanced_accuracy);
+                    metrics.precision.push(result.precision);
+                    metrics.recall.push(result.recall);
+                    metrics.f1.push(result.f1);
+                    
+                    // Track phenotype statistics
+                    if (!phenotypeStats[phenotype]) {
+                        phenotypeStats[phenotype] = { count: 0, totalSamples: 0 };
+                    }
+                    phenotypeStats[phenotype].count++;
+                    phenotypeStats[phenotype].totalSamples += result.sampleSize;
+                }
+            });
+            
+            // Calculate averages
+            if (metrics.balanced_accuracy.length > 0) {
+                modelPerformance[model] = {
+                    balanced_accuracy: average(metrics.balanced_accuracy),
+                    precision: average(metrics.precision),
+                    recall: average(metrics.recall),
+                    f1: average(metrics.f1),
+                    phenotype_count: metrics.balanced_accuracy.length
+                };
+            }
+        });
+        
+        // Sort models by balanced accuracy
+        const sortedModels = Object.keys(modelPerformance)
+            .sort((a, b) => modelPerformance[b].balanced_accuracy - modelPerformance[a].balanced_accuracy);
+        
+        return {
+            models: sortedModels,
+            performance: modelPerformance,
+            phenotypeStats: phenotypeStats
+        };
+    }
+    
+    function calculateMetricsForPhenotype(predictions, phenotype) {
+        let tp = 0, fp = 0, tn = 0, fn = 0;
+        
+        predictions.forEach(pred => {
+            const predValue = pred[phenotype];
+            const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
+            
+            if (predValue && groundTruth && predValue !== 'N/A' && groundTruth !== 'N/A') {
+                const predBool = normalizeBooleanValue(predValue);
+                const truthBool = normalizeBooleanValue(groundTruth);
+                
+                if (predBool === true && truthBool === true) tp++;
+                else if (predBool === true && truthBool === false) fp++;
+                else if (predBool === false && truthBool === false) tn++;
+                else if (predBool === false && truthBool === true) fn++;
+            }
+        });
+        
+        const sampleSize = tp + fp + tn + fn;
+        if (sampleSize === 0) return null;
+        
+        const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+        const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+        const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+        const balanced_accuracy = (recall + specificity) / 2;
+        const f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+        
+        return { balanced_accuracy, precision, recall, f1, sampleSize };
+    }
+    
+    function normalizeBooleanValue(value) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            if (lower === 'true' || lower === 't' || lower === '1') return true;
+            if (lower === 'false' || lower === 'f' || lower === '0') return false;
+        }
+        return null;
+    }
+    
+    function getGroundTruth(binomialName, phenotype) {
+        const gt = groundTruthData.find(g => g.binomial_name === binomialName);
+        return gt ? gt[phenotype] : null;
+    }
+    
+    function average(arr) {
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+    
+    function displayPerformanceCharts(data) {
+        const { models, performance, phenotypeStats } = data;
+        
+        // Prepare chart data
+        const chartLabels = models.slice(0, 20); // Top 20 models
+        const accuracyData = chartLabels.map(m => performance[m].balanced_accuracy);
+        const precisionData = chartLabels.map(m => performance[m].precision);
+        
+        // Create balanced accuracy chart
+        const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+        if (accuracyChart) accuracyChart.destroy();
+        accuracyChart = new Chart(accuracyCtx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Balanced Accuracy',
+                    data: accuracyData,
+                    backgroundColor: '#60A5FA',
+                    borderColor: '#3B82F6',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const model = context.label;
+                                const value = context.raw;
+                                const count = performance[model].phenotype_count;
+                                return `Balanced Accuracy: ${value.toFixed(3)} (${count} phenotypes)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 1,
+                        title: {
+                            display: true,
+                            text: 'Balanced Accuracy'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Create precision chart
+        const precisionCtx = document.getElementById('precisionChart').getContext('2d');
+        if (precisionChart) precisionChart.destroy();
+        precisionChart = new Chart(precisionCtx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Precision',
+                    data: precisionData,
+                    backgroundColor: '#C084FC',
+                    borderColor: '#A855F7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const model = context.label;
+                                const value = context.raw;
+                                const count = performance[model].phenotype_count;
+                                return `Precision: ${value.toFixed(3)} (${count} phenotypes)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 1,
+                        title: {
+                            display: true,
+                            text: 'Precision'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Display phenotype information
+        displayPhenotypeInfo(phenotypeStats);
+    }
+    
+    function displayPhenotypeInfo(phenotypeStats) {
+        const phenotypeList = document.getElementById('phenotypeList');
+        phenotypeList.innerHTML = '';
+        
+        Object.keys(phenotypeStats).forEach(phenotype => {
+            const stats = phenotypeStats[phenotype];
+            const avgSamples = Math.round(stats.totalSamples / stats.count);
+            
+            const item = document.createElement('div');
+            item.className = 'phenotype-item';
+            item.innerHTML = `
+                <span class="phenotype-name">${phenotype.replace(/_/g, ' ')}</span>
+                <span class="sample-count">~${avgSamples.toLocaleString()} samples</span>
+            `;
+            phenotypeList.appendChild(item);
+        });
+    }
+});
+</script>
