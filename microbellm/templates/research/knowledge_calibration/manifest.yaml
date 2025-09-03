@@ -259,6 +259,11 @@ sections:
     title: "Correlation Visualization: Google Search vs. Knowledge Level"
     text: "This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts for bacterial species. Each point represents a species, with the x-axis showing log10 of Google search results and the y-axis showing the knowledge level (1=Limited, 2=Moderate, 3=Extensive)."
     
+  # Conclusion
+  - id: "conclusion"
+    type: "article"
+    file: "sections/28a_conclusion.html"
+    
   # Scripts (should be last)
   - id: "scripts"
     type: "raw"
