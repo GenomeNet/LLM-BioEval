@@ -328,6 +328,10 @@ function transformKnowledgeData(knowledgeAnalysis) {
         
         // Process each input type
         Object.entries(fileData.types).forEach(([inputType, templateData]) => {
+            // Skip UNCLASSIFIED and WA_WITH_GCOUNT columns
+            if (inputType === 'UNCLASSIFIED' || inputType === 'WA_WITH_GCOUNT') {
+                return;
+            }
             inputTypeSet.add(inputType);
             
             // Process each template
