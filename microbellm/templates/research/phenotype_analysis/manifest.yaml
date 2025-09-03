@@ -146,6 +146,14 @@ sections:
     title: "Model Performance Radar Plot"
     text: "Interactive radar chart comparing model performance across all phenotypes, allowing for side-by-side comparison of model strengths and weaknesses."
     
+  # Ground Truth Dataset Statistics
+  - id: "ground_truth_stats"
+    type: "section_callout_dynamic"
+    file: "sections/13_ground_truth_stats.html"
+    container_id: "groundTruthStatsContent"
+    title: "Ground Truth Dataset Statistics"
+    text: "Overview of phenotype annotations in the ground truth dataset, showing coverage and value distributions for each characteristic."
+    
   # Dataset Expansion Visualization
   - id: "dataset_expansion"
     type: "section_callout_dynamic"

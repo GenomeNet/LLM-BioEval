@@ -100,6 +100,7 @@
 
 .hidden-row.show {
     display: table-row;
+    background: white;
 }
 
 /* Tooltip styles */
@@ -147,16 +148,17 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         html += createBarChartLegend();
         
         html += `<div class="table-fade" id="table-fade-${templateIndex}" style="margin-top: 16px;">`;
+        html += `<div style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">`;
         html += `<table class="knowledge-analysis-table" style="width: 100%; border-collapse: collapse;">`;
         
         // Header row
-        html += `<thead><tr style="border-bottom: 1px solid #f3f4f6;">`;
-        html += `<th style="padding: 12px 8px; text-align: left; font-weight: 500; color: #9ca3af; font-size: 13px;">MODEL</th>`;
+        html += `<thead><tr style="background: #F9FAFB; border-bottom: 1px solid #e5e7eb;">`;
+        html += `<th style="padding: 16px; text-align: left; font-weight: 500; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Model</th>`;
         inputTypeArray.forEach(inputType => {
             const displayType = formatTypeName(inputType);
-            html += `<th style="padding: 12px 8px; text-align: center; font-weight: 500; color: #9ca3af; font-size: 13px;">${displayType.toUpperCase()}</th>`;
+            html += `<th style="padding: 16px; text-align: center; font-weight: 500; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">${displayType}</th>`;
         });
-        html += `<th style="padding: 12px 8px; text-align: center; width: 120px; font-weight: 500; color: #9ca3af; font-size: 13px;">QUALITY SCORE</th>`;
+        html += `<th style="padding: 16px; text-align: center; width: 120px; font-weight: 500; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Quality Score</th>`;
         html += `</tr></thead>`;
         
         // Data rows
@@ -205,25 +207,25 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         
         modelScores.forEach(({modelName, templates, averageQualityScore, qualityScore, totalSamples}, index) => {
             const isHidden = index >= 3;
-            html += `<tr class="${isHidden ? 'hidden-row' : ''}" style="border-bottom: 1px solid #fafafa;">`;
-            html += `<td style="padding: 16px 8px; font-weight: 500; color: #111827;">${modelName.split('/').pop()}</td>`;
+            html += `<tr class="${isHidden ? 'hidden-row' : ''}" style="border-bottom: 1px solid #f3f4f6;">`;
+            html += `<td style="padding: 16px; font-weight: 500; color: #111827;">${modelName.split('/').pop()}</td>`;
             
             inputTypeArray.forEach(inputType => {
-                html += `<td style="padding: 16px 8px;">`;
+                html += `<td style="padding: 16px;">`;
                 if (templates[inputType]) {
                     html += createKnowledgeBarChart(templates[inputType]);
                 } else {
-                    html += '<div style="text-align: center; color: #9ca3af; font-size: 13px;">No data</div>';
+                    html += '<div style="text-align: center; color: #9ca3af; font-style: italic; font-size: 14px;">No data</div>';
                 }
                 html += `</td>`;
             });
             
             // Add quality score column
-            html += `<td style="padding: 16px 8px; text-align: center;">`;
+            html += `<td style="padding: 16px; text-align: center;">`;
             if (totalSamples > 0) {
                 html += `<span style="font-weight: 600; color: #7c3aed; font-size: 16px;">${averageQualityScore.toFixed(2)}</span>`;
             } else {
-                html += '<span style="color: #9ca3af; font-size: 13px;">No data</span>';
+                html += '<span style="color: #9ca3af; font-style: italic; font-size: 14px;">No data</span>';
             }
             html += `</td>`;
             
@@ -233,30 +235,18 @@ function renderTemplateAnalysisTables(templateArray, inputTypeArray, modelData) 
         
         // Add expand/collapse button if there are more than 3 models
         if (modelScores.length > 3) {
-            html += `<div style="text-align: center; margin-top: 24px;">`;
-            html += `<button onclick="toggleTableExpansion(this, ${templateIndex})" style="
-                background: transparent;
-                border: 1px solid #e5e7eb;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                color: #6b7280;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.2s;
-            " onmouseover="this.style.borderColor='#d1d5db'; this.style.color='#4b5563';" onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#6b7280';">`;
+            html += `<div style="text-align: center; padding: 16px; background: white; border-top: 1px solid #f3f4f6;">`;
+            html += `<button style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; color: #6b7280; font-size: 14px; font-weight: 500; cursor: pointer; transition: border-color 0.2s, color 0.2s;" onclick="toggleTableExpansion(this, ${templateIndex})" onmouseover="this.style.borderColor='#9ca3af'; this.style.color='#4b5563';" onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#6b7280';">`;
             html += `<span>Show ${modelScores.length - 3} more models</span>`;
-            html += `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">`;
+            html += `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;">`;
             html += `<path d="M6 9l6 6 6-6"/>`;
             html += `</svg>`;
             html += `</button>`;
             html += `</div>`;
         }
         
-        html += `</div>`;
-        html += `</div>`;
+        html += `</div>`; // Close table wrapper
+        html += `</div>`; // Close table-fade
     });
     
     return html;

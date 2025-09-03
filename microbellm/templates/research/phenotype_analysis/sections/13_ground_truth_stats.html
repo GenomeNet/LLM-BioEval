@@ -1,0 +1,389 @@
+<!-- Ground Truth Dataset Statistics – Grid Layout Version (no horizontal scroll, perfect alignment) -->
+<div class="ground-truth-section">
+  <div class="ground-truth-header">
+    <h3>Ground Truth Dataset Overview</h3>
+    <p>Statistical analysis of phenotype annotations in the ground truth dataset</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="ground-truth-controls-panel">
+    <div class="dataset-selector">
+      <label>Ground Truth Dataset:</label>
+      <select id="gtStatsDataset" class="dataset-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div class="dataset-details" id="gtDatasetDetails"></div>
+    </div>
+  </div>
+
+  <!-- Results Area -->
+  <div id="gtResultsArea" class="results-container" style="display:none;">
+    <div class="gt-grid" role="table" aria-label="Ground truth phenotype statistics">
+      <!-- Header row -->
+      <div class="gt-head" role="row">
+        <div class="cell head" role="columnheader">Phenotype</div>
+        <div class="cell head values" role="columnheader">Unique Values</div>
+        <div class="cell head coverage" role="columnheader">Annotated Fr.</div>
+        <div class="cell head dist" role="columnheader">Distribution</div>
+      </div>
+      <!-- Data rows injected here -->
+      <div id="gtRows"></div>
+    </div>
+  </div>
+
+  <!-- Initial Message -->
+  <div id="gtInitialMessage" class="info-message">
+    <i class="fas fa-database" aria-hidden="true"></i>
+    <p>Select a ground truth dataset to view annotation statistics</p>
+  </div>
+</div>
+
+<style>
+/* ============ Core ============ */
+.ground-truth-section{padding:20px;background:#fff;border-radius:12px;min-height:400px}
+.ground-truth-header{margin-bottom:30px}
+.ground-truth-header h3{font-size:24px;font-weight:600;color:#2c3e50;margin:0 0 8px 0}
+.ground-truth-header p{font-size:14px;color:#6c757d;margin:0}
+
+/* Controls */
+.ground-truth-controls-panel{display:flex;gap:20px;align-items:flex-end;margin-bottom:30px;padding:20px;background:#f8f9fa;border-radius:8px;border:1px solid #dee2e6}
+.dataset-selector{flex:1}
+.dataset-selector label{display:block;margin-bottom:8px;font-weight:500;color:#495057;font-size:14px}
+.dataset-select{width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:6px;background:#fff;color:#495057;font-size:14px;cursor:pointer}
+.dataset-select:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1)}
+.dataset-details{margin-top:8px;font-size:12px;color:#6c757d}
+
+.results-container{animation:fadeIn .25s ease-in}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============ GRID TABLE ============ */
+:root{
+  /* one place to tweak column layout */
+  --gt-cols: minmax(230px,28%) minmax(280px,36%) 120px minmax(220px,1fr);
+  --gt-row-h: 48px;
+  --gt-border: #e9ecef;
+}
+
+.gt-grid{border:1px solid var(--gt-border);border-radius:8px;overflow:hidden}
+
+.gt-head,.gt-row{display:grid;grid-template-columns:var(--gt-cols);align-items:center}
+.gt-head{position:sticky;top:0;background:#f8f9fa;z-index:2;border-bottom:1px solid var(--gt-border)}
+
+/* cells */
+.cell{padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cell.head{font-weight:600;color:#495057;text-transform:uppercase;font-size:11px;letter-spacing:.3px}
+
+/* rows */
+#gtRows{display:block}
+.gt-row{display:grid;grid-template-columns:var(--gt-cols);border-bottom:1px solid #f1f3f5}
+.gt-row:hover{background:#f8f9fa}
+
+/* left column (no sticky to avoid horizontal scroll) */
+.phenotype-with-type{display:flex;flex-direction:column;gap:6px;min-width:0}
+.phenotype-name{font-weight:600;color:#2c3e50;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis}
+
+/* type badge */
+.type-badge{display:inline-block;width:fit-content;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.type-badge.binary{background:rgba(34,197,94,.12);color:#16a34a}
+.type-badge.categorical{background:rgba(59,130,246,.12);color:#2563eb}
+.type-badge.multivalue{background:rgba(168,85,247,.12);color:#9333ea}
+
+/* values col */
+.values-list{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:11px;color:#6c757d;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+/* coverage col */
+.cell.coverage{ text-align:right; font-variant-numeric: tabular-nums; }
+.coverage-cell{font-weight:700}
+.coverage-high{color:#16a34a}
+.coverage-medium{color:#f59e0b}
+.coverage-low{color:#ef4444}
+
+/* distribution col */
+.distribution-bar{width:100%;height:16px;display:flex;border:1px solid #dee2e6;border-radius:3px;overflow:hidden;background:#f8f9fa}
+.distribution-segment{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;min-width:12px;transition:opacity .15s ease;color:#fff}
+.distribution-segment:hover{opacity:.92}
+.distribution-label{font-size:10px;font-weight:700;pointer-events:none;white-space:nowrap}
+
+/* responsiveness */
+@media (max-width: 1024px){ :root{ --gt-cols: minmax(200px,34%) minmax(220px,1fr) 100px minmax(160px,1fr); } }
+@media (max-width: 820px){
+  /* Hide values column; keep its title visually hidden for a11y */
+  .gt-head .cell.values{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  :root{ --gt-cols: minmax(200px,52%) 0px 90px minmax(140px,1fr); }
+  .gt-row .cell.values{display:none}
+}
+
+/* message */
+.info-message{text-align:center;padding:60px 20px;color:#6c757d}
+.info-message i{font-size:48px;color:#dee2e6;margin-bottom:16px}
+.info-message p{font-size:14px;margin:0}
+</style>
+
+<script>
+(function() {
+  'use strict';
+  let groundTruthData = null;
+  let fieldDefinitions = {};
+
+  function init(){ loadGroundTruthDatasets(); }
+
+  async function loadGroundTruthDatasets(){
+    try{
+      const response = await fetch('/api/ground_truth/datasets');
+      if(!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if(result.success && result.datasets){
+        const select = document.getElementById('gtStatsDataset');
+        select.innerHTML = '';
+        if(result.datasets.length === 0){
+          select.innerHTML = '<option value="">No datasets available</option>';
+          return;
+        }
+        let waTestDataset = null;
+        const def = document.createElement('option');
+        def.value = ''; def.textContent = 'Select a dataset...'; select.appendChild(def);
+        result.datasets.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.dataset_name; opt.textContent = d.dataset_name;
+          opt.dataset.template = d.template_name; opt.dataset.count = d.species_count;
+          select.appendChild(opt);
+          if(d.dataset_name === 'WA_Test_Dataset') waTestDataset = d;
+        });
+        select.addEventListener('change', () => { updateDatasetInfo(); if(select.value) analyzeDataset(); });
+        if(waTestDataset){ select.value = 'WA_Test_Dataset'; updateDatasetInfo(); setTimeout(analyzeDataset, 250); }
+      }
+    }catch(err){
+      console.error('Error loading datasets:', err);
+      document.getElementById('gtStatsDataset').innerHTML = '<option value="">Error loading datasets</option>';
+    }
+  }
+
+  function updateDatasetInfo(){
+    const select = document.getElementById('gtStatsDataset');
+    const details = document.getElementById('gtDatasetDetails');
+    if(select.value){
+      const count = select.selectedOptions[0].dataset.count;
+      details.innerHTML = `<span>${count} species in dataset</span>`;
+    } else {
+      details.innerHTML = '';
+      document.getElementById('gtResultsArea').style.display = 'none';
+      document.getElementById('gtInitialMessage').style.display = 'block';
+    }
+  }
+
+  async function analyzeDataset(){
+    const select = document.getElementById('gtStatsDataset');
+    const datasetName = select.value; if(!datasetName) return;
+    const templateName = select.selectedOptions[0].dataset.template;
+    const details = document.getElementById('gtDatasetDetails');
+    details.innerHTML = '<span><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Analyzing dataset...</span>';
+
+    try{
+      const tResp = await fetch(`/api/template_field_definitions?template=${encodeURIComponent(templateName)}`);
+      const tJson = await tResp.json();
+      fieldDefinitions = tJson.success ? tJson.field_definitions : {};
+
+      const gResp = await fetch(`/api/ground_truth/data?dataset=${encodeURIComponent(datasetName)}&per_page=10000`);
+      const gJson = await gResp.json();
+      if(!gJson.success) throw new Error('Failed to load ground truth data');
+      groundTruthData = gJson.data || [];
+
+      const stats = calculateStatistics();
+      displayResults(stats);
+
+      details.innerHTML = `<span>${groundTruthData.length} species analyzed</span>`;
+      document.getElementById('gtInitialMessage').style.display = 'none';
+      document.getElementById('gtResultsArea').style.display = 'block';
+    }catch(err){
+      console.error('Error analyzing dataset:', err);
+      details.innerHTML = '<span style="color:#dc2626;">Analysis failed</span>';
+    }
+  }
+
+  function calculateStatistics(){
+    const stats = [];
+    const total = groundTruthData.length || 0;
+    const excluded = ['aerophilicity','health_association','hemolysis'];
+
+    Object.entries(fieldDefinitions).forEach(([phenotype]) => {
+      if(excluded.includes(phenotype)) return;
+      const ph = { phenotype, type:'categorical', values:{}, annotated:0, missing:0 };
+      groundTruthData.forEach(rec => {
+        const v = normalizeValue(rec[phenotype], phenotype);
+        if(v===null || v===''){ ph.missing++; }
+        else { ph.annotated++; ph.values[v] = (ph.values[v]||0)+1; }
+      });
+      const uniq = Object.keys(ph.values);
+      if(uniq.length===2){
+        const s = uniq.slice().sort();
+        if((s[0]==='false'&&s[1]==='true')||(s[0]==='0'&&s[1]==='1')||(s[0]==='no'&&s[1]==='yes')||(s[0]==='negative'&&s[1]==='positive')) ph.type='binary';
+      } else if(uniq.some(v => v.includes(',')||v.includes(';'))){ ph.type='multivalue'; }
+      ph.coverage = total===0 ? 0 : (ph.annotated/total)*100;
+      stats.push(ph);
+    });
+
+    stats.sort((a,b)=> b.coverage - a.coverage);
+    return stats;
+  }
+
+  function normalizeValue(value, fieldName = ''){
+    if(value===null||value===undefined||value==='') return null;
+    
+    let strValue = String(value).trim();
+    const missing = ['n/a','na','null','none','nan','undefined','-','unknown','missing'];
+    if(missing.includes(strValue.toLowerCase())) return null;
+    
+    // Apply same transformations as prediction distributions component
+    
+    // Normalize gram staining values
+    if(fieldName === 'gram_staining'){
+      if(strValue.toLowerCase().includes('positive') || strValue.toLowerCase().includes('gram-positive')){
+        return 'positive';
+      } else if(strValue.toLowerCase().includes('negative') || strValue.toLowerCase().includes('gram-negative')){
+        return 'negative';
+      } else if(strValue.toLowerCase().includes('variable')){
+        return 'gram_stain_variable';
+      }
+    }
+    
+    // Normalize other values by removing underscores and proper casing
+    if(fieldName === 'cell_shape'){
+      // Convert snake_case to proper case
+      strValue = strValue.replace(/_/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(' ');
+      return strValue.toLowerCase(); // Return lowercase for color matching
+    }
+    
+    // Normalize aerophilicity values
+    if(fieldName === 'aerophilicity'){
+      const lowerValue = strValue.toLowerCase().trim();
+      if(lowerValue === 'aerobic' || lowerValue === 'obligate aerobe'){
+        return 'aerobic';
+      } else if(lowerValue === 'anaerobic' || lowerValue === 'obligate anaerobe'){
+        return 'anaerobic';
+      } else if(lowerValue.includes('facultative') || lowerValue === 'facultatively anaerobic'){
+        return 'facultative';
+      } else {
+        return lowerValue;
+      }
+    }
+    
+    // For multi-value fields (like aerophilicity), parse and sort
+    if(strValue.includes(',') || strValue.includes(';')){
+      const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
+      return parts.sort().join(',');  // Normalize to comma-separated sorted list
+    }
+    
+    // Return normalized string (lowercase for consistent color matching)
+    return strValue.toLowerCase();
+  }
+
+  function displayResults(stats){
+    const rows = document.getElementById('gtRows');
+    let html = '';
+
+    stats.forEach(stat => {
+      const phenotypeName = stat.phenotype.replace(/_/g,' ');
+      const coverage = stat.coverage;
+      const coverageText = new Intl.NumberFormat(undefined,{ maximumFractionDigits: 1 }).format(coverage);
+      const coverageClass = getCoverageClass(coverage);
+
+      const sortedValues = Object.entries(stat.values).sort((a,b)=> b[1]-a[1]).map(([val])=> val);
+      let valuesDisplay = '';
+      if(stat.type==='binary' && sortedValues.length===2){
+        const f = sortedValues.map(v => {
+          const l = v.toLowerCase();
+          if(l==='true'||l==='false') return l;
+          if(l==='positive'||l==='negative') return l==='positive'?'Positive':'Negative';
+          return v.charAt(0).toUpperCase()+v.slice(1).toLowerCase();
+        });
+        valuesDisplay = '['+f.join(', ')+']';
+      } else if(sortedValues.length <= 4){
+        const f = sortedValues.map(v => {
+          // Handle special cases for display
+          if(v==='positive') return 'Positive';
+          if(v==='negative') return 'Negative';
+          if(v==='aerobic') return 'Aerobic';
+          if(v==='anaerobic') return 'Anaerobic';
+          if(v==='facultative') return 'Facultative';
+          if(v==='coccus') return 'Coccus';
+          if(v==='bacillus') return 'Bacillus';
+          if(v==='spiral') return 'Spiral';
+          if(v==='spirillum') return 'Spirillum';
+          
+          // Default formatting
+          return v.replace(/_/g,' ').split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+        });
+        valuesDisplay = '['+f.join(', ')+']';
+      } else {
+        valuesDisplay = sortedValues.length + ' unique values';
+      }
+
+      let distributionHtml = '<div class="distribution-bar" aria-hidden="false" role="img" aria-label="distribution bar">';
+      const topValues = Object.entries(stat.values).sort((a,b)=> b[1]-a[1]).slice(0,4);
+      const denom = stat.annotated || 1;
+      topValues.forEach(([value,count]) => {
+        const pct = (count/denom)*100;
+        const colors = getColorForValue(value);
+        const label = pct >= 10 ? `<span class="distribution-label">${pct.toFixed(0)}%</span>` : '';
+        distributionHtml += `<div class="distribution-segment" style="width:${pct}%; background:${colors.background} !important; color:${colors.color} !important;" title="${value}: ${pct.toFixed(1)}%">${label}</div>`;
+      });
+      distributionHtml += '</div>';
+
+      html += `
+        <div class="gt-row" role="row">
+          <div class="cell phen" role="cell">
+            <div class="phenotype-with-type">
+              <span class="phenotype-name" title="${phenotypeName}">${phenotypeName}</span>
+              <span class="type-badge ${stat.type}">${stat.type}</span>
+            </div>
+          </div>
+          <div class="cell values" role="cell"><span class="values-list" title="${sortedValues.join(', ')}">${valuesDisplay}</span></div>
+          <div class="cell coverage" role="cell"><span class="coverage-cell ${coverageClass}">${coverageText}%</span></div>
+          <div class="cell dist" role="cell">${distributionHtml}</div>
+        </div>`;
+    });
+
+    rows.innerHTML = html;
+  }
+
+  function getCoverageClass(c){ if(c>=80) return 'coverage-high'; if(c>=50) return 'coverage-medium'; return 'coverage-low'; }
+
+  function getColorForValue(value){
+    const lower = String(value).toLowerCase().trim();
+    const colorMap = {
+      'true':{background:'linear-gradient(135deg,#22c55e 0%,#16a34a 100%)',color:'white'},
+      'false':{background:'linear-gradient(135deg,#94a3b8 0%,#64748b 100%)',color:'white'},
+      'positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram-positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'gram-negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram_stain_positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'gram_stain_negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram_stain_variable':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'aerobic':{background:'linear-gradient(135deg,#2196f3 0%,#1976d2 100%)',color:'white'},
+      'anaerobic':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'facultative':{background:'linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%)',color:'white'},
+      'facultative anaerobe':{background:'linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%)',color:'white'},
+      'obligate aerobe':{background:'linear-gradient(135deg,#2196f3 0%,#1976d2 100%)',color:'white'},
+      'obligate anaerobe':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'coccus':{background:'linear-gradient(135deg,#3f51b5 0%,#303f9f 100%)',color:'white'},
+      'bacillus':{background:'linear-gradient(135deg,#009688 0%,#00796b 100%)',color:'white'},
+      'spiral':{background:'linear-gradient(135deg,#ff5722 0%,#e64a19 100%)',color:'white'},
+      'spirillum':{background:'linear-gradient(135deg,#ff5722 0%,#e64a19 100%)',color:'white'},
+      'other':{background:'linear-gradient(135deg,#607d8b 0%,#455a64 100%)',color:'white'},
+      'biosafety_level_1':{background:'linear-gradient(135deg,#22c55e 0%,#16a34a 100%)',color:'white'},
+      'biosafety_level_2':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'biosafety_level_3':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'na':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'},
+      'n/a':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'},
+      'unknown':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'}
+    };
+    return colorMap[lower] || { background:'linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%)', color:'#495057' };
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>

@@ -216,9 +216,9 @@
             .map(([modelName, scores]) => ({ modelName, ...scores }))
             .sort((a, b) => b.averageQualityScore - a.averageQualityScore);
         
-        // Get worst 2 models
-        const worst2Models = sortedModels.length > 5 ? sortedModels.slice(-2) : [];
-        if (worst2Models.length === 0) {
+        // Get worst 4 models
+        const worst4Models = sortedModels.length > 7 ? sortedModels.slice(-4) : [];
+        if (worst4Models.length === 0) {
             container.innerHTML = ''; // No worst performers to show
             return;
         }
@@ -229,11 +229,11 @@
     <div class="performers-list">
     `;
         
-        worst2Models.reverse().forEach((model, index) => {
+        worst4Models.reverse().forEach((model, index) => {
             const rank = sortedModels.length - index;
             const displayName = model.modelName.split('/').pop();
             worstPerformersHtml += `
-        <div class="performer-card worst">
+        <div class="performer-card">
             <div class="performer-rank">${rank}</div>
             <div style="flex: 1;">
                 <div class="performer-name">${displayName}</div>
