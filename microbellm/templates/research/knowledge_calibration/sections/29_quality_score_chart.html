@@ -601,7 +601,7 @@
                         ${formattedName}
                     </div>
                 </div>
-                <div style="padding: 10px;">
+                <div style="padding: 12px 8px;">
         `;
     
         // Find max score for this template for scaling
@@ -619,12 +619,12 @@
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             
             html += `
-                <div style="display: flex; align-items: center; margin-bottom: ${modelIndex < sortedModels.length - 1 ? '4px' : '0'};">
-                    <div style="width: 85px; font-size: 10px; color: #111827; font-weight: 500; text-align: right; padding-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
+                <div style="display: flex; align-items: center; padding: 6px 0; ${modelIndex < sortedModels.length - 1 ? 'border-bottom: 1px solid #f3f4f6;' : ''}">
+                    <div style="min-width: 0; flex: 0 0 45%; font-size: 11px; color: #111827; font-weight: 500; text-align: right; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelName}">
                         ${displayName}
                     </div>
-                    <div style="flex: 1; position: relative;">
-                        <div style="position: relative; background: #f3f4f6; border-radius: 3px; overflow: hidden; height: 20px;">
+                    <div style="flex: 1; min-width: 0; position: relative;">
+                        <div style="position: relative; background: #f3f4f6; border-radius: 4px; overflow: hidden; height: 24px;">
                             <div class="template-bar" 
                                 style="
                                     width: ${percentage}%;
@@ -644,7 +644,7 @@
                                 onmouseout="hideBarTooltip()">
                                 <span style="
                                     color: white;
-                                    font-size: 10px;
+                                    font-size: 11px;
                                     font-weight: 600;
                                     white-space: nowrap;
                                 ">${score > 0 ? score.toFixed(2) : ''}</span>
