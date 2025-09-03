@@ -233,6 +233,13 @@ sections:
     title: "Top Models - Web-Alignment"
     text: "Language models that demonstrate the best alignment between their knowledge claims and actual web presence of bacterial species, showing superior calibration abilities."
     
+  # Worst models web alignment
+  - id: "worst_models_web_alignment"
+    type: "section_callout_dynamic"
+    file: "sections/26a_worst_models_web_alignment.html"
+    title: "Models Needing Improvement - Web Alignment"
+    text: "Language models showing poor alignment between their knowledge claims and actual web presence of bacterial species, indicating areas for calibration improvement."
+    
   # Correlation transition text
   - id: "correlation_transition"
     type: "article_content"

@@ -1,0 +1,183 @@
+<div id="worstModelsWebAlignmentContainer">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading models needing improvement...</div>
+    </div>
+</div>
+
+<script>
+// Self-contained script for loading and displaying worst performing models
+(function() {
+    console.log('[WorstModelsWebAlignment] Script starting...');
+    
+    // Helper function to create bar chart legend
+    function createBarChartLegend() {
+        return `
+            <div class="legend">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can provide in-depth, reference-level information.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);"></div>
+                    <span>Extensive</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model can give several specific details.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);"></div>
+                    <span>Moderate</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model knows only basic facts or context.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);"></div>
+                    <span>Limited</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model doesn't know or no information available.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);"></div>
+                    <span>NA</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700);" title="Model failed to generate a response or the response was not valid.">
+                    <div style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);"></div>
+                    <span>Failed</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper function to render knowledge distribution bar
+    function renderKnowledgeDistBar(dist, total) {
+        if (!total || total === 0) return '<div class="no-data">No data</div>';
+        const segments = [
+            { type: 'limited', count: dist.limited || 0, class: 'knowledge-limited' },
+            { type: 'moderate', count: dist.moderate || 0, class: 'knowledge-moderate' },
+            { type: 'extensive', count: dist.extensive || 0, class: 'knowledge-extensive' },
+            { type: 'NA', count: dist.NA || 0, class: 'knowledge-na' }
+        ].filter(seg => seg.count > 0);
+        let html = '<div class="bar-chart-container"><div class="bar-chart-segments">';
+        segments.forEach(seg => {
+            const pct = (seg.count / total * 100).toFixed(1);
+            html += `<div class="bar-segment ${seg.class}" style="width:${pct}%">${pct > 10 ? seg.count : ''}</div>`;
+        });
+        html += '</div></div>';
+        return html;
+    }
+
+    // Main function to render worst performers
+    function renderWorstPerformers(data, container) {
+        console.log('[WorstModelsWebAlignment] Rendering worst performers...');
+        // Use the first dataset with search counts
+        const selectedDataset = data.files_with_search_counts[0];
+        const fileData = data.correlation_data[selectedDataset];
+        console.log('[WorstModelsWebAlignment] Selected dataset:', selectedDataset);
+        console.log('[WorstModelsWebAlignment] File data:', fileData);
+        
+        let modelResults = [];
+        Object.entries(fileData).forEach(([templateName, models]) => {
+            Object.entries(models).forEach(([modelName, d]) => {
+                if (d.species_count < 2) return;
+                modelResults.push({
+                    modelName,
+                    templateName,
+                    correlation: d.correlation_coefficient,
+                    speciesCount: d.species_count,
+                    knowledgeDist: d.knowledge_distribution,
+                    dataPoints: d.data_points
+                });
+            });
+        });
+        
+        // Sort by correlation ascending (worst first)
+        modelResults.sort((a, b) => a.correlation - b.correlation);
+        
+        // Get worst 4 models (only if we have more than 7 total models, similar to other worst performers)
+        const worst4Models = modelResults.length > 7 ? modelResults.slice(0, 4) : [];
+        
+        let html = "";
+        if (worst4Models.length > 0) {
+            html += `<div class="worst-performers-section">
+    ${createBarChartLegend()}
+    <div class="performers-list">`;
+
+            worst4Models.forEach((m, idx) => {
+                const displayName = m.modelName.split('/').pop();
+                const rank = modelResults.length - idx; // Rank from bottom
+                html += `
+        <div class="performer-card">
+            <div class="performer-rank">${rank}</div>
+            <div style="flex: 1;">
+                <div class="performer-name">${displayName}</div>
+                <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>
+                <div class="performer-detail">Template: ${m.templateName}</div>
+                <div class="performer-detail">Species Count: ${m.speciesCount}</div>
+                <div class="performer-dist-chart" style="margin-top: 12px;">
+                    ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}
+                </div>
+            </div>
+        </div>
+        `;
+            });
+
+            html += `
+    </div>
+</div>`;
+        } else {
+            // Not enough models to show worst performers
+            html = ''; // Empty, don't show the section at all
+        }
+        
+        container.innerHTML = html;
+    }
+
+    // Load correlation data and render
+    async function loadWorstPerformersData() {
+        const container = document.getElementById('worstModelsWebAlignmentContainer');
+        if (!container) {
+            console.error('[WorstModelsWebAlignment] Container not found');
+            return;
+        }
+
+        try {
+            console.log('[WorstModelsWebAlignment] Fetching from /api/search_count_correlation...');
+            const response = await fetch('/api/search_count_correlation');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('[WorstModelsWebAlignment] Data received:', data);
+
+            if (data.error) {
+                container.innerHTML = `<div class='empty-state'><h3>Error loading data</h3><p>${data.error}</p></div>`;
+                return;
+            }
+
+            if (!data.files_with_search_counts || data.files_with_search_counts.length === 0) {
+                container.innerHTML = `<div class='empty-state'><h3>No datasets with search counts found</h3><p>Upload a CSV file with a "Search Count" column to see correlation analysis.</p></div>`;
+                return;
+            }
+
+            renderWorstPerformers(data, container);
+        } catch (error) {
+            console.error('[WorstModelsWebAlignment] Failed to load data:', error);
+            container.innerHTML = `<div class='error-message'>Failed to load models needing improvement. Please try again later.</div>`;
+        }
+    }
+
+    // Initialize on page load
+    setTimeout(function() {
+        console.log('[WorstModelsWebAlignment] Initializing...');
+        // Don't auto-init in component viewer context
+        if (!window.location.pathname.includes('/components/')) {
+            loadWorstPerformersData();
+        }
+    }, 100);
+    
+    // Expose initialization function for component viewer
+    window.initWorstModelsWebAlignment = loadWorstPerformersData;
+})();
+
+// Call init function if it exists, for component viewer
+setTimeout(function() {
+    if (typeof window.initWorstModelsWebAlignment === 'function' && 
+        window.location.pathname.includes('/components/')) {
+        window.initWorstModelsWebAlignment();
+    }
+}, 200);
+</script>
