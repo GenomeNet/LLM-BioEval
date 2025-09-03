@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: microbellm
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python run_web.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: MICROBELLM_DB_URL
+        sync: false  # Set this manually in Render dashboard
+      - key: OPENROUTER_API_KEY
+        sync: false  # Set this manually in Render dashboard
+    autoDeploy: true
+    plan: free  # Change to 'starter' or higher for production
