@@ -12,17 +12,19 @@ sections:
     title: "Hero Header"
     
   # Introduction section with sidebar
-  - id: "introduction"
+  - id: "purpose_intro"
     type: "article"
-    file: "sections/01_introduction.html"
+    file: "sections/01_purpose_intro.html"
     title: "Understanding Phenotype Predictions"
-    section_id: "introduction"
+    section_id: "purpose_intro"
     include_sidebar: true
     
   # Research Applications section
   - id: "research_applications"
-    type: "article_content"
+    type: "callout_inline"
     file: "sections/02_research_applications.html"
+    callout_type: "phenotype"
+    header: "Clinical Relevance"
     parent_type: "article"
     close_article: true
     
@@ -33,24 +35,32 @@ sections:
     title: "Key Phenotype Categories"
     text: "Our analysis evaluates model predictions across essential microbial characteristics that form the foundation of bacterial classification and identification in clinical and research settings."
     
-  # Placeholder text section 1
-  - id: "placeholder_text_1"
-    type: "article"
-    file: "sections/04_placeholder_text_1.html"
-    include_sidebar: false
+  # Why Phenotype Prediction Matters
+  - id: "why_phenotype_prediction_matters"
+    type: "article_content"
+    file: "sections/03_why_phenotype_prediction_matters.html"
+    parent_type: "article"
+    
+  # Ground Truth Dataset Statistics
+  - id: "ground_truth_stats"
+    type: "section_callout_dynamic"
+    file: "sections/04_ground_truth_stats.html"
+    container_id: "groundTruthStatsContent"
+    title: "Ground Truth Dataset Statistics"
+    text: "Overview of phenotype annotations in the ground truth dataset, showing coverage and value distributions for each characteristic."
     
   # Dynamic stats callout
   - id: "dynamic_stats"
     type: "callout_inline"
-    file: "sections/05_dynamic_stats.html"
+    file: "sections/03a_dynamic_stats.html"
     callout_type: "phenotype"
     parent_type: "article"
     dynamic: true
     
-  # Continue placeholder text
-  - id: "placeholder_text_1_cont"
+  # Continue why phenotype prediction matters
+  - id: "why_phenotype_prediction_matters_cont"
     type: "article_content"
-    file: "sections/04a_placeholder_text_1_cont.html"
+    file: "sections/03b_why_phenotype_prediction_matters_cont.html"
     parent_type: "article"
     close_article: true
     
@@ -145,14 +155,6 @@ sections:
     container_id: "radarPlotContent"
     title: "Model Performance Radar Plot"
     text: "Interactive radar chart comparing model performance across all phenotypes, allowing for side-by-side comparison of model strengths and weaknesses."
-    
-  # Ground Truth Dataset Statistics
-  - id: "ground_truth_stats"
-    type: "section_callout_dynamic"
-    file: "sections/13_ground_truth_stats.html"
-    container_id: "groundTruthStatsContent"
-    title: "Ground Truth Dataset Statistics"
-    text: "Overview of phenotype annotations in the ground truth dataset, showing coverage and value distributions for each characteristic."
     
   # Dataset Expansion Visualization
   - id: "dataset_expansion"

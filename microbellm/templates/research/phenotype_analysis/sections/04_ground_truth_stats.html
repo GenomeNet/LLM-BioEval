@@ -59,7 +59,7 @@
 /* ============ GRID TABLE ============ */
 :root{
   /* one place to tweak column layout */
-  --gt-cols: minmax(230px,28%) minmax(280px,36%) 120px minmax(220px,1fr);
+  --gt-cols: minmax(180px,22%) minmax(150px,20%) 120px minmax(350px,1fr);
   --gt-row-h: 48px;
   --gt-border: #e9ecef;
 }
@@ -81,6 +81,7 @@
 /* left column (no sticky to avoid horizontal scroll) */
 .phenotype-with-type{display:flex;flex-direction:column;gap:6px;min-width:0}
 .phenotype-name{font-weight:600;color:#2c3e50;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis}
+.type-inline{font-size:10px;font-weight:500;text-transform:uppercase;color:#6c757d;letter-spacing:0.5px;margin-left:8px}
 
 /* type badge */
 .type-badge{display:inline-block;width:fit-content;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
@@ -99,17 +100,17 @@
 .coverage-low{color:#ef4444}
 
 /* distribution col */
-.distribution-bar{width:100%;height:16px;display:flex;border:1px solid #dee2e6;border-radius:3px;overflow:hidden;background:#f8f9fa}
-.distribution-segment{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;min-width:12px;transition:opacity .15s ease;color:#fff}
+.distribution-bar{width:100%;height:20px;display:flex;border:1px solid #dee2e6;border-radius:3px;overflow:hidden;background:#f8f9fa}
+.distribution-segment{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;min-width:12px;transition:opacity .15s ease;color:#fff;padding:0 4px}
 .distribution-segment:hover{opacity:.92}
-.distribution-label{font-size:10px;font-weight:700;pointer-events:none;white-space:nowrap}
+.distribution-label{font-size:10px;font-weight:600;pointer-events:none;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.2)}
 
 /* responsiveness */
 @media (max-width: 1024px){ :root{ --gt-cols: minmax(200px,34%) minmax(220px,1fr) 100px minmax(160px,1fr); } }
 @media (max-width: 820px){
   /* Hide values column; keep its title visually hidden for a11y */
   .gt-head .cell.values{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-  :root{ --gt-cols: minmax(200px,52%) 0px 90px minmax(140px,1fr); }
+  :root{ --gt-cols: minmax(180px,45%) 0px 90px minmax(160px,1fr); }
   .gt-row .cell.values{display:none}
 }
 
@@ -327,7 +328,22 @@
       topValues.forEach(([value,count]) => {
         const pct = (count/denom)*100;
         const colors = getColorForValue(value);
-        const label = pct >= 10 ? `<span class="distribution-label">${pct.toFixed(0)}%</span>` : '';
+        // Format value label for display
+        let valueLabel = value;
+        if(value === 'true' || value === 'false') {
+          valueLabel = value.toUpperCase();
+        } else if(value === 'positive' || value === 'negative') {
+          valueLabel = value.charAt(0).toUpperCase() + value.slice(1);
+        } else if(value.includes('biosafety') || value.includes('level')) {
+          // Special handling for biosafety levels
+          valueLabel = value.replace('biosafety_level_', 'BSL-').replace('biosafety level ', 'BSL-');
+        } else if(value.length > 10) {
+          valueLabel = value.substring(0, 10) + '...';
+        }
+        // For biosafety, show full label even at lower percentages
+        const isBiosafety = stat.phenotype === 'biosafety_level';
+        const label = pct >= 15 || (isBiosafety && pct >= 10) ? `<span class="distribution-label">${valueLabel} ${pct.toFixed(0)}%</span>` : 
+                      pct >= 8 ? `<span class="distribution-label">${pct.toFixed(0)}%</span>` : '';
         distributionHtml += `<div class="distribution-segment" style="width:${pct}%; background:${colors.background} !important; color:${colors.color} !important;" title="${value}: ${pct.toFixed(1)}%">${label}</div>`;
       });
       distributionHtml += '</div>';
@@ -336,8 +352,7 @@
         <div class="gt-row" role="row">
           <div class="cell phen" role="cell">
             <div class="phenotype-with-type">
-              <span class="phenotype-name" title="${phenotypeName}">${phenotypeName}</span>
-              <span class="type-badge ${stat.type}">${stat.type}</span>
+              <span class="phenotype-name" title="${phenotypeName}">${phenotypeName} <span class="type-inline">${stat.type.toUpperCase()}</span></span>
             </div>
           </div>
           <div class="cell values" role="cell"><span class="values-list" title="${sortedValues.join(', ')}">${valuesDisplay}</span></div>

@@ -1738,6 +1738,18 @@ def get_validation_stats():
             'error': str(e)
         }), 500
 
+@app.route('/api/template/phenotype')
+def get_phenotype_template():
+    """Serve the phenotype template JSON file"""
+    import json
+    template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                                 'templates', 'validation', 'template1_phenotype.json')
+    try:
+        with open(template_path, 'r') as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/database')
 def database_browser():
     """Database browser page"""
@@ -2076,10 +2088,6 @@ def view_component(page, section_id):
         section_raw_content=section_raw_content
     )
 
-@app.route('/phenotype_analysis')
-def phenotype_analysis_page():
-    project = get_project_by_id('phenotype_analysis')
-    return render_template('phenotype_analysis.html', project=project)
 
 @app.route('/settings')
 def settings_page():

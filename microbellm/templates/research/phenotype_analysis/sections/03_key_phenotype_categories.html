@@ -1,68 +1,316 @@
-<div class="overview-cards">
-    <div class="overview-card">
-        <h4 class="overview-title">Gram Staining</h4>
-        <p class="overview-description">Fundamental bacterial classification based on cell wall structure, determining staining properties and antibiotic susceptibility.</p>
-    </div>
-    <div class="overview-card">
-        <h4 class="overview-title">Motility</h4>
-        <p class="overview-description">Ability of bacteria to move independently using flagella, pili, or other mechanisms, affecting colonization and virulence.</p>
-    </div>
-    <div class="overview-card">
-        <h4 class="overview-title">Oxygen Requirements</h4>
-        <p class="overview-description">Metabolic relationship with oxygen, from obligate aerobes to anaerobes, determining growth conditions and habitat.</p>
-    </div>
-    <div class="overview-card">
-        <h4 class="overview-title">Temperature Range</h4>
-        <p class="overview-description">Optimal growth temperatures defining psychrophiles, mesophiles, and thermophiles, indicating environmental adaptations.</p>
-    </div>
-    <div class="overview-card">
-        <h4 class="overview-title">Metabolism</h4>
-        <p class="overview-description">Energy generation pathways including fermentation, respiration, and photosynthesis, defining nutritional requirements.</p>
-    </div>
-    <div class="overview-card">
-        <h4 class="overview-title">Pathogenicity</h4>
-        <p class="overview-description">Ability to cause disease in hosts, from harmless commensals to obligate pathogens, crucial for clinical applications.</p>
+<div class="phenotype-cards-container">
+    <div class="phenotype-cards" id="phenotypeCards">
+        <!-- Cards will be dynamically generated from template1_phenotype.json -->
     </div>
 </div>
 
-<style>
-    .overview-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: var(--spacing-element);
-        margin-top: var(--spacing-component);
-    }
-
-    .overview-card {
-        background: var(--bg-primary);
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-        padding: var(--spacing-element);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        transition: all 0.3s ease;
-    }
-
-    .overview-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .overview-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: calc(var(--spacing-small) * 0.75);
-    }
-
-    .overview-description {
-        font-size: 14px;
-        color: var(--gray-600);
-        line-height: 1.6;
-    }
-
-    @media (max-width: 768px) {
-        .overview-cards {
-            grid-template-columns: 1fr;
+<script>
+(function() {
+    console.log('[PhenotypeCategories] Loading phenotype definitions...');
+    
+    async function loadPhenotypeCategories() {
+        try {
+            // Fetch the template JSON from its actual location
+            const response = await fetch('/api/template/phenotype');
+            if (!response.ok) {
+                throw new Error('Failed to load phenotype template');
+            }
+            
+            const template = await response.json();
+            const container = document.getElementById('phenotypeCards');
+            
+            if (!container) {
+                console.error('[PhenotypeCategories] Container not found');
+                return;
+            }
+            
+            // Clear existing content
+            container.innerHTML = '';
+            
+            // Get field definitions and interpretation guide
+            const fields = template.field_definitions;
+            const interpretations = template.template_info.interpretation_guide || {};
+            
+            // Define the order and which fields to display
+            const displayOrder = [
+                'gram_staining',
+                'motility',
+                'aerophilicity',
+                'extreme_environment_tolerance',
+                'biofilm_formation',
+                'animal_pathogenicity',
+                'biosafety_level',
+                'health_association',
+                'host_association',
+                'plant_pathogenicity',
+                'spore_formation',
+                'hemolysis',
+                'cell_shape'
+            ];
+            
+            // Create cards for each phenotype
+            displayOrder.forEach((fieldName, index) => {
+                if (!fields[fieldName]) return;
+                
+                const field = fields[fieldName];
+                const interpretation = interpretations[fieldName] || field.description;
+                
+                const card = document.createElement('div');
+                card.className = 'phenotype-card';
+                card.dataset.phenotype = fieldName;
+                
+                // Format the title (convert snake_case to Title Case)
+                const title = fieldName
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                
+                // Create card content
+                card.innerHTML = `
+                    <div class="phenotype-card-header">
+                        <h4 class="phenotype-title">${title}</h4>
+                        <span class="phenotype-type">${field.type === 'array' ? 'Multiple Values' : 'Single Value'}</span>
+                    </div>
+                    <p class="phenotype-description">${interpretation}</p>
+                    <div class="phenotype-values">
+                        ${formatAllowedValues(field.allowed_values)}
+                    </div>
+                `;
+                
+                // Add animation delay
+                card.style.animationDelay = `${index * 0.05}s`;
+                
+                container.appendChild(card);
+            });
+            
+            console.log('[PhenotypeCategories] Loaded', displayOrder.length, 'phenotype categories');
+            
+        } catch (error) {
+            console.error('[PhenotypeCategories] Error loading phenotypes:', error);
+            
+            // Fallback to static content
+            const container = document.getElementById('phenotypeCards');
+            if (container) {
+                container.innerHTML = getFallbackContent();
+            }
         }
     }
+    
+    function formatAllowedValues(values) {
+        if (!values || values.length === 0) return '';
+        
+        // Map special formatting for certain values
+        const formatMap = {
+            'TRUE': 'True',
+            'FALSE': 'False',
+            'gram stain positive': 'Positive',
+            'gram stain negative': 'Negative',
+            'gram stain variable': 'Variable',
+            'biosafety level 1': 'BSL-1',
+            'biosafety level 2': 'BSL-2',
+            'biosafety level 3': 'BSL-3',
+            'facultatively anaerobic': 'Facultative',
+            'non-hemolytic': 'Non-hemolytic'
+        };
+        
+        return values.map(value => {
+            const display = formatMap[value] || value.charAt(0).toUpperCase() + value.slice(1);
+            return `<span class="value-tag">${display}</span>`;
+        }).join('');
+    }
+    
+    function getFallbackContent() {
+        // Fallback static content if JSON loading fails
+        return `
+            <div class="phenotype-card">
+                <div class="phenotype-card-header">
+                    <h4 class="phenotype-title">Gram Staining</h4>
+                    <span class="phenotype-type">Single Value</span>
+                </div>
+                <p class="phenotype-description">Fundamental cell wall property determining staining and antibiotic susceptibility</p>
+                <div class="phenotype-values">
+                    <span class="value-tag">Positive</span>
+                    <span class="value-tag">Negative</span>
+                    <span class="value-tag">Variable</span>
+                </div>
+            </div>
+            <div class="phenotype-card">
+                <div class="phenotype-card-header">
+                    <h4 class="phenotype-title">Motility</h4>
+                    <span class="phenotype-type">Single Value</span>
+                </div>
+                <p class="phenotype-description">Whether the organism can move independently via flagella or other mechanisms</p>
+                <div class="phenotype-values">
+                    <span class="value-tag">True</span>
+                    <span class="value-tag">False</span>
+                </div>
+            </div>
+            <div class="phenotype-card">
+                <div class="phenotype-card-header">
+                    <h4 class="phenotype-title">Aerophilicity</h4>
+                    <span class="phenotype-type">Multiple Values</span>
+                </div>
+                <p class="phenotype-description">Oxygen requirements - can be multiple values for facultative organisms</p>
+                <div class="phenotype-values">
+                    <span class="value-tag">Aerobic</span>
+                    <span class="value-tag">Anaerobic</span>
+                    <span class="value-tag">Facultative</span>
+                    <span class="value-tag">Aerotolerant</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Initialize on load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadPhenotypeCategories);
+    } else {
+        loadPhenotypeCategories();
+    }
+    
+    // Also initialize for component viewer
+    if (window.location.pathname.includes('/components/')) {
+        setTimeout(loadPhenotypeCategories, 500);
+    }
+})();
+</script>
+
+<style>
+.phenotype-cards-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-component) 0;
+}
+
+.phenotype-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--spacing-element);
+}
+
+.phenotype-card {
+    background: var(--bg-primary);
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    padding: calc(var(--spacing-element) * 1.2);
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.phenotype-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: var(--green-500);
+}
+
+.phenotype-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: calc(var(--spacing-small) * 0.75);
+}
+
+.phenotype-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.phenotype-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--green-600);
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.1));
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.phenotype-description {
+    font-size: 14px;
+    color: var(--gray-600);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-small);
+}
+
+.phenotype-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: calc(var(--spacing-small) * 0.75);
+}
+
+.value-tag {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.08), rgba(34, 197, 94, 0.08));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green-700);
+    transition: all 0.2s ease;
+}
+
+.value-tag:hover {
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(34, 197, 94, 0.15));
+    border-color: var(--green-500);
+    transform: translateY(-1px);
+}
+
+/* Special styling for certain phenotypes */
+.phenotype-card[data-phenotype="biosafety_level"] .value-tag:nth-child(1) {
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.1));
+}
+
+.phenotype-card[data-phenotype="biosafety_level"] .value-tag:nth-child(2) {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+    border-color: rgba(245, 158, 11, 0.3);
+    color: var(--yellow-700);
+}
+
+.phenotype-card[data-phenotype="biosafety_level"] .value-tag:nth-child(3) {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+    border-color: rgba(220, 38, 38, 0.3);
+    color: var(--red-700);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .phenotype-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .phenotype-card {
+        padding: var(--spacing-element);
+    }
+    
+    .phenotype-card-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .phenotype-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 </style>
