@@ -1,0 +1,532 @@
+<!-- Phenotype Accuracy by Knowledge Group Visualization -->
+<div id="knowledge-accuracy-viz-container" style="margin-top: 40px;">
+    <!-- Controls -->
+    <div class="viz-controls" style="margin-bottom: 20px;">
+        <div class="control-row" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div class="model-selector">
+                <label for="modelSelect" style="margin-right: 10px; font-weight: 600;">Select Model:</label>
+                <select id="modelSelect" class="model-select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    <option value="">Loading models...</option>
+                </select>
+            </div>
+            <div class="sample-filter">
+                <label for="sampleSizeFilter" style="margin-right: 10px; font-weight: 600;">Min. Observations per Group:</label>
+                <select id="sampleSizeFilter" class="sample-select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    <option value="0">Show all</option>
+                    <option value="10">≥ 10</option>
+                    <option value="25">≥ 25</option>
+                    <option value="50" selected>≥ 50</option>
+                    <option value="100">≥ 100</option>
+                    <option value="200">≥ 200</option>
+                </select>
+            </div>
+        </div>
+        <div class="info-text" style="margin-top: 10px; color: #6b7280; font-size: 13px;">
+            <i class="fas fa-info-circle"></i> Showing phenotypes with sufficient observations across knowledge groups (Limited, Moderate, Extensive). NA group is excluded.
+        </div>
+    </div>
+    
+    <!-- Visualization Grid -->
+    <div id="phenotypeGridContainer" class="phenotype-grid-container">
+        <div class="loading-container" style="text-align: center; padding: 40px;">
+            <div class="loading-progress" style="width: 200px; margin: 0 auto;">
+                <div class="loading-progress-bar" style="background: #2563eb; height: 4px; border-radius: 2px; animation: loading 1.5s ease-in-out infinite;"></div>
+            </div>
+            <div class="loading-text" style="margin-top: 20px; color: #6b7280;">Loading visualization...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes loading {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+.phenotype-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.phenotype-subplot {
+    background: #FAFAFA;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 250px;
+}
+
+.subplot-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 10px;
+    text-transform: capitalize;
+}
+
+.subplot-canvas {
+    width: 100%;
+    height: 180px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.no-data-message {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 13px;
+    padding: 60px 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #374151;
+}
+
+.model-select:hover {
+    border-color: #2563eb;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+</style>
+
+<script>
+// Self-contained script for knowledge accuracy visualization
+(function() {
+    console.log('[KnowledgeAccuracyViz] Script starting...');
+    
+    let globalData = null;
+    let currentModel = null;
+    
+    // Initialize on load
+    setTimeout(function() {
+        console.log('[KnowledgeAccuracyViz] Initializing...');
+        initializeKnowledgeAccuracyViz();
+    }, 100);
+    
+    // Expose functions for component viewer
+    window.initializeKnowledgeAccuracyViz = initializeKnowledgeAccuracyViz;
+    
+    async function initializeKnowledgeAccuracyViz() {
+        console.log('[KnowledgeAccuracyViz] Loading data...');
+        
+        try {
+            // Fetch data from the API
+            const response = await fetch('/api/phenotype_accuracy_by_knowledge?dataset=WA_Test_Dataset');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('[KnowledgeAccuracyViz] Data received:', result);
+            
+            if (!result.success || !result.data) {
+                showError('No data available');
+                return;
+            }
+            
+            globalData = result.data;
+            
+            // Process and prepare data
+            processDataForVisualization();
+            
+        } catch (error) {
+            console.error('[KnowledgeAccuracyViz] Failed to load data:', error);
+            showError('Failed to load data: ' + error.message);
+        }
+    }
+    
+    function processDataForVisualization() {
+        // Get unique models
+        const models = [...new Set(globalData.map(d => d.model))].sort();
+        console.log('[KnowledgeAccuracyViz] Found models:', models);
+        
+        // Populate model selector
+        const modelSelect = document.getElementById('modelSelect');
+        if (!modelSelect) {
+            console.error('[KnowledgeAccuracyViz] Model selector not found');
+            return;
+        }
+        
+        modelSelect.innerHTML = '';
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = formatModelName(model);
+            modelSelect.appendChild(option);
+        });
+        
+        // Set up event listeners
+        modelSelect.addEventListener('change', function() {
+            const selectedModel = this.value;
+            if (selectedModel) {
+                currentModel = selectedModel;
+                renderVisualization(selectedModel);
+            }
+        });
+        
+        // Sample size filter listener
+        const sampleFilter = document.getElementById('sampleSizeFilter');
+        if (sampleFilter) {
+            sampleFilter.addEventListener('change', function() {
+                if (currentModel) {
+                    renderVisualization(currentModel);
+                }
+            });
+        }
+        
+        // Auto-select first model
+        if (models.length > 0) {
+            modelSelect.value = models[0];
+            currentModel = models[0];
+            renderVisualization(models[0]);
+        }
+    }
+    
+    function renderVisualization(modelName) {
+        console.log('[KnowledgeAccuracyViz] Rendering for model:', modelName);
+        
+        // Get minimum sample size filter
+        const sampleFilter = document.getElementById('sampleSizeFilter');
+        const minSampleSize = sampleFilter ? parseInt(sampleFilter.value) : 50;
+        console.log('[KnowledgeAccuracyViz] Minimum sample size:', minSampleSize);
+        
+        // Filter data for selected model
+        const modelData = globalData.filter(d => d.model === modelName);
+        
+        if (modelData.length === 0) {
+            showError('No data for selected model');
+            return;
+        }
+        
+        // Get phenotype fields (excluding hemolysis)
+        const phenotypeFields = [
+            'gram_staining', 'aerophilicity', 'motility', 'spore_formation',
+            'biofilm_formation', 'animal_pathogenicity', 'plant_pathogenicity',
+            'biosafety_level', 'health_association', 
+            'host_association', 'extreme_environment_tolerance', 'cell_shape'
+        ];
+        
+        // Calculate accuracy by phenotype and knowledge group
+        const accuracyData = calculateAccuracyByPhenotypeAndKnowledge(modelData, phenotypeFields);
+        
+        // Filter phenotypes based on minimum sample size (excluding NA group)
+        const filteredPhenotypes = phenotypeFields.filter(phenotype => {
+            const data = accuracyData[phenotype];
+            // Check if all non-NA groups meet the minimum sample size
+            return data.limited.total >= minSampleSize && 
+                   data.moderate.total >= minSampleSize && 
+                   data.extensive.total >= minSampleSize;
+        });
+        
+        // Create grid container
+        const container = document.getElementById('phenotypeGridContainer');
+        if (!container) {
+            console.error('[KnowledgeAccuracyViz] Grid container not found');
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        if (filteredPhenotypes.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>No phenotypes meet the criteria</h3>
+                    <p>No phenotypes have at least ${minSampleSize} observations in each knowledge group (Limited, Moderate, Extensive).</p>
+                    <p>Try reducing the minimum sample size filter.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Add info about filtered results
+        const infoDiv = document.createElement('div');
+        infoDiv.style.cssText = 'grid-column: 1 / -1; padding: 10px; background: #f9fafb; border-radius: 6px; margin-bottom: 10px;';
+        infoDiv.innerHTML = `<strong>${filteredPhenotypes.length} of ${phenotypeFields.length} phenotypes</strong> meet the minimum sample size requirement`;
+        container.appendChild(infoDiv);
+        
+        // Create subplot for each filtered phenotype
+        filteredPhenotypes.forEach(phenotype => {
+            const subplot = createSubplot(phenotype, accuracyData[phenotype]);
+            container.appendChild(subplot);
+        });
+    }
+    
+    function calculateAccuracyByPhenotypeAndKnowledge(data, phenotypeFields) {
+        const results = {};
+        
+        phenotypeFields.forEach(field => {
+            results[field] = {
+                // Excluding NA group as requested
+                'limited': { correct: 0, total: 0 },
+                'moderate': { correct: 0, total: 0 },
+                'extensive': { correct: 0, total: 0 }
+            };
+        });
+        
+        // Count correct and total for each phenotype and knowledge group
+        data.forEach(item => {
+            const knowledgeGroup = item.knowledge_group;
+            
+            // Skip NA knowledge group completely
+            if (knowledgeGroup === 'NA') {
+                return;
+            }
+            
+            phenotypeFields.forEach(field => {
+                const groundTruth = item.ground_truth ? item.ground_truth[field] : null;
+                const prediction = item.predictions ? item.predictions[field] : null;
+                
+                // Skip if no ground truth
+                if (!groundTruth || groundTruth === '' || groundTruth === null) {
+                    return;
+                }
+                
+                // Skip if no prediction
+                if (!prediction || prediction === '' || prediction === 'NA') {
+                    return;
+                }
+                
+                // Check if knowledge group exists in results
+                if (!results[field][knowledgeGroup]) {
+                    console.warn(`Unknown knowledge group: ${knowledgeGroup}`);
+                    return;
+                }
+                
+                results[field][knowledgeGroup].total++;
+                
+                // Check if correct
+                if (normalizeValue(groundTruth) === normalizeValue(prediction)) {
+                    results[field][knowledgeGroup].correct++;
+                }
+            });
+        });
+        
+        // Calculate accuracy percentages
+        Object.keys(results).forEach(field => {
+            Object.keys(results[field]).forEach(group => {
+                const data = results[field][group];
+                data.accuracy = data.total > 0 ? (data.correct / data.total) * 100 : 0;
+            });
+        });
+        
+        return results;
+    }
+    
+    function createSubplot(phenotypeName, data) {
+        const div = document.createElement('div');
+        div.className = 'phenotype-subplot';
+        
+        // Add title
+        const title = document.createElement('div');
+        title.className = 'subplot-title';
+        title.textContent = phenotypeName.replace(/_/g, ' ');
+        div.appendChild(title);
+        
+        // Create canvas with proper DPI scaling
+        const canvas = document.createElement('canvas');
+        canvas.className = 'subplot-canvas';
+        
+        // Get device pixel ratio for high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Set display size (CSS pixels)
+        const displayWidth = 250;
+        const displayHeight = 180;
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
+        
+        // Set actual canvas size in memory (scaled up for DPI)
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        
+        div.appendChild(canvas);
+        
+        // Draw the chart
+        drawKnowledgeAccuracyChart(canvas, data, dpr);
+        
+        return div;
+    }
+    
+    function drawKnowledgeAccuracyChart(canvas, data, dpr = 1) {
+        const ctx = canvas.getContext('2d');
+        
+        // Scale context to match device pixel ratio
+        ctx.scale(dpr, dpr);
+        
+        // Use CSS pixel dimensions for drawing
+        const width = canvas.width / dpr;
+        const height = canvas.height / dpr;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Define knowledge groups in order (excluding NA)
+        const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+        const xLabels = ['Limited', 'Moderate', 'Extensive'];
+        
+        // Get accuracy values
+        const accuracies = knowledgeGroups.map(g => data[g].accuracy);
+        const totals = knowledgeGroups.map(g => data[g].total);
+        
+        // Check if there's any data
+        const hasData = totals.some(t => t > 0);
+        if (!hasData) {
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', width / 2, height / 2);
+            return;
+        }
+        
+        // Chart dimensions
+        const padding = { top: 10, right: 15, bottom: 35, left: 35 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+        
+        // Draw axes
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        
+        // Y-axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, height - padding.bottom);
+        ctx.stroke();
+        
+        // X-axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, height - padding.bottom);
+        ctx.lineTo(width - padding.right, height - padding.bottom);
+        ctx.stroke();
+        
+        // Y-axis labels (0%, 50%, 100%)
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'right';
+        
+        [0, 50, 100].forEach(value => {
+            const y = height - padding.bottom - (value / 100) * chartHeight;
+            ctx.fillText(value + '%', padding.left - 5, y + 3);
+            
+            // Grid lines
+            if (value > 0) {
+                ctx.strokeStyle = '#f3f4f6';
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+            }
+        });
+        
+        // Draw bars and labels
+        const barWidth = chartWidth / (knowledgeGroups.length * 1.5);
+        const barSpacing = barWidth * 0.5;
+        
+        knowledgeGroups.forEach((group, index) => {
+            const accuracy = accuracies[index];
+            const total = totals[index];
+            
+            if (total === 0) {
+                // No data for this group
+                return;
+            }
+            
+            const x = padding.left + barSpacing + index * (barWidth + barSpacing);
+            const barHeight = (accuracy / 100) * chartHeight;
+            const y = height - padding.bottom - barHeight;
+            
+            // Choose color based on knowledge group
+            const colors = {
+                'limited': '#ea580c',
+                'moderate': '#2563eb',
+                'extensive': '#16a34a'
+            };
+            
+            // Draw bar
+            ctx.fillStyle = colors[group];
+            ctx.fillRect(x, y, barWidth, barHeight);
+            
+            // Draw value on top of bar
+            ctx.fillStyle = '#374151';
+            ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(accuracy.toFixed(0) + '%', x + barWidth / 2, y - 3);
+            
+            // Draw x-axis label
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.fillText(xLabels[index], x + barWidth / 2, height - padding.bottom + 12);
+            
+            // Draw sample size
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.fillText('n=' + total, x + barWidth / 2, height - padding.bottom + 23);
+        });
+    }
+    
+    function normalizeValue(value) {
+        if (value === null || value === undefined || value === '' || 
+            value === 'NA' || value === 'N/A' || value === 'n/a') {
+            return null;
+        }
+        
+        // Convert to lowercase string for comparison
+        const strValue = String(value).toLowerCase().trim();
+        
+        // Handle boolean values
+        if (strValue === 'true' || strValue === '1' || strValue === 'yes') return 'true';
+        if (strValue === 'false' || strValue === '0' || strValue === 'no') return 'false';
+        
+        // Handle gram staining normalization
+        if (strValue.includes('positive')) return 'positive';
+        if (strValue.includes('negative')) return 'negative';
+        if (strValue.includes('variable')) return 'variable';
+        
+        return strValue;
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) return modelName;
+        const [provider, model] = modelName.split('/');
+        const providerMap = {
+            'anthropic': 'Anthropic',
+            'openai': 'OpenAI',
+            'google': 'Google',
+            'meta-llama': 'Meta',
+            'mistralai': 'Mistral',
+            'cohere': 'Cohere',
+            'deepseek': 'DeepSeek'
+        };
+        const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+        return `${displayProvider} ${model}`;
+    }
+    
+    function showError(message) {
+        const container = document.getElementById('phenotypeGridContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    }
+})();
+</script>

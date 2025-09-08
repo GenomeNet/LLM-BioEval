@@ -1,0 +1,723 @@
+<!-- Knowledge Accuracy Trends Across Models -->
+<div id="knowledge-trends-container" style="margin-top: 40px;">
+    <!-- Header with explanation -->
+    <div class="trends-header" style="margin-bottom: 20px;">
+        <div class="metric-explanation" style="background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #1f2937;">
+                <i class="fas fa-chart-line"></i> Weighted Mean Accuracy Across Phenotypes
+            </h4>
+            <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
+                Each point represents a model's weighted mean accuracy for a knowledge group, calculated across all phenotypes. 
+                The weighting is based on the number of predictions per phenotype, giving more weight to phenotypes with larger sample sizes.
+                This provides a statistically robust comparison of how model performance changes with knowledge level.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Main Chart Area -->
+    <div id="trendsChartContainer" style="background: #FAFAFA; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px;">
+        <canvas id="trendsCanvas" style="width: 100%; max-width: 800px; margin: 0 auto; display: block;"></canvas>
+    </div>
+    
+    <!-- Legend Area -->
+    <div id="trendsLegend" style="margin-top: 20px; padding: 15px; background: white; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <!-- Legend will be populated dynamically -->
+    </div>
+    
+    <!-- Statistics Table -->
+    <div id="trendsStats" style="margin-top: 20px;">
+        <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Model Performance Summary</h4>
+        <p style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">
+            Δ columns show incremental accuracy changes between adjacent knowledge levels. 
+            Positive values (green) indicate improvement with better knowledge; negative values (red) indicate decline.
+        </p>
+        <div id="statsTable" style="overflow-x: auto;">
+            <!-- Stats table will be populated dynamically -->
+        </div>
+    </div>
+</div>
+
+<style>
+.trends-model-line {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.trends-model-line:hover {
+    opacity: 0.8;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 20px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.legend-item.disabled {
+    opacity: 0.3;
+}
+
+.legend-color {
+    width: 24px;
+    height: 3px;
+    margin-right: 8px;
+    border-radius: 2px;
+}
+
+.legend-label {
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.stats-table th {
+    background: #f3f4f6;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.stats-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.stats-table tr:hover {
+    background: #f9fafb;
+}
+
+.improvement-positive {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.improvement-negative {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.improvement-neutral {
+    color: #6b7280;
+}
+</style>
+
+<script>
+// Self-contained script for knowledge accuracy trends
+(function() {
+    console.log('[KnowledgeTrends] Script starting...');
+    
+    let globalData = null;
+    let chartData = null;
+    let activeModels = new Set();
+    
+    // Color palette for different models
+    const modelColors = [
+        '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#8b5cf6',
+        '#ec4899', '#06b6d4', '#f59e0b', '#10b981', '#6366f1',
+        '#f43f5e', '#84cc16', '#a855f7', '#14b8a6', '#f97316'
+    ];
+    
+    // Initialize on load
+    setTimeout(function() {
+        console.log('[KnowledgeTrends] Initializing...');
+        initializeKnowledgeTrends();
+    }, 100);
+    
+    // Expose for component viewer
+    window.initializeKnowledgeTrends = initializeKnowledgeTrends;
+    
+    async function initializeKnowledgeTrends() {
+        console.log('[KnowledgeTrends] Loading data...');
+        
+        try {
+            // Fetch data from the API
+            const response = await fetch('/api/phenotype_accuracy_by_knowledge?dataset=WA_Test_Dataset');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('[KnowledgeTrends] Data received:', result);
+            
+            if (!result.success || !result.data) {
+                showError('No data available');
+                return;
+            }
+            
+            globalData = result.data;
+            
+            // Process data and create visualization
+            processAndVisualize();
+            
+        } catch (error) {
+            console.error('[KnowledgeTrends] Failed to load data:', error);
+            showError('Failed to load data: ' + error.message);
+        }
+    }
+    
+    function processAndVisualize() {
+        // Calculate weighted mean accuracy for each model and knowledge group
+        const modelAccuracies = calculateWeightedAccuracies();
+        
+        // Store for later use
+        chartData = modelAccuracies;
+        
+        // Initialize all models as active
+        Object.keys(modelAccuracies).forEach(model => activeModels.add(model));
+        
+        // Draw the chart
+        drawTrendsChart(modelAccuracies);
+        
+        // Create legend
+        createLegend(modelAccuracies);
+        
+        // Create statistics table
+        createStatsTable(modelAccuracies);
+    }
+    
+    function calculateWeightedAccuracies() {
+        const results = {};
+        
+        // Get phenotype fields (excluding hemolysis as in the other component)
+        const phenotypeFields = [
+            'gram_staining', 'aerophilicity', 'motility', 'spore_formation',
+            'biofilm_formation', 'animal_pathogenicity', 'plant_pathogenicity',
+            'biosafety_level', 'health_association', 
+            'host_association', 'extreme_environment_tolerance', 'cell_shape'
+        ];
+        
+        // Group data by model and knowledge group
+        const grouped = {};
+        
+        globalData.forEach(item => {
+            const model = item.model;
+            const knowledgeGroup = item.knowledge_group;
+            
+            // Skip NA group
+            if (knowledgeGroup === 'NA') {
+                return;
+            }
+            
+            if (!grouped[model]) {
+                grouped[model] = {
+                    limited: { correct: 0, total: 0 },
+                    moderate: { correct: 0, total: 0 },
+                    extensive: { correct: 0, total: 0 }
+                };
+            }
+            
+            // Count correct predictions across all phenotypes
+            phenotypeFields.forEach(field => {
+                const groundTruth = item.ground_truth ? item.ground_truth[field] : null;
+                const prediction = item.predictions ? item.predictions[field] : null;
+                
+                // Skip if no ground truth or prediction
+                if (!groundTruth || groundTruth === '' || !prediction || prediction === '' || prediction === 'NA') {
+                    return;
+                }
+                
+                grouped[model][knowledgeGroup].total++;
+                
+                if (normalizeValue(groundTruth) === normalizeValue(prediction)) {
+                    grouped[model][knowledgeGroup].correct++;
+                }
+            });
+        });
+        
+        // Calculate weighted mean accuracy for each model
+        Object.keys(grouped).forEach(model => {
+            results[model] = {};
+            
+            ['limited', 'moderate', 'extensive'].forEach(group => {
+                const data = grouped[model][group];
+                if (data.total > 0) {
+                    results[model][group] = {
+                        accuracy: (data.correct / data.total) * 100,
+                        sampleSize: data.total,
+                        correct: data.correct
+                    };
+                } else {
+                    results[model][group] = {
+                        accuracy: 0,
+                        sampleSize: 0,
+                        correct: 0
+                    };
+                }
+            });
+        });
+        
+        return results;
+    }
+    
+    function drawTrendsChart(data) {
+        const canvas = document.getElementById('trendsCanvas');
+        if (!canvas) {
+            console.error('[KnowledgeTrends] Canvas not found');
+            return;
+        }
+        
+        // Setup canvas with DPI scaling
+        const dpr = window.devicePixelRatio || 1;
+        const displayWidth = 750;
+        const displayHeight = 400;
+        
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, displayWidth, displayHeight);
+        
+        // Chart dimensions
+        const padding = { top: 30, right: 40, bottom: 60, left: 60 };
+        const chartWidth = displayWidth - padding.left - padding.right;
+        const chartHeight = displayHeight - padding.top - padding.bottom;
+        
+        // Calculate min and max values for y-axis
+        let minAccuracy = 100;
+        let maxAccuracy = 0;
+        
+        Object.keys(data).forEach(model => {
+            if (activeModels.has(model)) {
+                const modelData = data[model];
+                ['limited', 'moderate', 'extensive'].forEach(group => {
+                    if (modelData[group].sampleSize > 0) {
+                        minAccuracy = Math.min(minAccuracy, modelData[group].accuracy);
+                        maxAccuracy = Math.max(maxAccuracy, modelData[group].accuracy);
+                    }
+                });
+            }
+        });
+        
+        // Set y-axis range with some padding
+        const yMin = Math.max(0, Math.floor(minAccuracy / 10) * 10 - 10); // Round down to nearest 10 and subtract 10
+        const yMax = Math.min(100, Math.ceil(maxAccuracy / 10) * 10 + 10); // Round up to nearest 10 and add 10
+        const yRange = yMax - yMin;
+        
+        // Draw axes
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        
+        // Y-axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, displayHeight - padding.bottom);
+        ctx.stroke();
+        
+        // X-axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, displayHeight - padding.bottom);
+        ctx.lineTo(displayWidth - padding.right, displayHeight - padding.bottom);
+        ctx.stroke();
+        
+        // Y-axis labels and grid
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'right';
+        
+        // Calculate nice step size
+        const yStep = yRange <= 30 ? 5 : 10;
+        
+        for (let i = yMin; i <= yMax; i += yStep) {
+            const y = displayHeight - padding.bottom - ((i - yMin) / yRange) * chartHeight;
+            ctx.fillText(i + '%', padding.left - 8, y + 4);
+            
+            // Grid lines
+            if (i > yMin) {
+                ctx.strokeStyle = '#f3f4f6';
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(padding.left + 1, y);
+                ctx.lineTo(displayWidth - padding.right, y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        // X-axis labels
+        const knowledgeGroups = ['limited', 'moderate', 'extensive'];
+        const xLabels = ['Limited', 'Moderate', 'Extensive'];
+        const xStep = chartWidth / (knowledgeGroups.length - 1);
+        
+        ctx.fillStyle = '#374151';
+        ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        
+        xLabels.forEach((label, index) => {
+            const x = padding.left + index * xStep;
+            ctx.fillText(label, x, displayHeight - padding.bottom + 20);
+        });
+        
+        // Draw title
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Model Accuracy Trends Across Knowledge Levels', displayWidth / 2, 20);
+        
+        // X-axis label
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillText('Knowledge Group', displayWidth / 2, displayHeight - 10);
+        
+        // Y-axis label (rotated)
+        ctx.save();
+        ctx.translate(15, displayHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText('Weighted Mean Accuracy (%)', 0, 0);
+        ctx.restore();
+        
+        // Calculate average across all active models
+        const averageData = {
+            limited: { accuracy: 0, count: 0 },
+            moderate: { accuracy: 0, count: 0 },
+            extensive: { accuracy: 0, count: 0 }
+        };
+        
+        Object.keys(data).forEach(model => {
+            if (activeModels.has(model)) {
+                const modelData = data[model];
+                ['limited', 'moderate', 'extensive'].forEach(group => {
+                    if (modelData[group].sampleSize > 0) {
+                        averageData[group].accuracy += modelData[group].accuracy;
+                        averageData[group].count++;
+                    }
+                });
+            }
+        });
+        
+        // Calculate means
+        ['limited', 'moderate', 'extensive'].forEach(group => {
+            if (averageData[group].count > 0) {
+                averageData[group].accuracy = averageData[group].accuracy / averageData[group].count;
+            }
+        });
+        
+        // Draw data lines and points for each model
+        const models = Object.keys(data).sort();
+        
+        models.forEach((model, modelIndex) => {
+            // Skip if model is not active
+            if (!activeModels.has(model)) {
+                return;
+            }
+            
+            const color = modelColors[modelIndex % modelColors.length];
+            const modelData = data[model];
+            
+            // Draw line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            knowledgeGroups.forEach((group, index) => {
+                const x = padding.left + index * xStep;
+                const accuracy = modelData[group].accuracy;
+                const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+                
+                if (firstPoint) {
+                    ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw points
+            knowledgeGroups.forEach((group, index) => {
+                const x = padding.left + index * xStep;
+                const accuracy = modelData[group].accuracy;
+                const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+                const sampleSize = modelData[group].sampleSize;
+                
+                // Skip if no data
+                if (sampleSize === 0) {
+                    return;
+                }
+                
+                // Draw point
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // White center for better visibility
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        });
+        
+        // Draw average line (thicker and dashed)
+        if (averageData.limited.count > 0) {
+            ctx.strokeStyle = '#111827';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            knowledgeGroups.forEach((group, index) => {
+                const x = padding.left + index * xStep;
+                const accuracy = averageData[group].accuracy;
+                const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+                
+                if (firstPoint) {
+                    ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw average points
+            knowledgeGroups.forEach((group, index) => {
+                const x = padding.left + index * xStep;
+                const accuracy = averageData[group].accuracy;
+                const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+                
+                // Draw larger point for average
+                ctx.fillStyle = '#111827';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // White center
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Add label for average value
+                ctx.fillStyle = '#111827';
+                ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(accuracy.toFixed(1) + '%', x, y - 8);
+            });
+            
+            // Add "Average" label
+            ctx.fillStyle = '#111827';
+            ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Average', displayWidth - padding.right + 10, 
+                        displayHeight - padding.bottom - ((averageData.extensive.accuracy - yMin) / yRange) * chartHeight + 4);
+        }
+    }
+    
+    function createLegend(data) {
+        const legendContainer = document.getElementById('trendsLegend');
+        if (!legendContainer) return;
+        
+        const models = Object.keys(data).sort();
+        
+        let legendHTML = '<div style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">Models (click to toggle):</div>';
+        legendHTML += '<div style="display: flex; flex-wrap: wrap;">';
+        
+        models.forEach((model, index) => {
+            const color = modelColors[index % modelColors.length];
+            const shortName = formatModelName(model);
+            
+            legendHTML += `
+                <div class="legend-item" data-model="${model}" onclick="toggleModel('${model}')">
+                    <div class="legend-color" style="background: ${color};"></div>
+                    <span class="legend-label">${shortName}</span>
+                </div>
+            `;
+        });
+        
+        legendHTML += '</div>';
+        legendContainer.innerHTML = legendHTML;
+    }
+    
+    function createStatsTable(data) {
+        const container = document.getElementById('statsTable');
+        if (!container) return;
+        
+        const models = Object.keys(data).sort();
+        
+        let tableHTML = `
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Limited</th>
+                        <th>Moderate</th>
+                        <th>Extensive</th>
+                        <th>Δ Lim→Mod</th>
+                        <th>Δ Mod→Ext</th>
+                        <th>Δ Total</th>
+                        <th>Total Predictions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        models.forEach((model, index) => {
+            const modelData = data[model];
+            const limitedAcc = modelData.limited.accuracy;
+            const moderateAcc = modelData.moderate.accuracy;
+            const extensiveAcc = modelData.extensive.accuracy;
+            
+            // Calculate incremental improvements
+            const improvementLimToMod = moderateAcc - limitedAcc;
+            const improvementModToExt = extensiveAcc - moderateAcc;
+            const improvementTotal = extensiveAcc - limitedAcc;
+            
+            const totalPredictions = modelData.limited.sampleSize + 
+                                    modelData.moderate.sampleSize + 
+                                    modelData.extensive.sampleSize;
+            
+            // Color coding for improvements
+            const getImprovementClass = (value) => {
+                return value > 2 ? 'improvement-positive' : 
+                       value < -2 ? 'improvement-negative' : 
+                       'improvement-neutral';
+            };
+            
+            tableHTML += `
+                <tr>
+                    <td style="font-weight: 600;">${formatModelName(model)}</td>
+                    <td>${limitedAcc.toFixed(1)}% <span style="color: #9ca3af; font-size: 11px;">(n=${modelData.limited.sampleSize})</span></td>
+                    <td>${moderateAcc.toFixed(1)}% <span style="color: #9ca3af; font-size: 11px;">(n=${modelData.moderate.sampleSize})</span></td>
+                    <td>${extensiveAcc.toFixed(1)}% <span style="color: #9ca3af; font-size: 11px;">(n=${modelData.extensive.sampleSize})</span></td>
+                    <td class="${getImprovementClass(improvementLimToMod)}">${improvementLimToMod > 0 ? '+' : ''}${improvementLimToMod.toFixed(1)}%</td>
+                    <td class="${getImprovementClass(improvementModToExt)}">${improvementModToExt > 0 ? '+' : ''}${improvementModToExt.toFixed(1)}%</td>
+                    <td class="${getImprovementClass(improvementTotal)}" style="font-weight: 600;">${improvementTotal > 0 ? '+' : ''}${improvementTotal.toFixed(1)}%</td>
+                    <td>${totalPredictions.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+        
+        // Calculate and add average row
+        let avgLimited = 0, avgModerate = 0, avgExtensive = 0, totalModels = 0;
+        let totalPreds = 0;
+        
+        models.forEach(model => {
+            const modelData = data[model];
+            if (modelData.limited.sampleSize > 0) {
+                avgLimited += modelData.limited.accuracy;
+                avgModerate += modelData.moderate.accuracy;
+                avgExtensive += modelData.extensive.accuracy;
+                totalModels++;
+                totalPreds += modelData.limited.sampleSize + modelData.moderate.sampleSize + modelData.extensive.sampleSize;
+            }
+        });
+        
+        if (totalModels > 0) {
+            avgLimited = avgLimited / totalModels;
+            avgModerate = avgModerate / totalModels;
+            avgExtensive = avgExtensive / totalModels;
+            
+            const avgImprovementLimToMod = avgModerate - avgLimited;
+            const avgImprovementModToExt = avgExtensive - avgModerate;
+            const avgImprovementTotal = avgExtensive - avgLimited;
+            
+            const getImprovementClass = (value) => {
+                return value > 2 ? 'improvement-positive' : 
+                       value < -2 ? 'improvement-negative' : 
+                       'improvement-neutral';
+            };
+            
+            tableHTML += `
+                <tr style="border-top: 3px solid #1f2937; background: #f9fafb; font-weight: bold;">
+                    <td style="font-weight: 800;">Average (${totalModels} models)</td>
+                    <td>${avgLimited.toFixed(1)}%</td>
+                    <td>${avgModerate.toFixed(1)}%</td>
+                    <td>${avgExtensive.toFixed(1)}%</td>
+                    <td class="${getImprovementClass(avgImprovementLimToMod)}">${avgImprovementLimToMod > 0 ? '+' : ''}${avgImprovementLimToMod.toFixed(1)}%</td>
+                    <td class="${getImprovementClass(avgImprovementModToExt)}">${avgImprovementModToExt > 0 ? '+' : ''}${avgImprovementModToExt.toFixed(1)}%</td>
+                    <td class="${getImprovementClass(avgImprovementTotal)}" style="font-weight: 800;">${avgImprovementTotal > 0 ? '+' : ''}${avgImprovementTotal.toFixed(1)}%</td>
+                    <td>${Math.round(totalPreds / totalModels).toLocaleString()}</td>
+                </tr>
+            `;
+        }
+        
+        tableHTML += '</tbody></table>';
+        container.innerHTML = tableHTML;
+    }
+    
+    // Toggle model visibility
+    window.toggleModel = function(model) {
+        if (activeModels.has(model)) {
+            activeModels.delete(model);
+        } else {
+            activeModels.add(model);
+        }
+        
+        // Update legend appearance
+        const legendItem = document.querySelector(`.legend-item[data-model="${model}"]`);
+        if (legendItem) {
+            legendItem.classList.toggle('disabled');
+        }
+        
+        // Redraw chart
+        drawTrendsChart(chartData);
+    };
+    
+    function normalizeValue(value) {
+        if (value === null || value === undefined || value === '' || 
+            value === 'NA' || value === 'N/A' || value === 'n/a') {
+            return null;
+        }
+        
+        const strValue = String(value).toLowerCase().trim();
+        
+        if (strValue === 'true' || strValue === '1' || strValue === 'yes') return 'true';
+        if (strValue === 'false' || strValue === '0' || strValue === 'no') return 'false';
+        
+        if (strValue.includes('positive')) return 'positive';
+        if (strValue.includes('negative')) return 'negative';
+        if (strValue.includes('variable')) return 'variable';
+        
+        return strValue;
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName.includes('/')) return modelName;
+        const [provider, model] = modelName.split('/');
+        const providerMap = {
+            'anthropic': 'Anthropic',
+            'openai': 'OpenAI',
+            'google': 'Google',
+            'meta-llama': 'Meta',
+            'mistralai': 'Mistral',
+            'cohere': 'Cohere',
+            'deepseek': 'DeepSeek'
+        };
+        const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+        return `${displayProvider} ${model}`;
+    }
+    
+    function showError(message) {
+        const container = document.getElementById('trendsChartContainer');
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <h3 style="font-size: 18px; margin-bottom: 10px; color: #374151;">Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    }
+})();
+</script>

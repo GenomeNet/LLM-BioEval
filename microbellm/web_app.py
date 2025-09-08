@@ -3246,6 +3246,132 @@ def get_phenotype_analysis_filtered():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/phenotype_accuracy_by_knowledge')
+def get_phenotype_accuracy_by_knowledge():
+    """Get phenotype prediction accuracy grouped by knowledge level"""
+    try:
+        species_file = request.args.get('species_file', 'wa_with_gcount.txt')
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Query to get phenotype predictions with corresponding knowledge groups
+        cursor.execute("""
+            SELECT 
+                pheno.model,
+                know.knowledge_group,
+                pheno.binomial_name,
+                pheno.gram_staining,
+                pheno.motility,
+                pheno.aerophilicity,
+                pheno.extreme_environment_tolerance,
+                pheno.biofilm_formation,
+                pheno.animal_pathogenicity,
+                pheno.biosafety_level,
+                pheno.health_association,
+                pheno.host_association,
+                pheno.plant_pathogenicity,
+                pheno.spore_formation,
+                pheno.hemolysis,
+                pheno.cell_shape
+            FROM processing_results pheno
+            INNER JOIN processing_results know 
+                ON pheno.model = know.model 
+                AND pheno.binomial_name = know.binomial_name 
+                AND pheno.species_file = know.species_file
+            WHERE 
+                pheno.user_template LIKE '%template1_phenotype%'
+                AND know.user_template LIKE '%template3_knowlege%'
+                AND pheno.species_file = ?
+                AND know.knowledge_group IS NOT NULL
+            ORDER BY pheno.model, know.knowledge_group, pheno.binomial_name
+        """, (species_file,))
+        
+        results = cursor.fetchall()
+        
+        # Also get ground truth data
+        cursor.execute("""
+            SELECT DISTINCT 
+                LOWER(binomial_name) as binomial_name,
+                gram_staining,
+                motility,
+                aerophilicity,
+                extreme_environment_tolerance,
+                biofilm_formation,
+                animal_pathogenicity,
+                biosafety_level,
+                health_association,
+                host_association,
+                plant_pathogenicity,
+                spore_formation,
+                hemolysis,
+                cell_shape
+            FROM ground_truth
+            WHERE dataset_name = 'WA_Test_Dataset'
+        """)
+        
+        ground_truth = {}
+        for row in cursor.fetchall():
+            ground_truth[row[0]] = {
+                'gram_staining': row[1],
+                'motility': row[2],
+                'aerophilicity': row[3],
+                'extreme_environment_tolerance': row[4],
+                'biofilm_formation': row[5],
+                'animal_pathogenicity': row[6],
+                'biosafety_level': row[7],
+                'health_association': row[8],
+                'host_association': row[9],
+                'plant_pathogenicity': row[10],
+                'spore_formation': row[11],
+                'hemolysis': row[12],
+                'cell_shape': row[13]
+            }
+        
+        conn.close()
+        
+        # Process results into structured format
+        data = []
+        for row in results:
+            model = row[0]
+            knowledge_group = row[1]
+            binomial_name = row[2].lower() if row[2] else None
+            
+            if binomial_name and binomial_name in ground_truth:
+                entry = {
+                    'model': model,
+                    'knowledge_group': knowledge_group,
+                    'binomial_name': binomial_name,
+                    'predictions': {
+                        'gram_staining': row[3],
+                        'motility': row[4],
+                        'aerophilicity': row[5],
+                        'extreme_environment_tolerance': row[6],
+                        'biofilm_formation': row[7],
+                        'animal_pathogenicity': row[8],
+                        'biosafety_level': row[9],
+                        'health_association': row[10],
+                        'host_association': row[11],
+                        'plant_pathogenicity': row[12],
+                        'spore_formation': row[13],
+                        'hemolysis': row[14],
+                        'cell_shape': row[15]
+                    },
+                    'ground_truth': ground_truth[binomial_name]
+                }
+                data.append(entry)
+        
+        return jsonify({
+            'success': True,
+            'data': data,
+            'total_results': len(data),
+            'models': list(set([d['model'] for d in data])),
+            'knowledge_groups': list(set([d['knowledge_group'] for d in data]))
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/phenotype_datasets')
 def get_phenotype_datasets():
     """Get list of available phenotype datasets"""

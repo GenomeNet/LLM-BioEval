@@ -148,6 +148,30 @@ sections:
     title: "Best Models Per Phenotype"
     text: "Condensed view showing only the top-performing model for each phenotype prediction task."
     
+  # Model Accuracy by Knowledge Group
+  - id: "accuracy_by_knowledge"
+    type: "section_callout_dynamic"
+    file: "sections/07h_accuracy_by_knowledge.html"
+    container_id: "accuracyByKnowledgeContent"
+    title: "Model Accuracy by Knowledge Group"
+    text: "Analysis of phenotype prediction accuracy stratified by the model's self-reported knowledge level, revealing whether models perform better on species they claim to know well."
+    
+  # Knowledge Accuracy Visualization
+  - id: "knowledge_accuracy_viz"
+    type: "section_callout_dynamic"
+    file: "sections/07i_knowledge_accuracy_visualization.html"
+    container_id: "knowledgeAccuracyVizContent"
+    title: "Phenotype Accuracy Across Knowledge Groups"
+    text: "Visual comparison of how model accuracy varies across knowledge levels for each phenotype. Select a model to see detailed accuracy trends from NA to Extensive knowledge."
+    
+  # Knowledge Accuracy Trends
+  - id: "knowledge_accuracy_trends"
+    type: "section_callout_dynamic"
+    file: "sections/07j_knowledge_accuracy_trends.html"
+    container_id: "knowledgeAccuracyTrendsContent"
+    title: "Model Performance Trends by Knowledge Level"
+    text: "Comparison of how different models' accuracy changes across knowledge levels, using weighted mean accuracy across all phenotypes to provide a comprehensive performance overview."
+    
   # Radar Plot Visualization
   - id: "radar_plot"
     type: "section_callout_dynamic"

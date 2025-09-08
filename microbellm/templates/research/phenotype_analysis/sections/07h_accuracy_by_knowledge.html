@@ -1,0 +1,753 @@
+<!-- Model Accuracy by Knowledge Group Component -->
+<div class="accuracy-knowledge-section">
+  <!-- Header with controls -->
+  <div class="accuracy-knowledge-header">
+    <div class="controls-panel">
+      <div class="dataset-selector">
+        <label for="knowledgeDataset">Select Ground Truth Dataset</label>
+        <select id="knowledgeDataset" class="dataset-select" onchange="performKnowledgeAnalysis()">
+          <option value="">Choose a dataset...</option>
+        </select>
+        <div id="knowledgeDatasetDetails" class="dataset-details"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Area -->
+  <div id="knowledgeResultsArea" class="results-container" style="display:none;">
+    <div class="results-header">
+      <h3 class="results-title">Accuracy by Knowledge Group</h3>
+      <p class="results-subtitle">Model performance stratified by self-reported knowledge level</p>
+    </div>
+    
+    <div id="knowledgeResultsTable" class="results-table-container">
+      <!-- Results will be injected here -->
+    </div>
+  </div>
+
+  <!-- Initial Message -->
+  <div id="knowledgeInitialMessage" class="info-message">
+    <i class="fas fa-chart-bar"></i>
+    <p>Select a ground truth dataset to analyze model accuracy by knowledge group</p>
+  </div>
+</div>
+
+<style>
+/* Component Styles */
+.accuracy-knowledge-section {
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  min-height: 400px;
+}
+
+.accuracy-knowledge-header {
+  margin-bottom: 30px;
+}
+
+.controls-panel {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.dataset-selector {
+  flex: 1;
+}
+
+.dataset-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 14px;
+}
+
+.dataset-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dataset-select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.dataset-details {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.results-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.results-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.results-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.results-subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.results-table-container {
+  overflow-x: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.knowledge-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.knowledge-table thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.knowledge-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.knowledge-table tbody tr {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.knowledge-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.knowledge-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.model-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.knowledge-group {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.knowledge-group.extensive {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.knowledge-group.moderate {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.knowledge-group.limited {
+  background: rgba(251, 146, 60, 0.1);
+  color: #ea580c;
+}
+
+.knowledge-group.na {
+  background: rgba(156, 163, 175, 0.1);
+  color: #6b7280;
+}
+
+.accuracy-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.accuracy-high {
+  color: #16a34a;
+}
+
+.accuracy-medium {
+  color: #f59e0b;
+}
+
+.accuracy-low {
+  color: #ef4444;
+}
+
+.sample-size {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.expandable-row {
+  cursor: pointer;
+}
+
+.expandable-row:hover {
+  background: #f1f5f9;
+}
+
+.expand-icon {
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.phenotype-details {
+  display: none;
+  background: #fafafa;
+  border-top: 1px solid #e9ecef;
+}
+
+.phenotype-details.show {
+  display: table-row;
+}
+
+.phenotype-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.phenotype-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff;
+  gap: 10px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.phenotype-name {
+  font-size: 13px;
+  color: #6b7280;
+  text-transform: capitalize;
+  flex: 1;
+}
+
+.phenotype-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phenotype-accuracy {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.phenotype-sample-size {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.info-message {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6c757d;
+}
+
+.info-message i {
+  font-size: 48px;
+  color: #dee2e6;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.info-message p {
+  font-size: 14px;
+  margin: 0;
+}
+
+.chart-container {
+  background: #fff;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .phenotype-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .knowledge-table {
+    font-size: 13px;
+  }
+  
+  .knowledge-table th,
+  .knowledge-table td {
+    padding: 8px 12px;
+  }
+}
+</style>
+
+<script>
+// Initialize component
+(function() {
+  let knowledgeData = null;
+  let groundTruthData = null;
+  let phenotypeFields = [
+    'gram_staining', 'motility', 'aerophilicity', 
+    'extreme_environment_tolerance', 'biofilm_formation',
+    'animal_pathogenicity', 'biosafety_level', 'health_association',
+    'host_association', 'plant_pathogenicity', 'spore_formation',
+    'hemolysis', 'cell_shape'
+  ];
+  
+  // Load available datasets and auto-select WA dataset
+  async function loadDatasets() {
+    console.log('Loading datasets for accuracy_by_knowledge component');
+    const select = document.getElementById('knowledgeDataset');
+    
+    if (!select) {
+      console.error('Dataset select element not found');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      const result = await response.json();
+      console.log('Datasets API response:', result);
+      
+      if (result.success && result.datasets && result.datasets.length > 0) {
+        select.innerHTML = '<option value="">Choose a dataset...</option>';
+        
+        let waDatasetFound = false;
+        result.datasets.forEach(dataset => {
+          if (dataset.name === 'WA_Test_Dataset') { // Only show WA dataset for now
+            const option = document.createElement('option');
+            option.value = dataset.name;
+            option.textContent = `${dataset.name} (${dataset.species_count} species)`;
+            option.dataset.count = dataset.species_count;
+            select.appendChild(option);
+            waDatasetFound = true;
+          }
+        });
+        
+        // Auto-select the WA dataset if found
+        if (waDatasetFound) {
+          console.log('WA dataset found, auto-selecting');
+          select.value = 'WA_Test_Dataset';
+          // Trigger analysis automatically
+          setTimeout(() => performKnowledgeAnalysis(), 100);
+        } else {
+          console.log('WA dataset not found in API response, using fallback');
+          addFallbackDataset();
+        }
+      } else {
+        // Fallback: manually add WA dataset option
+        console.log('No datasets from API, using fallback');
+        addFallbackDataset();
+      }
+    } catch (error) {
+      console.error('Error loading datasets, using fallback:', error);
+      addFallbackDataset();
+    }
+  }
+  
+  // Helper function to add fallback dataset
+  function addFallbackDataset() {
+    const select = document.getElementById('knowledgeDataset');
+    if (!select) return;
+    
+    console.log('Adding WA_Test_Dataset as fallback');
+    select.innerHTML = '';
+    const option = document.createElement('option');
+    option.value = 'WA_Test_Dataset';
+    option.textContent = 'WA_Test_Dataset (3884 species)';
+    option.dataset.count = 3884;
+    select.appendChild(option);
+    
+    // Auto-select and trigger analysis
+    select.value = 'WA_Test_Dataset';
+    console.log('Triggering analysis with WA_Test_Dataset');
+    setTimeout(() => performKnowledgeAnalysis(), 100);
+  }
+  
+  // Perform analysis
+  window.performKnowledgeAnalysis = async function() {
+    console.log('performKnowledgeAnalysis called');
+    const select = document.getElementById('knowledgeDataset');
+    const datasetName = select ? select.value : 'WA_Test_Dataset';
+    
+    console.log('Dataset selected:', datasetName);
+    
+    if (!datasetName) {
+      console.log('No dataset selected, showing initial message');
+      const resultsArea = document.getElementById('knowledgeResultsArea');
+      const initMessage = document.getElementById('knowledgeInitialMessage');
+      if (resultsArea) resultsArea.style.display = 'none';
+      if (initMessage) initMessage.style.display = 'block';
+      return;
+    }
+    
+    // Update dataset details
+    const details = document.getElementById('knowledgeDatasetDetails');
+    if (details) {
+      details.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading data...</span>';
+    }
+    
+    // Hide initial message, show results area
+    const initMessage = document.getElementById('knowledgeInitialMessage');
+    const resultsArea = document.getElementById('knowledgeResultsArea');
+    
+    if (initMessage) initMessage.style.display = 'none';
+    if (resultsArea) resultsArea.style.display = 'block';
+    
+    try {
+      // Fetch knowledge-grouped data
+      console.log(`Fetching data from /api/phenotype_accuracy_by_knowledge?dataset=${datasetName}`);
+      const response = await fetch(`/api/phenotype_accuracy_by_knowledge?dataset=${datasetName}`);
+      const result = await response.json();
+      console.log('API response received:', result);
+      
+      if (!result.success) {
+        throw new Error('Failed to load data');
+      }
+      
+      knowledgeData = result.data;
+      
+      // Update details
+      if (details) {
+        const totalResults = result.total_results || result.data.length;
+        const uniqueModels = [...new Set(result.data.map(d => d.model))].length;
+        const uniqueKnowledgeGroups = [...new Set(result.data.map(d => d.knowledge_group))].length;
+        details.innerHTML = `<span>${totalResults.toLocaleString()} predictions • ${uniqueModels} models • ${uniqueKnowledgeGroups} knowledge groups</span>`;
+      }
+      
+      // Calculate accuracy metrics
+      const metrics = calculateKnowledgeMetrics(knowledgeData);
+      
+      // Display results
+      console.log('Displaying metrics:', metrics);
+      displayKnowledgeResults(metrics);
+      
+      // Show results area is already shown above
+      
+    } catch (error) {
+      console.error('Error analyzing knowledge accuracy:', error);
+      if (details) {
+        details.innerHTML = '<span style="color: #dc2626;">Failed to load data</span>';
+      }
+      // Show error in results area
+      const resultsTable = document.getElementById('knowledgeResultsTable');
+      if (resultsTable) {
+        resultsTable.innerHTML = `<div class="error-message" style="padding: 20px; color: #dc2626;">Failed to load data: ${error.message}</div>`;
+      }
+    }
+  }
+  
+  // Calculate accuracy metrics grouped by knowledge level
+  function calculateKnowledgeMetrics(data) {
+    const results = {};
+    
+    // Group data by model and knowledge group
+    data.forEach(item => {
+      const model = item.model;
+      const knowledgeGroup = item.knowledge_group;
+      
+      if (!results[model]) {
+        results[model] = {};
+      }
+      
+      if (!results[model][knowledgeGroup]) {
+        results[model][knowledgeGroup] = {
+          correct: {},
+          total: {},
+          samples: []
+        };
+        
+        // Initialize counters for each phenotype
+        phenotypeFields.forEach(field => {
+          results[model][knowledgeGroup].correct[field] = 0;
+          results[model][knowledgeGroup].total[field] = 0;
+        });
+      }
+      
+      // Compare predictions with ground truth
+      phenotypeFields.forEach(field => {
+        const predicted = normalizeValue(item.predictions[field]);
+        const truth = normalizeValue(item.ground_truth[field]);
+        
+        if (predicted !== null && truth !== null) {
+          results[model][knowledgeGroup].total[field]++;
+          if (predicted === truth) {
+            results[model][knowledgeGroup].correct[field]++;
+          }
+        }
+      });
+      
+      results[model][knowledgeGroup].samples.push(item.binomial_name);
+    });
+    
+    // Calculate accuracies
+    const metrics = [];
+    
+    Object.keys(results).forEach(model => {
+      Object.keys(results[model]).forEach(knowledgeGroup => {
+        const groupData = results[model][knowledgeGroup];
+        
+        // Calculate overall accuracy
+        let totalCorrect = 0;
+        let totalPredictions = 0;
+        const phenotypeAccuracies = {};
+        
+        phenotypeFields.forEach(field => {
+          if (groupData.total[field] > 0) {
+            const accuracy = (groupData.correct[field] / groupData.total[field]) * 100;
+            phenotypeAccuracies[field] = {
+              accuracy: accuracy,
+              correct: groupData.correct[field],
+              total: groupData.total[field]
+            };
+            totalCorrect += groupData.correct[field];
+            totalPredictions += groupData.total[field];
+          }
+        });
+        
+        const overallAccuracy = totalPredictions > 0 ? 
+          (totalCorrect / totalPredictions) * 100 : 0;
+        
+        metrics.push({
+          model: model,
+          knowledgeGroup: knowledgeGroup,
+          overallAccuracy: overallAccuracy,
+          sampleSize: groupData.samples.length,
+          totalPredictions: totalPredictions,
+          phenotypeAccuracies: phenotypeAccuracies
+        });
+      });
+    });
+    
+    // Sort by model and knowledge group (NA -> Limited -> Moderate -> Extensive)
+    const knowledgeOrder = ['NA', 'limited', 'moderate', 'extensive'];
+    metrics.sort((a, b) => {
+      if (a.model !== b.model) {
+        return a.model.localeCompare(b.model);
+      }
+      const aIndex = knowledgeOrder.indexOf(a.knowledgeGroup);
+      const bIndex = knowledgeOrder.indexOf(b.knowledgeGroup);
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    });
+    
+    return metrics;
+  }
+  
+  // Normalize values for comparison
+  function normalizeValue(value) {
+    if (value === null || value === undefined || value === '' || 
+        value === 'NA' || value === 'N/A' || value === 'n/a') {
+      return null;
+    }
+    
+    // Convert to lowercase string for comparison
+    const strValue = String(value).toLowerCase().trim();
+    
+    // Handle boolean values
+    if (strValue === 'true' || strValue === '1' || strValue === 'yes') return 'true';
+    if (strValue === 'false' || strValue === '0' || strValue === 'no') return 'false';
+    
+    // Handle gram staining normalization
+    if (strValue.includes('positive')) return 'positive';
+    if (strValue.includes('negative')) return 'negative';
+    if (strValue.includes('variable')) return 'variable';
+    
+    return strValue;
+  }
+  
+  // Display results in table
+  function displayKnowledgeResults(metrics) {
+    const container = document.getElementById('knowledgeResultsTable');
+    
+    // Group metrics by model
+    const modelGroups = {};
+    metrics.forEach(m => {
+      if (!modelGroups[m.model]) {
+        modelGroups[m.model] = [];
+      }
+      modelGroups[m.model].push(m);
+    });
+    
+    let html = `
+      <table class="knowledge-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Knowledge Group</th>
+            <th>Overall Accuracy</th>
+            <th>Sample Size</th>
+            <th>Total Predictions</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    Object.keys(modelGroups).forEach(model => {
+      const groups = modelGroups[model];
+      
+      groups.forEach((metric, index) => {
+        const accuracyClass = metric.overallAccuracy >= 70 ? 'accuracy-high' : 
+                             metric.overallAccuracy >= 50 ? 'accuracy-medium' : 
+                             'accuracy-low';
+        
+        const rowId = `row-${model.replace(/[^a-zA-Z0-9]/g, '-')}-${metric.knowledgeGroup}`;
+        
+        html += `
+          <tr class="expandable-row" onclick="toggleDetails('${rowId}')">
+            <td>
+              ${index === 0 ? `<span class="model-name">${formatModelName(model)}</span>` : ''}
+            </td>
+            <td>
+              <span class="knowledge-group ${metric.knowledgeGroup.toLowerCase()}">${formatKnowledgeGroup(metric.knowledgeGroup)}</span>
+            </td>
+            <td>
+              <span class="accuracy-value ${accuracyClass}">${metric.overallAccuracy.toFixed(1)}%</span>
+            </td>
+            <td>
+              <span class="sample-size">${metric.sampleSize.toLocaleString()}</span>
+            </td>
+            <td>
+              <span class="sample-size">${metric.totalPredictions.toLocaleString()}</span>
+            </td>
+            <td>
+              <span class="expand-icon" id="icon-${rowId}">▶</span> View
+            </td>
+          </tr>
+          <tr id="${rowId}" class="phenotype-details">
+            <td colspan="6">
+              <div class="phenotype-grid">
+                ${Object.keys(metric.phenotypeAccuracies).map(phenotype => {
+                  const acc = metric.phenotypeAccuracies[phenotype];
+                  const accClass = acc.accuracy >= 70 ? 'accuracy-high' : 
+                                  acc.accuracy >= 50 ? 'accuracy-medium' : 
+                                  'accuracy-low';
+                  return `
+                    <div class="phenotype-item">
+                      <span class="phenotype-name">${phenotype.replace(/_/g, ' ')}</span>
+                      <div class="phenotype-stats">
+                        <span class="phenotype-accuracy ${accClass}">${acc.accuracy.toFixed(1)}%</span>
+                        <span class="phenotype-sample-size">(${acc.correct}/${acc.total})</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+    });
+    
+    html += `
+        </tbody>
+      </table>
+    `;
+    
+    container.innerHTML = html;
+  }
+  
+  // Format knowledge group names for display
+  function formatKnowledgeGroup(group) {
+    if (group === 'NA') return 'NA';
+    return group.charAt(0).toUpperCase() + group.slice(1).toLowerCase();
+  }
+  
+  // Format model name for display
+  function formatModelName(modelName) {
+    if (!modelName.includes('/')) return modelName;
+    const [provider, model] = modelName.split('/');
+    const providerMap = {
+      'anthropic': 'Anthropic',
+      'openai': 'OpenAI',
+      'google': 'Google',
+      'meta-llama': 'Meta',
+      'mistralai': 'Mistral',
+      'cohere': 'Cohere',
+      'deepseek': 'DeepSeek'
+    };
+    const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+    return `${displayProvider} ${model}`;
+  }
+  
+  // Toggle phenotype details
+  window.toggleDetails = function(rowId) {
+    const detailsRow = document.getElementById(rowId);
+    const icon = document.getElementById(`icon-${rowId}`);
+    
+    if (detailsRow.classList.contains('show')) {
+      detailsRow.classList.remove('show');
+      icon.classList.remove('expanded');
+      icon.textContent = '▶';
+    } else {
+      detailsRow.classList.add('show');
+      icon.classList.add('expanded');
+      icon.textContent = '▼';
+    }
+  }
+  
+  // Create chart showing accuracy trends
+  
+  // Initialize on load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDatasets);
+  } else {
+    loadDatasets();
+  }
+  
+  // Also add a direct fallback for component viewer
+  setTimeout(() => {
+    const select = document.getElementById('knowledgeDataset');
+    if (select && !select.value) {
+      console.log('Force loading fallback dataset after delay');
+      addFallbackDataset();
+    }
+  }, 500);
+})();
+</script>
