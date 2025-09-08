@@ -27,6 +27,7 @@ from microbellm.research_config import (
 )
 import yaml
 from microbellm.unified_db import UnifiedDB
+from microbellm.validation import PredictionValidator
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = 'microbellm-secret-key'
@@ -1691,6 +1692,158 @@ def dashboard_data_api():
     data = processing_manager.get_dashboard_data()
     return jsonify(data)
 
+@app.route('/api/validate_predictions', methods=['POST'])
+def validate_predictions():
+    """Validate and normalize all unvalidated predictions."""
+    try:
+        validator = PredictionValidator()
+        
+        # Check if specific job_id provided
+        data = request.get_json() or {}
+        job_id = data.get('job_id')
+        
+        if job_id:
+            # Validate specific job
+            result = validator.validate_job_predictions(job_id, db_path)
+        else:
+            # Validate all unvalidated predictions
+            result = validator.validate_all_unvalidated(db_path)
+        
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/validation_stats', methods=['GET'])
+def get_validation_stats():
+    """Get current validation statistics."""
+    try:
+        validator = PredictionValidator()
+        stats = validator.get_validation_stats(db_path)
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/database')
+def database_browser():
+    """Database browser page"""
+    return render_template('database_browser.html')
+
+@app.route('/api/database/info')
+def get_database_info():
+    """Get overview information about all tables"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        tables_info = {}
+        
+        # Get info for each table
+        tables = ['processing_results', 'ground_truth', 'template_metadata', 'managed_models']
+        
+        for table in tables:
+            # Get row count
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            count = cursor.fetchone()[0]
+            
+            # Get column count
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = len(cursor.fetchall())
+            
+            table_info = {
+                'count': count,
+                'columns': columns
+            }
+            
+            # Special handling for processing_results
+            if table == 'processing_results':
+                cursor.execute("""
+                    SELECT 
+                        SUM(CASE WHEN validation_status = 'validated' THEN 1 ELSE 0 END) as validated,
+                        SUM(CASE WHEN validation_status != 'validated' OR validation_status IS NULL THEN 1 ELSE 0 END) as unvalidated
+                    FROM processing_results
+                """)
+                row = cursor.fetchone()
+                table_info['validated'] = row[0] or 0
+                table_info['unvalidated'] = row[1] or 0
+            
+            tables_info[table] = table_info
+        
+        # Get database file size
+        import os
+        db_size = os.path.getsize(db_path)
+        db_size_mb = round(db_size / (1024 * 1024), 2)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'database': 'microbellm.db',
+            'size_mb': db_size_mb,
+            'tables': tables_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/database/table/<table_name>')
+def get_table_data(table_name):
+    """Get data from a specific table"""
+    try:
+        # Validate table name to prevent SQL injection
+        allowed_tables = ['processing_results', 'ground_truth', 'template_metadata', 'managed_models']
+        if table_name not in allowed_tables:
+            return jsonify({'success': False, 'error': 'Invalid table name'}), 400
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get limit from query params
+        limit = request.args.get('limit', 1000, type=int)
+        limit = min(limit, 10000)  # Cap at 10000 rows
+        
+        # Get column names
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        # Get data
+        cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+        rows = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'table': table_name,
+            'columns': columns,
+            'rows': rows,
+            'count': len(rows)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/delete_combination/<combination_id>', methods=['DELETE'])
 def delete_combination_api(combination_id):
     """API endpoint to delete a combination and its results."""
@@ -1767,49 +1920,6 @@ def compare_page():
 def correlation_page():
     return render_template('correlation.html')
 
-@app.route('/knowledge_calibration')
-@app.route('/hallucination_test')  # Alternative route name
-def artificial_dataset_page():
-    """Page for testing LLM hallucination with artificial species names"""
-    # Read annotation file if it exists
-    annotation_data = {}
-    annotation_file = os.path.join(config.SPECIES_DIR, 'artificial_annotation.txt')
-    
-    try:
-        if os.path.exists(annotation_file):
-            with open(annotation_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                if len(lines) > 1:  # Skip header
-                    for line in lines[1:]:
-                        line = line.strip()
-                        if line and ';' in line:
-                            parts = line.split(';')
-                            if len(parts) >= 3:
-                                type_name = parts[0].strip()
-                                description = parts[1].strip()
-                                example = parts[2].strip()
-                                annotation_data[type_name] = {
-                                    'description': description,
-                                    'example': example
-                                }
-    except Exception as e:
-        print(f"Error reading annotation file: {e}")
-    
-    project = get_project_by_id('knowledge_calibration')
-    
-    # Load manifest if it exists
-    manifest = load_page_manifest('knowledge_calibration')
-    if manifest:
-        # Use generic research article template
-        return render_template('research_article.html', 
-                             annotations=annotation_data, 
-                             project=project,
-                             manifest=manifest,
-                             project_path='research/knowledge_calibration',
-                             page_specific_css='css/research/knowledge_calibration/page_specific.css')
-    else:
-        # Fall back to original template
-        return render_template('knowledge_calibration.html', annotations=annotation_data, project=project)
 
 @app.route('/research/<page>/dynamic')
 def research_dynamic_page(page):
@@ -1855,36 +1965,6 @@ def research_dynamic_page(page):
                          project_path=f'research/{page}',
                          page_specific_css=f'css/research/{page}/page_specific.css')
 
-@app.route('/knowledge_calibration_old')
-@app.route('/oldpage')  # Alternative route name
-def knowledge_calibration_old_page():
-    """Old version of the knowledge calibration page - monolithic HTML"""
-    # Read annotation file if it exists
-    annotation_data = {}
-    annotation_file = os.path.join(config.SPECIES_DIR, 'artificial_annotation.txt')
-    
-    try:
-        if os.path.exists(annotation_file):
-            with open(annotation_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                if len(lines) > 1:  # Skip header
-                    for line in lines[1:]:
-                        line = line.strip()
-                        if line and ';' in line:
-                            parts = line.split(';')
-                            if len(parts) >= 3:
-                                type_name = parts[0].strip()
-                                description = parts[1].strip()
-                                example = parts[2].strip()
-                                annotation_data[type_name] = {
-                                    'description': description,
-                                    'example': example
-                                }
-    except Exception as e:
-        print(f"Error reading annotation file: {e}")
-    
-    project = get_project_by_id('knowledge_calibration')
-    return render_template('knowledge_calibration_old.html', annotations=annotation_data, project=project)
 
 @app.route('/search_correlation')
 def search_correlation_page():
