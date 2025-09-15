@@ -1,0 +1,78 @@
+/**
+ * Section Export Controls Styling
+ * Styles for export buttons on section-callout elements
+ */
+
+.section-export-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.section-export-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.section-export-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.section-export-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.section-export-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Make section-callout position relative for absolute positioning */
+.section-callout {
+    position: relative !important;
+}
+
+/* Adjust for mobile */
+@media (max-width: 768px) {
+    .section-export-controls {
+        top: 8px;
+        right: 8px;
+    }
+    
+    .section-export-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .section-export-btn svg {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* Hide export controls in print */
+@media print {
+    .section-export-controls {
+        display: none !important;
+    }
+}

@@ -49,6 +49,38 @@ sections:
     title: "Ground Truth Dataset Statistics"
     text: "Overview of phenotype annotations in the ground truth dataset, showing coverage and value distributions for each characteristic."
     
+  # Analysis Insights - Article content between callouts
+  - id: "analysis_insights"
+    type: "article"
+    file: "sections/04a_analysis_insights.html"
+    include_sidebar: false
+    
+  # Phenotype Template Browser - Full Width Callout
+  - id: "phenotype_template_browser"
+    type: "section_callout"
+    file: "sections/05_phenotype_template_browser.html"
+    title: "Phenotype Query Templates"
+    text: "Explore the structured prompts used to query language models for phenotype predictions, including system prompts, user queries, and validation schemas."
+    
+  # Search Count Dynamic Stats - Article text with embedded numbers
+  - id: "search_count_dynamic_stats"
+    type: "article_content"
+    file: "sections/06a_search_count_dynamic_stats.html"
+    
+  # Search Count Analysis - Full Width Callout
+  - id: "search_count_analysis"
+    type: "section_callout"
+    file: "sections/06_search_count_analysis.html"
+    title: "Species Popularity Analysis"
+    text: "Interactive visualization of search frequency distribution across bacterial species."
+    
+  # Search Count by Knowledge Group - Full Width Callout
+  - id: "search_count_by_knowledge"
+    type: "section_callout"
+    file: "sections/06b_search_count_by_knowledge.html"
+    title: "Search Frequency by Knowledge Group"
+    text: "How research attention correlates with model-reported confidence levels."
+    
   # Dynamic stats callout
   - id: "dynamic_stats"
     type: "callout_inline"
@@ -123,7 +155,31 @@ sections:
     file: "sections/07d_model_performance_overview.html"
     title: "Model Performance Overview"
     include_sidebar: false
-    
+
+  # Model Performance by Publication Year
+  - id: "performance_by_year"
+    type: "section_callout_dynamic"
+    file: "sections/07k_performance_by_year.html"
+    container_id: "performanceByYearContent"
+    title: "Model Performance vs. Publication Year"
+    text: "Analysis of how model performance correlates with publication date, using metadata from recent model releases to identify trends in phenotype prediction accuracy over time."
+
+  # Model Parameters vs Accuracy
+  - id: "parameters_vs_accuracy"
+    type: "section_callout_dynamic"
+    file: "sections/07l_parameters_vs_accuracy.html"
+    container_id: "parametersVsAccuracyContent"
+    title: "Model Size vs. Performance"
+    text: "Exploring the relationship between model parameters and phenotype prediction accuracy, revealing efficiency trends and the performance-size trade-off in biological knowledge tasks."
+
+  # Organization-Specific Model Performance
+  - id: "organization_models"
+    type: "section_callout_dynamic"
+    file: "sections/07m_organization_models.html"
+    container_id: "organizationModelsContent"
+    title: "Organization Model Comparison"
+    text: "Filter and compare model performance by organization, revealing which models have benchmark data but lack metadata, and highlighting performance differences across providers."
+
   # Model Performance Range Plot - New visualization
   - id: "model_ranges"
     type: "section_callout_dynamic"
@@ -215,6 +271,13 @@ sections:
     file: "sections/08a_placeholder_text_2_end.html"
     parent_type: "article"
     close_article: true
+    
+  # Admin Interface Figure
+  - id: "admin_interface_figure"
+    type: "raw"
+    file: "../../components/admin_interface_figure.html"
+    title: "Admin Interface Figure"
+    dynamic: false
     
   # Scripts (should be last)
   - id: "scripts"

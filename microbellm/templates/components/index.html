@@ -151,6 +151,25 @@
         <h1 class="components-title">Component Library</h1>
         <p class="components-subtitle">Test and preview individual components from research pages</p>
         
+        <!-- Manuscript Figures Section -->
+        <div class="page-section">
+            <div class="page-header">
+                <h2 class="page-title">Manuscript Figures</h2>
+                <span class="color-badge green">Figures</span>
+            </div>
+            
+            <div class="sections-grid">
+                <a href="{{ url_for('admin_interface_figure') }}" 
+                   class="section-card"
+                   target="_blank">
+                    <div class="section-number">Figure</div>
+                    <div class="section-id">admin_interface</div>
+                    <div class="section-type">Dashboard</div>
+                    <div class="section-meta">Admin Interface Overview for Manuscript</div>
+                </a>
+            </div>
+        </div>
+        
         {% if components %}
             {% for page_name, page_data in components.items() %}
             <div class="page-section">

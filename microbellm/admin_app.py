@@ -34,6 +34,7 @@ from microbellm.utils import (
 from microbellm.predict import predict_binomial_name
 from microbellm import config
 from microbellm.unified_db import UnifiedDB
+from microbellm.validation import PredictionValidator
 
 # Database connection context manager
 class DatabaseConnection:
@@ -1075,21 +1076,31 @@ class ProcessingManager:
     def start_combination(self, combination_id):
         """Start processing a combination - simplified synchronous version"""
         try:
+            print(f"DEBUG start_combination: Checking job {combination_id}")
+            
             # Check if job exists
             job_summary = self.unified_db.get_job_summary(combination_id)
             if not job_summary:
-                print(f"ERROR: Job {combination_id} not found")
-                return False
-                
-            if job_summary['job_status'] == 'running':
-                print(f"WARNING: Job {combination_id} is already running")
+                print(f"ERROR: Job {combination_id} not found in database")
                 return False
             
+            print(f"DEBUG start_combination: Job status is '{job_summary.get('job_status')}'")
+            print(f"DEBUG start_combination: Job summary: {job_summary}")
+                
+            if job_summary.get('job_status') == 'running':
+                print(f"WARNING: Job {combination_id} is marked as already running")
+                return False
+            
+            print(f"DEBUG start_combination: Calling run_job for {combination_id}")
             # Run the job synchronously
-            return self.run_job(combination_id)
+            result = self.run_job(combination_id)
+            print(f"DEBUG start_combination: run_job returned {result}")
+            return result
             
         except Exception as e:
             print(f"ERROR: Failed to start job {combination_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def restart_combination(self, combination_id):
@@ -1905,60 +1916,140 @@ class ProcessingManager:
         cursor = conn.cursor()
         
         try:
-            # Get combination details
+            # First check if this is a unified DB job (new structure)
             cursor.execute("""
-                SELECT id, species_file, model, system_template, user_template
-                FROM combinations WHERE id = ?
+                SELECT COUNT(*) FROM processing_results WHERE job_id = ?
             """, (combination_id,))
-            combo = cursor.fetchone()
+            count = cursor.fetchone()[0]
             
-            if not combo:
-                return jsonify({'success': False, 'error': 'Combination not found'}), 404
-            
-            # Get failed species from results table
-            cursor.execute(
-                """SELECT DISTINCT binomial_name 
-                   FROM results 
-                   WHERE species_file = ? AND model = ? AND system_template = ? 
-                   AND user_template = ? AND status != 'completed'""",
-                (combo[1], combo[2], combo[3], combo[4])
-            )
-            
-            failed_species = [row[0] for row in cursor.fetchall()]
-            
-            if not failed_species:
+            if count > 0:
+                # This is a unified DB job - handle with new structure
+                print(f"Found {count} entries in unified DB for job {combination_id}")
+                
+                # Get job details from first entry
+                cursor.execute("""
+                    SELECT species_file, model, system_template, user_template
+                    FROM processing_results 
+                    WHERE job_id = ? 
+                    LIMIT 1
+                """, (combination_id,))
+                job_info = cursor.fetchone()
+                
+                if not job_info:
+                    return jsonify({'success': False, 'error': 'Job not found'}), 404
+                
+                # Count incomplete entries (pending, failed, timeout, or null status)
+                cursor.execute("""
+                    SELECT COUNT(*) 
+                    FROM processing_results 
+                    WHERE job_id = ? AND (status != 'completed' OR status IS NULL)
+                """, (combination_id,))
+                incomplete_count = cursor.fetchone()[0]
+                
+                if incomplete_count == 0:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No failed or pending entries found'
+                    })
+                
+                # Update all non-completed entries to pending for reprocessing
+                # AND reset job_status to allow reprocessing
+                cursor.execute("""
+                    UPDATE processing_results 
+                    SET status = 'pending', 
+                        job_status = 'pending',
+                        started_at = NULL,
+                        error = NULL
+                    WHERE job_id = ? AND (status != 'completed' OR status IS NULL)
+                """, (combination_id,))
+                
+                # Also update job_status for ALL rows (including completed ones) 
+                # to ensure the job can be restarted
+                cursor.execute("""
+                    UPDATE processing_results 
+                    SET job_status = 'pending'
+                    WHERE job_id = ?
+                """, (combination_id,))
+                
+                conn.commit()
+                conn.close()  # Close connection before starting job
+                
+                print(f"DEBUG: Reset {incomplete_count} incomplete entries for job {combination_id}")
+                print(f"DEBUG: Attempting to start job {combination_id}")
+                
+                # Start processing the job
+                success = self.start_combination(combination_id)
+                print(f"DEBUG: start_combination returned: {success}")
+                
+                if success:
+                    return jsonify({
+                        'success': True,
+                        'failed_count': incomplete_count,
+                        'message': f'Re-running {incomplete_count} incomplete entries'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Failed to start processing. Check server logs.'
+                    }), 500
+                    
+            else:
+                # Fall back to old table structure for legacy jobs
+                cursor.execute("""
+                    SELECT id, species_file, model, system_template, user_template
+                    FROM combinations WHERE id = ?
+                """, (combination_id,))
+                combo = cursor.fetchone()
+                
+                if not combo:
+                    return jsonify({'success': False, 'error': 'Combination not found in either database structure'}), 404
+                
+                # Get failed species from results table
+                cursor.execute(
+                    """SELECT DISTINCT binomial_name 
+                       FROM results 
+                       WHERE species_file = ? AND model = ? AND system_template = ? 
+                       AND user_template = ? AND status != 'completed'""",
+                    (combo[1], combo[2], combo[3], combo[4])
+                )
+                
+                failed_species = [row[0] for row in cursor.fetchall()]
+                
+                if not failed_species:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No failed species found'
+                    })
+                
+                # Delete failed results from results table
+                cursor.execute(
+                    """DELETE FROM results 
+                       WHERE species_file = ? AND model = ? AND system_template = ? 
+                       AND user_template = ? AND status != 'completed'""",
+                    (combo[1], combo[2], combo[3], combo[4])
+                )
+                
+                # Reset combination to pending
+                cursor.execute(
+                    "UPDATE combinations SET status = 'pending' WHERE id = ?",
+                    (combination_id,)
+                )
+                
+                conn.commit()
+                
+                # Add to processing queue
+                self.add_combination(combination_id)
+                
                 return jsonify({
-                    'success': False,
-                    'error': 'No failed species found'
+                    'success': True,
+                    'failed_count': len(failed_species),
+                    'message': f'Re-running {len(failed_species)} failed species'
                 })
             
-            # Delete failed results from results table
-            cursor.execute(
-                """DELETE FROM results 
-                   WHERE species_file = ? AND model = ? AND system_template = ? 
-                   AND user_template = ? AND status != 'completed'""",
-                (combo[1], combo[2], combo[3], combo[4])
-            )
-            
-            # Reset combination to pending
-            cursor.execute(
-                "UPDATE combinations SET status = 'pending' WHERE id = ?",
-                (combination_id,)
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            # Add to processing queue
-            self.add_combination(combination_id)
-            
-            return jsonify({
-                'success': True,
-                'failed_count': len(failed_species),
-                'message': f'Re-running {len(failed_species)} failed species'
-            })
-            
         except Exception as e:
+            print(f"ERROR in rerun_all_failed: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -3213,6 +3304,53 @@ def ground_truth_viewer():
     create_ground_truth_tables()
     return render_template('ground_truth.html')
 
+# Validation API Routes
+@app.route('/api/validate_predictions', methods=['POST'])
+def validate_predictions():
+    """Validate and normalize all unvalidated predictions."""
+    try:
+        validator = PredictionValidator()
+        
+        # Check if specific job_id provided
+        data = request.get_json() or {}
+        job_id = data.get('job_id')
+        
+        if job_id:
+            # Validate specific job
+            result = validator.validate_job_predictions(job_id, DATABASE_PATH)
+        else:
+            # Validate all unvalidated predictions
+            result = validator.validate_all_unvalidated(DATABASE_PATH)
+        
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/validation_stats', methods=['GET'])
+def get_validation_stats():
+    """Get current validation statistics."""
+    try:
+        validator = PredictionValidator()
+        stats = validator.get_validation_stats(DATABASE_PATH)
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Ground Truth API Routes
 @app.route('/api/ground_truth/datasets', methods=['GET'])
 def api_get_ground_truth_datasets():
@@ -3855,11 +3993,189 @@ def rerun_all_failed(combination_id):
     """Re-run all failed species for a combination"""
     return processing_manager.rerun_all_failed(combination_id)
 
+@app.route('/api/reset_job_status/<job_id>', methods=['POST'])
+def reset_job_status(job_id):
+    """Reset a stuck job from 'running' to 'pending' status"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if job exists
+        cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (job_id,))
+        total_count = cursor.fetchone()[0]
+        
+        if total_count == 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Job not found'}), 404
+        
+        # Get current status counts
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'timeout' THEN 1 ELSE 0 END) as timeout,
+                MAX(job_status) as current_job_status
+            FROM processing_results 
+            WHERE job_id = ?
+        """, (job_id,))
+        
+        row = cursor.fetchone()
+        completed = row[0] or 0
+        failed = row[1] or 0
+        pending = row[2] or 0
+        timeout = row[3] or 0
+        current_status = row[4]
+        
+        incomplete_count = failed + pending + timeout
+        
+        # Reset ALL job_status fields to pending
+        cursor.execute("""
+            UPDATE processing_results 
+            SET job_status = 'pending',
+                job_started_at = NULL
+            WHERE job_id = ?
+        """, (job_id,))
+        
+        # Reset failed, timeout, and pending entries for reprocessing
+        cursor.execute("""
+            UPDATE processing_results 
+            SET status = 'pending',
+                started_at = NULL,
+                completed_at = NULL,
+                error = NULL,
+                result = NULL
+            WHERE job_id = ? 
+              AND (status IN ('failed', 'pending', 'timeout') OR status IS NULL)
+        """, (job_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        message = f"Reset job from '{current_status}' to 'pending'. Ready to process {incomplete_count} incomplete entries (Completed: {completed}, Failed: {failed}, Pending: {pending}, Timeout: {timeout})"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'stats': {
+                'total': total_count,
+                'completed': completed,
+                'incomplete': incomplete_count,
+                'previous_status': current_status,
+                'new_status': 'pending'
+            }
+        })
+        
+    except Exception as e:
+        print(f"ERROR resetting job status for {job_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def cleanup_resources():
     """Clean up resources on application shutdown"""
     global processing_manager
     if processing_manager:
         processing_manager.cleanup()
+
+@app.route('/api/database/info')
+def get_database_info():
+    """Get overview information about all tables"""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        tables_info = {}
+        
+        # Get info for each table
+        tables = ['processing_results', 'ground_truth', 'template_metadata', 'managed_models']
+        
+        for table in tables:
+            # Get row count
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            count = cursor.fetchone()[0]
+            
+            # Get column count
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = len(cursor.fetchall())
+            
+            table_info = {
+                'count': count,
+                'columns': columns
+            }
+            
+            # Special handling for processing_results
+            if table == 'processing_results':
+                cursor.execute("""
+                    SELECT 
+                        SUM(CASE WHEN validation_status = 'validated' THEN 1 ELSE 0 END) as validated,
+                        SUM(CASE WHEN validation_status != 'validated' OR validation_status IS NULL THEN 1 ELSE 0 END) as unvalidated
+                    FROM processing_results
+                """)
+                row = cursor.fetchone()
+                table_info['validated'] = row[0] or 0
+                table_info['unvalidated'] = row[1] or 0
+            
+            tables_info[table] = table_info
+        
+        # Get database file size
+        import os
+        db_size = os.path.getsize(db_path)
+        db_size_mb = round(db_size / (1024 * 1024), 2)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'database': 'microbellm.db',
+            'size_mb': db_size_mb,
+            'tables': tables_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/database/table/<table_name>')
+def get_table_data(table_name):
+    """Get data from a specific table"""
+    try:
+        # Validate table name to prevent SQL injection
+        allowed_tables = ['processing_results', 'ground_truth', 'template_metadata', 'managed_models']
+        if table_name not in allowed_tables:
+            return jsonify({'success': False, 'error': 'Invalid table name'}), 400
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get limit from query params
+        limit = request.args.get('limit', 1000, type=int)
+        limit = min(limit, 10000)  # Cap at 10000 rows
+        
+        # Get column names
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        # Get data
+        cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+        rows = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'table': table_name,
+            'columns': columns,
+            'rows': rows,
+            'count': len(rows)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 def main():
     """Main entry point for the admin application"""

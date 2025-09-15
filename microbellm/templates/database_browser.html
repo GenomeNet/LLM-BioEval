@@ -3,293 +3,732 @@
 {% block title %}Database Browser - MicrobeLLM{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="page-header">
-        <h1 class="page-title">Database Browser</h1>
-        <p class="page-subtitle">Browse and inspect the database structure and data</p>
-    </div>
-
-    <div class="dashboard-header">
-        <div class="dashboard-controls">
-            <a href="/" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </a>
-            <button onclick="refreshDatabaseBrowser()" class="btn btn-secondary" id="refreshBtn">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-    </div>
-
-    <!-- Database Browser Section -->
-    <div class="database-browser-section">
-        <div class="database-browser">
-            <div class="database-info">
-                <h3>Database Structure</h3>
-                <p id="databasePath"></p>
-                <div id="loadingIndicator" class="text-center" style="display: none;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading database structure...
-                </div>
-                <div class="database-tables" id="databaseTables">
-                    <!-- Tables will be loaded here -->
-                </div>
-            </div>
-            
-            <div class="table-viewer" id="tableViewer" style="display: none;">
-                <h3>Table Data: <span id="currentTableName"></span></h3>
-                <div class="table-controls">
-                    <button onclick="closeDatabaseTable()" class="btn btn-secondary">Back to Tables</button>
-                </div>
-                <div id="tableData" class="table-data">
-                    <!-- Table data will be loaded here -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
-    /* Database Browser Styles */
-    .database-browser-section {
-        margin-top: 20px;
+    .db-container {
+        padding: 24px;
+        max-width: 100%;
     }
     
-    .database-browser {
-        background: #f8f9fa;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 20px;
-        margin-top: 10px;
-    }
-    
-    .database-tree {
-        margin-top: 15px;
-    }
-    
-    .table-item {
+    .db-header {
+        margin-bottom: 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
     }
     
-    .table-item:hover {
-        background: #f0f8ff;
-        border-color: #3b82f6;
+    .table-selector {
+        display: flex;
+        gap: 12px;
+        align-items: center;
     }
     
     .table-info {
-        flex: 1;
-    }
-    
-    .table-name {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 4px;
-    }
-    
-    .table-stats {
-        font-size: 0.9em;
-        color: #666;
-        display: flex;
-        gap: 15px;
-    }
-    
-    .table-actions {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .table-btn {
-        padding: 4px 8px;
-        border: 1px solid #ddd;
-        background: white;
-        border-radius: 4px;
-        font-size: 0.8em;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .table-btn:hover {
         background: #f8f9fa;
-        border-color: #3b82f6;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        display: none;
     }
     
-    .database-table {
+    .table-container {
+        overflow-x: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: white;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .data-table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 15px;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        overflow: hidden;
     }
     
-    .database-table th {
-        background: #f1f3f4;
+    .data-table th {
+        background: #e9ecef;
+        padding: 8px 12px;
+        text-align: left;
         font-weight: 600;
-        padding: 8px;
-        border-bottom: 2px solid #ddd;
-    }
-    
-    .database-table td {
-        padding: 6px 8px;
-        border-bottom: 1px solid #eee;
-        max-width: 200px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 13px;
+        border-bottom: 2px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 10;
         white-space: nowrap;
     }
     
-    .database-table em {
-        color: #999;
+    .data-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f1f3f5;
+        font-size: 13px;
+        font-family: monospace;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .data-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .raw-column {
+        background: #fff3cd !important;
+    }
+    
+    .validated-column {
+        background: #d4edda !important;
+    }
+    
+    .column-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        font-size: 10px;
+        border-radius: 3px;
+        margin-left: 4px;
+        font-weight: normal;
+    }
+    
+    .badge-raw {
+        background: #ffc107;
+        color: #000;
+    }
+    
+    .badge-normalized {
+        background: #28a745;
+        color: white;
+    }
+    
+    .null-value {
+        color: #6c757d;
         font-style: italic;
     }
     
-    .table-info {
-        margin-bottom: 10px;
-        color: #666;
+    .pagination {
+        margin-top: 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
     }
     
-    .section-header {
+    .page-btn {
+        padding: 6px 12px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .page-btn:hover:not(:disabled) {
+        background: #e9ecef;
+    }
+    
+    .page-btn.active {
+        background: #6366f1;
+        color: white;
+        border-color: #6366f1;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .filter-controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-input {
+        flex: 1;
+        max-width: 300px;
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    
+    .column-toggles {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+    
+    .toggle-label {
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .validation-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+    
+    .validated {
+        background: #28a745;
+    }
+    
+    .unvalidated {
+        background: #dc3545;
+    }
+    
+    /* Tables Grid Styles */
+    .tables-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .table-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .table-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .table-card h3 {
+        margin: 0 0 12px 0;
+        color: #495057;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .table-icon {
+        color: #6366f1;
+    }
+    
+    .table-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .stat-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
+        font-size: 14px;
     }
     
-    .section-header h2 {
-        margin: 0;
-        color: #333;
+    .stat-label {
+        color: #6c757d;
     }
     
-    .error {
-        color: #d32f2f;
-        font-style: italic;
+    .stat-value {
+        font-weight: 600;
+        color: #212529;
+    }
+    
+    .table-description {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e9ecef;
+        font-size: 13px;
+        color: #6c757d;
+        line-height: 1.5;
+    }
+    
+    .special-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 11px;
+        border-radius: 4px;
+        margin-left: 8px;
+        font-weight: normal;
+    }
+    
+    .badge-new {
+        background: #d4edda;
+        color: #155724;
     }
 </style>
 
-<script>
-    // Database browser functionality
-    function loadDatabaseInfo() {
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const tablesContainer = document.getElementById('databaseTables');
-
-        // Show loading indicator
-        loadingIndicator.style.display = 'block';
-        tablesContainer.innerHTML = '';
-
-        fetch('/api/database_info')
-            .then(response => response.json())
-            .then(data => {
-                // Hide loading indicator
-                loadingIndicator.style.display = 'none';
-
-                if (data.success) {
-                    document.getElementById('databasePath').textContent = data.database_path;
-
-                    const tablesHtml = data.tables.map(table => `
-                        <div class="table-item" onclick="loadTableData('${table.name}')">
-                            <div class="table-info">
-                                <div class="table-name">${table.name}</div>
-                                <div class="table-stats">
-                                    <span>Rows: ${table.row_count}</span>
-                                    <span>Columns: ${table.column_count}</span>
-                                </div>
-                            </div>
-                            <div class="table-actions">
-                                <button class="table-btn" onclick="event.stopPropagation(); loadTableData('${table.name}')">
-                                    <i class="fas fa-eye"></i> View
-                                </button>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    tablesContainer.innerHTML = tablesHtml;
-                } else {
-                    console.error('Error loading database info:', data.error);
-                    tablesContainer.innerHTML = '<p class="error">Error loading database structure</p>';
-                }
-            })
-            .catch(error => {
-                // Hide loading indicator
-                loadingIndicator.style.display = 'none';
-                console.error('Error loading database info:', error);
-                tablesContainer.innerHTML = '<p class="error">Failed to load database structure</p>';
-            });
-    }
+<div class="db-container">
+    <div class="db-header">
+        <h1>Database Browser</h1>
+        <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
     
-    function loadTableData(tableName) {
-        document.getElementById('currentTableName').textContent = tableName;
-        document.getElementById('tableViewer').style.display = 'block';
+    <!-- Database Overview -->
+    <div id="databaseOverview">
+        <h2>Database Overview</h2>
+        <div class="tables-grid" id="tablesGrid">
+            <div class="loading">Loading database information...</div>
+        </div>
+    </div>
+    
+    <!-- Table Viewer (hidden initially) -->
+    <div id="tableViewer" style="display: none;">
+        <div class="table-selector" style="margin-bottom: 20px;">
+            <button onclick="backToOverview()" class="btn btn-secondary">← Back to Overview</button>
+            <span style="margin: 0 12px;">Viewing table: <strong id="currentTableName"></strong></span>
+        </div>
+    
+    <div class="filter-controls" id="filterControls" style="display: none;">
+        <input type="text" id="filterInput" class="filter-input" placeholder="Filter by species name..." onkeyup="filterTable()">
         
-        fetch(`/api/table_data/${tableName}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const tableData = document.getElementById('tableData');
-                    
-                    if (data.data.length === 0) {
-                        tableData.innerHTML = '<p class="text-muted">No data found in this table.</p>';
-                        return;
-                    }
-                    
-                    // Create table HTML
-                    const headers = Object.keys(data.data[0]);
-                    const tableHtml = `
-                        <div class="table-info">
-                            <strong>Table:</strong> ${tableName} (${data.data.length} rows)
-                        </div>
-                        <table class="database-table">
-                            <thead>
-                                <tr>
-                                    ${headers.map(header => `<th>${header}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.data.map(row => `
-                                    <tr>
-                                        ${headers.map(header => `<td>${row[header] || '<em>NULL</em>'}</td>`).join('')}
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    
-                    tableData.innerHTML = tableHtml;
-                } else {
-                    document.getElementById('tableData').innerHTML = `<p class="error">Error loading table data: ${data.error}</p>`;
-                }
-            })
-            .catch(error => {
-                document.getElementById('tableData').innerHTML = `<p class="error">Error loading table data: ${error.message}</p>`;
-            });
-    }
+        <div class="column-toggles">
+            <label class="toggle-label">
+                <input type="checkbox" id="showRawColumns" checked onchange="toggleColumns('raw')">
+                Show Raw Columns
+            </label>
+            
+            <label class="toggle-label">
+                <input type="checkbox" id="showNormalColumns" checked onchange="toggleColumns('normal')">
+                Show Normalized Columns
+            </label>
+            
+            <label class="toggle-label">
+                <input type="checkbox" id="showMetaColumns" checked onchange="toggleColumns('meta')">
+                Show Metadata
+            </label>
+        </div>
+    </div>
     
-    function closeDatabaseTable() {
-        document.getElementById('tableViewer').style.display = 'none';
-    }
+    <div class="table-info" id="tableInfo">
+        <strong>Table Info:</strong> <span id="tableDescription"></span><br>
+        <strong>Total Records:</strong> <span id="totalRecords">0</span>
+        <span id="validationInfo"></span>
+    </div>
     
-    function refreshDatabaseBrowser() {
-        const refreshBtn = document.getElementById('refreshBtn');
-        refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    <div class="table-container">
+        <div class="loading" id="loadingMessage">
+            Select a table to view data
+        </div>
+        <table class="data-table" id="dataTable" style="display: none;">
+            <thead id="tableHeaders"></thead>
+            <tbody id="tableData"></tbody>
+        </table>
+    </div>
+    
+    <div class="pagination" id="pagination"></div>
+    </div><!-- End of tableViewer -->
+</div>
 
-        loadDatabaseInfo();
+<script>
+let currentTable = '';
+let currentPage = 1;
+let rowsPerPage = 100;
+let allData = [];
+let filteredData = [];
 
-        // Re-enable button after a short delay
-        setTimeout(() => {
-            refreshBtn.disabled = false;
-            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
-        }, 1000);
+// Load database overview on page load
+window.addEventListener('DOMContentLoaded', loadDatabaseOverview);
+
+function loadDatabaseOverview() {
+    fetch('/api/database/info')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayDatabaseOverview(data);
+            } else {
+                document.getElementById('tablesGrid').innerHTML = 
+                    '<div class="error">Error loading database info: ' + (data.error || 'Unknown error') + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load database info:', error);
+            document.getElementById('tablesGrid').innerHTML = 
+                '<div class="error">Failed to load database information. ' + error.message + '</div>';
+        });
+}
+
+function displayDatabaseOverview(data) {
+    const grid = document.getElementById('tablesGrid');
+    grid.innerHTML = '';
+    
+    // Define tables to show with their descriptions and icons
+    const tables = [
+        {
+            name: 'processing_results',
+            displayName: 'Processing Results',
+            icon: '📊',
+            description: 'All prediction results with raw (original) and normalized (validated) data columns',
+            special: 'With RAW/NORM columns'
+        },
+        {
+            name: 'ground_truth',
+            displayName: 'Ground Truth',
+            icon: '✓',
+            description: 'Reference data used for validating prediction accuracy'
+        },
+        {
+            name: 'template_metadata',
+            displayName: 'Template Metadata',
+            icon: '📝',
+            description: 'Configuration and metadata for prediction templates'
+        },
+        {
+            name: 'managed_models',
+            displayName: 'Managed Models',
+            icon: '🤖',
+            description: 'Available LLM models for making predictions'
+        }
+    ];
+    
+    tables.forEach(table => {
+        const card = document.createElement('div');
+        card.className = 'table-card';
+        card.onclick = () => viewTable(table.name);
+        
+        const stats = data.tables && data.tables[table.name] ? data.tables[table.name] : {};
+        
+        card.innerHTML = `
+            <h3>
+                <span class="table-icon">${table.icon}</span>
+                ${table.displayName}
+                ${table.special ? `<span class="special-badge badge-new">${table.special}</span>` : ''}
+            </h3>
+            <div class="table-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Records:</span>
+                    <span class="stat-value">${stats.count || 'Loading...'}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Columns:</span>
+                    <span class="stat-value">${stats.columns || 'Loading...'}</span>
+                </div>
+                ${table.name === 'processing_results' && stats.validated !== undefined ? `
+                <div class="stat-row">
+                    <span class="stat-label">Validated:</span>
+                    <span class="stat-value">${stats.validated || 0}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Unvalidated:</span>
+                    <span class="stat-value">${stats.unvalidated || 0}</span>
+                </div>
+                ` : ''}
+            </div>
+            <div class="table-description">${table.description}</div>
+        `;
+        
+        grid.appendChild(card);
+    });
+}
+
+function viewTable(tableName) {
+    currentTable = tableName;
+    
+    // Hide overview, show table viewer
+    document.getElementById('databaseOverview').style.display = 'none';
+    document.getElementById('tableViewer').style.display = 'block';
+    document.getElementById('currentTableName').textContent = tableName;
+    
+    // Show/hide filter controls based on table
+    document.getElementById('filterControls').style.display = 
+        currentTable === 'processing_results' ? 'flex' : 'none';
+    
+    loadTable();
+}
+
+function backToOverview() {
+    document.getElementById('databaseOverview').style.display = 'block';
+    document.getElementById('tableViewer').style.display = 'none';
+    currentTable = '';
+}
+
+function loadTable() {
+    if (!currentTable) return;
+    
+    showLoading();
+    
+    fetch(`/api/database/table/${currentTable}?limit=5000`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                allData = data.rows || [];
+                filteredData = allData;
+                displayTable(data.columns || []);
+            } else {
+                showError(data.error || 'Unknown error loading table');
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load table:', error);
+            showError('Failed to load table data: ' + error.message);
+        });
+}
+
+function displayTable(columns) {
+    // Update table info
+    updateTableInfo();
+    
+    // Build headers
+    buildHeaders(columns);
+    
+    // Display first page
+    currentPage = 1;
+    displayPage();
+    
+    document.getElementById('loadingMessage').style.display = 'none';
+    document.getElementById('dataTable').style.display = 'table';
+}
+
+function buildHeaders(columns) {
+    const headerRow = document.getElementById('tableHeaders');
+    headerRow.innerHTML = '';
+    
+    const tr = document.createElement('tr');
+    columns.forEach(column => {
+        const th = document.createElement('th');
+        th.dataset.column = column;
+        
+        // Categorize columns
+        if (column.startsWith('raw_')) {
+            th.className = 'raw-column';
+            const fieldName = column.replace('raw_', '');
+            th.innerHTML = `${fieldName}<span class="column-badge badge-raw">RAW</span>`;
+            th.dataset.type = 'raw';
+        } else if (isNormalizedColumn(column)) {
+            th.className = 'validated-column';
+            th.innerHTML = `${column}<span class="column-badge badge-normalized">NORM</span>`;
+            th.dataset.type = 'normal';
+        } else if (isMetaColumn(column)) {
+            th.textContent = column;
+            th.dataset.type = 'meta';
+        } else {
+            th.textContent = column;
+            th.dataset.type = 'other';
+        }
+        
+        tr.appendChild(th);
+    });
+    headerRow.appendChild(tr);
+}
+
+function isNormalizedColumn(column) {
+    const phenotypeColumns = [
+        'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+        'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+        'health_association', 'host_association', 'plant_pathogenicity',
+        'spore_formation', 'hemolysis', 'cell_shape', 'knowledge_group'
+    ];
+    return currentTable === 'processing_results' && phenotypeColumns.includes(column);
+}
+
+function isMetaColumn(column) {
+    const metaColumns = [
+        'id', 'job_id', 'binomial_name', 'status', 'created_at', 'completed_at',
+        'validation_status', 'validation_date', 'raw_data_preserved', 
+        'system_template', 'user_template', 'model', 'species_file'
+    ];
+    return metaColumns.includes(column);
+}
+
+function displayPage() {
+    const tbody = document.getElementById('tableData');
+    tbody.innerHTML = '';
+    
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = Math.min(start + rowsPerPage, filteredData.length);
+    
+    for (let i = start; i < end; i++) {
+        const row = filteredData[i];
+        const tr = document.createElement('tr');
+        
+        // Add validation indicator
+        if (currentTable === 'processing_results' && row.validation_status) {
+            const indicator = document.createElement('span');
+            indicator.className = `validation-indicator ${row.validation_status === 'validated' ? 'validated' : 'unvalidated'}`;
+            indicator.title = `Validation status: ${row.validation_status}`;
+        }
+        
+        const headers = document.querySelectorAll('#tableHeaders th');
+        headers.forEach(header => {
+            const column = header.dataset.column;
+            const value = row[column];
+            const td = document.createElement('td');
+            
+            if (value === null || value === undefined || value === '') {
+                td.innerHTML = '<span class="null-value">NULL</span>';
+            } else if (typeof value === 'string' && value.length > 100) {
+                td.textContent = value.substring(0, 100) + '...';
+                td.title = value;
+            } else {
+                td.textContent = value;
+            }
+            
+            // Apply column styling
+            if (column.startsWith('raw_')) {
+                td.style.background = '#fff3cd';
+            } else if (isNormalizedColumn(column)) {
+                td.style.background = '#d4edda';
+            }
+            
+            // Copy display state from header
+            td.style.display = header.style.display;
+            
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
     }
     
-    // Initialize
-    loadDatabaseInfo();
+    updatePagination();
+}
+
+function updateTableInfo() {
+    const desc = getTableDescription(currentTable);
+    document.getElementById('tableDescription').textContent = desc;
+    document.getElementById('totalRecords').textContent = allData.length;
+    
+    // Add validation stats for processing_results
+    if (currentTable === 'processing_results') {
+        const validated = allData.filter(r => r.validation_status === 'validated').length;
+        const unvalidated = allData.filter(r => r.validation_status !== 'validated').length;
+        document.getElementById('validationInfo').innerHTML = 
+            ` | <span class="validation-indicator validated"></span>Validated: ${validated}` +
+            ` | <span class="validation-indicator unvalidated"></span>Unvalidated: ${unvalidated}`;
+    } else {
+        document.getElementById('validationInfo').innerHTML = '';
+    }
+    
+    document.getElementById('tableInfo').style.display = 'block';
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.style.display = 'none';
+        return;
+    }
+    
+    pagination.style.display = 'flex';
+    pagination.innerHTML = '';
+    
+    // Previous button
+    const prevBtn = createButton('← Previous', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            displayPage();
+        }
+    }, currentPage === 1);
+    pagination.appendChild(prevBtn);
+    
+    // Page numbers
+    const pageInfo = document.createElement('span');
+    pageInfo.style.padding = '6px 12px';
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${filteredData.length} records)`;
+    pagination.appendChild(pageInfo);
+    
+    // Next button
+    const nextBtn = createButton('Next →', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            displayPage();
+        }
+    }, currentPage === totalPages);
+    pagination.appendChild(nextBtn);
+}
+
+function createButton(text, onclick, disabled) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn';
+    btn.textContent = text;
+    btn.disabled = disabled;
+    btn.onclick = onclick;
+    return btn;
+}
+
+function filterTable() {
+    const filter = document.getElementById('filterInput').value.toLowerCase();
+    
+    if (!filter) {
+        filteredData = allData;
+    } else {
+        filteredData = allData.filter(row => {
+            // Search in species name and other text fields
+            const searchFields = ['binomial_name', 'gram_staining', 'raw_gram_staining'];
+            return searchFields.some(field => 
+                row[field] && row[field].toString().toLowerCase().includes(filter)
+            );
+        });
+    }
+    
+    currentPage = 1;
+    displayPage();
+}
+
+function toggleColumns(type) {
+    const headers = document.querySelectorAll('#tableHeaders th');
+    const showRaw = document.getElementById('showRawColumns').checked;
+    const showNormal = document.getElementById('showNormalColumns').checked;
+    const showMeta = document.getElementById('showMetaColumns').checked;
+    
+    headers.forEach(header => {
+        let shouldShow = true;
+        
+        if (header.dataset.type === 'raw' && !showRaw) shouldShow = false;
+        if (header.dataset.type === 'normal' && !showNormal) shouldShow = false;
+        if (header.dataset.type === 'meta' && !showMeta) shouldShow = false;
+        
+        header.style.display = shouldShow ? '' : 'none';
+    });
+    
+    // Refresh display to update cell visibility
+    displayPage();
+}
+
+function getTableDescription(table) {
+    const descriptions = {
+        'processing_results': 'Prediction results with raw (original API responses) and normalized (validated) columns',
+        'ground_truth': 'Reference data for validating predictions',
+        'template_metadata': 'Template configuration and metadata',
+        'managed_models': 'Available LLM models for predictions'
+    };
+    return descriptions[table] || 'Database table';
+}
+
+function resetView() {
+    document.getElementById('loadingMessage').textContent = 'Select a table to view data';
+    document.getElementById('loadingMessage').style.display = 'block';
+    document.getElementById('dataTable').style.display = 'none';
+    document.getElementById('tableInfo').style.display = 'none';
+    document.getElementById('filterControls').style.display = 'none';
+}
+
+function showLoading() {
+    document.getElementById('loadingMessage').textContent = 'Loading...';
+    document.getElementById('loadingMessage').style.display = 'block';
+    document.getElementById('dataTable').style.display = 'none';
+}
+
+function showError(error) {
+    document.getElementById('loadingMessage').textContent = 'Error: ' + error;
+}
 </script>
 {% endblock %}

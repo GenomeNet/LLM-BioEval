@@ -1,0 +1,939 @@
+<!-- Model Parameters vs Accuracy -->
+<style>
+    .parameters-accuracy-container {
+        padding: var(--spacing-component) 0;
+    }
+
+    .params-chart-wrapper {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+        margin-bottom: var(--spacing-component);
+        height: 500px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .params-chart-canvas-container {
+        position: relative;
+        height: 450px;
+        width: 100%;
+    }
+
+    #paramsAccuracyChart {
+        display: block !important;
+        max-width: 100% !important;
+        max-height: 450px !important;
+    }
+
+    .params-chart-controls {
+        display: flex;
+        gap: var(--spacing-element);
+        margin-bottom: var(--spacing-element);
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .params-control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .params-control-group label {
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .params-control-group select {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .params-metadata-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-component);
+    }
+
+    .params-stat-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: var(--spacing-small);
+    }
+
+    .params-stat-card h4 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .params-stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .params-stat-description {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .params-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 12px;
+    }
+
+    .params-loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #22c55e;
+        border-radius: 50%;
+        animation: paramsSpin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes paramsSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .params-loading-text {
+        font-size: 16px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .params-loading-subtext {
+        font-size: 14px;
+        color: #999;
+        margin-top: 8px;
+    }
+
+    .params-chart-legend {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-element);
+        flex-wrap: wrap;
+    }
+
+    .params-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+    .params-legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+</style>
+
+<div class="parameters-accuracy-container">
+    <div class="params-chart-controls">
+        <div class="params-control-group">
+            <label for="paramsDatasetSelect">Dataset:</label>
+            <select id="paramsDatasetSelect">
+                <option value="">Loading datasets...</option>
+            </select>
+        </div>
+        <div class="params-control-group">
+            <label for="paramsMetricSelect">Metric:</label>
+            <select id="paramsMetricSelect">
+                <option value="balanced_accuracy">Balanced Accuracy</option>
+                <option value="precision">Precision</option>
+                <option value="recall">Recall</option>
+                <option value="f1">F1 Score</option>
+            </select>
+        </div>
+        <div class="params-control-group">
+            <label for="paramsPhenotypeSelect">Phenotype:</label>
+            <select id="paramsPhenotypeSelect">
+                <option value="average">All Phenotypes (Average)</option>
+                <option value="gram_staining">Gram Staining</option>
+                <option value="motility">Motility</option>
+                <option value="extreme_environment_tolerance">Extreme Environment Tolerance</option>
+                <option value="biofilm_formation">Biofilm Formation</option>
+                <option value="animal_pathogenicity">Animal Pathogenicity</option>
+                <option value="biosafety_level">Biosafety Level</option>
+                <option value="host_association">Host Association</option>
+                <option value="plant_pathogenicity">Plant Pathogenicity</option>
+                <option value="spore_formation">Spore Formation</option>
+                <option value="hemolysis">Hemolysis</option>
+                <option value="cell_shape">Cell Shape</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="params-chart-wrapper">
+        <div class="params-loading-overlay" id="paramsChartLoadingOverlay" style="display: none;">
+            <div class="params-loading-spinner"></div>
+            <div class="params-loading-text">Loading Data...</div>
+            <div class="params-loading-subtext" id="paramsLoadingStatus">Fetching predictions and calculating metrics</div>
+        </div>
+        <div class="params-chart-canvas-container">
+            <canvas id="paramsAccuracyChart"></canvas>
+        </div>
+        <div class="params-chart-legend" id="paramsChartLegend"></div>
+    </div>
+
+    <div class="params-metadata-stats">
+        <div class="params-stat-card">
+            <h4>Models with Size Data</h4>
+            <div class="params-stat-value" id="modelsWithParams">0</div>
+            <div class="params-stat-description" id="modelsWithParamsDesc">out of 0 total models</div>
+        </div>
+        <div class="params-stat-card">
+            <h4>Size Range</h4>
+            <div class="params-stat-value" id="sizeRange">-</div>
+            <div class="params-stat-description">Parameters (B)</div>
+        </div>
+        <div class="params-stat-card">
+            <h4>Correlation</h4>
+            <div class="params-stat-value" id="paramsCorrelation">-</div>
+            <div class="params-stat-description" id="paramsCorrelationDesc">Size vs. Performance</div>
+        </div>
+        <div class="params-stat-card">
+            <h4>Most Efficient Model</h4>
+            <div class="params-stat-value" id="mostEfficient">-</div>
+            <div class="params-stat-description">Best performance per parameter</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let predictionData = null;
+    let groundTruthData = null;
+    let modelMetadata = null;
+    let paramsChart = null;
+
+    // Load model metadata
+    loadModelMetadata();
+
+    // Initialize dataset selector
+    initializeDatasetSelector();
+
+    async function loadModelMetadata() {
+        try {
+            const response = await fetch('/static/data/year_size.tsv');
+            const text = await response.text();
+
+            // Parse TSV
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split('\t');
+
+            modelMetadata = {};
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split('\t');
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+
+                // Store by model name (normalized)
+                const modelName = row['Model'];
+                if (modelName) {
+                    // Store multiple variations for better matching
+                    modelMetadata[modelName.toLowerCase().replace(/\s+/g, '')] = row;
+                    modelMetadata[modelName.toLowerCase()] = row;
+                    modelMetadata[modelName] = row;
+
+                    // Also try without hyphens
+                    modelMetadata[modelName.toLowerCase().replace(/[-_]/g, '')] = row;
+                }
+            }
+
+            console.log('Loaded metadata for', Object.keys(modelMetadata).length / 4, 'models');
+        } catch (error) {
+            console.error('Error loading model metadata:', error);
+            modelMetadata = {};
+        }
+    }
+
+    async function initializeDatasetSelector() {
+        try {
+            // Load ground truth datasets
+            const response = await fetch('/api/ground_truth/datasets');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+
+            const select = document.getElementById('paramsDatasetSelect');
+
+            if (!result.success || !result.datasets || result.datasets.length === 0) {
+                select.innerHTML = '<option value="">No datasets available</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">Select a dataset...</option>';
+
+            let waTestDataset = null;
+            result.datasets.forEach(dataset => {
+                const option = document.createElement('option');
+                option.value = dataset.dataset_name;
+                option.textContent = `${dataset.dataset_name} (${dataset.species_count} species)`;
+                option.dataset = {
+                    template: dataset.template_name,
+                    count: dataset.species_count
+                };
+                select.appendChild(option);
+
+                if (dataset.dataset_name === 'WA_Test_Dataset') {
+                    waTestDataset = dataset;
+                }
+            });
+
+            // Auto-select WA_Test_Dataset if available
+            if (waTestDataset) {
+                select.value = 'WA_Test_Dataset';
+                await loadPerformanceData('WA_Test_Dataset');
+            }
+
+            // Add event listeners
+            select.addEventListener('change', async (e) => {
+                if (e.target.value) {
+                    await loadPerformanceData(e.target.value);
+                }
+            });
+
+            document.getElementById('paramsMetricSelect').addEventListener('change', updateChart);
+            document.getElementById('paramsPhenotypeSelect').addEventListener('change', updateChart);
+
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+            const select = document.getElementById('paramsDatasetSelect');
+            select.innerHTML = '<option value="">Error loading datasets</option>';
+        }
+    }
+
+    function showLoading(message = 'Loading data...') {
+        const overlay = document.getElementById('paramsChartLoadingOverlay');
+        const status = document.getElementById('paramsLoadingStatus');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            if (status && message) {
+                status.textContent = message;
+            }
+        }
+    }
+
+    function hideLoading() {
+        const overlay = document.getElementById('paramsChartLoadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    async function loadPerformanceData(datasetName) {
+        try {
+            showLoading('Fetching prediction data...');
+
+            // Determine species file based on dataset name
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+
+            // Load prediction data
+            const predResponse = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+            const predResult = await predResponse.json();
+
+            if (!predResult.data || predResult.data.length === 0) {
+                console.error('No prediction data available');
+                hideLoading();
+                return;
+            }
+            predictionData = predResult.data;
+
+            // Update loading message
+            showLoading('Loading ground truth data...');
+
+            // Load ground truth data
+            const gtResponse = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=20000`);
+            const gtResult = await gtResponse.json();
+
+            if (!gtResult.success || !gtResult.data) {
+                console.error('Failed to load ground truth data');
+                hideLoading();
+                return;
+            }
+
+            // Create ground truth map
+            showLoading('Processing data...');
+            groundTruthData = {};
+            gtResult.data.forEach(item => {
+                groundTruthData[item.binomial_name.toLowerCase()] = item;
+            });
+
+            updateChart();
+
+        } catch (error) {
+            console.error('Error loading performance data:', error);
+            hideLoading();
+        }
+    }
+
+    function findModelMetadata(modelName) {
+        if (!modelMetadata || !modelName) return null;
+
+        // Extract model name from path if it contains "/"
+        let cleanModelName = modelName;
+        if (modelName.includes('/')) {
+            const parts = modelName.split('/');
+            cleanModelName = parts[parts.length - 1];
+        }
+
+        // Try exact match
+        if (modelMetadata[cleanModelName]) return modelMetadata[cleanModelName];
+
+        // Try normalized versions
+        const normalized = cleanModelName.toLowerCase().replace(/[-_\s]+/g, '');
+
+        // Try various matches
+        const possibleKeys = [
+            modelName,
+            cleanModelName,
+            modelName.toLowerCase(),
+            cleanModelName.toLowerCase(),
+            normalized,
+            modelName.replace(/\//g, '_'),
+            cleanModelName.replace(/-/g, ''),
+            cleanModelName.replace(/_/g, '-')
+        ];
+
+        for (const key of possibleKeys) {
+            if (modelMetadata[key]) {
+                return modelMetadata[key];
+            }
+        }
+
+        // Try partial matches
+        const modelKey = Object.keys(modelMetadata).find(key => {
+            const keyNorm = key.toLowerCase().replace(/[-_\s]+/g, '');
+            return keyNorm === normalized ||
+                   keyNorm.includes(normalized) ||
+                   normalized.includes(keyNorm) ||
+                   key.toLowerCase().includes(cleanModelName.toLowerCase());
+        });
+
+        return modelKey ? modelMetadata[modelKey] : null;
+    }
+
+    function parseParameters(paramStr) {
+        if (!paramStr || paramStr === '' || paramStr === 'Unknown') return null;
+
+        // Remove commas and convert to number
+        const cleanStr = paramStr.replace(/,/g, '');
+        const num = parseFloat(cleanStr);
+
+        if (isNaN(num) || num <= 0) return null;
+
+        return num;
+    }
+
+    function formatParameters(num) {
+        if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
+        if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+        return num.toString();
+    }
+
+    function calculateMetricsForModel(modelPredictions, phenotype) {
+        if (phenotype === 'average') {
+            // Calculate average across all phenotypes (excluding aerophilicity and health_association)
+            const phenotypes = [
+                'gram_staining', 'motility', 'extreme_environment_tolerance',
+                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                'host_association', 'plant_pathogenicity',
+                'spore_formation', 'hemolysis', 'cell_shape'
+            ];
+
+            const metrics = { balanced_accuracy: [], precision: [], recall: [], f1: [] };
+
+            phenotypes.forEach(ph => {
+                const result = calculateSinglePhenotypeMetrics(modelPredictions, ph);
+                if (result && result.sampleSize >= 100) {
+                    metrics.balanced_accuracy.push(result.balanced_accuracy);
+                    metrics.precision.push(result.precision);
+                    metrics.recall.push(result.recall);
+                    metrics.f1.push(result.f1);
+                }
+            });
+
+            if (metrics.balanced_accuracy.length === 0) return null;
+
+            return {
+                balanced_accuracy: average(metrics.balanced_accuracy),
+                precision: average(metrics.precision),
+                recall: average(metrics.recall),
+                f1: average(metrics.f1),
+                phenotype_count: metrics.balanced_accuracy.length
+            };
+        } else {
+            // Calculate for specific phenotype
+            const result = calculateSinglePhenotypeMetrics(modelPredictions, phenotype);
+            if (result) {
+                result.phenotype_count = 1;
+            }
+            return result;
+        }
+    }
+
+    function calculateSinglePhenotypeMetrics(predictions, phenotype) {
+        // Check if this is a categorical phenotype
+        const categoricalPhenotypes = ['cell_shape'];
+        const isCategorical = categoricalPhenotypes.includes(phenotype);
+
+        if (isCategorical) {
+            // For categorical phenotypes, calculate accuracy directly
+            let correct = 0;
+            let total = 0;
+
+            predictions.forEach(pred => {
+                const predValue = pred[phenotype];
+                const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
+
+                if (predValue && groundTruth &&
+                    predValue !== 'N/A' && groundTruth !== 'N/A' &&
+                    predValue !== 'Unknown' && groundTruth !== 'Unknown') {
+
+                    total++;
+                    // Compare as lowercase strings
+                    if (String(predValue).toLowerCase().trim() === String(groundTruth).toLowerCase().trim()) {
+                        correct++;
+                    }
+                }
+            });
+
+            if (total === 0) return null;
+
+            const accuracy = correct / total;
+
+            // For categorical, return accuracy as all metrics
+            return {
+                balanced_accuracy: accuracy,
+                precision: accuracy,
+                recall: accuracy,
+                f1: accuracy,
+                sampleSize: total
+            };
+        } else {
+            // For boolean phenotypes, use the existing logic
+            let tp = 0, fp = 0, tn = 0, fn = 0;
+
+            predictions.forEach(pred => {
+                const predValue = pred[phenotype];
+                const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
+
+                if (predValue && groundTruth && predValue !== 'N/A' && groundTruth !== 'N/A') {
+                    const predBool = normalizeBooleanValue(predValue);
+                    const truthBool = normalizeBooleanValue(groundTruth);
+
+                    if (predBool !== null && truthBool !== null) {
+                        if (predBool === true && truthBool === true) tp++;
+                        else if (predBool === true && truthBool === false) fp++;
+                        else if (predBool === false && truthBool === false) tn++;
+                        else if (predBool === false && truthBool === true) fn++;
+                    }
+                }
+            });
+
+            const sampleSize = tp + fp + tn + fn;
+            if (sampleSize === 0) return null;
+
+            const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+            const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+            const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+            const balanced_accuracy = (recall + specificity) / 2;
+            const f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+
+            return { balanced_accuracy, precision, recall, f1, sampleSize };
+        }
+    }
+
+    function normalizeBooleanValue(value) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            if (lower === 'true' || lower === 't' || lower === '1') return true;
+            if (lower === 'false' || lower === 'f' || lower === '0') return false;
+        }
+        return null;
+    }
+
+    function getGroundTruth(binomialName, phenotype) {
+        const gt = groundTruthData[binomialName.toLowerCase()];
+        return gt ? gt[phenotype] : null;
+    }
+
+    function average(arr) {
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function updateChart() {
+        if (!predictionData || !groundTruthData) {
+            console.log('Missing data:', { predictionData: !!predictionData, groundTruthData: !!groundTruthData });
+            return;
+        }
+
+        showLoading('Calculating metrics...');
+
+        const metric = document.getElementById('paramsMetricSelect').value;
+        const phenotype = document.getElementById('paramsPhenotypeSelect').value;
+
+        console.log('Updating chart for metric:', metric, 'phenotype:', phenotype);
+
+        // Group predictions by model
+        const modelGroups = {};
+        predictionData.forEach(pred => {
+            if (!modelGroups[pred.model]) {
+                modelGroups[pred.model] = [];
+            }
+            modelGroups[pred.model].push(pred);
+        });
+
+        console.log('Found', Object.keys(modelGroups).length, 'models in predictions');
+
+        // Prepare chart data
+        const chartData = [];
+        let modelsWithParams = 0;
+        let totalModels = Object.keys(modelGroups).length;
+        let modelsWithoutParams = [];
+
+        Object.keys(modelGroups).forEach(model => {
+            const meta = findModelMetadata(model);
+            if (meta && meta['Parameters']) {
+                const parameters = parseParameters(meta['Parameters']);
+
+                if (parameters) {
+                    const metrics = calculateMetricsForModel(modelGroups[model], phenotype);
+
+                    if (metrics && metrics[metric] !== undefined && !isNaN(metrics[metric])) {
+                        // Validate that metric value is between 0 and 1
+                        const metricValue = metrics[metric];
+                        if (metricValue >= 0 && metricValue <= 1) {
+                            modelsWithParams++;
+                            chartData.push({
+                                x: metricValue,  // Accuracy on x-axis
+                                y: parameters,   // Parameters on y-axis (will use log scale)
+                                model: model,
+                                organization: meta['Organization'] || 'Unknown',
+                                parameters: parameters,
+                                parameterStr: formatParameters(parameters),
+                                phenotype_count: metrics.phenotype_count || 0,
+                                publicationDate: meta['Publication date'] || 'Unknown'
+                            });
+                            console.log('Added data point for', model, '- params:', formatParameters(parameters), 'accuracy:', metricValue.toFixed(3));
+                        } else {
+                            console.warn('Invalid metric value for', model, ':', metricValue, '(expected 0-1)');
+                        }
+                    } else {
+                        console.log('No valid metrics for model:', model, 'metrics:', metrics, 'phenotype:', phenotype);
+                    }
+                } else {
+                    console.log('Invalid parameters for model:', model, 'value:', meta['Parameters']);
+                }
+            } else {
+                modelsWithoutParams.push(model);
+                if (modelsWithoutParams.length <= 5) {
+                    console.log('No parameter data found for model:', model);
+                }
+            }
+        });
+
+        console.log('Models without parameter data:', modelsWithoutParams.length);
+        console.log('Chart data points:', chartData.length);
+
+        showLoading('Generating visualization...');
+
+        // Use setTimeout to allow the UI to update
+        setTimeout(() => {
+            // Update statistics
+            updateStatistics(chartData, metric, modelsWithParams, totalModels);
+
+            // Create chart without frontier line
+            createScatterChart(chartData, metric, null);
+
+            // Hide loading indicator
+            hideLoading();
+        }, 100);
+    }
+
+    function calculateEfficiencyFrontier(chartData) {
+        if (chartData.length === 0) return [];
+
+        // Sort by parameters (ascending)
+        const sortedData = [...chartData].sort((a, b) => a.y - b.y);
+
+        const frontier = [];
+        let currentBestAccuracy = 0;
+
+        sortedData.forEach(point => {
+            if (point.x > currentBestAccuracy) {
+                frontier.push({
+                    x: point.x,
+                    y: point.y,
+                    model: point.model
+                });
+                currentBestAccuracy = point.x;
+            }
+        });
+
+        return frontier;
+    }
+
+    function updateStatistics(chartData, metric, modelsWithParams, totalModels) {
+        document.getElementById('modelsWithParams').textContent = modelsWithParams;
+        document.getElementById('modelsWithParamsDesc').textContent = `out of ${totalModels} total models`;
+
+        if (chartData.length > 0) {
+            // Size range
+            const parameters = chartData.map(d => d.parameters);
+            const minParams = Math.min(...parameters);
+            const maxParams = Math.max(...parameters);
+            const sizeRange = `${formatParameters(minParams)} - ${formatParameters(maxParams)}`;
+            document.getElementById('sizeRange').textContent = sizeRange;
+
+            // Calculate correlation (using log of parameters)
+            const correlation = calculateCorrelation(chartData);
+            document.getElementById('paramsCorrelation').textContent = correlation.toFixed(3);
+            document.getElementById('paramsCorrelationDesc').textContent =
+                correlation > 0.3 ? 'Larger models perform better' :
+                correlation < -0.3 ? 'Smaller models perform better' : 'No clear relationship';
+
+            // Most efficient model (highest accuracy per parameter)
+            const efficiency = chartData.map(d => ({
+                model: d.model,
+                efficiency: d.x / Math.log10(d.parameters)  // Accuracy per log10(params)
+            }));
+            const mostEfficient = efficiency.reduce((best, current) =>
+                current.efficiency > best.efficiency ? current : best
+            );
+            document.getElementById('mostEfficient').textContent = mostEfficient.model.split('/').pop();
+        } else {
+            document.getElementById('sizeRange').textContent = '-';
+            document.getElementById('paramsCorrelation').textContent = '-';
+            document.getElementById('paramsCorrelationDesc').textContent = 'Size vs. Performance';
+            document.getElementById('mostEfficient').textContent = '-';
+        }
+    }
+
+    function calculateCorrelation(data) {
+        if (data.length < 2) return 0;
+
+        // Use log10 of parameters for correlation
+        const xValues = data.map(d => d.x);  // Accuracy
+        const yValues = data.map(d => Math.log10(d.y));  // Log of parameters
+
+        const n = xValues.length;
+        const sumX = xValues.reduce((a, b) => a + b, 0);
+        const sumY = yValues.reduce((a, b) => a + b, 0);
+        const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+        const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+        const sumY2 = yValues.reduce((sum, y) => sum + y * y, 0);
+
+        const correlation = (n * sumXY - sumX * sumY) /
+            Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+
+        return isNaN(correlation) ? 0 : correlation;
+    }
+
+    function createScatterChart(data, metric, frontierData) {
+        console.log('Creating chart with', data.length, 'data points for metric:', metric);
+
+        // Get canvas element
+        const canvas = document.getElementById('paramsAccuracyChart');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+
+        // Check if we have data
+        if (!data || data.length === 0) {
+            console.warn('No data to display in chart');
+            return;
+        }
+
+        // Calculate x-axis range based on data
+        const xValues = data.map(d => d.x);
+        const minX = Math.min(...xValues);
+        const maxX = Math.max(...xValues);
+        const xPadding = (maxX - minX) * 0.05; // 5% padding
+        const xMin = Math.max(0, minX - xPadding);
+        const xMax = Math.min(1, maxX + xPadding);
+
+        // Destroy any existing chart
+        if (paramsChart) {
+            paramsChart.destroy();
+            paramsChart = null;
+        }
+
+        // Also check if Chart.js has a chart registered for this canvas
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        // Group by organization for coloring
+        const organizations = [...new Set(data.map(d => d.organization))];
+        const colorMap = {};
+        const colors = [
+            '#60A5FA', '#C084FC', '#86EFAC', '#FCA5A5', '#FDBA74',
+            '#67E8F9', '#A5B4FC', '#FDE047', '#C7D2FE', '#FED7AA'
+        ];
+
+        organizations.forEach((org, i) => {
+            colorMap[org] = colors[i % colors.length];
+        });
+
+        // Prepare datasets by organization
+        const datasets = organizations.map(org => ({
+            label: org,
+            data: data.filter(d => d.organization === org),
+            backgroundColor: colorMap[org],
+            borderColor: colorMap[org],
+            borderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            showLine: false
+        }));
+
+        // Create the chart
+        try {
+            paramsChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20,
+                            right: 20,
+                            bottom: 20,
+                            left: 20
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return [
+                                        `Model: ${point.model}`,
+                                        `Parameters: ${point.parameterStr}`,
+                                        `${metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${point.x.toFixed(3)}`,
+                                        `Organization: ${point.organization}`,
+                                        `Published: ${point.publicationDate}`,
+                                        `Phenotypes evaluated: ${point.phenotype_count}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            },
+                            min: xMin,
+                            max: xMax,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'Model Parameters (log scale)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatParameters(value);
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            console.log('Chart created successfully');
+            // Update legend
+            updateLegend(organizations, colorMap);
+        } catch (error) {
+            console.error('Error creating chart:', error);
+        }
+    }
+
+    function updateLegend(organizations, colorMap) {
+        const legendContainer = document.getElementById('paramsChartLegend');
+        legendContainer.innerHTML = '';
+
+        // Add organizations
+        organizations.slice(0, 10).forEach(org => {
+            const item = document.createElement('div');
+            item.className = 'params-legend-item';
+            item.innerHTML = `
+                <div class="params-legend-dot" style="background: ${colorMap[org]}"></div>
+                <span>${org}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+
+        if (organizations.length > 10) {
+            const item = document.createElement('div');
+            item.className = 'params-legend-item';
+            item.innerHTML = `<span>... and ${organizations.length - 10} more</span>`;
+            legendContainer.appendChild(item);
+        }
+    }
+});
+</script>

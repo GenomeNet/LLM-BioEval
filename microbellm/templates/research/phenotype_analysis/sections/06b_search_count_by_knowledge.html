@@ -1,0 +1,695 @@
+<div class="search-knowledge-container">
+    <div class="search-knowledge-header">
+        <h3 class="section-callout__title">Search Frequency by Knowledge Group</h3>
+        <p class="section-callout__text">
+            Distribution of Google Scholar search counts across model-reported knowledge levels,
+            revealing how research attention correlates with model confidence.
+        </p>
+    </div>
+    
+    <div class="chart-controls">
+        <div class="control-group">
+            <label for="modelSelect">Model:</label>
+            <select id="modelSelect" class="control-select">
+                <option value="">Loading models...</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="yAxisScale">Y-Axis Scale:</label>
+            <select id="yAxisScale" class="control-select">
+                <option value="logarithmic" selected>Logarithmic</option>
+                <option value="linear">Linear</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="chartType">Chart Type:</label>
+            <select id="chartType" class="control-select">
+                <option value="violin" selected>Violin Plot</option>
+                <option value="bar">Bar Chart (Median)</option>
+                <option value="scatter">Scatter Plot</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="chart-wrapper">
+        <canvas id="knowledgeSearchChart"></canvas>
+    </div>
+    
+    <div class="stats-summary">
+        <div class="stats-grid">
+            <div class="stat-box limited-stat">
+                <div class="stat-header">Limited</div>
+                <div class="stat-median">-</div>
+                <div class="stat-label">Median searches</div>
+                <div class="stat-count">-</div>
+            </div>
+            <div class="stat-box moderate-stat">
+                <div class="stat-header">Moderate</div>
+                <div class="stat-median">-</div>
+                <div class="stat-label">Median searches</div>
+                <div class="stat-count">-</div>
+            </div>
+            <div class="stat-box extensive-stat">
+                <div class="stat-header">Extensive</div>
+                <div class="stat-median">-</div>
+                <div class="stat-label">Median searches</div>
+                <div class="stat-count">-</div>
+            </div>
+        </div>
+        
+        <div class="insights-text" id="insightsText">
+            <p>Loading analysis...</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-knowledge-container {
+    padding: 0;
+}
+
+.search-knowledge-header {
+    margin-bottom: 32px;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.control-select {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    min-width: 150px;
+}
+
+.chart-wrapper {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 32px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    min-height: 500px;
+    position: relative;
+}
+
+.stats-summary {
+    margin-top: 32px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-box {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    border: 2px solid;
+    position: relative;
+}
+
+.stat-box.na-stat {
+    border-color: rgba(156, 163, 175, 0.3);
+    background: rgba(156, 163, 175, 0.05);
+}
+
+.stat-box.limited-stat {
+    border-color: rgba(251, 146, 60, 0.3);
+    background: rgba(251, 146, 60, 0.05);
+}
+
+.stat-box.moderate-stat {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.stat-box.extensive-stat {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.stat-header {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.na-stat .stat-header { color: #6b7280; }
+.limited-stat .stat-header { color: #ea580c; }
+.moderate-stat .stat-header { color: #2563eb; }
+.extensive-stat .stat-header { color: #16a34a; }
+
+.stat-median {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--gray-600);
+    margin-bottom: 8px;
+}
+
+.stat-count {
+    font-size: 11px;
+    color: var(--gray-500);
+}
+
+.insights-text {
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.insights-text p {
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+    color: var(--gray-700);
+}
+
+.insights-text p:last-child {
+    margin-bottom: 0;
+}
+
+.highlight-value {
+    font-weight: 700;
+    color: var(--gray-900);
+    background: rgba(34, 197, 94, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+    .chart-controls {
+        flex-direction: column;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://unpkg.com/@sgratzl/chartjs-chart-boxplot@3.12.0/build/index.umd.min.js"></script>
+<script>
+// Search Count by Knowledge Group Visualization
+(function() {
+    let chart = null;
+    let knowledgeData = null;
+    let currentModel = null;
+    
+    async function loadKnowledgeSearchData(model = '') {
+        try {
+            const url = model ? 
+                `/api/search_count_by_knowledge?species_file=wa_with_gcount.txt&model=${encodeURIComponent(model)}` :
+                '/api/search_count_by_knowledge?species_file=wa_with_gcount.txt';
+                
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to load data');
+            }
+            
+            knowledgeData = result;
+            currentModel = result.metadata.selected_model;
+            
+            // Populate model selector if not already done
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect && result.metadata.available_models && modelSelect.options.length <= 1) {
+                modelSelect.innerHTML = '';
+                result.metadata.available_models.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m;
+                    option.textContent = formatModelName(m);
+                    if (m === currentModel) {
+                        option.selected = true;
+                    }
+                    modelSelect.appendChild(option);
+                });
+            }
+            
+            updateStats(result.stats_by_group);
+            createChart();
+            generateInsights(result);
+            
+        } catch (error) {
+            console.error('Failed to load knowledge search data:', error);
+            document.getElementById('insightsText').innerHTML = 
+                `<p style="color: #dc2626;">Error loading data: ${error.message}. Please check if knowledge group data exists for this dataset.</p>`;
+        }
+    }
+    
+    function formatModelName(modelName) {
+        if (!modelName) return 'Unknown Model';
+        
+        // Format model names for display
+        const parts = modelName.split('/');
+        if (parts.length === 2) {
+            const provider = parts[0];
+            const model = parts[1];
+            
+            // Capitalize provider
+            const providerFormatted = provider.charAt(0).toUpperCase() + provider.slice(1);
+            
+            // Truncate long model names
+            const modelFormatted = model.length > 30 ? model.substring(0, 30) + '...' : model;
+            
+            return `${providerFormatted}: ${modelFormatted}`;
+        }
+        
+        return modelName;
+    }
+    
+    function updateStats(stats) {
+        const groups = ['limited', 'moderate', 'extensive'];  // Removed NA
+        
+        groups.forEach(group => {
+            const statBox = document.querySelector(`.${group.toLowerCase()}-stat`);
+            if (statBox && stats[group] && stats[group].count > 0) {
+                statBox.querySelector('.stat-median').textContent = 
+                    stats[group].median.toLocaleString();
+                statBox.querySelector('.stat-count').textContent = 
+                    `n = ${stats[group].count}`;
+            } else if (statBox) {
+                statBox.querySelector('.stat-median').textContent = '—';
+                statBox.querySelector('.stat-count').textContent = 'n = 0';
+            }
+        });
+    }
+    
+    function createChart() {
+        const canvas = document.getElementById('knowledgeSearchChart');
+        const ctx = canvas.getContext('2d');
+        
+        const chartType = document.getElementById('chartType').value;
+        const yScale = document.getElementById('yAxisScale').value;
+        const stats = knowledgeData.stats_by_group;
+        
+        // Prepare data for Chart.js
+        const datasets = [];
+        const labels = [];
+        const colors = {
+            'NA': 'rgba(156, 163, 175, 0.6)',
+            'limited': 'rgba(251, 146, 60, 0.6)',
+            'moderate': 'rgba(59, 130, 246, 0.6)',
+            'extensive': 'rgba(34, 197, 94, 0.6)'
+        };
+        
+        const borderColors = {
+            'NA': 'rgba(156, 163, 175, 1)',
+            'limited': 'rgba(251, 146, 60, 1)',
+            'moderate': 'rgba(59, 130, 246, 1)',
+            'extensive': 'rgba(34, 197, 94, 1)'
+        };
+        
+        if (chart) {
+            chart.destroy();
+        }
+        
+        if (chartType === 'violin') {
+            // Create violin-like plot using scatter with density-based jitter
+            const groups = ['limited', 'moderate', 'extensive'];  // Removed NA
+            const violinDatasets = [];
+            
+            groups.forEach((group, groupIndex) => {
+                if (knowledgeData.raw_data[group] && knowledgeData.raw_data[group].length > 0) {
+                    const groupData = knowledgeData.raw_data[group];
+                    const counts = groupData.map(d => d.search_count).sort((a, b) => a - b);
+                    
+                    // Calculate density for violin width
+                    const points = [];
+                    groupData.forEach((item) => {
+                        const value = item.search_count;
+                        
+                        // Calculate density-based width (more points at median)
+                        const percentile = counts.indexOf(value) / counts.length;
+                        const densityWidth = Math.sin(percentile * Math.PI) * 0.35; // Max width 0.35
+                        
+                        // Add some randomness for better visualization
+                        const jitter = (Math.random() - 0.5) * densityWidth;
+                        
+                        points.push({
+                            x: groupIndex + jitter,
+                            y: value,
+                            label: item.species
+                        });
+                    });
+                    
+                    violinDatasets.push({
+                        label: group.charAt(0).toUpperCase() + group.slice(1),
+                        data: points,
+                        backgroundColor: colors[group],
+                        borderColor: borderColors[group],
+                        borderWidth: 1,
+                        pointRadius: 2,
+                        pointHoverRadius: 4
+                    });
+                    
+                    // Add median line
+                    if (stats[group] && stats[group].median) {
+                        violinDatasets.push({
+                            label: `${group} median`,
+                            data: [
+                                { x: groupIndex - 0.3, y: stats[group].median },
+                                { x: groupIndex + 0.3, y: stats[group].median }
+                            ],
+                            type: 'line',
+                            borderColor: 'rgba(0, 0, 0, 0.8)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            showLine: true,
+                            fill: false,
+                            tension: 0
+                        });
+                    }
+                }
+            });
+            
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: violinDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Search Count Distribution by Knowledge Group (${formatModelName(currentModel)})`,
+                            font: { size: 16, weight: '600' }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                filter: function(item) {
+                                    // Hide median lines from legend
+                                    return !item.text.includes('median');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.raw.label) {
+                                        return `${context.raw.label}: ${context.raw.y.toLocaleString()} searches`;
+                                    }
+                                    return `${context.parsed.y.toLocaleString()} searches`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: yScale,
+                            title: {
+                                display: true,
+                                text: 'Google Scholar Search Count',
+                                font: { size: 14, weight: '500' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Model-Reported Knowledge Level',
+                                font: { size: 14, weight: '500' }
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    const labels = ['Limited', 'Moderate', 'Extensive'];
+                                    return labels[Math.round(value)] || '';
+                                },
+                                stepSize: 1
+                            },
+                            min: -0.5,
+                            max: 2.5
+                        }
+                    }
+                }
+            });
+            
+        } else if (chartType === 'bar') {
+            // Simple bar chart with median values
+            const groups = ['limited', 'moderate', 'extensive'];  // Removed NA
+            const medianData = [];
+            const barColors = [];
+            const barLabels = [];
+            
+            groups.forEach(group => {
+                if (stats[group] && stats[group].count > 0) {
+                    barLabels.push(group.charAt(0).toUpperCase() + group.slice(1));
+                    medianData.push(stats[group].median);
+                    barColors.push(colors[group]);
+                }
+            });
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: barLabels,
+                    datasets: [{
+                        label: 'Median Search Count',
+                        data: medianData,
+                        backgroundColor: barColors,
+                        borderColor: barColors.map(c => c.replace('0.6', '1')),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Median Search Count by Knowledge Group (${formatModelName(currentModel)})`,
+                            font: { size: 16, weight: '600' }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const group = groups[context.dataIndex];
+                                    if (stats[group]) {
+                                        return [
+                                            `Count: ${stats[group].count} species`,
+                                            `Min: ${stats[group].min.toLocaleString()}`,
+                                            `Q1: ${stats[group].q1.toLocaleString()}`,
+                                            `Q3: ${stats[group].q3.toLocaleString()}`,
+                                            `Max: ${stats[group].max.toLocaleString()}`
+                                        ];
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: yScale,
+                            title: {
+                                display: true,
+                                text: 'Median Google Scholar Search Count',
+                                font: { size: 14, weight: '500' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Model-Reported Knowledge Level',
+                                font: { size: 14, weight: '500' }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } else if (chartType === 'scatter') {
+            // Scatter plot
+            const groups = ['limited', 'moderate', 'extensive'];  // Removed NA
+            
+            groups.forEach((group, groupIndex) => {
+                if (knowledgeData.raw_data[group] && knowledgeData.raw_data[group].length > 0) {
+                    const points = knowledgeData.raw_data[group].map((item, i) => ({
+                        x: groupIndex + (Math.random() - 0.5) * 0.3, // Add jitter
+                        y: item.search_count,
+                        label: item.species
+                    }));
+                    
+                    datasets.push({
+                        label: group.charAt(0).toUpperCase() + group.slice(1),
+                        data: points,
+                        backgroundColor: colors[group],
+                        borderColor: borderColors[group],
+                        borderWidth: 1,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    });
+                }
+            });
+            
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Individual Species Search Counts by Knowledge Group (${formatModelName(currentModel)})`,
+                            font: { size: 16, weight: '600' }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.raw.label}: ${context.raw.y.toLocaleString()} searches`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: yScale,
+                            title: {
+                                display: true,
+                                text: 'Google Scholar Search Count',
+                                font: { size: 14, weight: '500' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Knowledge Group',
+                                font: { size: 14, weight: '500' }
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    const labels = ['Limited', 'Moderate', 'Extensive'];
+                                    return labels[Math.round(value)] || '';
+                                },
+                                stepSize: 1
+                            },
+                            min: -0.5,
+                            max: 2.5
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    function generateInsights(data) {
+        const stats = data.stats_by_group;
+        const metadata = data.metadata;
+        
+        // Calculate insights
+        const extensiveMedian = stats.extensive?.median || 0;
+        const limitedMedian = stats.limited?.median || 0;
+        const moderateMedian = stats.moderate?.median || 0;
+        const naMedian = stats.NA?.median || 0;
+        
+        const ratio = extensiveMedian > 0 && limitedMedian > 0 ? 
+            (extensiveMedian / limitedMedian).toFixed(1) : 'N/A';
+        
+        let insightsHTML = `
+            <p>The relationship between search frequency and model knowledge confidence reveals striking patterns. 
+            Species that models classify as having <span class="highlight-value">"Extensive"</span> knowledge 
+            have a median search count of <span class="highlight-value">${extensiveMedian.toLocaleString()}</span>, 
+            while those with <span class="highlight-value">"Limited"</span> knowledge show only 
+            <span class="highlight-value">${limitedMedian.toLocaleString()}</span> median searches—a 
+            ${ratio}× difference.</p>
+            
+            <p>This correlation suggests that language models' confidence levels are strongly influenced by 
+            the volume of available scientific literature. Well-studied organisms receive higher confidence 
+            ratings, while understudied species are more likely to be classified as having limited or 
+            uncertain knowledge, potentially regardless of the actual amount of biological information available.</p>
+        `;
+        
+        if (metadata.total_species_without_knowledge > 0) {
+            insightsHTML += `
+                <p><em>Note: ${metadata.total_species_with_both} species have both search count and knowledge 
+                group data. ${metadata.total_species_without_knowledge} species in the search database 
+                lack knowledge group assignments.</em></p>
+            `;
+        }
+        
+        document.getElementById('insightsText').innerHTML = insightsHTML;
+    }
+    
+    // Event listeners
+    document.getElementById('yAxisScale').addEventListener('change', createChart);
+    document.getElementById('chartType').addEventListener('change', createChart);
+    document.getElementById('modelSelect').addEventListener('change', function(e) {
+        const selectedModel = e.target.value;
+        if (selectedModel) {
+            loadKnowledgeSearchData(selectedModel);
+        }
+    });
+    
+    // Initialize
+    loadKnowledgeSearchData();
+})();
+</script>

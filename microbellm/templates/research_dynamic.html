@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/article_styles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/component_styles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/layout_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/section_export.css') }}">
 {% if page_specific_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename=page_specific_css) }}">
 {% endif %}
@@ -413,7 +414,11 @@ html, body {
         
     {# Handle raw includes #}
     {% elif section.type == 'raw' %}
-        {% include project_path + '/' + section.file %}
+        {% if '../../components/' in section.file %}
+            {% include 'components/' + section.file.split('../../components/')[1] %}
+        {% else %}
+            {% include project_path + '/' + section.file %}
+        {% endif %}
     {% endif %}
     </div> <!-- Close page-section -->
 {% endfor %}
@@ -423,6 +428,9 @@ html, body {
 <!-- Footer -->
 {% include 'partials/footer.html' %}
 
+
+<!-- Export functionality -->
+<script src="{{ url_for('static', filename='js/section_export.js') }}"></script>
 
 <!-- Page-specific scripts -->
 {% for section in manifest.sections %}

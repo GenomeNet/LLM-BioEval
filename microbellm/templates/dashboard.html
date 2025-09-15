@@ -26,8 +26,12 @@
             <button onclick="refreshDashboard(true)" class="btn btn-secondary" id="refreshBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
+            <button onclick="openValidationDialog()" class="btn btn-primary" id="validateBtn">
+                <i class="fas fa-check-circle"></i> Validate Predictions
+            </button>
         </div>
     </div>
+
 
     {% if dashboard_data.matrix %}
         <!-- All Templates Displayed Vertically -->
@@ -1769,7 +1773,159 @@
         from { transform: translateY(-50px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
     }
+    
+    /* Validation Styles */
+    .validation-dialog {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 600px;
+        width: 90%;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        z-index: 1000;
+    }
+    
+    .validation-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+    }
+    
+    .validation-progress {
+        margin: 20px 0;
+        background: #f0f0f0;
+        border-radius: 4px;
+        height: 30px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .validation-progress-bar {
+        background: linear-gradient(90deg, #4CAF50, #45a049);
+        height: 100%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .validation-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+    }
+    
+    .validation-stat {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        text-align: center;
+    }
+    
+    .validation-stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .validation-stat-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        margin-top: 4px;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        border: 1px solid;
+    }
+    
+    .alert-info {
+        background: #e3f2fd;
+        border-color: #2196F3;
+        color: #0d47a1;
+    }
+    
+    .alert-success {
+        background: #e8f5e9;
+        border-color: #4CAF50;
+        color: #1b5e20;
+    }
+    
+    .alert-warning {
+        background: #fff3e0;
+        border-color: #FF9800;
+        color: #e65100;
+    }
+    
+    .alert-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .badge {
+        background: #ff4444;
+        color: white;
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 11px;
+        margin-left: 8px;
+        font-weight: bold;
+    }
 </style>
+
+<!-- Validation Dialog -->
+<div id="validationDialog" style="display: none;">
+    <div class="validation-overlay" onclick="closeValidationDialog()"></div>
+    <div class="validation-dialog">
+        <h3>Validate Predictions</h3>
+        <p id="validationDescription">This will validate and normalize all predictions according to template specifications.</p>
+        
+        <div class="validation-stats" id="validationStats" style="display: none;">
+            <div class="validation-stat">
+                <div class="validation-stat-value" id="statTotal">0</div>
+                <div class="validation-stat-label">Total</div>
+            </div>
+            <div class="validation-stat">
+                <div class="validation-stat-value" id="statValidated">0</div>
+                <div class="validation-stat-label">Validated</div>
+            </div>
+            <div class="validation-stat">
+                <div class="validation-stat-value" id="statUnvalidated">0</div>
+                <div class="validation-stat-label">Unvalidated</div>
+            </div>
+        </div>
+        
+        <div class="validation-progress" id="validationProgress" style="display: none;">
+            <div class="validation-progress-bar" id="validationProgressBar" style="width: 0%;">0%</div>
+        </div>
+        
+        <div id="validationResult" style="display: none; margin: 20px 0;">
+            <h4>Validation Complete!</h4>
+            <div id="validationSummary"></div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-secondary" onclick="closeValidationDialog()">Close</button>
+            <button class="btn btn-primary" id="startValidationBtn" onclick="startValidation()">
+                Start Validation
+            </button>
+        </div>
+    </div>
+</div>
 
 <script>
     // Define all functions in global scope immediately
@@ -3530,5 +3686,157 @@
         document.getElementById('tableViewer').style.display = 'none';
         document.getElementById('databaseTables').style.display = 'block';
     }
+    
+    // Validation Functions
+    let validationInterval = null;
+    
+    function openValidationDialog() {
+        document.getElementById('validationDialog').style.display = 'block';
+        document.getElementById('validationResult').style.display = 'none';
+        document.getElementById('validationProgress').style.display = 'none';
+        document.getElementById('startValidationBtn').style.display = 'inline-block';
+        
+        // Show loading message while fetching stats
+        document.getElementById('validationDescription').textContent = 'Loading validation information...';
+        document.getElementById('validationStats').style.display = 'none';
+        
+        // Load validation stats only when dialog opens
+        fetch('/api/validation_stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.stats) {
+                    document.getElementById('statTotal').textContent = data.stats.total || 0;
+                    document.getElementById('statValidated').textContent = data.stats.validated || 0;
+                    document.getElementById('statUnvalidated').textContent = data.stats.unvalidated || 0;
+                    document.getElementById('validationStats').style.display = 'grid';
+                    
+                    const unvalidated = data.stats.unvalidated || 0;
+                    if (unvalidated > 0) {
+                        document.getElementById('validationDescription').textContent = 
+                            `This will validate and normalize ${unvalidated} predictions according to template specifications.`;
+                    } else {
+                        document.getElementById('validationDescription').textContent = 
+                            'All predictions are already validated! You can run validation again if needed.';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading validation stats:', error);
+                document.getElementById('validationDescription').textContent = 
+                    'Click Start Validation to clean and normalize predictions according to template specifications.';
+            });
+    }
+    
+    function closeValidationDialog() {
+        document.getElementById('validationDialog').style.display = 'none';
+        if (validationInterval) {
+            clearInterval(validationInterval);
+            validationInterval = null;
+        }
+    }
+    
+    function startValidation() {
+        document.getElementById('startValidationBtn').style.display = 'none';
+        document.getElementById('validationProgress').style.display = 'block';
+        document.getElementById('validationProgressBar').style.width = '0%';
+        document.getElementById('validationProgressBar').textContent = '0%';
+        
+        // Simulate progress
+        let progress = 0;
+        validationInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.random() * 10;
+                progress = Math.min(progress, 90);
+                updateValidationProgress(progress);
+            }
+        }, 500);
+        
+        // Start validation
+        fetch('/api/validate_predictions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            clearInterval(validationInterval);
+            updateValidationProgress(100);
+            
+            if (data.success && data.result) {
+                showValidationResult(data.result);
+            } else {
+                showValidationError(data.error || 'Validation failed');
+            }
+        })
+        .catch(error => {
+            clearInterval(validationInterval);
+            console.error('Error during validation:', error);
+            showValidationError(error.message);
+        });
+    }
+    
+    function updateValidationProgress(percent) {
+        const progressBar = document.getElementById('validationProgressBar');
+        progressBar.style.width = percent + '%';
+        progressBar.textContent = Math.round(percent) + '%';
+    }
+    
+    function showValidationResult(result) {
+        document.getElementById('validationResult').style.display = 'block';
+        document.getElementById('validationProgress').style.display = 'none';
+        
+        let summaryHtml = '<div style="margin-top: 12px;">';
+        
+        if (result.status === 'no_unvalidated') {
+            summaryHtml += '<p>✓ All predictions are already validated!</p>';
+        } else if (result.status === 'success') {
+            summaryHtml += `
+                <p><strong>✓ Validation completed successfully!</strong></p>
+                <ul style="margin-top: 8px;">
+                    <li>Jobs processed: ${result.jobs_processed || 0}</li>
+                    <li>Predictions validated: ${result.total_predictions_validated || 0}</li>
+                    <li>Corrections made: ${result.total_changes_made || 0}</li>
+                </ul>
+            `;
+            
+            if (result.job_summaries && result.job_summaries.length > 0) {
+                summaryHtml += '<h5 style="margin-top: 16px;">Details by Job:</h5>';
+                summaryHtml += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px;">';
+                result.job_summaries.forEach(job => {
+                    summaryHtml += `
+                        <div style="margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>Job ${job.job_id}</strong><br>
+                            Validated: ${job.validated}, 
+                            Changes: ${job.changes_made}, 
+                            Normalized: ${job.fields_normalized}, 
+                            Invalid: ${job.fields_invalidated}
+                        </div>
+                    `;
+                });
+                summaryHtml += '</div>';
+            }
+        } else {
+            summaryHtml += `<p>⚠ Validation completed with status: ${result.status}</p>`;
+        }
+        
+        summaryHtml += '</div>';
+        document.getElementById('validationSummary').innerHTML = summaryHtml;
+    }
+    
+    function showValidationError(error) {
+        document.getElementById('validationResult').style.display = 'block';
+        document.getElementById('validationProgress').style.display = 'none';
+        document.getElementById('validationSummary').innerHTML = `
+            <div class="alert alert-error">
+                <strong>Error during validation:</strong><br>
+                ${error}
+            </div>
+        `;
+    }
+    
+    // Removed automatic loading of validation stats to improve page load time
+    // Stats will be loaded only when user clicks the validation button
 </script>
 {% endblock %} 

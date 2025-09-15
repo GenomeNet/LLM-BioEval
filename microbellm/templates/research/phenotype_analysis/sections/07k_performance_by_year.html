@@ -1,0 +1,1038 @@
+<!-- Model Performance by Publication Year -->
+<style>
+    .performance-year-container {
+        padding: var(--spacing-component) 0;
+    }
+
+    .year-chart-wrapper {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+        margin-bottom: var(--spacing-component);
+        height: 500px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .chart-canvas-container {
+        position: relative;
+        height: 450px;
+        width: 100%;
+    }
+
+    #yearPerformanceChart {
+        display: block !important;
+        max-width: 100% !important;
+        max-height: 450px !important;
+    }
+
+    .chart-controls {
+        display: flex;
+        gap: var(--spacing-element);
+        margin-bottom: var(--spacing-element);
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .control-group label {
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .control-group select {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .metadata-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-component);
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: var(--spacing-small);
+    }
+
+    .stat-card h4 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .stat-description {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .model-tooltip {
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        position: absolute;
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 300px;
+        display: none;
+    }
+
+    .tooltip-header {
+        font-weight: 600;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 4px 0;
+    }
+
+    .tooltip-label {
+        opacity: 0.8;
+    }
+
+    .tooltip-value {
+        font-weight: 500;
+    }
+
+    .no-data-message {
+        text-align: center;
+        padding: var(--spacing-component);
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 12px;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #22c55e;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        font-size: 16px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .loading-subtext {
+        font-size: 14px;
+        color: #999;
+        margin-top: 8px;
+    }
+
+    .chart-legend {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-element);
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+</style>
+
+<div class="performance-year-container">
+    <div class="chart-controls">
+        <div class="control-group">
+            <label for="datasetSelectYear">Dataset:</label>
+            <select id="datasetSelectYear">
+                <option value="">Loading datasets...</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="metricSelect">Metric:</label>
+            <select id="metricSelect">
+                <option value="balanced_accuracy">Balanced Accuracy</option>
+                <option value="precision">Precision</option>
+                <option value="recall">Recall</option>
+                <option value="f1">F1 Score</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="phenotypeSelect">Phenotype:</label>
+            <select id="phenotypeSelect">
+                <option value="average">All Phenotypes (Average)</option>
+                <option value="gram_staining">Gram Staining</option>
+                <option value="motility">Motility</option>
+                <option value="aerophilicity">Aerophilicity</option>
+                <option value="extreme_environment_tolerance">Extreme Environment Tolerance</option>
+                <option value="biofilm_formation">Biofilm Formation</option>
+                <option value="animal_pathogenicity">Animal Pathogenicity</option>
+                <option value="biosafety_level">Biosafety Level</option>
+                <option value="health_association">Health Association</option>
+                <option value="host_association">Host Association</option>
+                <option value="plant_pathogenicity">Plant Pathogenicity</option>
+                <option value="spore_formation">Spore Formation</option>
+                <option value="hemolysis">Hemolysis</option>
+                <option value="cell_shape">Cell Shape</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="year-chart-wrapper">
+        <div class="loading-overlay" id="chartLoadingOverlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Data...</div>
+            <div class="loading-subtext" id="loadingStatus">Fetching predictions and calculating metrics</div>
+        </div>
+        <div class="chart-canvas-container">
+            <canvas id="yearPerformanceChart"></canvas>
+        </div>
+        <div class="chart-legend" id="chartLegend"></div>
+    </div>
+
+    <div class="metadata-stats">
+        <div class="stat-card">
+            <h4>Models with Metadata</h4>
+            <div class="stat-value" id="modelsWithMeta">0</div>
+            <div class="stat-description" id="modelsWithMetaDesc">out of 0 total models</div>
+        </div>
+        <div class="stat-card">
+            <h4>Date Range</h4>
+            <div class="stat-value" id="dateRange">-</div>
+            <div class="stat-description">Publication period</div>
+        </div>
+        <div class="stat-card">
+            <h4>Correlation</h4>
+            <div class="stat-value" id="correlation">-</div>
+            <div class="stat-description" id="correlationDesc">Performance vs. Year</div>
+        </div>
+        <div class="stat-card">
+            <h4>Best Recent Model</h4>
+            <div class="stat-value" id="bestRecent">-</div>
+            <div class="stat-description">Published in last 6 months</div>
+        </div>
+    </div>
+</div>
+
+<div class="model-tooltip" id="modelTooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let predictionData = null;
+    let groundTruthData = null;
+    let modelMetadata = null;
+    let performanceChart = null;
+
+    // Load model metadata
+    loadModelMetadata();
+
+    // Initialize dataset selector
+    initializeDatasetSelector();
+
+    async function loadModelMetadata() {
+        try {
+            const response = await fetch('/static/data/year_size.tsv');
+            const text = await response.text();
+
+            // Parse TSV
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split('\t');
+
+            modelMetadata = {};
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split('\t');
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+
+                // Store by model name (normalized)
+                const modelName = row['Model'];
+                if (modelName) {
+                    modelMetadata[modelName.toLowerCase().replace(/\s+/g, '')] = row;
+                    // Also store variations
+                    modelMetadata[modelName.toLowerCase()] = row;
+                    modelMetadata[modelName] = row;
+                }
+            }
+
+            console.log('Loaded metadata for', Object.keys(modelMetadata).length / 3, 'models');
+        } catch (error) {
+            console.error('Error loading model metadata:', error);
+            modelMetadata = {};
+        }
+    }
+
+    async function initializeDatasetSelector() {
+        try {
+            // Load ground truth datasets (matching model_ranking pattern)
+            const response = await fetch('/api/ground_truth/datasets');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+
+            const select = document.getElementById('datasetSelectYear');
+
+            if (!result.success || !result.datasets || result.datasets.length === 0) {
+                select.innerHTML = '<option value="">No datasets available</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">Select a dataset...</option>';
+
+            let waTestDataset = null;
+            result.datasets.forEach(dataset => {
+                const option = document.createElement('option');
+                option.value = dataset.dataset_name;
+                option.textContent = `${dataset.dataset_name} (${dataset.species_count} species)`;
+                option.dataset = {
+                    template: dataset.template_name,
+                    count: dataset.species_count
+                };
+                select.appendChild(option);
+
+                if (dataset.dataset_name === 'WA_Test_Dataset') {
+                    waTestDataset = dataset;
+                }
+            });
+
+            // Auto-select WA_Test_Dataset if available
+            if (waTestDataset) {
+                select.value = 'WA_Test_Dataset';
+                await loadPerformanceData('WA_Test_Dataset');
+            }
+
+            // Add event listeners
+            select.addEventListener('change', async (e) => {
+                if (e.target.value) {
+                    await loadPerformanceData(e.target.value);
+                }
+            });
+
+            document.getElementById('metricSelect').addEventListener('change', updateChart);
+            document.getElementById('phenotypeSelect').addEventListener('change', updateChart);
+
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+            const select = document.getElementById('datasetSelectYear');
+            select.innerHTML = '<option value="">Error loading datasets</option>';
+        }
+    }
+
+    function showLoading(message = 'Loading data...') {
+        const overlay = document.getElementById('chartLoadingOverlay');
+        const status = document.getElementById('loadingStatus');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            if (status && message) {
+                status.textContent = message;
+            }
+        }
+    }
+
+    function hideLoading() {
+        const overlay = document.getElementById('chartLoadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    async function loadPerformanceData(datasetName) {
+        try {
+            showLoading('Fetching prediction data...');
+
+            // Determine species file based on dataset name
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+
+            // Load prediction data
+            const predResponse = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+            const predResult = await predResponse.json();
+
+            if (!predResult.data || predResult.data.length === 0) {
+                console.error('No prediction data available');
+                hideLoading();
+                return;
+            }
+            predictionData = predResult.data;
+
+            // Update loading message
+            showLoading('Loading ground truth data...');
+
+            // Load ground truth data
+            const gtResponse = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=20000`);
+            const gtResult = await gtResponse.json();
+
+            if (!gtResult.success || !gtResult.data) {
+                console.error('Failed to load ground truth data');
+                hideLoading();
+                return;
+            }
+
+            // Create ground truth map
+            showLoading('Processing data...');
+            groundTruthData = {};
+            gtResult.data.forEach(item => {
+                groundTruthData[item.binomial_name.toLowerCase()] = item;
+            });
+
+            updateChart();
+
+        } catch (error) {
+            console.error('Error loading performance data:', error);
+            hideLoading();
+        }
+    }
+
+    function findModelMetadata(modelName) {
+        if (!modelMetadata || !modelName) return null;
+
+        // Extract model name from path if it contains "/"
+        let cleanModelName = modelName;
+        if (modelName.includes('/')) {
+            // For names like "openai/gpt-4", try both full and just the model part
+            const parts = modelName.split('/');
+            const modelPart = parts[parts.length - 1];
+
+            // Try exact match with full name first
+            if (modelMetadata[modelName]) return modelMetadata[modelName];
+
+            // Try just the model part
+            cleanModelName = modelPart;
+        }
+
+        // Try exact match
+        if (modelMetadata[cleanModelName]) return modelMetadata[cleanModelName];
+
+        // Try normalized versions
+        const normalized = cleanModelName.toLowerCase().replace(/[-_\s]+/g, '');
+
+        // Special handling for common model name patterns
+        const modelMappings = {
+            'gpt4': 'gpt-4',
+            'gpt4o': 'gpt-4o',
+            'gpt4omini': 'gpt-4o-mini',
+            'gpt45': 'gpt-4.5',
+            'gpt5': 'gpt-5',
+            'claude3opus': 'claude-3-opus',
+            'claude3sonnet': 'claude-3-sonnet',
+            'claude3haiku': 'claude-3-haiku',
+            'llama370b': 'llama-3-70b',
+            'llama38b': 'llama-3-8b',
+            'mistral7b': 'mistral-7b',
+            'mixtral8x7b': 'mixtral-8x7b'
+        };
+
+        // Check if we have a mapping for this normalized name
+        if (modelMappings[normalized]) {
+            const mapped = modelMappings[normalized];
+            if (modelMetadata[mapped]) return modelMetadata[mapped];
+        }
+
+        // Try partial matches
+        const modelKey = Object.keys(modelMetadata).find(key => {
+            const keyNorm = key.toLowerCase().replace(/[-_\s]+/g, '');
+            const modelNorm = normalized;
+
+            // Check various matching strategies
+            return keyNorm === modelNorm ||
+                   keyNorm.includes(modelNorm) ||
+                   modelNorm.includes(keyNorm) ||
+                   // Check if key contains the clean model name
+                   key.toLowerCase().includes(cleanModelName.toLowerCase());
+        });
+
+        return modelKey ? modelMetadata[modelKey] : null;
+    }
+
+    function calculateMetricsForModel(modelPredictions, phenotype) {
+        if (phenotype === 'average') {
+            // Calculate average across all phenotypes
+            const phenotypes = [
+                'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                'health_association', 'host_association', 'plant_pathogenicity',
+                'spore_formation', 'hemolysis', 'cell_shape'
+            ];
+
+            const metrics = { balanced_accuracy: [], precision: [], recall: [], f1: [] };
+
+            phenotypes.forEach(ph => {
+                const result = calculateSinglePhenotypeMetrics(modelPredictions, ph);
+                if (result && result.sampleSize >= 100) {
+                    metrics.balanced_accuracy.push(result.balanced_accuracy);
+                    metrics.precision.push(result.precision);
+                    metrics.recall.push(result.recall);
+                    metrics.f1.push(result.f1);
+                }
+            });
+
+            if (metrics.balanced_accuracy.length === 0) return null;
+
+            return {
+                balanced_accuracy: average(metrics.balanced_accuracy),
+                precision: average(metrics.precision),
+                recall: average(metrics.recall),
+                f1: average(metrics.f1),
+                phenotype_count: metrics.balanced_accuracy.length
+            };
+        } else {
+            // Calculate for specific phenotype
+            const result = calculateSinglePhenotypeMetrics(modelPredictions, phenotype);
+            if (result) {
+                result.phenotype_count = 1;
+            }
+            return result;
+        }
+    }
+
+    function calculateSinglePhenotypeMetrics(predictions, phenotype) {
+        let tp = 0, fp = 0, tn = 0, fn = 0;
+
+        predictions.forEach(pred => {
+            const predValue = pred[phenotype];
+            const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
+
+            if (predValue && groundTruth && predValue !== 'N/A' && groundTruth !== 'N/A') {
+                const predBool = normalizeBooleanValue(predValue);
+                const truthBool = normalizeBooleanValue(groundTruth);
+
+                if (predBool === true && truthBool === true) tp++;
+                else if (predBool === true && truthBool === false) fp++;
+                else if (predBool === false && truthBool === false) tn++;
+                else if (predBool === false && truthBool === true) fn++;
+            }
+        });
+
+        const sampleSize = tp + fp + tn + fn;
+        if (sampleSize === 0) return null;
+
+        const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+        const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+        const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+        const balanced_accuracy = (recall + specificity) / 2;
+        const f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+
+        return { balanced_accuracy, precision, recall, f1, sampleSize };
+    }
+
+    function normalizeBooleanValue(value) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            if (lower === 'true' || lower === 't' || lower === '1') return true;
+            if (lower === 'false' || lower === 'f' || lower === '0') return false;
+        }
+        return null;
+    }
+
+    function getGroundTruth(binomialName, phenotype) {
+        const gt = groundTruthData[binomialName.toLowerCase()];
+        return gt ? gt[phenotype] : null;
+    }
+
+    function average(arr) {
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function updateChart() {
+        if (!predictionData || !groundTruthData) {
+            console.log('Missing data:', { predictionData: !!predictionData, groundTruthData: !!groundTruthData });
+            return;
+        }
+
+        showLoading('Calculating metrics...');
+
+        const metric = document.getElementById('metricSelect').value;
+        const phenotype = document.getElementById('phenotypeSelect').value;
+
+        console.log('Updating chart for metric:', metric, 'phenotype:', phenotype);
+
+        // Group predictions by model
+        const modelGroups = {};
+        predictionData.forEach(pred => {
+            if (!modelGroups[pred.model]) {
+                modelGroups[pred.model] = [];
+            }
+            modelGroups[pred.model].push(pred);
+        });
+
+        console.log('Found', Object.keys(modelGroups).length, 'models in predictions');
+
+        // Prepare chart data
+        const chartData = [];
+        let modelsWithMeta = 0;
+        let totalModels = Object.keys(modelGroups).length;
+        let modelsWithoutMeta = [];
+
+        Object.keys(modelGroups).forEach(model => {
+            const meta = findModelMetadata(model);
+            if (meta && meta['Publication date']) {
+                const dateStr = meta['Publication date'];
+                const date = new Date(dateStr);
+
+                if (!isNaN(date.getTime())) {
+                    const metrics = calculateMetricsForModel(modelGroups[model], phenotype);
+
+                    if (metrics && metrics[metric] !== undefined && !isNaN(metrics[metric])) {
+                        // Validate that metric value is between 0 and 1
+                        const metricValue = metrics[metric];
+                        if (metricValue >= 0 && metricValue <= 1) {
+                            modelsWithMeta++;
+                            chartData.push({
+                                x: date,
+                                y: metricValue,
+                                model: model,
+                                organization: meta['Organization'] || 'Unknown',
+                                parameters: meta['Parameters'] || 'Unknown',
+                                phenotype_count: metrics.phenotype_count || 0
+                            });
+                            console.log('Added data point for', model, '- date:', dateStr, 'value:', metricValue.toFixed(3));
+                        } else {
+                            console.warn('Invalid metric value for', model, ':', metricValue, '(expected 0-1)');
+                        }
+                    } else {
+                        console.log('No valid metrics for model:', model, 'metrics:', metrics);
+                    }
+                } else {
+                    console.log('Invalid date for model:', model, 'date string:', dateStr);
+                }
+            } else {
+                modelsWithoutMeta.push(model);
+                // Log first few models without metadata for debugging
+                if (modelsWithoutMeta.length <= 5) {
+                    console.log('No metadata found for model:', model);
+                }
+            }
+        });
+
+        console.log('Models without metadata:', modelsWithoutMeta);
+        console.log('Chart data points:', chartData.length);
+
+        // Sort by date
+        chartData.sort((a, b) => a.x - b.x);
+
+        showLoading('Generating visualization...');
+
+        // Use setTimeout to allow the UI to update before heavy computation
+        setTimeout(() => {
+            // Calculate frontier line (best model at each point in time)
+            const frontierData = calculateFrontier(chartData);
+
+            // Update statistics
+            updateStatistics(chartData, metric, modelsWithMeta, totalModels);
+
+            // Create chart with frontier
+            createScatterChart(chartData, metric, frontierData);
+
+            // Hide loading indicator
+            hideLoading();
+        }, 100);
+    }
+
+    function calculateFrontier(chartData) {
+        if (chartData.length === 0) return [];
+
+        // Start with the first model
+        const frontier = [];
+        let currentBest = chartData[0].y;
+        frontier.push({
+            x: chartData[0].x,
+            y: chartData[0].y,
+            model: chartData[0].model
+        });
+
+        // Go through each subsequent model
+        for (let i = 1; i < chartData.length; i++) {
+            const point = chartData[i];
+
+            // If this model is better than the current best, add it to the frontier
+            if (point.y > currentBest) {
+                // Add a horizontal line from the previous best to this date
+                frontier.push({
+                    x: point.x,
+                    y: currentBest,
+                    model: frontier[frontier.length - 1].model
+                });
+
+                // Then add the new best
+                frontier.push({
+                    x: point.x,
+                    y: point.y,
+                    model: point.model
+                });
+
+                currentBest = point.y;
+            }
+        }
+
+        // Extend the frontier to today if we have data
+        if (frontier.length > 0) {
+            const today = new Date();
+            const lastPoint = frontier[frontier.length - 1];
+            if (lastPoint.x < today) {
+                frontier.push({
+                    x: today,
+                    y: lastPoint.y,
+                    model: lastPoint.model
+                });
+            }
+        }
+
+        return frontier;
+    }
+
+    function updateStatistics(chartData, metric, modelsWithMeta, totalModels) {
+        document.getElementById('modelsWithMeta').textContent = modelsWithMeta;
+        document.getElementById('modelsWithMetaDesc').textContent = `out of ${totalModels} total models`;
+
+        if (chartData.length > 0) {
+            // Date range
+            const minDate = new Date(Math.min(...chartData.map(d => d.x)));
+            const maxDate = new Date(Math.max(...chartData.map(d => d.x)));
+            const dateRange = `${minDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${maxDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+            document.getElementById('dateRange').textContent = dateRange;
+
+            // Calculate correlation
+            const correlation = calculateCorrelation(chartData);
+            document.getElementById('correlation').textContent = correlation.toFixed(3);
+            document.getElementById('correlationDesc').textContent =
+                correlation > 0.3 ? 'Positive trend' :
+                correlation < -0.3 ? 'Negative trend' : 'No clear trend';
+
+            // Best recent model (last 6 months)
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            const recentModels = chartData.filter(d => d.x >= sixMonthsAgo);
+
+            if (recentModels.length > 0) {
+                const bestRecent = recentModels.reduce((best, current) =>
+                    current.y > best.y ? current : best
+                );
+                document.getElementById('bestRecent').textContent = bestRecent.model;
+            } else {
+                document.getElementById('bestRecent').textContent = 'None';
+            }
+        } else {
+            document.getElementById('dateRange').textContent = '-';
+            document.getElementById('correlation').textContent = '-';
+            document.getElementById('correlationDesc').textContent = 'Performance vs. Year';
+            document.getElementById('bestRecent').textContent = '-';
+        }
+    }
+
+    function calculateCorrelation(data) {
+        if (data.length < 2) return 0;
+
+        // Convert dates to numeric values (days since earliest date)
+        const minDate = Math.min(...data.map(d => d.x.getTime()));
+        const xValues = data.map(d => (d.x.getTime() - minDate) / (1000 * 60 * 60 * 24));
+        const yValues = data.map(d => d.y);
+
+        const n = xValues.length;
+        const sumX = xValues.reduce((a, b) => a + b, 0);
+        const sumY = yValues.reduce((a, b) => a + b, 0);
+        const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+        const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+        const sumY2 = yValues.reduce((sum, y) => sum + y * y, 0);
+
+        const correlation = (n * sumXY - sumX * sumY) /
+            Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+
+        return isNaN(correlation) ? 0 : correlation;
+    }
+
+    function createScatterChart(data, metric, frontierData) {
+        console.log('Creating chart with', data.length, 'data points for metric:', metric);
+        console.log('Frontier has', frontierData ? frontierData.length : 0, 'points');
+
+        // Get canvas element
+        const canvas = document.getElementById('yearPerformanceChart');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+
+        // Check if we have data
+        if (!data || data.length === 0) {
+            console.warn('No data to display in chart');
+            // Show a message instead
+            const wrapper = document.querySelector('.year-chart-wrapper');
+            if (wrapper) {
+                const existingMsg = wrapper.querySelector('.no-data-msg');
+                if (!existingMsg) {
+                    const msg = document.createElement('div');
+                    msg.className = 'no-data-msg';
+                    msg.style.textAlign = 'center';
+                    msg.style.padding = '40px';
+                    msg.style.color = '#666';
+                    msg.textContent = 'No data available for chart visualization';
+                    wrapper.appendChild(msg);
+                }
+            }
+            return;
+        }
+
+        // Calculate min and max values for y-axis with padding
+        const yValues = data.map(d => d.y);
+        const minY = Math.min(...yValues);
+        const maxY = Math.max(...yValues);
+        const padding = (maxY - minY) * 0.1; // 10% padding
+        const yMin = Math.max(0, minY - padding); // Don't go below 0
+        const yMax = Math.min(1, maxY + padding); // Don't go above 1
+
+        console.log('Y-axis range:', { min: yMin, max: yMax, dataMin: minY, dataMax: maxY });
+
+        // Remove any no-data message
+        const wrapper = document.querySelector('.year-chart-wrapper');
+        const existingMsg = wrapper?.querySelector('.no-data-msg');
+        if (existingMsg) {
+            existingMsg.remove();
+        }
+
+        // Destroy any existing chart instance on this canvas
+        if (performanceChart) {
+            performanceChart.destroy();
+            performanceChart = null;
+        }
+
+        // Also check if Chart.js has a chart registered for this canvas
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        // Group by organization for coloring
+        const organizations = [...new Set(data.map(d => d.organization))];
+        const colorMap = {};
+        const colors = [
+            '#60A5FA', '#C084FC', '#86EFAC', '#FCA5A5', '#FDBA74',
+            '#67E8F9', '#A5B4FC', '#FDE047', '#C7D2FE', '#FED7AA'
+        ];
+
+        organizations.forEach((org, i) => {
+            colorMap[org] = colors[i % colors.length];
+        });
+
+        // Prepare datasets by organization
+        const datasets = organizations.map(org => ({
+            label: org,
+            data: data.filter(d => d.organization === org),
+            backgroundColor: colorMap[org],
+            borderColor: colorMap[org],
+            borderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            showLine: false
+        }));
+
+        // Add frontier line as the first dataset (so it appears behind points)
+        if (frontierData && frontierData.length > 0) {
+            datasets.unshift({
+                label: 'Performance Frontier',
+                data: frontierData,
+                borderColor: 'rgba(255, 0, 0, 0.7)',
+                backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                borderWidth: 3,
+                borderDash: [5, 3],
+                fill: false,
+                showLine: true,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0, // Make it a stepped line
+                stepped: 'before', // Step before each point
+                type: 'line'
+            });
+        }
+
+        // Create the chart
+        try {
+            performanceChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 20,
+                        right: 20,
+                        bottom: 20,
+                        left: 20
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw;
+                                return [
+                                    `Model: ${point.model}`,
+                                    `${metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${point.y.toFixed(3)}`,
+                                    `Date: ${point.x.toLocaleDateString()}`,
+                                    `Organization: ${point.organization}`,
+                                    `Phenotypes evaluated: ${point.phenotype_count}`
+                                ];
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            trendline: {
+                                type: 'line',
+                                scaleID: 'x',
+                                borderColor: 'rgba(0, 0, 0, 0.2)',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Publication Date'
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y: {
+                        min: yMin,
+                        max: yMax,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(2);
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                }
+            }
+        });
+
+            console.log('Chart created successfully');
+            // Update legend
+            updateLegend(organizations, colorMap);
+        } catch (error) {
+            console.error('Error creating chart:', error);
+        }
+    }
+
+    function updateLegend(organizations, colorMap) {
+        const legendContainer = document.getElementById('chartLegend');
+        legendContainer.innerHTML = '';
+
+        // Add frontier line to legend
+        const frontierItem = document.createElement('div');
+        frontierItem.className = 'legend-item';
+        frontierItem.innerHTML = `
+            <div style="width: 20px; height: 2px; background: rgba(255, 0, 0, 0.7); border-top: 2px dashed rgba(255, 0, 0, 0.7);"></div>
+            <span style="font-weight: 600;">Performance Frontier</span>
+        `;
+        legendContainer.appendChild(frontierItem);
+
+        // Add organizations
+        organizations.slice(0, 8).forEach(org => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <div class="legend-dot" style="background: ${colorMap[org]}"></div>
+                <span>${org}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+
+        if (organizations.length > 8) {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `<span>... and ${organizations.length - 8} more</span>`;
+            legendContainer.appendChild(item);
+        }
+    }
+});
+</script>

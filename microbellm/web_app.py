@@ -2088,6 +2088,10 @@ def view_component(page, section_id):
         section_raw_content=section_raw_content
     )
 
+@app.route('/components/admin_interface_figure')
+def admin_interface_figure():
+    """Display the admin interface figure for the manuscript"""
+    return render_template('components/admin_interface_figure.html')
 
 @app.route('/settings')
 def settings_page():
@@ -3002,24 +3006,239 @@ def get_template_field_definitions():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/search_count_data')
+def get_search_count_data():
+    """Get search count data for visualization"""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get search count data
+        cursor.execute("""
+            SELECT binomial_name, search_count
+            FROM search_count
+            ORDER BY search_count DESC
+        """)
+        search_counts = [dict(row) for row in cursor.fetchall()]
+        
+        # Try to get accuracy data if available (optional)
+        accuracy_data = {}
+        try:
+            # This is a placeholder - you can join with actual accuracy data if available
+            cursor.execute("""
+                SELECT DISTINCT binomial_name
+                FROM ground_truth
+            """)
+            species_with_data = [row['binomial_name'] for row in cursor.fetchall()]
+            
+            # For demo purposes, we'll just mark which species have ground truth data
+            for species in species_with_data:
+                accuracy_data[species] = 0.75  # Placeholder accuracy value
+                
+        except:
+            pass
+        
+        conn.close()
+        
+        return jsonify({
+            'search_counts': search_counts,
+            'accuracy_data': accuracy_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching search count data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search_count_by_knowledge')
+def get_search_count_by_knowledge():
+    """Get search count data grouped by knowledge level"""
+    try:
+        species_file = request.args.get('species_file', 'wa_with_gcount.txt')
+        model = request.args.get('model', '')
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # First, get available models if no model specified
+        if not model:
+            cursor.execute("""
+                SELECT DISTINCT model
+                FROM processing_results
+                WHERE 
+                    user_template LIKE '%template3_knowlege%'
+                    AND species_file = ?
+                    AND knowledge_group IS NOT NULL
+                ORDER BY model
+            """, (species_file,))
+            
+            models = [row['model'] for row in cursor.fetchall()]
+            
+            if not models:
+                return jsonify({
+                    'success': False,
+                    'error': 'No knowledge group data found',
+                    'available_models': []
+                })
+            
+            # Use first model as default
+            model = models[0] if not model else model
+        else:
+            models = []
+        
+        # Get knowledge groups for species with selected model
+        cursor.execute("""
+            SELECT DISTINCT 
+                binomial_name,
+                knowledge_group,
+                model
+            FROM processing_results
+            WHERE 
+                user_template LIKE '%template3_knowlege%'
+                AND species_file = ?
+                AND model = ?
+                AND knowledge_group IS NOT NULL
+        """, (species_file, model))
+        
+        knowledge_mapping = {}
+        for row in cursor.fetchall():
+            knowledge_mapping[row['binomial_name']] = row['knowledge_group']
+        
+        # Now get search counts and join with knowledge groups
+        cursor.execute("""
+            SELECT 
+                sc.binomial_name,
+                sc.search_count
+            FROM search_count sc
+        """)
+        
+        # Group search counts by knowledge level
+        grouped_data = {
+            'NA': [],
+            'limited': [],
+            'moderate': [],
+            'extensive': []
+        }
+        
+        species_with_both = 0
+        species_without_knowledge = []
+        
+        for row in cursor.fetchall():
+            species = row['binomial_name']
+            search_count = row['search_count']
+            
+            if species in knowledge_mapping:
+                knowledge_group = knowledge_mapping[species]
+                if knowledge_group in grouped_data:
+                    grouped_data[knowledge_group].append({
+                        'species': species,
+                        'search_count': search_count
+                    })
+                    species_with_both += 1
+            else:
+                species_without_knowledge.append(species)
+        
+        # Calculate statistics for each group
+        stats_by_group = {}
+        for group, species_list in grouped_data.items():
+            if species_list:
+                counts = [s['search_count'] for s in species_list]
+                counts.sort()
+                
+                stats_by_group[group] = {
+                    'count': len(counts),
+                    'min': min(counts),
+                    'q1': counts[len(counts)//4] if len(counts) > 3 else counts[0],
+                    'median': counts[len(counts)//2],
+                    'q3': counts[3*len(counts)//4] if len(counts) > 3 else counts[-1],
+                    'max': max(counts),
+                    'mean': sum(counts) / len(counts),
+                    'values': counts  # All values for box plot
+                }
+            else:
+                stats_by_group[group] = {
+                    'count': 0,
+                    'values': []
+                }
+        
+        # Get all available models if not already fetched
+        if not models:
+            cursor.execute("""
+                SELECT DISTINCT model
+                FROM processing_results
+                WHERE 
+                    user_template LIKE '%template3_knowlege%'
+                    AND species_file = ?
+                    AND knowledge_group IS NOT NULL
+                ORDER BY model
+            """, (species_file,))
+            models = [row['model'] for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'stats_by_group': stats_by_group,
+            'raw_data': grouped_data,
+            'metadata': {
+                'species_file': species_file,
+                'selected_model': model,
+                'available_models': models,
+                'total_species_with_both': species_with_both,
+                'total_species_without_knowledge': len(species_without_knowledge)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching search count by knowledge: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/available_phenotype_templates')
 def get_available_phenotype_templates():
-    """API endpoint to get list of available phenotype templates"""
+    """API endpoint to get list of available phenotype templates with full content"""
     try:
-        # Get all template pairs and filter for phenotype templates
         template_pairs = get_available_template_pairs()
-        phenotype_templates = []
+        phenotype_templates = {}
         
         for template_name, paths in template_pairs.items():
             # Check if it's a phenotype template
             template_type = detect_template_type(paths['user'])
             if template_type == 'phenotype':
-                phenotype_templates.append({
+                # Read system template
+                with open(paths['system'], 'r', encoding='utf-8') as f:
+                    system_content = f.read()
+                
+                # Read user template  
+                with open(paths['user'], 'r', encoding='utf-8') as f:
+                    user_content = f.read()
+                
+                # Try to read validation config
+                validation_content = None
+                try:
+                    from microbellm.template_config import find_validation_config_for_template
+                    config_path = find_validation_config_for_template(paths['user'])
+                    if config_path:
+                        with open(config_path, 'r', encoding='utf-8') as f:
+                            validation_content = f.read()
+                except Exception as e:
+                    print(f"Could not load validation config for {template_name}: {e}")
+                
+                phenotype_templates[template_name] = {
                     'name': template_name,
                     'display_name': template_name.replace('_', ' ').title(),
-                    'user_path': paths['user'],
-                    'system_path': paths['system']
-                })
+                    'system': {
+                        'path': paths['system'],
+                        'content': system_content
+                    },
+                    'user': {
+                        'path': paths['user'],
+                        'content': user_content
+                    },
+                    'validation': {
+                        'content': validation_content
+                    } if validation_content else None
+                }
         
         return jsonify({
             'success': True,

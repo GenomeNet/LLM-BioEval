@@ -138,4 +138,4 @@ config.local.json
 # Temporary files
 *.tmp
 *.temp
-.cache/
+.cache/microbellm.db copy*

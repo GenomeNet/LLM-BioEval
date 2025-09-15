@@ -184,15 +184,18 @@
       const tJson = await tResp.json();
       fieldDefinitions = tJson.success ? tJson.field_definitions : {};
 
-      const gResp = await fetch(`/api/ground_truth/data?dataset=${encodeURIComponent(datasetName)}&per_page=10000`);
+      const gResp = await fetch(`/api/ground_truth/data?dataset=${encodeURIComponent(datasetName)}&per_page=20000`);
       const gJson = await gResp.json();
       if(!gJson.success) throw new Error('Failed to load ground truth data');
       groundTruthData = gJson.data || [];
+      
+      // Use the total count from pagination info if available
+      const totalSpecies = gJson.pagination?.total || groundTruthData.length;
 
-      const stats = calculateStatistics();
+      const stats = calculateStatistics(totalSpecies);
       displayResults(stats);
 
-      details.innerHTML = `<span>${groundTruthData.length} species analyzed</span>`;
+      details.innerHTML = `<span>${totalSpecies.toLocaleString()} species analyzed</span>`;
       document.getElementById('gtInitialMessage').style.display = 'none';
       document.getElementById('gtResultsArea').style.display = 'block';
     }catch(err){
@@ -201,9 +204,10 @@
     }
   }
 
-  function calculateStatistics(){
+  function calculateStatistics(actualTotal){
     const stats = [];
-    const total = groundTruthData.length || 0;
+    // Use actual total if provided, otherwise fall back to data length
+    const total = actualTotal || groundTruthData.length || 0;
     const excluded = ['aerophilicity','health_association','hemolysis'];
 
     Object.entries(fieldDefinitions).forEach(([phenotype]) => {

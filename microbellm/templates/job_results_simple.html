@@ -329,6 +329,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div>${data.user_template || 'N/A'}</div>
                     </div>
                 </div>
+                <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <button onclick="resetJobStatus('${combinationId}')" class="btn btn-warning" style="background-color: #ffc107; border-color: #ffc107; color: #212529;">
+                        <i class="fas fa-sync"></i> Reset Job Status
+                    </button>
+                    <button onclick="deleteJob('${combinationId}')" class="btn btn-danger" style="background-color: #dc3545; border-color: #dc3545;">
+                        <i class="fas fa-trash"></i> Delete This Job
+                    </button>
+                </div>
             `;
             document.getElementById('jobInfoContent').innerHTML = jobInfoHTML;
             
@@ -530,6 +538,86 @@ function viewDetails(result) {
 // Close modal
 function closeModal() {
     document.getElementById('detailsModal').style.display = 'none';
+}
+
+// Function to reset job status
+function resetJobStatus(jobId) {
+    if (!confirm('Reset this job status from "running" to "pending"? This will allow you to restart processing for incomplete entries.')) {
+        return;
+    }
+    
+    // Show loading state
+    const resetBtn = event.target;
+    const originalText = resetBtn.innerHTML;
+    resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+    resetBtn.disabled = true;
+    
+    fetch(`/api/reset_job_status/${jobId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Job status reset successfully!\n\n${data.message}`);
+            // Reload the page to show updated status
+            window.location.reload();
+        } else {
+            alert('Error resetting job: ' + (data.error || 'Unknown error'));
+            // Restore button
+            resetBtn.innerHTML = originalText;
+            resetBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resetting job: ' + error.message);
+        // Restore button
+        resetBtn.innerHTML = originalText;
+        resetBtn.disabled = false;
+    });
+}
+
+// Function to delete the job
+function deleteJob(jobId) {
+    if (!confirm('Are you sure you want to delete this job and all its results? This action cannot be undone.')) {
+        return;
+    }
+    
+    // Show loading state
+    const deleteBtn = event.target;
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    deleteBtn.disabled = true;
+    
+    fetch(`/api/delete_combination/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Job deleted successfully');
+            // Redirect to dashboard
+            window.location.href = '/dashboard';
+        } else {
+            alert('Error deleting job: ' + (data.message || 'Unknown error'));
+            // Restore button
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting job: ' + error.message);
+        // Restore button
+        deleteBtn.innerHTML = originalText;
+        deleteBtn.disabled = false;
+    });
 }
 
 // Helper function to check if result has any phenotype

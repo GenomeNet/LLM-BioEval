@@ -1,0 +1,912 @@
+<!-- Organization-Specific Model Performance -->
+<style>
+    .org-models-container {
+        padding: var(--spacing-component) 0;
+    }
+
+    .org-chart-wrapper {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: var(--spacing-element);
+        margin-bottom: var(--spacing-component);
+        height: 500px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .org-chart-canvas-container {
+        position: relative;
+        height: 450px;
+        width: 100%;
+    }
+
+    #orgModelsChart {
+        display: block !important;
+        max-width: 100% !important;
+        max-height: 450px !important;
+    }
+
+    .org-chart-controls {
+        display: flex;
+        gap: var(--spacing-element);
+        margin-bottom: var(--spacing-element);
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .org-control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .org-control-group label {
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .org-control-group select {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .models-without-metadata {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: var(--spacing-element);
+        margin-bottom: var(--spacing-component);
+    }
+
+    .models-without-metadata h4 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #856404;
+        margin-bottom: 12px;
+    }
+
+    .unmapped-models-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .unmapped-model-item {
+        background: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #495057;
+        border: 1px solid #dee2e6;
+    }
+
+    .org-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-element);
+        margin-bottom: var(--spacing-component);
+    }
+
+    .org-stat-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: var(--spacing-small);
+        text-align: center;
+    }
+
+    .org-stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .org-stat-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .org-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 12px;
+    }
+
+    .org-loading-text {
+        font-size: 16px;
+        color: #666;
+    }
+
+    .org-model-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--spacing-element);
+        margin-top: var(--spacing-element);
+    }
+
+    .org-model-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: var(--spacing-element);
+        transition: all 0.2s ease;
+    }
+
+    .org-model-card:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .model-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .model-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+    }
+
+    .metric-label {
+        color: var(--text-secondary);
+    }
+
+    .metric-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .metric-bar {
+        height: 4px;
+        background: #e9ecef;
+        border-radius: 2px;
+        margin-top: 4px;
+        position: relative;
+    }
+
+    .metric-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+
+    .accuracy-bar { background: linear-gradient(90deg, #60A5FA, #3B82F6); }
+    .precision-bar { background: linear-gradient(90deg, #C084FC, #8B5CF6); }
+
+    .model-metadata {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e9ecef;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .metadata-item {
+        display: flex;
+        justify-content: space-between;
+        margin: 4px 0;
+    }
+
+    .no-data-message {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
+</style>
+
+<div class="org-models-container">
+    <div class="org-chart-controls">
+        <div class="org-control-group">
+            <label for="orgDatasetSelect">Dataset:</label>
+            <select id="orgDatasetSelect">
+                <option value="">Loading datasets...</option>
+            </select>
+        </div>
+        <div class="org-control-group">
+            <label for="organizationSelect">Organization:</label>
+            <select id="organizationSelect">
+                <option value="">Select organization...</option>
+                <option value="OpenAI">OpenAI</option>
+                <option value="Anthropic">Anthropic</option>
+                <option value="Google">Google</option>
+                <option value="Meta">Meta</option>
+                <option value="Mistral AI">Mistral AI</option>
+                <option value="xAI">xAI</option>
+                <option value="Microsoft">Microsoft</option>
+                <option value="Alibaba">Alibaba</option>
+                <option value="01.AI">01.AI</option>
+                <option value="Zhipu AI">Zhipu AI</option>
+                <option value="all">All Organizations</option>
+            </select>
+        </div>
+        <div class="org-control-group">
+            <label for="orgPhenotypeSelect">Phenotype:</label>
+            <select id="orgPhenotypeSelect">
+                <option value="average">All Phenotypes (Average)</option>
+                <option value="gram_staining">Gram Staining</option>
+                <option value="motility">Motility</option>
+                <option value="aerophilicity">Aerophilicity</option>
+                <option value="extreme_environment_tolerance">Extreme Environment Tolerance</option>
+                <option value="biofilm_formation">Biofilm Formation</option>
+                <option value="animal_pathogenicity">Animal Pathogenicity</option>
+                <option value="biosafety_level">Biosafety Level</option>
+                <option value="health_association">Health Association</option>
+                <option value="host_association">Host Association</option>
+                <option value="plant_pathogenicity">Plant Pathogenicity</option>
+                <option value="spore_formation">Spore Formation</option>
+                <option value="hemolysis">Hemolysis</option>
+                <option value="cell_shape">Cell Shape</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="models-without-metadata" id="unmappedModelsSection" style="display: none;">
+        <h4>⚠️ Models with Benchmark Data but No Metadata</h4>
+        <div class="unmapped-models-grid" id="unmappedModelsList"></div>
+    </div>
+
+    <div class="org-stats-grid" id="orgStatsGrid" style="display: none;">
+        <div class="org-stat-card">
+            <div class="org-stat-value" id="orgModelCount">0</div>
+            <div class="org-stat-label">Models</div>
+        </div>
+        <div class="org-stat-card">
+            <div class="org-stat-value" id="orgAvgAccuracy">-</div>
+            <div class="org-stat-label">Avg Accuracy</div>
+        </div>
+        <div class="org-stat-card">
+            <div class="org-stat-value" id="orgBestModel">-</div>
+            <div class="org-stat-label">Best Model</div>
+        </div>
+        <div class="org-stat-card">
+            <div class="org-stat-value" id="orgDateRange">-</div>
+            <div class="org-stat-label">Release Period</div>
+        </div>
+    </div>
+
+    <div class="org-chart-wrapper">
+        <div class="org-loading-overlay" id="orgLoadingOverlay" style="display: none;">
+            <div class="org-loading-text">Loading model data...</div>
+        </div>
+
+        <div class="org-chart-canvas-container">
+            <canvas id="orgModelsChart"></canvas>
+        </div>
+
+        <div class="no-data-message" id="orgNoDataMessage" style="display: none;">
+            Select a dataset and organization to view model performance
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let predictionData = null;
+    let groundTruthData = null;
+    let modelMetadata = null;
+    let orgChart = null;
+
+    // Load model metadata
+    loadModelMetadata();
+
+    // Initialize dataset selector
+    initializeDatasetSelector();
+
+    async function loadModelMetadata() {
+        try {
+            const response = await fetch('/static/data/year_size.tsv');
+            const text = await response.text();
+
+            // Parse TSV
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split('\t');
+
+            modelMetadata = {};
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split('\t');
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+
+                const modelName = row['Model'];
+                if (modelName) {
+                    // Store multiple variations for better matching
+                    const variations = [
+                        modelName,
+                        modelName.toLowerCase(),
+                        modelName.toLowerCase().replace(/\s+/g, ''),
+                        modelName.toLowerCase().replace(/[-_]/g, ''),
+                        modelName.replace(/\s+/g, '-').toLowerCase()
+                    ];
+
+                    variations.forEach(variant => {
+                        modelMetadata[variant] = row;
+                    });
+                }
+            }
+
+            console.log('Loaded metadata for', Object.keys(modelMetadata).length / 5, 'unique models');
+        } catch (error) {
+            console.error('Error loading model metadata:', error);
+            modelMetadata = {};
+        }
+    }
+
+    async function initializeDatasetSelector() {
+        try {
+            const response = await fetch('/api/ground_truth/datasets');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+
+            const select = document.getElementById('orgDatasetSelect');
+
+            if (!result.success || !result.datasets || result.datasets.length === 0) {
+                select.innerHTML = '<option value="">No datasets available</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">Select a dataset...</option>';
+
+            let waTestDataset = null;
+            result.datasets.forEach(dataset => {
+                const option = document.createElement('option');
+                option.value = dataset.dataset_name;
+                option.textContent = `${dataset.dataset_name} (${dataset.species_count} species)`;
+                select.appendChild(option);
+
+                if (dataset.dataset_name === 'WA_Test_Dataset') {
+                    waTestDataset = dataset;
+                }
+            });
+
+            // Auto-select WA_Test_Dataset
+            if (waTestDataset) {
+                select.value = 'WA_Test_Dataset';
+                await loadPerformanceData('WA_Test_Dataset');
+            }
+
+            // Add event listeners
+            select.addEventListener('change', async (e) => {
+                if (e.target.value) {
+                    await loadPerformanceData(e.target.value);
+                }
+            });
+
+            document.getElementById('organizationSelect').addEventListener('change', updateDisplay);
+            document.getElementById('orgPhenotypeSelect').addEventListener('change', updateDisplay);
+
+        } catch (error) {
+            console.error('Error loading datasets:', error);
+        }
+    }
+
+    function showLoading() {
+        document.getElementById('orgLoadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+        document.getElementById('orgLoadingOverlay').style.display = 'none';
+    }
+
+    async function loadPerformanceData(datasetName) {
+        try {
+            showLoading();
+
+            // Determine species file
+            let speciesFile = 'wa_with_gcount.txt';
+            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+                speciesFile = 'artificial.txt';
+            }
+
+            // Load prediction data
+            const predResponse = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
+            const predResult = await predResponse.json();
+
+            if (!predResult.data || predResult.data.length === 0) {
+                console.error('No prediction data available');
+                hideLoading();
+                return;
+            }
+            predictionData = predResult.data;
+
+            // Load ground truth data
+            const gtResponse = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=20000`);
+            const gtResult = await gtResponse.json();
+
+            if (!gtResult.success || !gtResult.data) {
+                console.error('Failed to load ground truth data');
+                hideLoading();
+                return;
+            }
+
+            // Create ground truth map
+            groundTruthData = {};
+            gtResult.data.forEach(item => {
+                groundTruthData[item.binomial_name.toLowerCase()] = item;
+            });
+
+            // Check for unmapped models
+            checkUnmappedModels();
+
+            updateDisplay();
+            hideLoading();
+
+        } catch (error) {
+            console.error('Error loading performance data:', error);
+            hideLoading();
+        }
+    }
+
+    function checkUnmappedModels() {
+        if (!predictionData) return;
+
+        const allModels = [...new Set(predictionData.map(p => p.model))];
+        const unmappedModels = [];
+
+        allModels.forEach(model => {
+            const meta = findModelMetadata(model);
+            if (!meta) {
+                unmappedModels.push(model);
+            }
+        });
+
+        // Display unmapped models
+        const section = document.getElementById('unmappedModelsSection');
+        const list = document.getElementById('unmappedModelsList');
+
+        if (unmappedModels.length > 0) {
+            section.style.display = 'block';
+            list.innerHTML = '';
+
+            unmappedModels.sort().forEach(model => {
+                const item = document.createElement('div');
+                item.className = 'unmapped-model-item';
+                item.textContent = model;
+                list.appendChild(item);
+            });
+
+            console.log('Models without metadata:', unmappedModels);
+        } else {
+            section.style.display = 'none';
+        }
+    }
+
+    function findModelMetadata(modelName) {
+        if (!modelMetadata || !modelName) return null;
+
+        // Extract model name from path if it contains "/"
+        let cleanModelName = modelName;
+        if (modelName.includes('/')) {
+            const parts = modelName.split('/');
+            cleanModelName = parts[parts.length - 1];
+        }
+
+        // Try various variations
+        const variations = [
+            modelName,
+            cleanModelName,
+            modelName.toLowerCase(),
+            cleanModelName.toLowerCase(),
+            modelName.toLowerCase().replace(/\s+/g, ''),
+            cleanModelName.toLowerCase().replace(/[-_\s]+/g, ''),
+        ];
+
+        for (const variant of variations) {
+            if (modelMetadata[variant]) {
+                return modelMetadata[variant];
+            }
+        }
+
+        return null;
+    }
+
+    function calculateMetricsForModel(modelPredictions, phenotype) {
+        if (phenotype === 'average') {
+            // Calculate average across all phenotypes
+            const phenotypes = [
+                'gram_staining', 'motility', 'aerophilicity', 'extreme_environment_tolerance',
+                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
+                'health_association', 'host_association', 'plant_pathogenicity',
+                'spore_formation', 'hemolysis', 'cell_shape'
+            ];
+
+            const metrics = { balanced_accuracy: [], precision: [] };
+
+            phenotypes.forEach(ph => {
+                const result = calculateSinglePhenotypeMetrics(modelPredictions, ph);
+                if (result && result.sampleSize >= 100) {
+                    metrics.balanced_accuracy.push(result.balanced_accuracy);
+                    metrics.precision.push(result.precision);
+                }
+            });
+
+            if (metrics.balanced_accuracy.length === 0) return null;
+
+            return {
+                balanced_accuracy: average(metrics.balanced_accuracy),
+                precision: average(metrics.precision),
+                phenotype_count: metrics.balanced_accuracy.length
+            };
+        } else {
+            return calculateSinglePhenotypeMetrics(modelPredictions, phenotype);
+        }
+    }
+
+    function calculateSinglePhenotypeMetrics(predictions, phenotype) {
+        let tp = 0, fp = 0, tn = 0, fn = 0;
+
+        predictions.forEach(pred => {
+            const predValue = pred[phenotype];
+            const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
+
+            if (predValue && groundTruth && predValue !== 'N/A' && groundTruth !== 'N/A') {
+                const predBool = normalizeBooleanValue(predValue);
+                const truthBool = normalizeBooleanValue(groundTruth);
+
+                if (predBool === true && truthBool === true) tp++;
+                else if (predBool === true && truthBool === false) fp++;
+                else if (predBool === false && truthBool === false) tn++;
+                else if (predBool === false && truthBool === true) fn++;
+            }
+        });
+
+        const sampleSize = tp + fp + tn + fn;
+        if (sampleSize === 0) return null;
+
+        const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+        const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+        const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+        const balanced_accuracy = (recall + specificity) / 2;
+
+        return { balanced_accuracy, precision, sampleSize };
+    }
+
+    function normalizeBooleanValue(value) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            if (lower === 'true' || lower === 't' || lower === '1') return true;
+            if (lower === 'false' || lower === 'f' || lower === '0') return false;
+        }
+        return null;
+    }
+
+    function getGroundTruth(binomialName, phenotype) {
+        const gt = groundTruthData[binomialName.toLowerCase()];
+        return gt ? gt[phenotype] : null;
+    }
+
+    function average(arr) {
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function formatParameters(paramStr) {
+        if (!paramStr || paramStr === '' || paramStr === 'Unknown') return 'Unknown';
+
+        const cleanStr = paramStr.replace(/,/g, '');
+        const num = parseFloat(cleanStr);
+
+        if (isNaN(num)) return paramStr;
+
+        if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
+        if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        return num.toString();
+    }
+
+    function updateDisplay() {
+        if (!predictionData || !groundTruthData) {
+            document.getElementById('orgNoDataMessage').style.display = 'block';
+            document.getElementById('orgStatsGrid').style.display = 'none';
+            return;
+        }
+
+        const organization = document.getElementById('organizationSelect').value;
+        const phenotype = document.getElementById('orgPhenotypeSelect').value;
+
+        if (!organization) {
+            document.getElementById('orgNoDataMessage').style.display = 'block';
+            document.getElementById('orgStatsGrid').style.display = 'none';
+            return;
+        }
+
+        showLoading();
+
+        setTimeout(() => {
+            // Group predictions by model
+            const modelGroups = {};
+            predictionData.forEach(pred => {
+                if (!modelGroups[pred.model]) {
+                    modelGroups[pred.model] = [];
+                }
+                modelGroups[pred.model].push(pred);
+            });
+
+            // Filter models by organization
+            const orgModels = [];
+            Object.keys(modelGroups).forEach(model => {
+                const meta = findModelMetadata(model);
+
+                // Check if this model belongs to selected organization
+                if (organization === 'all' ||
+                    (meta && meta['Organization'] && meta['Organization'].toLowerCase() === organization.toLowerCase())) {
+
+                    const metrics = calculateMetricsForModel(modelGroups[model], phenotype);
+
+                    if (metrics) {
+                        orgModels.push({
+                            model: model,
+                            modelShort: model.split('/').pop(),
+                            metadata: meta,
+                            metrics: metrics,
+                            balanced_accuracy: metrics.balanced_accuracy,
+                            precision: metrics.precision,
+                            parameters: meta ? formatParameters(meta['Parameters']) : 'Unknown',
+                            publicationDate: meta && meta['Publication date'] ? meta['Publication date'] : null,
+                            organization: meta && meta['Organization'] ? meta['Organization'] : 'Unknown'
+                        });
+                    }
+                }
+            });
+
+            // Sort by publication date (oldest first)
+            orgModels.sort((a, b) => {
+                if (!a.publicationDate && !b.publicationDate) return 0;
+                if (!a.publicationDate) return 1;
+                if (!b.publicationDate) return -1;
+                return new Date(a.publicationDate) - new Date(b.publicationDate);
+            });
+
+            // Update statistics
+            updateStatistics(orgModels, organization);
+
+            // Create scatter chart
+            createScatterChart(orgModels);
+
+            hideLoading();
+        }, 100);
+    }
+
+    function updateStatistics(models, organization) {
+        const statsGrid = document.getElementById('orgStatsGrid');
+
+        if (models.length === 0) {
+            statsGrid.style.display = 'none';
+            return;
+        }
+
+        statsGrid.style.display = 'grid';
+
+        // Model count
+        document.getElementById('orgModelCount').textContent = models.length;
+
+        // Average accuracy
+        const avgAccuracy = average(models.map(m => m.metrics.balanced_accuracy));
+        document.getElementById('orgAvgAccuracy').textContent = avgAccuracy.toFixed(3);
+
+        // Best model
+        if (models.length > 0) {
+            const bestModel = models[0].model.split('/').pop();
+            document.getElementById('orgBestModel').textContent = bestModel;
+        }
+
+        // Date range
+        const datesWithMeta = models
+            .filter(m => m.publicationDate && m.publicationDate !== 'Unknown')
+            .map(m => new Date(m.publicationDate))
+            .filter(d => !isNaN(d.getTime()));
+
+        if (datesWithMeta.length > 0) {
+            const minDate = new Date(Math.min(...datesWithMeta));
+            const maxDate = new Date(Math.max(...datesWithMeta));
+            const dateRange = `${minDate.getFullYear()}-${maxDate.getFullYear()}`;
+            document.getElementById('orgDateRange').textContent = dateRange;
+        } else {
+            document.getElementById('orgDateRange').textContent = 'N/A';
+        }
+    }
+
+    function createScatterChart(models) {
+        const noDataMsg = document.getElementById('orgNoDataMessage');
+
+        if (models.length === 0) {
+            noDataMsg.style.display = 'block';
+            return;
+        }
+
+        noDataMsg.style.display = 'none';
+
+        // Get canvas
+        const canvas = document.getElementById('orgModelsChart');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+
+        // Destroy existing chart
+        if (orgChart) {
+            orgChart.destroy();
+            orgChart = null;
+        }
+
+        // Check if Chart.js has a chart registered for this canvas
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        // Prepare data for chart
+        const metric = document.getElementById('orgPhenotypeSelect').value === 'average' ?
+                      'Balanced Accuracy' : 'Precision';
+
+        // Create datasets grouped by organization (for color coding)
+        const orgGroups = {};
+        models.forEach((model, index) => {
+            const org = model.organization || 'Unknown';
+            if (!orgGroups[org]) {
+                orgGroups[org] = [];
+            }
+            orgGroups[org].push({
+                x: index,  // Use index as x position (ordered by date)
+                y: model.balanced_accuracy,
+                model: model.modelShort,
+                fullModel: model.model,
+                precision: model.precision,
+                parameters: model.parameters,
+                date: model.publicationDate || 'Unknown'
+            });
+        });
+
+        // Color palette for organizations
+        const colors = {
+            'OpenAI': '#60A5FA',
+            'Anthropic': '#C084FC',
+            'Google': '#86EFAC',
+            'Meta': '#FCA5A5',
+            'Mistral AI': '#FDBA74',
+            'xAI': '#67E8F9',
+            'Microsoft': '#A5B4FC',
+            'Alibaba': '#FDE047',
+            'Unknown': '#9CA3AF'
+        };
+
+        // Create datasets
+        const datasets = Object.keys(orgGroups).map(org => ({
+            label: org,
+            data: orgGroups[org],
+            backgroundColor: colors[org] || '#9CA3AF',
+            borderColor: colors[org] || '#9CA3AF',
+            borderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            showLine: false
+        }));
+
+        // Calculate y-axis range
+        const yValues = models.map(m => m.balanced_accuracy);
+        const minY = Math.min(...yValues);
+        const maxY = Math.max(...yValues);
+        const yPadding = (maxY - minY) * 0.1;
+        const yMin = Math.max(0, minY - yPadding);
+        const yMax = Math.min(1, maxY + yPadding);
+
+        // Create chart
+        try {
+            orgChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20,
+                            right: 20,
+                            bottom: 60,
+                            left: 20
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return [
+                                        `Model: ${point.model}`,
+                                        `Balanced Accuracy: ${point.y.toFixed(3)}`,
+                                        `Precision: ${point.precision.toFixed(3)}`,
+                                        `Parameters: ${point.parameters}`,
+                                        `Released: ${point.date}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Models (ordered by release date →)'
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    if (models[value]) {
+                                        return models[value].modelShort;
+                                    }
+                                    return '';
+                                },
+                                autoSkip: true,
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            min: yMin,
+                            max: yMax,
+                            title: {
+                                display: true,
+                                text: 'Balanced Accuracy'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            console.log('Chart created successfully with', models.length, 'models');
+        } catch (error) {
+            console.error('Error creating chart:', error);
+        }
+    }
+});
+</script>

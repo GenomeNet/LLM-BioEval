@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Interface Figure - MicrobeLLM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            /* Admin color palette - same as admin_base.html */
+            --admin-primary: #6366f1;
+            --admin-primary-light: #818cf8;
+            --admin-primary-dark: #4f46e5;
+            
+            /* Status colors */
+            --status-success: #10b981;
+            --status-warning: #f59e0b;
+            --status-error: #ef4444;
+            --status-info: #3b82f6;
+            
+            /* Neutrals */
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            
+            /* Admin backgrounds */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            
+            /* Typography */
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 0;
+            background: var(--bg-secondary);
+            color: var(--gray-900);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .figure-container {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .figure-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--gray-900);
+        }
+        
+        .figure-subtitle {
+            font-size: 14px;
+            color: var(--gray-600);
+            margin-bottom: 32px;
+        }
+        
+        .panels-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: var(--bg-primary);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .panel-large {
+            grid-column: 1 / -1;
+        }
+        
+        .panel-label {
+            display: inline-block;
+            background: var(--admin-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--gray-900);
+        }
+        
+        /* Dashboard Panel Styles */
+        .dashboard-header-mock {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .dashboard-title-mock {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+        
+        .dashboard-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-mock {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary-mock {
+            background: var(--admin-primary);
+            color: white;
+        }
+        
+        .btn-primary-mock:hover {
+            background: var(--admin-primary-dark);
+        }
+        
+        .btn-secondary-mock {
+            background: var(--bg-tertiary);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .btn-secondary-mock:hover {
+            background: var(--gray-200);
+        }
+        
+        /* Processing Grid - matches dashboard.html */
+        .processing-grid-mock {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .grid-header {
+            display: grid;
+            grid-template-columns: 150px repeat(4, 1fr);
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--gray-200);
+        }
+        
+        .grid-cell {
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-right: 1px solid var(--gray-200);
+        }
+        
+        .grid-cell:last-child {
+            border-right: none;
+        }
+        
+        .grid-body {
+            display: grid;
+            grid-template-columns: 150px repeat(4, 1fr);
+        }
+        
+        .grid-row {
+            display: contents;
+        }
+        
+        .grid-row:nth-child(even) .grid-cell {
+            background: #f9fafb;
+        }
+        
+        .species-cell {
+            background: var(--bg-primary);
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+        
+        /* Status cells - exact match to dashboard.html */
+        .status-box {
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-size: 11px;
+        }
+        
+        .status-complete {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .status-running {
+            background: #cce5ff;
+            border-color: #b8daff;
+            color: #004085;
+            animation: running-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes running-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .status-failed {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .status-empty {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            color: #6c757d;
+        }
+        
+        .status-progress {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 3px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: currentColor;
+            opacity: 0.5;
+            border-radius: 2px;
+        }
+        
+        .status-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+        
+        /* Import/Export Panel */
+        .import-export-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .ie-section {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .ie-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-primary-light) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .ie-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--gray-900);
+        }
+        
+        .ie-description {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .file-upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            background: var(--bg-primary);
+            color: var(--gray-400);
+            font-size: 13px;
+        }
+        
+        /* Validation Panel */
+        .validation-form {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .form-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+        
+        .form-select, .form-input {
+            padding: 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--bg-primary);
+            font-family: var(--font-sans);
+        }
+        
+        .validation-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--admin-primary);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Database Browser Panel */
+        .db-browser-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .db-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .db-tab {
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .db-tab.active {
+            background: var(--admin-primary);
+            color: white;
+        }
+        
+        .db-table-mock {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .db-table-mock th {
+            background: var(--bg-secondary);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-200);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .db-table-mock td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--gray-200);
+            color: var(--gray-900);
+        }
+        
+        .db-table-mock tr:hover {
+            background: var(--bg-secondary);
+        }
+        
+        /* Figure caption */
+        .figure-caption {
+            margin-top: 24px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .caption-label {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+    </style>
+</head>
+<body>
+    <div class="figure-container">
+        <h1 class="figure-title">MicrobeLLM Admin Interface</h1>
+        <p class="figure-subtitle">Web-based administration system for managing microbial phenotype predictions</p>
+        
+        <!-- Panel A: Main Dashboard -->
+        <div class="panels-grid">
+            <div class="panel panel-large">
+                <span class="panel-label">A. Processing Dashboard</span>
+                <div class="dashboard-header-mock">
+                    <div class="dashboard-title-mock">Phenotype Prediction Jobs</div>
+                    <div class="dashboard-buttons">
+                        <button class="btn-mock btn-secondary-mock">
+                            <i class="fas fa-database"></i> Database Browser
+                        </button>
+                        <button class="btn-mock btn-secondary-mock">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn-mock btn-primary-mock">
+                            <i class="fas fa-check-circle"></i> Validate Predictions
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="processing-grid-mock">
+                    <div class="grid-header">
+                        <div class="grid-cell">Species Files</div>
+                        <div class="grid-cell">GPT-4o</div>
+                        <div class="grid-cell">Claude-3.5</div>
+                        <div class="grid-cell">Gemini-1.5</div>
+                        <div class="grid-cell">Llama-3.1</div>
+                    </div>
+                    <div class="grid-body">
+                        <div class="grid-row">
+                            <div class="grid-cell species-cell">bacteria_set1.txt</div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">250/250</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-running">
+                                    <div class="status-progress">168/250</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 67%"></div>
+                                    </div>
+                                    <div class="status-label">Running...</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">250/250</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-failed">
+                                    <div class="status-progress">45/250</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 18%"></div>
+                                    </div>
+                                    <div class="status-label">Failed</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="grid-cell species-cell">pathogens.txt</div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">185/185</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">185/185</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-running">
+                                    <div class="status-progress">92/185</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 50%"></div>
+                                    </div>
+                                    <div class="status-label">Running...</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-empty">
+                                    <div class="status-progress">Start</div>
+                                    <div class="status-label">Not Started</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="grid-cell species-cell">soil_microbes.txt</div>
+                            <div class="grid-cell">
+                                <div class="status-box status-running">
+                                    <div class="status-progress">89/320</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 28%"></div>
+                                    </div>
+                                    <div class="status-label">Running...</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-empty">
+                                    <div class="status-progress">Start</div>
+                                    <div class="status-label">Not Started</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-empty">
+                                    <div class="status-progress">Start</div>
+                                    <div class="status-label">Not Started</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-empty">
+                                    <div class="status-progress">Start</div>
+                                    <div class="status-label">Not Started</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="grid-cell species-cell">marine_bacteria.txt</div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">156/156</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">156/156</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-complete">
+                                    <div class="status-progress">156/156</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                    <div class="status-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="grid-cell">
+                                <div class="status-box status-running">
+                                    <div class="status-progress">78/156</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 50%"></div>
+                                    </div>
+                                    <div class="status-label">Running...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel B: Import/Export -->
+            <div class="panel">
+                <span class="panel-label">B. Data Import/Export</span>
+                <div class="import-export-grid">
+                    <div class="ie-section">
+                        <div class="ie-icon"><i class="fas fa-file-upload"></i></div>
+                        <div class="ie-title">Import Data</div>
+                        <div class="ie-description">Upload CSV files with species lists or ground truth data</div>
+                        <div class="file-upload-area">
+                            Drag & drop files here or click to browse
+                        </div>
+                    </div>
+                    <div class="ie-section">
+                        <div class="ie-icon"><i class="fas fa-file-download"></i></div>
+                        <div class="ie-title">Export Results</div>
+                        <div class="ie-description">Download predictions in CSV or JSON format</div>
+                        <button class="btn-mock btn-primary-mock" style="width: 100%">
+                            Export Selected Jobs
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel C: Validation -->
+            <div class="panel">
+                <span class="panel-label">C. Prediction Validation</span>
+                <div class="validation-form">
+                    <div class="form-group">
+                        <label class="form-label">Select Predictions File</label>
+                        <select class="form-select">
+                            <option>bacteria_set1_GPT-4o_results.csv</option>
+                            <option>pathogens_Claude-3.5_results.csv</option>
+                            <option>marine_bacteria_Gemini-1.5_results.csv</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ground Truth Dataset</label>
+                        <select class="form-select">
+                            <option>LA_Test_Dataset (15,256 species)</option>
+                            <option>Balanced_Subset (5,000 species)</option>
+                            <option>Pathogens_Only (1,234 species)</option>
+                        </select>
+                    </div>
+                    <button class="btn-mock btn-primary-mock" style="width: 100%; margin-top: 10px;">
+                        Calculate Accuracy Metrics
+                    </button>
+                    <div class="validation-stats">
+                        <div class="stat-card">
+                            <div class="stat-value">94.2%</div>
+                            <div class="stat-label">Accuracy</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">0.91</div>
+                            <div class="stat-label">F1 Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">0.89</div>
+                            <div class="stat-label">MCC</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel D: Database Browser -->
+            <div class="panel panel-large">
+                <span class="panel-label">D. Database Browser</span>
+                <div class="db-browser-header">
+                    <div class="db-tabs">
+                        <div class="db-tab active">Ground Truth</div>
+                        <div class="db-tab">Predictions</div>
+                        <div class="db-tab">Models</div>
+                        <div class="db-tab">Templates</div>
+                    </div>
+                    <button class="btn-mock btn-secondary-mock">
+                        <i class="fas fa-download"></i> Export Table
+                    </button>
+                </div>
+                <table class="db-table-mock">
+                    <thead>
+                        <tr>
+                            <th>Species</th>
+                            <th>Gram Staining</th>
+                            <th>Motility</th>
+                            <th>Spore Formation</th>
+                            <th>Pathogenicity</th>
+                            <th>Dataset</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Escherichia coli</td>
+                            <td>Negative</td>
+                            <td>True</td>
+                            <td>False</td>
+                            <td>Variable</td>
+                            <td>LA_Test_Dataset</td>
+                        </tr>
+                        <tr>
+                            <td>Bacillus subtilis</td>
+                            <td>Positive</td>
+                            <td>True</td>
+                            <td>True</td>
+                            <td>False</td>
+                            <td>LA_Test_Dataset</td>
+                        </tr>
+                        <tr>
+                            <td>Staphylococcus aureus</td>
+                            <td>Positive</td>
+                            <td>False</td>
+                            <td>False</td>
+                            <td>True</td>
+                            <td>LA_Test_Dataset</td>
+                        </tr>
+                        <tr>
+                            <td>Pseudomonas aeruginosa</td>
+                            <td>Negative</td>
+                            <td>True</td>
+                            <td>False</td>
+                            <td>True</td>
+                            <td>LA_Test_Dataset</td>
+                        </tr>
+                        <tr>
+                            <td>Clostridium botulinum</td>
+                            <td>Positive</td>
+                            <td>True</td>
+                            <td>True</td>
+                            <td>True</td>
+                            <td>LA_Test_Dataset</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="figure-caption">
+            <span class="caption-label">Figure X.</span> MicrobeLLM administrative interface for managing phenotype prediction workflows. 
+            <strong>(A)</strong> Processing dashboard showing real-time job status across multiple LLM models and species datasets. The grid interface allows monitoring of prediction progress with color-coded status indicators (green: complete, blue: running, red: failed, gray: not started). 
+            <strong>(B)</strong> Data import/export module supporting batch upload of species lists and download of prediction results in standard formats. 
+            <strong>(C)</strong> Validation interface for calculating accuracy metrics against ground truth datasets, displaying key performance indicators including accuracy, F1 score, and Matthews correlation coefficient. 
+            <strong>(D)</strong> Integrated database browser providing direct access to ground truth data, predictions, model configurations, and template definitions with export capabilities.
+        </div>
+    </div>
+</body>
+</html>

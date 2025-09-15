@@ -1,0 +1,126 @@
+<div id="searchCountDynamicStats" class="article-text">
+    <div class="loading-container">
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+        <div class="loading-text">Loading search statistics...</div>
+    </div>
+</div>
+
+<style>
+.search-stat-value {
+    display: inline-block;
+    font-weight: 700;
+    color: var(--gray-900);
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 6px;
+    margin: 0 2px;
+    padding: 2px 8px;
+    font-size: inherit;
+}
+
+.species-highlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
+
+.species-lowlight {
+    display: inline-block;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+}
+
+.percentage-value {
+    display: inline-block;
+    font-weight: 600;
+    color: #059669;
+    font-size: inherit;
+}
+</style>
+
+<script>
+// Self-contained script for search count dynamic stats
+(function() {
+    console.log('[SearchCountDynamicStats] Script starting...');
+    
+    async function loadAndDisplayStats() {
+        const container = document.getElementById('searchCountDynamicStats');
+        if (!container) {
+            console.log('[SearchCountDynamicStats] Container not found, retrying...');
+            setTimeout(loadAndDisplayStats, 100);
+            return;
+        }
+        
+        try {
+            // Fetch search count data
+            const response = await fetch('/api/search_count_data');
+            const data = await response.json();
+            const searchData = data.search_counts;
+            
+            if (!searchData || searchData.length === 0) {
+                container.innerHTML = '<p>No search count data available.</p>';
+                return;
+            }
+            
+            // Calculate statistics
+            const sorted = [...searchData].sort((a, b) => b.search_count - a.search_count);
+            const mostSearched = sorted[0];
+            const median = sorted[Math.floor(sorted.length / 2)].search_count;
+            const lowCount = searchData.filter(s => s.search_count < 1000).length;
+            const lowPercentage = (lowCount / searchData.length * 100).toFixed(1);
+            const totalSpecies = searchData.length;
+            
+            // Generate dynamic text with embedded statistics
+            const content = `
+                <p>Our search frequency analysis reveals fascinating patterns in bacterial research attention. 
+                The most studied species, <span class="species-highlight">${mostSearched.binomial_name}</span>, 
+                dominates the literature with an astounding <span class="search-stat-value">${mostSearched.search_count.toLocaleString()}</span> 
+                search results on Google Scholar—a testament to its central role in microbiology research and its 
+                importance as a model organism.</p>
+                
+                <p>However, the distribution of research attention is highly skewed. The median search count 
+                across all <span class="search-stat-value">${totalSpecies.toLocaleString()}</span> species 
+                is only <span class="search-stat-value">${median.toLocaleString()}</span>, indicating that 
+                half of all bacterial species receive relatively minimal research attention. Even more striking, 
+                <span class="search-stat-value">${lowCount.toLocaleString()}</span> species 
+                (<span class="percentage-value">${lowPercentage}%</span> of our dataset) have fewer than 
+                1,000 search results, suggesting they remain largely understudied in the scientific literature.</p>
+                
+                <p>This disparity in research attention has important implications for language model performance. 
+                Models trained on scientific literature will inevitably have more robust representations of 
+                well-studied organisms like <span class="species-highlight">E. coli</span>, 
+                <span class="species-highlight">Staphylococcus aureus</span>, and 
+                <span class="species-highlight">Pseudomonas aeruginosa</span>, while potentially struggling 
+                with predictions for the <span class="species-lowlight">${lowCount.toLocaleString()} understudied species</span> 
+                that make up nearly half of our bacterial diversity.</p>
+            `;
+            
+            // Update container with formatted content
+            container.innerHTML = content;
+            
+        } catch (error) {
+            console.error('[SearchCountDynamicStats] Error loading data:', error);
+            container.innerHTML = '<p>Error loading search statistics. Please try refreshing the page.</p>';
+        }
+    }
+    
+    // Initialize immediately
+    loadAndDisplayStats();
+    
+    // Also try after DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadAndDisplayStats);
+    }
+})();
+</script>

@@ -157,10 +157,14 @@ class UnifiedDB:
                 update_fields.append('knowledge_group = ?')
                 values.append(knowledge_group)
             
-            # Add phenotype fields
+            # Add phenotype fields - store in BOTH raw and normal columns
             for field, value in phenotype_data.items():
                 if value is not None:
+                    # Store in normal column
                     update_fields.append(f'{field} = ?')
+                    values.append(value)
+                    # Also store in raw column for preservation
+                    update_fields.append(f'raw_{field} = ?')
                     values.append(value)
             
             if update_fields:
@@ -245,7 +249,7 @@ class UnifiedDB:
                 updates.append("error = ?")
                 params.append(error)
             
-            # Handle phenotypes
+            # Handle phenotypes - store in BOTH raw and normal columns
             if phenotypes:
                 for field, value in phenotypes.items():
                     if field in ['knowledge_group', 'gram_staining', 'motility', 
@@ -254,8 +258,16 @@ class UnifiedDB:
                                'biosafety_level', 'health_association',
                                'host_association', 'plant_pathogenicity',
                                'spore_formation', 'hemolysis', 'cell_shape']:
+                        # Store in normal column (will be overwritten by validation)
                         updates.append(f"{field} = ?")
                         params.append(value)
+                        # Store in raw column (preserved original)
+                        updates.append(f"raw_{field} = ?")
+                        params.append(value)
+                
+                # Mark that raw data has been preserved
+                updates.append("raw_data_preserved = ?")
+                params.append(1)
             
             if updates:
                 params.extend([job_id, binomial_name])

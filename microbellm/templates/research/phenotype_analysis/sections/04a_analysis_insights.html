@@ -1,0 +1,14 @@
+<!-- Analysis Insights Text Section -->
+<h2 class="section-title">Analysis Insights</h2>
+
+<p class="article-text">
+    The ground truth dataset statistics reveal several important patterns in phenotype data availability. While some characteristics like gram staining and cell shape have extensive coverage across bacterial species, others such as hemolysis and biosafety level show more limited annotation availability. This variance in data completeness presents both challenges and opportunities for language model evaluation.
+</p>
+
+<p class="article-text">
+    Interestingly, the distribution of phenotype values within each characteristic often reflects biological reality. For instance, the predominance of non-pathogenic organisms in our dataset mirrors the fact that most bacterial species are not human pathogens. Similarly, the high proportion of species without extreme environment tolerance aligns with the ecological distribution of bacteria in nature.
+</p>
+
+<p class="article-text">
+    These patterns become particularly relevant when evaluating model predictions. Models that default to the most common values may achieve reasonable accuracy on imbalanced datasets, but this approach fails to capture the nuanced understanding required for less common phenotypes. Our analysis methodology specifically addresses this challenge through balanced accuracy metrics and stratified evaluation approaches.
+</p>

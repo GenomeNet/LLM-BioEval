@@ -1,0 +1,260 @@
+<div class="search-count-container">
+    <div class="search-count-header">
+        <h3 class="section-callout__title">Species Popularity Analysis</h3>
+        <p class="section-callout__text">
+            Exploring the relationship between species search frequency and phenotype prediction accuracy.
+            Based on Google Scholar search results for 3,884 bacterial species.
+        </p>
+    </div>
+    
+    <div class="search-count-controls">
+        <div class="control-group">
+            <label for="scaleType">Scale Type:</label>
+            <select id="scaleType" class="control-select">
+                <option value="log" selected>Logarithmic</option>
+                <option value="linear">Linear</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="dataFilter">Filter:</label>
+            <select id="dataFilter" class="control-select">
+                <option value="all">All Species (3,884)</option>
+                <option value="top100">Top 100 Most Searched</option>
+                <option value="top500">Top 500 Most Searched</option>
+                <option value="withAccuracy">Species with Accuracy Data</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="highlightSpecies">Highlight Species:</label>
+            <input type="text" id="highlightSpecies" class="control-input" placeholder="e.g., Escherichia coli">
+        </div>
+    </div>
+    
+    <div class="chart-wrapper">
+        <canvas id="searchCountChart"></canvas>
+    </div>
+</div>
+
+<style>
+.search-count-container {
+    padding: 0;
+}
+
+.search-count-header {
+    margin-bottom: 32px;
+}
+
+.search-count-controls {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.control-select, .control-input {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    min-width: 150px;
+}
+
+.control-select:focus, .control-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.chart-wrapper {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 32px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    min-height: 500px;
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    .search-count-controls {
+        flex-direction: column;
+    }
+    
+    .control-select, .control-input {
+        width: 100%;
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Search Count Visualization
+(function() {
+    let chart = null;
+    let searchData = [];
+    let accuracyData = {};
+    
+    async function loadSearchData() {
+        try {
+            const response = await fetch('/api/search_count_data');
+            const data = await response.json();
+            searchData = data.search_counts;
+            accuracyData = data.accuracy_data || {};
+            
+            createChart();
+        } catch (error) {
+            console.error('Failed to load search data:', error);
+        }
+    }
+    
+    function createChart() {
+        const canvas = document.getElementById('searchCountChart');
+        const ctx = canvas.getContext('2d');
+        
+        const scaleType = document.getElementById('scaleType').value;
+        const dataFilter = document.getElementById('dataFilter').value;
+        
+        // Filter data based on selection
+        let filteredData = [...searchData];
+        if (dataFilter === 'top100') {
+            filteredData = filteredData.sort((a, b) => b.search_count - a.search_count).slice(0, 100);
+        } else if (dataFilter === 'top500') {
+            filteredData = filteredData.sort((a, b) => b.search_count - a.search_count).slice(0, 500);
+        } else if (dataFilter === 'withAccuracy') {
+            filteredData = filteredData.filter(s => accuracyData[s.binomial_name]);
+        }
+        
+        // Prepare chart data
+        const chartData = filteredData.map((species, index) => ({
+            x: index,
+            y: species.search_count,
+            label: species.binomial_name,
+            accuracy: accuracyData[species.binomial_name] || null
+        }));
+        
+        // Destroy existing chart if it exists
+        if (chart) {
+            chart.destroy();
+        }
+        
+        // Create new chart
+        chart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Search Count',
+                    data: chartData,
+                    backgroundColor: chartData.map(d => 
+                        d.accuracy ? `rgba(34, 197, 94, ${0.3 + d.accuracy * 0.7})` : 'rgba(99, 102, 241, 0.5)'
+                    ),
+                    borderColor: chartData.map(d => 
+                        d.accuracy ? `rgba(34, 197, 94, 0.8)` : 'rgba(99, 102, 241, 0.8)'
+                    ),
+                    borderWidth: 1,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Species Search Frequency Distribution',
+                        font: { size: 16, weight: '600' }
+                    },
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw;
+                                let label = `${point.label}: ${point.y.toLocaleString()} searches`;
+                                if (point.accuracy) {
+                                    label += ` (Accuracy: ${(point.accuracy * 100).toFixed(1)}%)`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: scaleType === 'log' ? 'logarithmic' : 'linear',
+                        title: {
+                            display: true,
+                            text: 'Search Count',
+                            font: { size: 14, weight: '500' }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Species Rank',
+                            font: { size: 14, weight: '500' }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Event listeners
+    document.getElementById('scaleType').addEventListener('change', createChart);
+    document.getElementById('dataFilter').addEventListener('change', createChart);
+    
+    document.getElementById('highlightSpecies').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        if (!chart || !searchTerm) {
+            if (chart) createChart();
+            return;
+        }
+        
+        // Update point colors based on search
+        const colors = chart.data.datasets[0].data.map(point => {
+            if (point.label.toLowerCase().includes(searchTerm)) {
+                return 'rgba(239, 68, 68, 0.8)'; // Highlight in red
+            }
+            return point.accuracy ? 
+                `rgba(34, 197, 94, ${0.3 + point.accuracy * 0.7})` : 
+                'rgba(99, 102, 241, 0.5)';
+        });
+        
+        chart.data.datasets[0].backgroundColor = colors;
+        chart.data.datasets[0].borderColor = colors.map(c => c.replace('0.5', '0.8'));
+        chart.update();
+    });
+    
+    // Initialize
+    loadSearchData();
+})();
+</script>
