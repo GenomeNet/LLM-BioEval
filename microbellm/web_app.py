@@ -5,6 +5,9 @@ import io
 import json
 import threading
 import time
+import math
+import re
+from collections import defaultdict
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
 from markupsafe import escape
@@ -58,6 +61,93 @@ _search_correlation_cache_timestamp = 0
 # Cache for knowledge analysis data
 _knowledge_analysis_cache = {}
 _knowledge_analysis_cache_timestamp = 0
+
+# Cache for ground truth phenotype statistics (per dataset)
+_ground_truth_stats_cache = {}
+_ground_truth_stats_cache_lock = threading.Lock()
+
+# Ground truth phenotype metadata used by statistics endpoints
+GROUND_TRUTH_PHENOTYPE_DEFINITIONS = {
+    'motility': {
+        'label': 'Motility',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'spore_formation': {
+        'label': 'Spore formation',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'gram_staining': {
+        'label': 'Gram staining',
+        'type': 'Multi-class',
+        'targets': ['gram stain negative', 'gram stain positive', 'gram stain variable']
+    },
+    'cell_shape': {
+        'label': 'Cell shape',
+        'type': 'Multi-class',
+        'targets': ['bacillus', 'coccus', 'spirillum', 'tail']
+    },
+    'health_association': {
+        'label': 'Health Association',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'host_association': {
+        'label': 'Host Association',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'plant_pathogenicity': {
+        'label': 'Plant pathogenicity',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'biosafety_level': {
+        'label': 'Biosafety level',
+        'type': 'Multi-class',
+        'targets': ['biosafety level 1', 'biosafety level 2', 'biosafety level 3']
+    },
+    'extreme_environment_tolerance': {
+        'label': 'Extreme environment tolerance',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'animal_pathogenicity': {
+        'label': 'Animal Pathogenicity',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    },
+    'hemolysis': {
+        'label': 'Hemolysis',
+        'type': 'Multi-class',
+        'targets': ['alpha', 'beta', 'gamma']
+    },
+    'aerophilicity': {
+        'label': 'Aerophilicity',
+        'type': 'Multi-class',
+        'targets': ['aerobic', 'aerotolerant', 'anaerobic', 'facultatively anaerobic']
+    },
+    'biofilm_formation': {
+        'label': 'Biofilm formation',
+        'type': 'Binary',
+        'targets': ['TRUE', 'FALSE']
+    }
+}
+
+# Cached model accuracy snapshots (per dataset)
+_model_accuracy_cache = {}
+_model_accuracy_cache_lock = threading.Lock()
+
+# Dataset to species file mapping used for model accuracy calculations
+DATASET_SPECIES_FILE_MAP = {
+    'WA_Test_Dataset': 'wa_with_gcount.txt',
+    'LA_Test_Dataset': 'la.txt'
+}
+
+# Cached knowledge accuracy snapshots (per dataset)
+_knowledge_accuracy_cache = {}
+_knowledge_accuracy_cache_lock = threading.Lock()
 
 CACHE_DURATION = 300  # 5 minutes in seconds
 
@@ -2683,6 +2773,1124 @@ def _update_knowledge_analysis_cache(data, timestamp):
     _knowledge_analysis_cache = data
     _knowledge_analysis_cache_timestamp = timestamp
 
+
+def _load_persistent_ground_truth_stats(dataset_name):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT payload, import_timestamp, computed_at
+            FROM ground_truth_statistics_cache
+            WHERE dataset_name = ?
+            """,
+            (dataset_name,)
+        )
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    payload_json, import_timestamp, computed_at = row
+    if not payload_json:
+        return None
+
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return None
+
+    return {
+        'data': payload,
+        'import_timestamp': float(import_timestamp or 0),
+        'computed_at': float(computed_at or 0)
+    }
+
+
+def _save_persistent_ground_truth_stats(dataset_name, data, import_timestamp, computed_at):
+    create_ground_truth_tables()
+    snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO ground_truth_statistics_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(dataset_name) DO UPDATE SET
+            payload = excluded.payload,
+            import_timestamp = excluded.import_timestamp,
+            computed_at = excluded.computed_at,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def _clear_persistent_ground_truth_stats(dataset_name=None):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    if dataset_name:
+        cursor.execute(
+            "DELETE FROM ground_truth_statistics_cache WHERE dataset_name = ?",
+            (dataset_name,)
+        )
+    else:
+        cursor.execute("DELETE FROM ground_truth_statistics_cache")
+
+    conn.commit()
+    conn.close()
+
+
+def _get_species_file_for_dataset(dataset_name):
+    if not dataset_name:
+        return 'wa_with_gcount.txt'
+
+    if dataset_name in DATASET_SPECIES_FILE_MAP:
+        return DATASET_SPECIES_FILE_MAP[dataset_name]
+
+    normalized = dataset_name.lower()
+    if 'artificial' in normalized:
+        return 'artificial.txt'
+    if 'la_test' in normalized or 'los angeles' in normalized or normalized.endswith('_la'):
+        return 'la.txt'
+    if 'wa_test' in normalized or 'washington' in normalized or normalized.endswith('_wa'):
+        return 'wa_with_gcount.txt'
+
+    return 'wa_with_gcount.txt'
+
+
+def _load_persistent_model_accuracy(dataset_name):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT payload, import_timestamp, computed_at
+            FROM model_accuracy_cache
+            WHERE dataset_name = ?
+            """,
+            (dataset_name,)
+        )
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    payload_json, import_timestamp, computed_at = row
+    if not payload_json:
+        return None
+
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return None
+
+    return {
+        'data': payload,
+        'import_timestamp': float(import_timestamp or 0),
+        'computed_at': float(computed_at or 0)
+    }
+
+
+def _save_persistent_model_accuracy(dataset_name, data, import_timestamp, computed_at):
+    create_ground_truth_tables()
+    snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO model_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(dataset_name) DO UPDATE SET
+            payload = excluded.payload,
+            import_timestamp = excluded.import_timestamp,
+            computed_at = excluded.computed_at,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def _clear_persistent_model_accuracy(dataset_name=None):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    if dataset_name:
+        cursor.execute(
+            "DELETE FROM model_accuracy_cache WHERE dataset_name = ?",
+            (dataset_name,)
+        )
+    else:
+        cursor.execute("DELETE FROM model_accuracy_cache")
+
+    conn.commit()
+    conn.close()
+
+
+def _load_persistent_knowledge_accuracy(dataset_name):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT payload, import_timestamp, computed_at
+            FROM knowledge_accuracy_cache
+            WHERE dataset_name = ?
+            """,
+            (dataset_name,)
+        )
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    payload_json, import_timestamp, computed_at = row
+    if not payload_json:
+        return None
+
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return None
+
+    return {
+        'data': payload,
+        'import_timestamp': float(import_timestamp or 0),
+        'computed_at': float(computed_at or 0)
+    }
+
+
+def _save_persistent_knowledge_accuracy(dataset_name, data, import_timestamp, computed_at):
+    create_ground_truth_tables()
+    snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO knowledge_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(dataset_name) DO UPDATE SET
+            payload = excluded.payload,
+            import_timestamp = excluded.import_timestamp,
+            computed_at = excluded.computed_at,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def _clear_persistent_knowledge_accuracy(dataset_name=None):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    if dataset_name:
+        cursor.execute(
+            "DELETE FROM knowledge_accuracy_cache WHERE dataset_name = ?",
+            (dataset_name,)
+        )
+    else:
+        cursor.execute("DELETE FROM knowledge_accuracy_cache")
+
+    conn.commit()
+    conn.close()
+
+
+def _coerce_timestamp(value):
+    """Convert a string or numeric timestamp into float seconds since epoch."""
+    if value in (None, ''):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        return datetime.fromisoformat(str(value)).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def _get_ground_truth_dataset_import_metadata(dataset_name, cursor=None):
+    """Fetch import metadata for a ground truth dataset."""
+    own_conn = None
+    if cursor is None:
+        own_conn = sqlite3.connect(db_path)
+        cursor = own_conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT import_date, species_count
+        FROM ground_truth_datasets
+        WHERE dataset_name = ?
+        """,
+        (dataset_name,)
+    )
+    row = cursor.fetchone()
+
+    if own_conn:
+        own_conn.close()
+
+    import_date = row[0] if row else None
+    reported_species_count = row[1] if row and len(row) > 1 else None
+    return {
+        'import_date': import_date,
+        'import_timestamp': _coerce_timestamp(import_date),
+        'reported_species_count': int(reported_species_count) if reported_species_count is not None else None
+    }
+
+
+def _calculate_ground_truth_statistics(dataset_name, metadata=None):
+    """Compute phenotype statistics for a ground truth dataset."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        if metadata is None:
+            metadata = _get_ground_truth_dataset_import_metadata(dataset_name, cursor)
+        else:
+            metadata = {
+                'import_date': metadata.get('import_date'),
+                'import_timestamp': _coerce_timestamp(metadata.get('import_timestamp')),
+                'reported_species_count': (
+                    int(metadata['reported_species_count'])
+                    if metadata.get('reported_species_count') is not None
+                    else None
+                )
+            }
+
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='ground_truth'"
+        )
+        if not cursor.fetchone():
+            return {
+                'dataset_name': dataset_name,
+                'total_species': 0,
+                'statistics': [],
+                'metadata': {
+                    **metadata,
+                    'calculated_at': datetime.utcnow().isoformat() + 'Z'
+                }
+            }
+
+        cursor.execute(
+            "SELECT COUNT(*) FROM ground_truth WHERE dataset_name = ?",
+            (dataset_name,)
+        )
+        total_row = cursor.fetchone()
+        total_species = int(total_row[0]) if total_row else 0
+
+        statistics = []
+
+        if total_species == 0:
+            result = {
+                'dataset_name': dataset_name,
+                'total_species': 0,
+                'statistics': [],
+                'metadata': {
+                    **metadata,
+                    'calculated_at': datetime.utcnow().isoformat() + 'Z'
+                }
+            }
+            return result
+
+        for field, info in GROUND_TRUTH_PHENOTYPE_DEFINITIONS.items():
+            cursor.execute(
+                f"""
+                SELECT COUNT(*) FROM ground_truth
+                WHERE dataset_name = ?
+                  AND {field} IS NOT NULL
+                  AND {field} != ''
+                  AND {field} != 'NA'
+                """,
+                (dataset_name,)
+            )
+            annotated_count = int(cursor.fetchone()[0])
+
+            annotation_fraction = (annotated_count / total_species * 100) if total_species > 0 else 0
+
+            cursor.execute(
+                f"""
+                SELECT {field}, COUNT(*) as count
+                FROM ground_truth
+                WHERE dataset_name = ?
+                  AND {field} IS NOT NULL
+                  AND {field} != ''
+                  AND {field} != 'NA'
+                GROUP BY {field}
+                ORDER BY count DESC
+                """,
+                (dataset_name,)
+            )
+
+            value_distribution = {}
+            rows = cursor.fetchall()
+            for value, count in rows:
+                label = '' if value is None else str(value)
+                value_distribution[label] = {
+                    'count': int(count),
+                    'percentage': round((count / annotated_count * 100) if annotated_count > 0 else 0, 1)
+                }
+
+            statistics.append({
+                'field': field,
+                'label': info['label'],
+                'type': info['type'],
+                'targets': info['targets'],
+                'total_species': total_species,
+                'annotated_species': annotated_count,
+                'missing_species': total_species - annotated_count,
+                'annotation_fraction': round(annotation_fraction, 1),
+                'value_distribution': value_distribution
+            })
+
+        statistics.sort(key=lambda item: item['annotation_fraction'], reverse=True)
+
+        return {
+            'dataset_name': dataset_name,
+            'total_species': total_species,
+            'statistics': statistics,
+            'metadata': {
+                **metadata,
+                'calculated_at': datetime.utcnow().isoformat() + 'Z'
+            }
+        }
+
+    finally:
+        conn.close()
+
+
+def _get_ground_truth_stats_cache_entry(dataset_name):
+    with _ground_truth_stats_cache_lock:
+        entry = _ground_truth_stats_cache.get(dataset_name)
+        if entry:
+            return {
+                'data': entry['data'],
+                'computed_at': entry.get('computed_at', 0),
+                'import_timestamp': entry.get('import_timestamp', 0)
+            }
+
+    persistent_entry = _load_persistent_ground_truth_stats(dataset_name)
+    if persistent_entry:
+        with _ground_truth_stats_cache_lock:
+            _ground_truth_stats_cache[dataset_name] = {
+                'data': persistent_entry['data'],
+                'computed_at': persistent_entry.get('computed_at', 0),
+                'import_timestamp': persistent_entry.get('import_timestamp', 0)
+            }
+        return persistent_entry
+
+    return None
+
+
+def _update_ground_truth_stats_cache(dataset_name, data, import_timestamp, computed_at=None):
+    timestamp = time.time() if computed_at is None else computed_at
+    normalized_json = json.dumps(data, ensure_ascii=False, default=str)
+    normalized_data = json.loads(normalized_json)
+
+    with _ground_truth_stats_cache_lock:
+        _ground_truth_stats_cache[dataset_name] = {
+            'data': normalized_data,
+            'computed_at': float(timestamp),
+            'import_timestamp': float(import_timestamp or 0)
+        }
+
+    _save_persistent_ground_truth_stats(
+        dataset_name,
+        normalized_data,
+        float(import_timestamp or 0),
+        float(timestamp)
+    )
+
+
+def _invalidate_ground_truth_stats_cache(dataset_name=None):
+    with _ground_truth_stats_cache_lock:
+        if dataset_name:
+            _ground_truth_stats_cache.pop(dataset_name, None)
+        else:
+            _ground_truth_stats_cache.clear()
+
+    _clear_persistent_ground_truth_stats(dataset_name)
+
+
+def _calculate_model_accuracy_metrics(dataset_name, metadata=None):
+    """Compute model accuracy metrics for a dataset."""
+    if metadata is None:
+        metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+    else:
+        metadata = {
+            'import_date': metadata.get('import_date'),
+            'import_timestamp': _coerce_timestamp(metadata.get('import_timestamp')),
+            'reported_species_count': (
+                int(metadata['reported_species_count'])
+                if metadata.get('reported_species_count') is not None
+                else None
+            )
+        }
+
+    species_file = _get_species_file_for_dataset(dataset_name)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT r.binomial_name, r.model,
+                   r.gram_staining, r.motility, r.aerophilicity,
+                   r.extreme_environment_tolerance, r.biofilm_formation,
+                   r.animal_pathogenicity, r.biosafety_level, r.health_association,
+                   r.host_association, r.plant_pathogenicity, r.spore_formation,
+                   r.hemolysis, r.cell_shape
+            FROM processing_results r
+            WHERE r.species_file = ?
+              AND r.user_template LIKE '%phenotype%'
+              AND r.status = 'completed'
+              AND (
+                   r.gram_staining IS NOT NULL OR r.motility IS NOT NULL OR
+                   r.aerophilicity IS NOT NULL OR r.extreme_environment_tolerance IS NOT NULL OR
+                   r.biofilm_formation IS NOT NULL OR r.animal_pathogenicity IS NOT NULL OR
+                   r.biosafety_level IS NOT NULL OR r.health_association IS NOT NULL OR
+                   r.host_association IS NOT NULL OR r.plant_pathogenicity IS NOT NULL OR
+                   r.spore_formation IS NOT NULL OR r.hemolysis IS NOT NULL OR
+                   r.cell_shape IS NOT NULL
+              )
+            ORDER BY r.model, r.binomial_name
+            """,
+            (species_file,)
+        )
+
+        prediction_rows = cursor.fetchall()
+    finally:
+        conn.close()
+
+    ground_truth_records = get_ground_truth_data(dataset_name=dataset_name)
+    ground_truth_map = {
+        (record.get('binomial_name') or '').lower(): record
+        for record in ground_truth_records
+        if record.get('binomial_name')
+    }
+
+    total_species = len(ground_truth_records)
+
+    predictions = []
+    for row in prediction_rows:
+        (binomial_name, model,
+         gram_staining, motility, aerophilicity,
+         extreme_environment_tolerance, biofilm_formation,
+         animal_pathogenicity, biosafety_level, health_association,
+         host_association, plant_pathogenicity, spore_formation,
+         hemolysis, cell_shape) = row
+
+        predictions.append({
+            'binomial_name': binomial_name,
+            'model': model,
+            'gram_staining': gram_staining,
+            'motility': motility,
+            'aerophilicity': aerophilicity,
+            'extreme_environment_tolerance': extreme_environment_tolerance,
+            'biofilm_formation': biofilm_formation,
+            'animal_pathogenicity': animal_pathogenicity,
+            'biosafety_level': biosafety_level,
+            'health_association': health_association,
+            'host_association': host_association,
+            'plant_pathogenicity': plant_pathogenicity,
+            'spore_formation': spore_formation,
+            'hemolysis': hemolysis,
+            'cell_shape': cell_shape
+        })
+
+    models = sorted({pred['model'] for pred in predictions if pred.get('model')})
+    phenotype_fields = list(GROUND_TRUTH_PHENOTYPE_DEFINITIONS.keys())
+
+    predictions_by_model = {}
+    for pred in predictions:
+        model = pred.get('model')
+        if not model:
+            continue
+        predictions_by_model.setdefault(model, []).append(pred)
+
+    def normalize_metric_value(value):
+        normalized = normalize_value(value)
+        if not normalized or normalized == 'NA':
+            return None
+        cleaned = str(normalized).strip().lower()
+        if ',' in cleaned or ';' in cleaned:
+            parts = [part.strip() for part in re.split(r'[;,]', cleaned) if part.strip()]
+            if not parts:
+                return None
+            cleaned = ','.join(sorted(parts))
+        return cleaned
+
+    def compute_classification_metrics(pred_list, truth_list):
+        if not pred_list or not truth_list:
+            return None
+
+        labels = sorted(set(truth_list) | set(pred_list))
+        if not labels:
+            return None
+
+        confusion = {label: {inner: 0 for inner in labels} for label in labels}
+        for truth, pred in zip(truth_list, pred_list):
+            if truth in confusion and pred in confusion[truth]:
+                confusion[truth][pred] += 1
+
+        recall_total = 0.0
+        precision_total = 0.0
+        f1_total = 0.0
+
+        for label in labels:
+            tp = confusion[label][label]
+            fn = sum(confusion[label][other] for other in labels if other != label)
+            fp = sum(confusion[other][label] for other in labels if other != label)
+
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+
+            recall_total += recall
+            precision_total += precision
+            f1_total += f1
+
+        num_labels = len(labels)
+        balanced_acc = recall_total / num_labels if num_labels else 0.0
+        macro_precision = precision_total / num_labels if num_labels else 0.0
+        macro_recall = recall_total / num_labels if num_labels else 0.0
+        macro_f1 = f1_total / num_labels if num_labels else 0.0
+
+        confusion_matrix = [
+            [confusion[row_label][col_label] for col_label in labels]
+            for row_label in labels
+        ]
+
+        return {
+            'balancedAcc': balanced_acc,
+            'precision': macro_precision,
+            'recall': macro_recall,
+            'f1': macro_f1,
+            'sampleSize': len(truth_list),
+            'confusionMatrix': confusion_matrix,
+            'labels': labels
+        }
+
+    def safe_metric_value(value):
+        if value is None:
+            return None
+        try:
+            if math.isnan(value):
+                return None
+        except TypeError:
+            pass
+        return round(float(value), 6)
+
+    metrics = []
+
+    for phenotype in phenotype_fields:
+        for model, model_predictions in predictions_by_model.items():
+            truth_values = []
+            pred_values = []
+
+            for pred in model_predictions:
+                species_name = (pred.get('binomial_name') or '').lower()
+                if not species_name:
+                    continue
+                ground_truth = ground_truth_map.get(species_name)
+                if not ground_truth:
+                    continue
+
+                truth_norm = normalize_metric_value(ground_truth.get(phenotype))
+                pred_norm = normalize_metric_value(pred.get(phenotype))
+
+                if truth_norm is None or pred_norm is None:
+                    continue
+
+                truth_values.append(truth_norm)
+                pred_values.append(pred_norm)
+
+            if not truth_values:
+                continue
+
+            metric_result = compute_classification_metrics(pred_values, truth_values)
+            if not metric_result:
+                continue
+
+            metrics.append({
+                'model': model,
+                'phenotype': phenotype,
+                'balancedAcc': safe_metric_value(metric_result['balancedAcc']),
+                'precision': safe_metric_value(metric_result['precision']),
+                'recall': safe_metric_value(metric_result['recall']),
+                'f1': safe_metric_value(metric_result['f1']),
+                'sampleSize': metric_result['sampleSize'],
+                'confusionMatrix': metric_result['confusionMatrix'],
+                'labels': metric_result['labels']
+            })
+
+    metrics_generated_at = datetime.utcnow().isoformat() + 'Z'
+
+    summary = {
+        'model_count': len(models),
+        'phenotype_count': len(phenotype_fields),
+        'prediction_count': len(predictions),
+        'ground_truth_species': total_species,
+        'species_file': species_file,
+        'metrics_count': len(metrics)
+    }
+
+    return {
+        'dataset_name': dataset_name,
+        'species_file': species_file,
+        'metrics': metrics,
+        'models': models,
+        'phenotypes': phenotype_fields,
+        'summary': summary,
+        'metadata': {
+            **metadata,
+            'calculated_at': metrics_generated_at,
+            'species_file': species_file
+        }
+    }
+
+
+def _get_model_accuracy_cache_entry(dataset_name):
+    with _model_accuracy_cache_lock:
+        entry = _model_accuracy_cache.get(dataset_name)
+        if entry:
+            return {
+                'data': entry['data'],
+                'computed_at': entry.get('computed_at', 0),
+                'import_timestamp': entry.get('import_timestamp', 0)
+            }
+
+    persistent_entry = _load_persistent_model_accuracy(dataset_name)
+    if persistent_entry:
+        with _model_accuracy_cache_lock:
+            _model_accuracy_cache[dataset_name] = {
+                'data': persistent_entry['data'],
+                'computed_at': persistent_entry.get('computed_at', 0),
+                'import_timestamp': persistent_entry.get('import_timestamp', 0)
+            }
+        return persistent_entry
+
+    return None
+
+
+def _update_model_accuracy_cache(dataset_name, data, import_timestamp, computed_at=None):
+    timestamp = time.time() if computed_at is None else computed_at
+    normalized_json = json.dumps(data, ensure_ascii=False, default=str)
+    normalized_data = json.loads(normalized_json)
+
+    with _model_accuracy_cache_lock:
+        _model_accuracy_cache[dataset_name] = {
+            'data': normalized_data,
+            'computed_at': float(timestamp),
+            'import_timestamp': float(import_timestamp or 0)
+        }
+
+    _save_persistent_model_accuracy(
+        dataset_name,
+        normalized_data,
+        float(import_timestamp or 0),
+        float(timestamp)
+    )
+
+
+def _invalidate_model_accuracy_cache(dataset_name=None):
+    with _model_accuracy_cache_lock:
+        if dataset_name:
+            _model_accuracy_cache.pop(dataset_name, None)
+        else:
+            _model_accuracy_cache.clear()
+
+    _clear_persistent_model_accuracy(dataset_name)
+
+
+def _normalize_knowledge_value(phenotype, value):
+    if value is None:
+        return None
+
+    str_value = str(value).strip().lower()
+    if not str_value or str_value in {'na', 'n/a', '-', 'null', 'none', 'nan'}:
+        return None
+
+    if phenotype == 'gram_staining':
+        if 'positive' in str_value:
+            return 'positive'
+        if 'negative' in str_value:
+            return 'negative'
+        if 'variable' in str_value:
+            return 'variable'
+
+    if phenotype == 'biosafety_level':
+        if '1' in str_value:
+            return 'level_1'
+        if '2' in str_value:
+            return 'level_2'
+        if '3' in str_value:
+            return 'level_3'
+
+    if phenotype == 'cell_shape':
+        if 'bacillus' in str_value:
+            return 'bacillus'
+        if 'coccus' in str_value:
+            return 'coccus'
+        if 'spirillum' in str_value:
+            return 'spirillum'
+        if 'tail' in str_value:
+            return 'tail'
+        if 'filamentous' in str_value:
+            return 'filamentous'
+
+    if str_value in {'true', 't', 'yes', '1'}:
+        return True
+    if str_value in {'false', 'f', 'no', '0'}:
+        return False
+
+    return str_value
+
+
+def _calculate_balanced_accuracy_from_confusion(confusion):
+    labels = set(confusion.keys())
+    for truth_map in confusion.values():
+        labels.update(truth_map.keys())
+
+    labels = sorted(labels)
+    if not labels:
+        return 0.0
+
+    recalls = []
+    for label in labels:
+        tp = confusion.get(label, {}).get(label, 0)
+        fn = sum(confusion.get(label, {}).values()) - tp
+        fp = sum(confusion.get(other, {}).get(label, 0) for other in labels if other != label)
+        if tp + fn > 0:
+            recall = tp / (tp + fn)
+        else:
+            recall = 0.0
+        recalls.append(recall)
+
+    if not recalls:
+        return 0.0
+    return sum(recalls) / len(recalls)
+
+
+def _calculate_knowledge_accuracy_metrics(dataset_name, metadata=None):
+    if metadata is None:
+        metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+    else:
+        metadata = {
+            'import_date': metadata.get('import_date'),
+            'import_timestamp': _coerce_timestamp(metadata.get('import_timestamp')),
+            'reported_species_count': (
+                int(metadata['reported_species_count'])
+                if metadata.get('reported_species_count') is not None
+                else None
+            )
+        }
+
+    species_file = _get_species_file_for_dataset(dataset_name)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT 
+                pheno.model,
+                know.knowledge_group,
+                pheno.binomial_name,
+                pheno.gram_staining,
+                pheno.motility,
+                pheno.aerophilicity,
+                pheno.extreme_environment_tolerance,
+                pheno.biofilm_formation,
+                pheno.animal_pathogenicity,
+                pheno.biosafety_level,
+                pheno.health_association,
+                pheno.host_association,
+                pheno.plant_pathogenicity,
+                pheno.spore_formation,
+                pheno.hemolysis,
+                pheno.cell_shape
+            FROM processing_results pheno
+            INNER JOIN processing_results know 
+                ON pheno.model = know.model 
+                AND pheno.binomial_name = know.binomial_name 
+                AND pheno.species_file = know.species_file
+            WHERE 
+                pheno.user_template LIKE '%template1_phenotype%'
+                AND know.user_template LIKE '%template3_knowlege%'
+                AND pheno.species_file = ?
+                AND know.knowledge_group IS NOT NULL
+            ORDER BY pheno.model, know.knowledge_group, pheno.binomial_name
+            """,
+            (species_file,)
+        )
+
+        rows = cursor.fetchall()
+
+        cursor.execute(
+            """
+            SELECT DISTINCT 
+                LOWER(binomial_name) as binomial_name,
+                gram_staining,
+                motility,
+                aerophilicity,
+                extreme_environment_tolerance,
+                biofilm_formation,
+                animal_pathogenicity,
+                biosafety_level,
+                health_association,
+                host_association,
+                plant_pathogenicity,
+                spore_formation,
+                hemolysis,
+                cell_shape
+            FROM ground_truth
+            WHERE dataset_name = ?
+            """,
+            (dataset_name,)
+        )
+
+        ground_truth_map = {}
+        for row in cursor.fetchall():
+            ground_truth_map[row[0]] = {
+                'gram_staining': row[1],
+                'motility': row[2],
+                'aerophilicity': row[3],
+                'extreme_environment_tolerance': row[4],
+                'biofilm_formation': row[5],
+                'animal_pathogenicity': row[6],
+                'biosafety_level': row[7],
+                'health_association': row[8],
+                'host_association': row[9],
+                'plant_pathogenicity': row[10],
+                'spore_formation': row[11],
+                'hemolysis': row[12],
+                'cell_shape': row[13]
+            }
+
+    finally:
+        conn.close()
+
+    phenotype_fields = [
+        'gram_staining',
+        'motility',
+        'extreme_environment_tolerance',
+        'biofilm_formation',
+        'animal_pathogenicity',
+        'biosafety_level',
+        'host_association',
+        'plant_pathogenicity',
+        'spore_formation',
+        'cell_shape'
+    ]
+
+    MIN_SAMPLES_PER_PHENOTYPE = 30
+
+    aggregates = {}
+    models = set()
+    knowledge_groups = set()
+
+    for row in rows:
+        model = row[0]
+        knowledge_group = row[1] or 'NA'
+        binomial_name = row[2]
+
+        if not binomial_name:
+            continue
+
+        species_key = binomial_name.lower()
+        ground_truth = ground_truth_map.get(species_key)
+        if not ground_truth:
+            continue
+
+        key = (model, knowledge_group)
+        if key not in aggregates:
+            aggregates[key] = {
+                'phenotypes': {field: {'confusion': defaultdict(lambda: defaultdict(int)), 'count': 0, 'correct': 0} for field in phenotype_fields},
+                'species': set(),
+                'total_predictions': 0,
+                'total_correct': 0
+            }
+
+        agg = aggregates[key]
+        agg['species'].add(species_key)
+        models.add(model)
+        knowledge_groups.add(knowledge_group)
+
+        row_values = {
+            'gram_staining': row[3],
+            'motility': row[4],
+            'aerophilicity': row[5],
+            'extreme_environment_tolerance': row[6],
+            'biofilm_formation': row[7],
+            'animal_pathogenicity': row[8],
+            'biosafety_level': row[9],
+            'health_association': row[10],
+            'host_association': row[11],
+            'plant_pathogenicity': row[12],
+            'spore_formation': row[13],
+            'hemolysis': row[14],
+            'cell_shape': row[15]
+        }
+
+        for field in phenotype_fields:
+            predicted = _normalize_knowledge_value(field, row_values.get(field))
+            truth = _normalize_knowledge_value(field, ground_truth.get(field))
+
+            if predicted is None or truth is None:
+                continue
+
+            phen_stats = agg['phenotypes'][field]
+            phen_stats['confusion'][truth][predicted] += 1
+            phen_stats['count'] += 1
+            agg['total_predictions'] += 1
+            if predicted == truth:
+                phen_stats['correct'] += 1
+                agg['total_correct'] += 1
+
+    entries = []
+    phenotype_order = phenotype_fields[:]
+    knowledge_order = ['NA', 'limited', 'moderate', 'extensive']
+
+    for (model, knowledge_group), data in aggregates.items():
+        phenotype_accuracies = {}
+        per_phenotype_scores = []
+        total_samples = 0
+
+        for phenotype, stats in data['phenotypes'].items():
+            if stats['count'] < MIN_SAMPLES_PER_PHENOTYPE:
+                continue
+
+            balanced_accuracy = _calculate_balanced_accuracy_from_confusion(stats['confusion'])
+            accuracy_percentage = balanced_accuracy * 100 if math.isfinite(balanced_accuracy) else 0.0
+            phenotype_accuracies[phenotype] = {
+                'accuracy': accuracy_percentage,
+                'correct': stats['correct'],
+                'total': stats['count']
+            }
+            per_phenotype_scores.append(accuracy_percentage)
+            total_samples += stats['count']
+
+        if not phenotype_accuracies:
+            continue
+
+        overall_accuracy = sum(per_phenotype_scores) / len(per_phenotype_scores) if per_phenotype_scores else 0.0
+
+        entries.append({
+            'model': model,
+            'knowledge_group': knowledge_group,
+            'overall_accuracy': overall_accuracy,
+            'sample_size': len(data['species']),
+            'total_predictions': total_samples,
+            'phenotype_accuracies': phenotype_accuracies
+        })
+
+    entries.sort(key=lambda item: (item['model'], knowledge_order.index(item['knowledge_group']) if item['knowledge_group'] in knowledge_order else 999))
+
+    summary = {
+        'model_count': len(models),
+        'knowledge_group_count': len(knowledge_groups),
+        'phenotype_count': len(phenotype_fields),
+        'entry_count': len(entries),
+        'ground_truth_species': len(ground_truth_map)
+    }
+
+    return {
+        'dataset_name': dataset_name,
+        'entries': entries,
+        'models': sorted(models),
+        'knowledge_groups': sorted(knowledge_groups, key=lambda g: knowledge_order.index(g) if g in knowledge_order else 999),
+        'phenotypes': phenotype_order,
+        'summary': summary,
+        'metadata': {
+            **metadata,
+            'calculated_at': datetime.utcnow().isoformat() + 'Z',
+            'species_file': species_file
+        }
+    }
+
+def _get_knowledge_accuracy_cache_entry(dataset_name):
+    with _knowledge_accuracy_cache_lock:
+        entry = _knowledge_accuracy_cache.get(dataset_name)
+        if entry:
+            return {
+                'data': entry['data'],
+                'computed_at': entry.get('computed_at', 0),
+                'import_timestamp': entry.get('import_timestamp', 0)
+            }
+
+    persistent_entry = _load_persistent_knowledge_accuracy(dataset_name)
+    if persistent_entry:
+        with _knowledge_accuracy_cache_lock:
+            _knowledge_accuracy_cache[dataset_name] = {
+                'data': persistent_entry['data'],
+                'computed_at': persistent_entry.get('computed_at', 0),
+                'import_timestamp': persistent_entry.get('import_timestamp', 0)
+            }
+        return persistent_entry
+
+    return None
+
+
+def _update_knowledge_accuracy_cache(dataset_name, data, import_timestamp, computed_at=None):
+    timestamp = time.time() if computed_at is None else computed_at
+    normalized_json = json.dumps(data, ensure_ascii=False, default=str)
+    normalized_data = json.loads(normalized_json)
+
+    with _knowledge_accuracy_cache_lock:
+        _knowledge_accuracy_cache[dataset_name] = {
+            'data': normalized_data,
+            'computed_at': float(timestamp),
+            'import_timestamp': float(import_timestamp or 0)
+        }
+
+    _save_persistent_knowledge_accuracy(
+        dataset_name,
+        normalized_data,
+        float(import_timestamp or 0),
+        float(timestamp)
+    )
+
+
+def _invalidate_knowledge_accuracy_cache(dataset_name=None):
+    with _knowledge_accuracy_cache_lock:
+        if dataset_name:
+            _knowledge_accuracy_cache.pop(dataset_name, None)
+        else:
+            _knowledge_accuracy_cache.clear()
+
+    _clear_persistent_knowledge_accuracy(dataset_name)
+
 @app.route('/api/knowledge_analysis_data')
 def get_knowledge_analysis_data():
     """Get knowledge level analysis data stratified by input type with caching"""
@@ -3469,8 +4677,22 @@ def get_phenotype_analysis_filtered():
 def get_phenotype_accuracy_by_knowledge():
     """Get phenotype prediction accuracy grouped by knowledge level"""
     try:
-        species_file = request.args.get('species_file', 'wa_with_gcount.txt')
-        
+        dataset_name = request.args.get('dataset', 'WA_Test_Dataset')
+        species_file = request.args.get('species_file')
+
+        def resolve_species_file(dataset: str) -> str:
+            if not dataset:
+                return 'wa_with_gcount.txt'
+            lowered = dataset.lower()
+            if 'la_test' in lowered:
+                return 'la.txt'
+            if 'artificial' in lowered:
+                return 'artificial.txt'
+            return 'wa_with_gcount.txt'
+
+        if not species_file:
+            species_file = resolve_species_file(dataset_name)
+
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -3526,8 +4748,8 @@ def get_phenotype_accuracy_by_knowledge():
                 hemolysis,
                 cell_shape
             FROM ground_truth
-            WHERE dataset_name = 'WA_Test_Dataset'
-        """)
+            WHERE dataset_name = ?
+        """, (dataset_name,))
         
         ground_truth = {}
         for row in cursor.fetchall():
@@ -3580,12 +4802,17 @@ def get_phenotype_accuracy_by_knowledge():
                 }
                 data.append(entry)
         
+        species_count = len(ground_truth)
+
         return jsonify({
             'success': True,
             'data': data,
             'total_results': len(data),
             'models': list(set([d['model'] for d in data])),
-            'knowledge_groups': list(set([d['knowledge_group'] for d in data]))
+            'knowledge_groups': list(set([d['knowledge_group'] for d in data])),
+            'dataset': dataset_name,
+            'species_file': species_file,
+            'species_count': species_count
         })
         
     except Exception as e:
@@ -4633,10 +5860,15 @@ def api_import_ground_truth():
             description,
             source
         )
-        
+
         # Clean up temp file
         os.remove(temp_path)
-        
+
+        if result.get('success'):
+            _invalidate_ground_truth_stats_cache(dataset_name)
+            _invalidate_model_accuracy_cache(dataset_name)
+            _invalidate_knowledge_accuracy_cache(dataset_name)
+
         return jsonify(result)
     except Exception as e:
         return jsonify({
@@ -5036,6 +6268,10 @@ def api_delete_ground_truth_dataset(dataset_name):
     """Delete a ground truth dataset"""
     try:
         result = delete_ground_truth_dataset(dataset_name)
+        if result.get('success'):
+            _invalidate_ground_truth_stats_cache(dataset_name)
+            _invalidate_model_accuracy_cache(dataset_name)
+            _invalidate_knowledge_accuracy_cache(dataset_name)
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -5108,147 +6344,182 @@ def api_get_ground_truth_phenotype_statistics():
         return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
 
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check if table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ground_truth'")
-        if not cursor.fetchone():
-            conn.close()
-            return jsonify({'success': True, 'statistics': []})
-
-        # Define phenotype information
-        phenotypes = {
-            'motility': {
-                'label': 'Motility',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'spore_formation': {
-                'label': 'Spore formation',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'gram_staining': {
-                'label': 'Gram staining',
-                'type': 'Multi-class',
-                'targets': ['gram stain negative', 'gram stain positive', 'gram stain variable']
-            },
-            'cell_shape': {
-                'label': 'Cell shape',
-                'type': 'Multi-class',
-                'targets': ['bacillus', 'coccus', 'spirillum', 'tail']
-            },
-            'health_association': {
-                'label': 'Health Association',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'host_association': {
-                'label': 'Host Association',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'plant_pathogenicity': {
-                'label': 'Plant pathogenicity',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'biosafety_level': {
-                'label': 'Biosafety level',
-                'type': 'Multi-class',
-                'targets': ['biosafety level 1', 'biosafety level 2', 'biosafety level 3']
-            },
-            'extreme_environment_tolerance': {
-                'label': 'Extreme environment tolerance',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'animal_pathogenicity': {
-                'label': 'Animal Pathogenicity',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            },
-            'hemolysis': {
-                'label': 'Hemolysis',
-                'type': 'Multi-class',
-                'targets': ['alpha', 'beta', 'gamma']
-            },
-            'aerophilicity': {
-                'label': 'Aerophilicity',
-                'type': 'Multi-class',
-                'targets': ['aerobic', 'aerotolerant', 'anaerobic', 'facultatively anaerobic']
-            },
-            'biofilm_formation': {
-                'label': 'Biofilm formation',
-                'type': 'Binary',
-                'targets': ['TRUE', 'FALSE']
-            }
-        }
-
-        # Get total number of species in dataset
-        cursor.execute("SELECT COUNT(*) FROM ground_truth WHERE dataset_name = ?", (dataset_name,))
-        total_species = cursor.fetchone()[0]
-
-        if total_species == 0:
-            conn.close()
-            return jsonify({'success': True, 'statistics': [], 'total_species': 0})
-
-        # Calculate statistics for each phenotype
-        statistics = []
-        
-        for field, info in phenotypes.items():
-            # Count total non-NA values for this field
-            cursor.execute(f"""
-                SELECT COUNT(*) FROM ground_truth 
-                WHERE dataset_name = ? AND {field} IS NOT NULL AND {field} != '' AND {field} != 'NA'
-            """, (dataset_name,))
-            annotated_count = cursor.fetchone()[0]
-            
-            # Calculate annotation fraction
-            annotation_fraction = (annotated_count / total_species * 100) if total_species > 0 else 0
-            
-            # Get value distribution
-            cursor.execute(f"""
-                SELECT {field}, COUNT(*) as count
-                FROM ground_truth 
-                WHERE dataset_name = ? AND {field} IS NOT NULL AND {field} != '' AND {field} != 'NA'
-                GROUP BY {field}
-                ORDER BY count DESC
-            """, (dataset_name,))
-            
-            value_distribution = {}
-            for row in cursor.fetchall():
-                value, count = row
-                percentage = (count / annotated_count * 100) if annotated_count > 0 else 0
-                value_distribution[value] = {
-                    'count': count,
-                    'percentage': round(percentage, 1)
-                }
-            
-            statistics.append({
-                'field': field,
-                'label': info['label'],
-                'type': info['type'],
-                'targets': info['targets'],
-                'total_species': total_species,
-                'annotated_species': annotated_count,
-                'missing_species': total_species - annotated_count,
-                'annotation_fraction': round(annotation_fraction, 1),
-                'value_distribution': value_distribution
-            })
-
-        conn.close()
-        
+        result = _calculate_ground_truth_statistics(dataset_name)
         return jsonify({
             'success': True,
-            'statistics': statistics,
-            'total_species': total_species,
-            'dataset_name': dataset_name
+            **result
         })
 
     except Exception as e:
         import traceback
         print(f"[DEBUG] Error in phenotype statistics API: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ground_truth/phenotype_statistics_cached', methods=['GET'])
+def api_get_ground_truth_phenotype_statistics_cached():
+    """Return cached phenotype statistics if available, recomputing when needed."""
+    dataset_name = request.args.get('dataset_name')
+    refresh_requested = request.args.get('refresh', 'false').lower() in ('1', 'true', 'yes', 'force', 'refresh')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        current_metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+
+        if not refresh_requested:
+            cached_entry = _get_ground_truth_stats_cache_entry(dataset_name)
+            if (cached_entry and
+                current_metadata['import_timestamp'] <= cached_entry.get('import_timestamp', 0)):
+                cached_payload = cached_entry['data'].copy()
+                computed_at_ts = cached_entry.get('computed_at', 0)
+                computed_iso = datetime.utcfromtimestamp(computed_at_ts).isoformat() + 'Z' if computed_at_ts else None
+                cached_payload['success'] = True
+                cached_payload['cache_info'] = {
+                    'cached': True,
+                    'computed_at': computed_iso,
+                    'age_seconds': max(0, time.time() - computed_at_ts) if computed_at_ts else None,
+                    'source': 'cache'
+                }
+                return jsonify(cached_payload)
+
+        computed_at = time.time()
+        result = _calculate_ground_truth_statistics(dataset_name, metadata=current_metadata)
+        _update_ground_truth_stats_cache(
+            dataset_name,
+            result,
+            result['metadata'].get('import_timestamp', 0),
+            computed_at=computed_at
+        )
+
+        computed_iso = datetime.utcfromtimestamp(computed_at).isoformat() + 'Z'
+        payload = result.copy()
+        payload['success'] = True
+        payload['cache_info'] = {
+            'cached': False,
+            'computed_at': computed_iso,
+            'age_seconds': 0,
+            'source': 'fresh'
+        }
+
+        return jsonify(payload)
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in cached phenotype statistics API: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/model_accuracy_cached', methods=['GET'])
+def api_get_model_accuracy_cached():
+    """Return cached model accuracy metrics for a dataset."""
+    dataset_name = request.args.get('dataset_name')
+    refresh_requested = request.args.get('refresh', 'false').lower() in ('1', 'true', 'yes', 'force', 'refresh')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        current_metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+
+        if not refresh_requested:
+            cached_entry = _get_model_accuracy_cache_entry(dataset_name)
+            if (cached_entry and
+                current_metadata['import_timestamp'] <= cached_entry.get('import_timestamp', 0)):
+                cached_payload = cached_entry['data'].copy()
+                computed_at_ts = cached_entry.get('computed_at', 0)
+                computed_iso = datetime.utcfromtimestamp(computed_at_ts).isoformat() + 'Z' if computed_at_ts else None
+                cached_payload['success'] = True
+                cached_payload['cache_info'] = {
+                    'cached': True,
+                    'computed_at': computed_iso,
+                    'age_seconds': max(0, time.time() - computed_at_ts) if computed_at_ts else None,
+                    'source': 'cache'
+                }
+                return jsonify(cached_payload)
+
+        computed_at = time.time()
+        result = _calculate_model_accuracy_metrics(dataset_name, metadata=current_metadata)
+        _update_model_accuracy_cache(
+            dataset_name,
+            result,
+            result['metadata'].get('import_timestamp', 0),
+            computed_at=computed_at
+        )
+
+        computed_iso = datetime.utcfromtimestamp(computed_at).isoformat() + 'Z'
+        payload = result.copy()
+        payload['success'] = True
+        payload['cache_info'] = {
+            'cached': False,
+            'computed_at': computed_iso,
+            'age_seconds': 0,
+            'source': 'fresh'
+        }
+
+        return jsonify(payload)
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in cached model accuracy API: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/knowledge_accuracy_cached', methods=['GET'])
+def api_get_knowledge_accuracy_cached():
+    """Return cached knowledge-stratified accuracy metrics for a dataset."""
+    dataset_name = request.args.get('dataset_name')
+    refresh_requested = request.args.get('refresh', 'false').lower() in ('1', 'true', 'yes', 'force', 'refresh')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        current_metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+
+        if not refresh_requested:
+            cached_entry = _get_knowledge_accuracy_cache_entry(dataset_name)
+            if (cached_entry and
+                current_metadata['import_timestamp'] <= cached_entry.get('import_timestamp', 0)):
+                cached_payload = cached_entry['data'].copy()
+                computed_at_ts = cached_entry.get('computed_at', 0)
+                computed_iso = datetime.utcfromtimestamp(computed_at_ts).isoformat() + 'Z' if computed_at_ts else None
+                cached_payload['success'] = True
+                cached_payload['cache_info'] = {
+                    'cached': True,
+                    'computed_at': computed_iso,
+                    'age_seconds': max(0, time.time() - computed_at_ts) if computed_at_ts else None,
+                    'source': 'cache'
+                }
+                return jsonify(cached_payload)
+
+        computed_at = time.time()
+        result = _calculate_knowledge_accuracy_metrics(dataset_name, metadata=current_metadata)
+        _update_knowledge_accuracy_cache(
+            dataset_name,
+            result,
+            result['metadata'].get('import_timestamp', 0),
+            computed_at=computed_at
+        )
+
+        computed_iso = datetime.utcfromtimestamp(computed_at).isoformat() + 'Z'
+        payload = result.copy()
+        payload['success'] = True
+        payload['cache_info'] = {
+            'cached': False,
+            'computed_at': computed_iso,
+            'age_seconds': 0,
+            'source': 'fresh'
+        }
+
+        return jsonify(payload)
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in cached knowledge accuracy API: {e}")
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500

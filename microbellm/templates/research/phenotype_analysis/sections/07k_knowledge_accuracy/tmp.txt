@@ -1,0 +1,59 @@
+LA_Test_Dataset (grok-3-mini)
+  Total annotations: 1382
+
+  Motility: 236
+    - Negative: 150
+    - Positive: 86
+  Biofilm Formation: 228
+    - Positive: 179
+    - Negative: 49
+  Spore Formation: 201
+    - Negative: 179
+    - Positive: 22
+  Animal Path.: 153
+    - Negative: 106
+    - Positive: 47
+  Extreme Env. Tol.: 133
+    - Negative: 105
+    - Positive: 28
+  Plant Path.: 111
+    - Negative: 111
+  Cell Shape: 106
+    - Bacillus: 77
+    - Coccus: 24
+    - Spirillum: 5
+  Biosafety Level: 105
+    - LEVEL 1: 52
+    - LEVEL 2: 46
+    - LEVEL 3: 7
+  Host Association: 75
+    - Positive: 41
+    - Negative: 34
+  Gram Staining: 34
+    - Gram Negative: 29
+    - Gram Positive: 5
+
+WA_Test_Dataset
+  Total annotations: 295
+
+  Spore Formation: 77
+    - Negative: 65
+    - Positive: 12
+  Animal Path.: 75
+    - Negative: 49
+    - Positive: 26
+  Plant Path.: 5
+    - Negative: 5
+  Cell Shape: 109
+    - Coccus: 62
+    - Bacillus: 30
+    - Tail: 16
+    - Spirillum: 1
+  Biosafety Level: 23
+    - LEVEL 2: 13
+    - LEVEL 1: 6
+    - LEVEL 3: 4
+  Host Association: 6
+    - Negative: 3
+    - Positive: 3
+

@@ -1,0 +1,497 @@
+====================================================================================================
+COMPLETE LIST: TAIL MORPHOLOGY SPECIES AND MODEL PREDICTIONS
+====================================================================================================
+
+Fetching data...
+
+====================================================================================================
+SPECIES-BY-SPECIES BREAKDOWN
+====================================================================================================
+
+Legend: ✓ = correct (tail), ✗ = wrong (bacillus/other), - = no prediction
+
+Species                                       | gpt-4.1-nano |    gpt-5     |    gpt-4o    | gemini-2.5-p | claude-3.5-s | deepseek-r1  | 
+------------------------------------------------------------------------------------------------------------------------------------------
+Kitasatospora albolonga                       |    ✗(coc)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Kitasatospora cinereorecta                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Kitasatospora misakiensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Salinispora tropica                           |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(coc)    | 
+Streptomyces acidiscabies                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces adustus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces alanosinicus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albaduncus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albidochromogenes                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albidoflavus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albiflavescens                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albiflaviniger                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces alboflavus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albogriseolus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces alboniger                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces albospinus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces alfalfae                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces althioticus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces altiplanensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces ambofaciens                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces anthocyanicus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces anulatus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces apricus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces aquilus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces araujoniae                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces arcticus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces arenae                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces asenjonii                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces asoensis                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces atratus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces atroolivaceus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces aurantiacus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces auratus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces aureocirculatus                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces aureoverticillatus               |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces aureus                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces avermitilis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bacillaris                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces badius                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bangladeshensis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bauhiniae                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bikiniensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bobili                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces boluensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bottropensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces brevispora                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces bullii                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces caeni                            |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cahuitamycinicus                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces calvus                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces candidus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces caniferus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces caniscabiei                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces canus                            |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces capitiformicae                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces carpinensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces catenulae                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cellostaticus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chartreusis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chattanoogensis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chiangmaiensis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chilikensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chromofuscus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces chryseus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cinereoruber                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cinereospinus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cinerochromogenes                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cinnabarigriseus                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces clavifer                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces clavuligerus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces coelicoflavus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces coelicolor                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces coeruleofuscus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces collinus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces coriariae                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cremeus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces crystallinus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cyaneofuscatus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cyaneus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces cylindrosporus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces daghestanicus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces dangxiongensis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces deccanensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces decoyicus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces dengpaensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces deserti                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces diastatochromogenes              |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces drozdowiczii                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces durmitorensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces durocortorensis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces echinatus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces enissocaesilis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces erythrogriseus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces europaeiscabiei                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces eurythermus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces exfoliatus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fabae                            |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fagopyri                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces filamentosus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces finlayi                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces flaveolus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces flavofungini                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces flavovariabilis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces flavovirens                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces formicae                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fragilis                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fructofermentans                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fulvorobeus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces fumigatiscleroticus              |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces gelaticus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces geranii                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces geysiriensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces glaucescens                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces glebosus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces gougerotii                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces graminifolii                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces graminilatus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseiscabiei                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseoaurantiacus                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseochromogenes                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseoflavus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseoincarnatus                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseoloalbus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseorubens                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseorubiginosus                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces griseus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces gulbargensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces guryensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces halstedii                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces hayashii                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces heilongjiangensis                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces heliomycini                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces hilarionis                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces hokutonensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces huasconensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces humidus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces hydrogenans                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces hygroscopicus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces indoligenes                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces inhibens                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces intermedius                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces ipomoeae                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces javensis                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces jeddahensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces jietaisiensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces kaempferi                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces kanamyceticus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces koyangensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces kronopolitis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces krungchingensis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces kurssanovii                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces labedae                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lacrimifluminis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces laculatispora                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lasiicapitis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lateritius                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces laurentii                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lienomycini                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces liliifuscus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces liliiviolaceus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces litmocidini                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lomondensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces longhuiensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lunaelactis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lushanensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces luteogriseus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lydicamycinicus                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces lydicus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces malachitofuscus                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces malachitospinus                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces marokkonensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces matensis                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces mauvecolor                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces melanogenes                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces microflavus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces minutiscleroticus                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces mirabilis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces monomycini                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces muensis                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces musisoli                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces mutomycini                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces narbonensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces neyagawaensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces nigrescens                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces nitrosporeus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces niveoruber                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces nodosus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces noursei                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces novaecaesareae                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces nymphaeiformis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces odonnellii                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces olivochromogenes                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces omiyaensis                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces ossamyceticus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces paludis                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces paradoxus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces parvulus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces parvus                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces peucetius                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces phaeochromogenes                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces phaeolivaceus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces phaeoluteichromatogenes          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces phaeoluteigriseus                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pinistramenti                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces platensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces plumbiresistens                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pluricolorescens                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pluripotens                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces polygonati                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces polymachus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces poonensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pratensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pseudovenezuelae                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces pulveraceus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces qinzhouensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rameus                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces ramulosus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces resistomycificus                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces reticuliscabiei                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rhizosphaerihabitans             |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rishiriensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rochei                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roietensis                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseirectus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseofulvus                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseolilacinus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseolus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseoviolaceus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces roseoviridis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rubiginosohelvolus               |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rubrogriseus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces rutgersensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sanglieri                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sannanensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sanyensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces scabiei                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sclerotialus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces scopiformis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sennicomposti                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces seymenliensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces showdoensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces siamensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces silaceus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces silvae                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces similanensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sindenensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sioyaensis                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces spectabilis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces spiralis                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces spiroverticillatus               |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces spongiae                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces staurosporininus                 |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces stelliscabiei                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces sundarbansensis                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tacrolimicus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tanashiensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tauricus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tendae                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces termitum                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces thermocarboxydovorans            |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces thinghirensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces torulosus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tricolor                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tritici                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tritolerans                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tsukubensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tubercidicus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces tunisiensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces turgidiscabies                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces umbrinus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces variabilis                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces variegatus                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces venetus                          |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces venezuelae                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces vietnamensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceolatus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceorectus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceoruber                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceorubidus                  |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceus                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violaceusniger                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violarus                         |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces violascens                       |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces virens                           |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces viridobrunneus                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces viridochromogenes                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces viridodiastaticus                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces wedmorensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces xanthochromogenes                |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces xantholiticus                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces yaanensis                        |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces yanii                            |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces yerevanensis                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces yogyakartensis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces yokosukanensis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces youssoufiensis                   |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces zagrosensis                      |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces zaomyceticus                     |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+Streptomyces ziwulingensis                    |      ✓       |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    |    ✗(bac)    | 
+
+====================================================================================================
+SUMMARY STATISTICS
+====================================================================================================
+
+                                     Model Performance Summary                                      
+----------------------------------------------------------------------------------------------------
+Model                          |     Correct     |      Wrong      |     Accuracy   
+------------------------------------------------------------------------------------
+gpt-4.1-nano                   |       297       |        2        |      99.3%     
+gpt-5                          |        0        |       299       |       0.0%     
+gpt-4o                         |        0        |       299       |       0.0%     
+gemini-2.5-pro                 |        0        |       299       |       0.0%     
+claude-3.5-sonnet              |        0        |       299       |       0.0%     
+deepseek-r1                    |        0        |       299       |       0.0%     
+
+====================================================================================================
+SPECIES CORRECTLY CLASSIFIED ONLY BY GPT-4.1-NANO
+====================================================================================================
+
+297 species correctly identified as 'tail' ONLY by GPT-4.1-nano:
+
+  1. Kitasatospora cinereorecta                   150. Streptomyces labedae                         
+  2. Kitasatospora misakiensis                    151. Streptomyces lacrimifluminis                 
+  3. Streptomyces acidiscabies                    152. Streptomyces laculatispora                   
+  4. Streptomyces adustus                         153. Streptomyces lasiicapitis                    
+  5. Streptomyces alanosinicus                    154. Streptomyces lateritius                      
+  6. Streptomyces albaduncus                      155. Streptomyces laurentii                       
+  7. Streptomyces albidochromogenes               156. Streptomyces lienomycini                     
+  8. Streptomyces albidoflavus                    157. Streptomyces liliifuscus                     
+  9. Streptomyces albiflavescens                  158. Streptomyces liliiviolaceus                  
+ 10. Streptomyces albiflaviniger                  159. Streptomyces litmocidini                     
+ 11. Streptomyces alboflavus                      160. Streptomyces lomondensis                     
+ 12. Streptomyces albogriseolus                   161. Streptomyces longhuiensis                    
+ 13. Streptomyces alboniger                       162. Streptomyces lunaelactis                     
+ 14. Streptomyces albospinus                      163. Streptomyces lushanensis                     
+ 15. Streptomyces alfalfae                        164. Streptomyces luteogriseus                    
+ 16. Streptomyces althioticus                     165. Streptomyces lydicamycinicus                 
+ 17. Streptomyces altiplanensis                   166. Streptomyces lydicus                         
+ 18. Streptomyces ambofaciens                     167. Streptomyces malachitofuscus                 
+ 19. Streptomyces anthocyanicus                   168. Streptomyces malachitospinus                 
+ 20. Streptomyces anulatus                        169. Streptomyces marokkonensis                   
+ 21. Streptomyces apricus                         170. Streptomyces matensis                        
+ 22. Streptomyces aquilus                         171. Streptomyces mauvecolor                      
+ 23. Streptomyces araujoniae                      172. Streptomyces melanogenes                     
+ 24. Streptomyces arcticus                        173. Streptomyces microflavus                     
+ 25. Streptomyces arenae                          174. Streptomyces minutiscleroticus               
+ 26. Streptomyces asenjonii                       175. Streptomyces mirabilis                       
+ 27. Streptomyces asoensis                        176. Streptomyces monomycini                      
+ 28. Streptomyces atratus                         177. Streptomyces muensis                         
+ 29. Streptomyces atroolivaceus                   178. Streptomyces musisoli                        
+ 30. Streptomyces aurantiacus                     179. Streptomyces mutomycini                      
+ 31. Streptomyces auratus                         180. Streptomyces narbonensis                     
+ 32. Streptomyces aureocirculatus                 181. Streptomyces neyagawaensis                   
+ 33. Streptomyces aureoverticillatus              182. Streptomyces nigrescens                      
+ 34. Streptomyces aureus                          183. Streptomyces nitrosporeus                    
+ 35. Streptomyces avermitilis                     184. Streptomyces niveoruber                      
+ 36. Streptomyces bacillaris                      185. Streptomyces nodosus                         
+ 37. Streptomyces badius                          186. Streptomyces noursei                         
+ 38. Streptomyces bangladeshensis                 187. Streptomyces novaecaesareae                  
+ 39. Streptomyces bauhiniae                       188. Streptomyces nymphaeiformis                  
+ 40. Streptomyces bikiniensis                     189. Streptomyces odonnellii                      
+ 41. Streptomyces bobili                          190. Streptomyces olivochromogenes                
+ 42. Streptomyces boluensis                       191. Streptomyces omiyaensis                      
+ 43. Streptomyces bottropensis                    192. Streptomyces ossamyceticus                   
+ 44. Streptomyces brevispora                      193. Streptomyces paludis                         
+ 45. Streptomyces bullii                          194. Streptomyces paradoxus                       
+ 46. Streptomyces caeni                           195. Streptomyces parvulus                        
+ 47. Streptomyces cahuitamycinicus                196. Streptomyces parvus                          
+ 48. Streptomyces calvus                          197. Streptomyces peucetius                       
+ 49. Streptomyces candidus                        198. Streptomyces phaeochromogenes                
+ 50. Streptomyces caniferus                       199. Streptomyces phaeolivaceus                   
+ 51. Streptomyces caniscabiei                     200. Streptomyces phaeoluteichromatogenes         
+ 52. Streptomyces canus                           201. Streptomyces phaeoluteigriseus               
+ 53. Streptomyces capitiformicae                  202. Streptomyces pinistramenti                   
+ 54. Streptomyces carpinensis                     203. Streptomyces platensis                       
+ 55. Streptomyces catenulae                       204. Streptomyces plumbiresistens                 
+ 56. Streptomyces cellostaticus                   205. Streptomyces pluricolorescens                
+ 57. Streptomyces chartreusis                     206. Streptomyces pluripotens                     
+ 58. Streptomyces chattanoogensis                 207. Streptomyces polygonati                      
+ 59. Streptomyces chiangmaiensis                  208. Streptomyces polymachus                      
+ 60. Streptomyces chilikensis                     209. Streptomyces poonensis                       
+ 61. Streptomyces chromofuscus                    210. Streptomyces pratensis                       
+ 62. Streptomyces chryseus                        211. Streptomyces pseudovenezuelae                
+ 63. Streptomyces cinereoruber                    212. Streptomyces pulveraceus                     
+ 64. Streptomyces cinereospinus                   213. Streptomyces qinzhouensis                    
+ 65. Streptomyces cinerochromogenes               214. Streptomyces rameus                          
+ 66. Streptomyces cinnabarigriseus                215. Streptomyces ramulosus                       
+ 67. Streptomyces clavifer                        216. Streptomyces resistomycificus                
+ 68. Streptomyces clavuligerus                    217. Streptomyces reticuliscabiei                 
+ 69. Streptomyces coelicoflavus                   218. Streptomyces rhizosphaerihabitans            
+ 70. Streptomyces coelicolor                      219. Streptomyces rishiriensis                    
+ 71. Streptomyces coeruleofuscus                  220. Streptomyces rochei                          
+ 72. Streptomyces collinus                        221. Streptomyces roietensis                      
+ 73. Streptomyces coriariae                       222. Streptomyces roseirectus                     
+ 74. Streptomyces cremeus                         223. Streptomyces roseofulvus                     
+ 75. Streptomyces crystallinus                    224. Streptomyces roseolilacinus                  
+ 76. Streptomyces cyaneofuscatus                  225. Streptomyces roseolus                        
+ 77. Streptomyces cyaneus                         226. Streptomyces roseoviolaceus                  
+ 78. Streptomyces cylindrosporus                  227. Streptomyces roseoviridis                    
+ 79. Streptomyces daghestanicus                   228. Streptomyces rubiginosohelvolus              
+ 80. Streptomyces dangxiongensis                  229. Streptomyces rubrogriseus                    
+ 81. Streptomyces deccanensis                     230. Streptomyces rutgersensis                    
+ 82. Streptomyces decoyicus                       231. Streptomyces sanglieri                       
+ 83. Streptomyces dengpaensis                     232. Streptomyces sannanensis                     
+ 84. Streptomyces deserti                         233. Streptomyces sanyensis                       
+ 85. Streptomyces diastatochromogenes             234. Streptomyces scabiei                         
+ 86. Streptomyces drozdowiczii                    235. Streptomyces sclerotialus                    
+ 87. Streptomyces durmitorensis                   236. Streptomyces scopiformis                     
+ 88. Streptomyces durocortorensis                 237. Streptomyces sennicomposti                   
+ 89. Streptomyces echinatus                       238. Streptomyces seymenliensis                   
+ 90. Streptomyces enissocaesilis                  239. Streptomyces showdoensis                     
+ 91. Streptomyces erythrogriseus                  240. Streptomyces siamensis                       
+ 92. Streptomyces europaeiscabiei                 241. Streptomyces silaceus                        
+ 93. Streptomyces eurythermus                     242. Streptomyces silvae                          
+ 94. Streptomyces exfoliatus                      243. Streptomyces similanensis                    
+ 95. Streptomyces fabae                           244. Streptomyces sindenensis                     
+ 96. Streptomyces fagopyri                        245. Streptomyces sioyaensis                      
+ 97. Streptomyces filamentosus                    246. Streptomyces spectabilis                     
+ 98. Streptomyces finlayi                         247. Streptomyces spiralis                        
+ 99. Streptomyces flaveolus                       248. Streptomyces spiroverticillatus              
+100. Streptomyces flavofungini                    249. Streptomyces spongiae                        
+101. Streptomyces flavovariabilis                 250. Streptomyces staurosporininus                
+102. Streptomyces flavovirens                     251. Streptomyces stelliscabiei                   
+103. Streptomyces formicae                        252. Streptomyces sundarbansensis                 
+104. Streptomyces fragilis                        253. Streptomyces tacrolimicus                    
+105. Streptomyces fructofermentans                254. Streptomyces tanashiensis                    
+106. Streptomyces fulvorobeus                     255. Streptomyces tauricus                        
+107. Streptomyces fumigatiscleroticus             256. Streptomyces tendae                          
+108. Streptomyces gelaticus                       257. Streptomyces termitum                        
+109. Streptomyces geranii                         258. Streptomyces thermocarboxydovorans           
+110. Streptomyces geysiriensis                    259. Streptomyces thinghirensis                   
+111. Streptomyces glaucescens                     260. Streptomyces torulosus                       
+112. Streptomyces glebosus                        261. Streptomyces tricolor                        
+113. Streptomyces gougerotii                      262. Streptomyces tritici                         
+114. Streptomyces graminifolii                    263. Streptomyces tritolerans                     
+115. Streptomyces graminilatus                    264. Streptomyces tsukubensis                     
+116. Streptomyces griseiscabiei                   265. Streptomyces tubercidicus                    
+117. Streptomyces griseoaurantiacus               266. Streptomyces tunisiensis                     
+118. Streptomyces griseochromogenes               267. Streptomyces turgidiscabies                  
+119. Streptomyces griseoflavus                    268. Streptomyces umbrinus                        
+120. Streptomyces griseoincarnatus                269. Streptomyces variabilis                      
+121. Streptomyces griseoloalbus                   270. Streptomyces variegatus                      
+122. Streptomyces griseorubens                    271. Streptomyces venetus                         
+123. Streptomyces griseorubiginosus               272. Streptomyces venezuelae                      
+124. Streptomyces griseus                         273. Streptomyces vietnamensis                    
+125. Streptomyces gulbargensis                    274. Streptomyces violaceolatus                   
+126. Streptomyces guryensis                       275. Streptomyces violaceorectus                  
+127. Streptomyces halstedii                       276. Streptomyces violaceoruber                   
+128. Streptomyces hayashii                        277. Streptomyces violaceorubidus                 
+129. Streptomyces heilongjiangensis               278. Streptomyces violaceus                       
+130. Streptomyces heliomycini                     279. Streptomyces violaceusniger                  
+131. Streptomyces hilarionis                      280. Streptomyces violarus                        
+132. Streptomyces hokutonensis                    281. Streptomyces violascens                      
+133. Streptomyces huasconensis                    282. Streptomyces virens                          
+134. Streptomyces humidus                         283. Streptomyces viridobrunneus                  
+135. Streptomyces hydrogenans                     284. Streptomyces viridochromogenes               
+136. Streptomyces hygroscopicus                   285. Streptomyces viridodiastaticus               
+137. Streptomyces indoligenes                     286. Streptomyces wedmorensis                     
+138. Streptomyces inhibens                        287. Streptomyces xanthochromogenes               
+139. Streptomyces intermedius                     288. Streptomyces xantholiticus                   
+140. Streptomyces ipomoeae                        289. Streptomyces yaanensis                       
+141. Streptomyces javensis                        290. Streptomyces yanii                           
+142. Streptomyces jeddahensis                     291. Streptomyces yerevanensis                    
+143. Streptomyces jietaisiensis                   292. Streptomyces yogyakartensis                  
+144. Streptomyces kaempferi                       293. Streptomyces yokosukanensis                  
+145. Streptomyces kanamyceticus                   294. Streptomyces youssoufiensis                  
+146. Streptomyces koyangensis                     295. Streptomyces zagrosensis                     
+147. Streptomyces kronopolitis                    296. Streptomyces zaomyceticus                    
+148. Streptomyces krungchingensis                 297. Streptomyces ziwulingensis                   
+149. Streptomyces kurssanovii                     
+
+====================================================================================================
+SPECIES MISCLASSIFIED BY GPT-4.1-NANO
+====================================================================================================
+
+2 species misclassified by GPT-4.1-nano:
+
+  - Kitasatospora albolonga → predicted as 'coccus'
+  - Salinispora tropica → predicted as 'bacillus'
+
+====================================================================================================
+ANALYSIS COMPLETE
+====================================================================================================

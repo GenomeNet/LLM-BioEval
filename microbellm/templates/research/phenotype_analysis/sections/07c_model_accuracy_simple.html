@@ -746,6 +746,7 @@
     }
 }
 </style>
+<script src="/static/js/phenotype_metrics.js"></script>
 
 <script>
 (function() {
@@ -756,6 +757,35 @@
     let fieldDefinitions = {};
     let currentMetrics = null;  // Store metrics for re-rendering
     let selectedMetric = 'balancedAcc';  // Default to balanced accuracy
+    // Map dataset names to their corresponding processing_results species files
+    const DATASET_SPECIES_FILE_MAP = Object.freeze({
+        'WA_Test_Dataset': 'wa_with_gcount.txt',
+        'LA_Test_Dataset': 'la.txt'
+    });
+
+    const HIDDEN_PHENOTYPES = new Set(['aerophilicity', 'health_association', 'hemolysis']);
+
+    function getSpeciesFileForDataset(datasetName) {
+        if (!datasetName) {
+            return 'wa_with_gcount.txt';
+        }
+
+        if (DATASET_SPECIES_FILE_MAP[datasetName]) {
+            return DATASET_SPECIES_FILE_MAP[datasetName];
+        }
+
+        const normalized = datasetName.toLowerCase();
+        if (normalized.includes('artificial')) {
+            return 'artificial.txt';
+        }
+        if (normalized.includes('la_test')) {
+            return 'la.txt';
+        }
+        if (normalized.includes('wa_test') || normalized.includes('washington')) {
+            return 'wa_with_gcount.txt';
+        }
+        return 'wa_with_gcount.txt';
+    }
     
     // Initialize when DOM is ready
     function init() {
@@ -800,7 +830,7 @@
             // Update range plot if available
             if (typeof window.renderRangePlot === 'function') {
                 const phenotypes = [...new Set(currentMetrics.map(m => m.phenotype))]
-                    .filter(p => p !== 'aerophilicity' && p !== 'health_association');
+                    .filter(p => !HIDDEN_PHENOTYPES.has(p));
                 window.renderRangePlot(currentMetrics, phenotypes);
             }
         }
@@ -845,6 +875,7 @@
                     opt.textContent = dataset.dataset_name;  // Safe text content
                     opt.dataset.template = dataset.template_name;
                     opt.dataset.count = dataset.species_count;
+                    opt.dataset.speciesFile = getSpeciesFileForDataset(dataset.dataset_name);
                     select.appendChild(opt);
                     
                     if (dataset.dataset_name === 'WA_Test_Dataset') {
@@ -934,12 +965,7 @@
         }
         
         const templateName = select.selectedOptions[0].dataset.template;
-        
-        // Determine species file from dataset name - WA_Test_Dataset maps to wa_with_gcount.txt
-        let speciesFile = 'wa_with_gcount.txt';  // Default for WA dataset
-        if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
-            speciesFile = 'artificial.txt';
-        }
+        const speciesFile = select.selectedOptions[0].dataset.speciesFile || getSpeciesFileForDataset(datasetName);
         
         // Load prediction data on demand for the specific species file
         console.log(`Loading predictions for species file: ${speciesFile}`);
@@ -990,7 +1016,10 @@
             console.log(`Ground truth map has ${Object.keys(gtMap).length} unique species`);
             
             // Calculate metrics
-            const metrics = calculateMetrics(predictionData, gtMap, fieldDefinitions);
+            const phenotypeList = Object.keys(fieldDefinitions || {});
+            const metrics = window.PhenotypeMetrics.calculateMetrics(predictionData, gtMap, {
+                phenotypes: phenotypeList
+            });
             
             // Debug: Log some sample sizes
             console.log('Sample metrics calculation:');
@@ -1014,173 +1043,6 @@
         }
     }
     
-    // Calculate accuracy metrics
-    function calculateMetrics(predictions, groundTruth, fields) {
-        const results = [];
-        const phenotypes = Object.keys(fields);
-        
-        for (const phenotype of phenotypes) {
-            // Predictions is now always an array
-            const pool = Array.isArray(predictions) ? predictions : [];
-            
-            const models = [...new Set(pool.map(p => p.model))];
-            
-            for (const model of models) {
-                const rows = pool.filter(p => p.model === model);
-                const trueVals = [], predVals = [];
-                
-                // Debug logging for first phenotype and specific model
-                if (phenotype === 'gram_staining' && model.includes('gemini-pro')) {
-                    console.log(`Processing ${model} for ${phenotype}:`);
-                    console.log(`- Total predictions: ${rows.length}`);
-                }
-                
-                for (const pred of rows) {
-                    const species = pred.binomial_name?.toLowerCase();
-                    if (!species || !groundTruth[species]) continue;
-                    const t = normalizeValue(groundTruth[species][phenotype]);
-                    const y = normalizeValue(pred[phenotype]);
-                    // Only include if BOTH values are non-null
-                    // This ensures we don't count missing predictions or missing ground truth
-                    if (t !== null && y !== null) {
-                        trueVals.push(t);
-                        predVals.push(y);
-                    }
-                }
-                
-                // More debug logging
-                if (phenotype === 'gram_staining' && model.includes('gemini-pro')) {
-                    console.log(`- Matched samples: ${trueVals.length}`);
-                    // Log sample of excluded data
-                    let excluded = 0;
-                    for (const pred of rows.slice(0, 10)) {
-                        const species = pred.binomial_name?.toLowerCase();
-                        const gt = groundTruth[species];
-                        const t = gt ? normalizeValue(gt[phenotype]) : null;
-                        const y = normalizeValue(pred[phenotype]);
-                        if (!gt || t === '' || y === '') {
-                            excluded++;
-                            console.log(`  Excluded ${pred.binomial_name}: pred="${pred[phenotype]}", truth="${gt ? gt[phenotype] : 'no GT'}"`);
-                        }
-                    }
-                    if (excluded > 0) {
-                        console.log(`  Total excluded in sample: ${excluded}/10`);
-                    }
-                }
-                
-                if (trueVals.length) {
-                    const m = computeMetrics(predVals, trueVals);
-                    results.push({
-                        model,
-                        phenotype,
-                        balancedAcc: m.balancedAcc,
-                        precision: m.precision,
-                        sampleSize: m.sampleSize,
-                        confusionMatrix: m.confusionMatrix,
-                        labels: m.labels
-                    });
-                }
-            }
-        }
-        return results;
-    }
-    
-    // Normalize values with deterministic handling
-    function normalizeValue(value) {
-        // Handle various representations of missing/null values
-        const missingTokens = ['n/a', 'na', 'null', 'none', 'nan', 'undefined', '-', 'unknown', 'missing'];
-        
-        if (value === null || value === undefined || value === '') {
-            return null;
-        }
-        
-        // Convert to string and normalize
-        const strValue = String(value).trim().toLowerCase();
-        
-        // Check if it's a missing token
-        if (missingTokens.includes(strValue)) {
-            return null;
-        }
-        
-        // For multi-value fields (like aerophilicity), parse and sort
-        if (strValue.includes(',') || strValue.includes(';')) {
-            const parts = strValue.split(/[,;]/).map(s => s.trim()).filter(s => s);
-            return parts.sort().join(',');  // Normalize to comma-separated sorted list
-        }
-        
-        // Return normalized string
-        return strValue;
-    }
-    
-    // Convert to boolean with consistent handling
-    function toBoolean(v) {
-        if (v === null || v === undefined) return null;
-        const s = String(v).trim().toLowerCase();
-        if (['true','1','yes','t','y'].includes(s)) return true;
-        if (['false','0','no','f','n'].includes(s)) return false;
-        return null; // unknown token → treat as missing
-    }
-    
-    // Compute metrics for predictions
-    function computeMetrics(preds, truths) {
-        // Try binary first by converting both sides
-        const mapped = preds.map((p, i) => [toBoolean(p), toBoolean(truths[i])])
-                            .filter(([p, t]) => p !== null && t !== null);
-        
-        const allBinary = mapped.length > 0 && mapped.length === preds.length;
-        if (allBinary) {
-            // Binary classification metrics
-            let tp = 0, tn = 0, fp = 0, fn = 0;
-            for (const [p, t] of mapped) {
-                if (t && p) tp++;
-                else if (!t && !p) tn++;
-                else if (!t && p) fp++;
-                else fn++;
-            }
-            const sens = tp + fn ? tp / (tp + fn) : 0;
-            const spec = tn + fp ? tn / (tn + fp) : 0;
-            const prec = tp + fp ? tp / (tp + fp) : 0;
-            return {
-                balancedAcc: (sens + spec) / 2,
-                precision: prec,
-                sampleSize: mapped.length,
-                confusionMatrix: [[tn, fp], [fn, tp]],
-                labels: ['False', 'True']
-            };
-        }
-        
-        // Multiclass: use standard macro-recall "balanced accuracy"
-        const labels = [...new Set([...truths, ...preds].map(v => String(v)))].sort();
-        const conf = Object.fromEntries(labels.map(r => [r, Object.fromEntries(labels.map(c => [c, 0]))]));
-        for (let i = 0; i < truths.length; i++) {
-            conf[String(truths[i])][String(preds[i])]++;
-        }
-        
-        let recallSum = 0, precSum = 0;
-        for (const lab of labels) {
-            const tp = conf[lab][lab];
-            let fn = 0, fp = 0;
-            for (const l2 of labels) {
-                if (l2 !== lab) {
-                    fn += conf[lab][l2];
-                    fp += conf[l2][lab];
-                }
-            }
-            const rec = tp + fn ? tp / (tp + fn) : 0;  // sensitivity/recall
-            const pre = tp + fp ? tp / (tp + fp) : 0;  // precision
-            recallSum += rec;
-            precSum += pre;
-        }
-        const confusionMatrixArray = labels.map(r => labels.map(c => conf[r][c]));
-        return {
-            balancedAcc: recallSum / labels.length,  // macro recall (standard multiclass balanced accuracy)
-            precision: precSum / labels.length,      // macro precision
-            sampleSize: truths.length,
-            confusionMatrix: confusionMatrixArray,
-            labels
-        };
-    }
-    
     // Display results
     // Helper function to check if value is finite
     function isFiniteNum(v) { 
@@ -1196,7 +1058,7 @@
         let models = [...new Set(metrics.map(m => m.model))];
         // Filter out aerophilicity and health_association from display (low sample sizes)
         let phenotypes = [...new Set(metrics.map(m => m.phenotype))]
-            .filter(p => p !== 'aerophilicity' && p !== 'health_association');
+            .filter(p => !HIDDEN_PHENOTYPES.has(p));
         
         // Use selected metric for sorting
         const metricField = selectedMetric;  // 'balancedAcc' or 'precision'
@@ -1373,6 +1235,8 @@
         html += `<div><strong>Sample Size:</strong> ${metric.sampleSize}</div>`;
         html += `<div><strong>Balanced Acc:</strong> ${fmt(metric.balancedAcc)}</div>`;
         html += `<div><strong>Precision:</strong> ${fmt(metric.precision)}</div>`;
+        html += `<div><strong>Recall:</strong> ${fmt(metric.recall)}</div>`;
+        html += `<div><strong>F1:</strong> ${fmt(metric.f1)}</div>`;
         html += `</div>`;
         
         // Add confusion matrix if available

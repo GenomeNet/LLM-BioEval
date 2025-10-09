@@ -1,0 +1,12 @@
+model_id,display_name,organization,limited_accuracy_pct,moderate_accuracy_pct,extensive_accuracy_pct,limited_samples,moderate_samples,extensive_samples,pearson_r
+anthropic/claude-sonnet-4,Anthropic claude-sonnet-4,Anthropic,73.441,80.364,83.128,23129,3964,2147,0.971
+google/gemini-2.5-flash-lite,Google gemini-2.5-flash-lite,Google DeepMind,67.251,70.769,76.931,19468,5458,4046,0.988
+openai/gpt-4o,OpenAI gpt-4o,OpenAI,74.850,77.433,79.602,21204,5824,1734,0.999
+deepseek/deepseek-chat-v3-0324,DeepSeek deepseek-chat-v3-0324,DeepSeek,71.218,73.903,80.333,15887,10787,1381,0.973
+openai/gpt-oss-20b,OpenAI gpt-oss-20b,OpenAI,70.525,81.655,79.128,19030,5498,3082,0.737
+openai/gpt-oss-120b,OpenAI gpt-oss-120b,OpenAI,72.849,79.425,79.696,14796,7150,3456,0.883
+x-ai/grok-3-mini,xAI grok-3-mini,xAI,76.928,76.876,82.453,9232,12511,3259,0.862
+openai/gpt-4.1-nano,OpenAI gpt-4.1-nano,OpenAI,73.243,72.738,78.951,4419,14241,6107,0.827
+openai/gpt-5,OpenAI gpt-5,OpenAI,74.250,77.570,80.207,14757,6004,3707,0.998
+openai/gpt-4,OpenAI gpt-4,OpenAI,74.394,76.478,78.099,12580,4044,906,0.997
+openai/gpt-5-nano,OpenAI gpt-5-nano,OpenAI,72.921,78.938,79.825,10613,3253,2511,0.919

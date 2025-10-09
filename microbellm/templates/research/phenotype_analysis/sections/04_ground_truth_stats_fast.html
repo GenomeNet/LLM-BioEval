@@ -1,0 +1,502 @@
+<!-- Ground Truth Dataset Statistics – Cached Snapshot Version -->
+<div class="ground-truth-section">
+  <div class="ground-truth-header">
+    <h3>Ground Truth Dataset Snapshot (Cached)</h3>
+    <p>Precomputed phenotype statistics served instantly with on-demand refresh</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="ground-truth-controls-panel">
+    <div class="dataset-selector">
+      <label for="gtStatsDataset">Ground Truth Dataset:</label>
+      <select id="gtStatsDataset" class="dataset-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div class="dataset-details" id="gtDatasetDetails"></div>
+    </div>
+    <div class="cache-controls">
+      <button id="gtStatsRefresh" class="refresh-button" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div class="cache-meta" id="gtCacheMeta">Select a dataset to load statistics</div>
+    </div>
+  </div>
+
+  <!-- Results Area -->
+  <div id="gtResultsArea" class="results-container" style="display:none;">
+    <div class="gt-grid" role="table" aria-label="Ground truth phenotype statistics">
+      <!-- Header row -->
+      <div class="gt-head" role="row">
+        <div class="cell head" role="columnheader">Phenotype</div>
+        <div class="cell head values" role="columnheader">Values</div>
+        <div class="cell head coverage" role="columnheader">Annotated Fr.</div>
+        <div class="cell head dist" role="columnheader">Distribution</div>
+      </div>
+      <!-- Data rows injected here -->
+      <div id="gtRows"></div>
+    </div>
+  </div>
+
+  <!-- Initial Message -->
+  <div id="gtInitialMessage" class="info-message">
+    <i class="fas fa-database" aria-hidden="true"></i>
+    <p>Select a ground truth dataset to view cached phenotype statistics</p>
+  </div>
+</div>
+
+<style>
+/* ============ Core ============ */
+.ground-truth-section{padding:20px;background:#fff;border-radius:12px;min-height:400px}
+.ground-truth-header{margin-bottom:30px}
+.ground-truth-header h3{font-size:24px;font-weight:600;color:#2c3e50;margin:0 0 8px 0}
+.ground-truth-header p{font-size:14px;color:#6c757d;margin:0}
+
+/* Controls */
+.ground-truth-controls-panel{display:flex;gap:20px;align-items:flex-end;margin-bottom:30px;padding:20px;background:#f8f9fa;border-radius:8px;border:1px solid #dee2e6;flex-wrap:wrap}
+.dataset-selector{flex:1;min-width:220px}
+.dataset-selector label{display:block;margin-bottom:8px;font-weight:500;color:#495057;font-size:14px}
+.dataset-select{width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:6px;background:#fff;color:#495057;font-size:14px;cursor:pointer}
+.dataset-select:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1)}
+.dataset-details{margin-top:8px;font-size:12px;color:#6c757d;display:flex;flex-direction:column;gap:4px;min-height:32px}
+.dataset-details span{display:block}
+
+.cache-controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:220px}
+.refresh-button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:#22c55e;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s ease,box-shadow .2s ease}
+.refresh-button:hover{background:#16a34a;box-shadow:0 8px 14px rgba(34,197,94,.2)}
+.refresh-button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed;box-shadow:none}
+.refresh-button.loading{background:#1e40af;box-shadow:0 8px 14px rgba(30,64,175,.2)}
+.refresh-button .fa-sync-alt{transition:transform .4s ease}
+.refresh-button.loading .fa-sync-alt{animation:spin 1s linear infinite}
+
+.cache-meta{font-size:12px;color:#6c757d;line-height:1.4;max-width:260px}
+.cache-meta strong{color:#111827}
+
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.results-container{animation:fadeIn .25s ease-in}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============ GRID TABLE ============ */
+:root{
+  --gt-cols: minmax(200px,24%) minmax(170px,22%) 120px minmax(320px,1fr);
+  --gt-border: #e9ecef;
+}
+
+.gt-grid{border:1px solid var(--gt-border);border-radius:8px;overflow:hidden}
+
+.gt-head,.gt-row{display:grid;grid-template-columns:var(--gt-cols);align-items:center}
+.gt-head{position:sticky;top:0;background:#f8f9fa;z-index:2;border-bottom:1px solid var(--gt-border)}
+
+/* cells */
+.cell{padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cell.head{font-weight:600;color:#495057;text-transform:uppercase;font-size:11px;letter-spacing:.3px}
+
+/* rows */
+#gtRows{display:block}
+.gt-row{display:grid;grid-template-columns:var(--gt-cols);border-bottom:1px solid #f1f3f5}
+.gt-row:last-of-type{border-bottom:none}
+.gt-row:hover{background:#f8f9fa}
+
+.phenotype-with-type{display:flex;flex-direction:column;gap:6px;min-width:0}
+.phenotype-name{font-weight:600;color:#1f2937;text-transform:none;font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.type-inline{font-size:10px;font-weight:500;text-transform:uppercase;color:#6c757d;letter-spacing:0.5px;margin-left:6px}
+.type-badge{display:inline-block;width:fit-content;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.type-badge.binary{background:rgba(34,197,94,.12);color:#16a34a}
+.type-badge.multi-class{background:rgba(59,130,246,.12);color:#2563eb}
+.type-badge.default{background:rgba(107,114,128,.12);color:#374151}
+
+.values-list{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:11px;color:#6c757d;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+.cell.coverage{text-align:right;font-variant-numeric:tabular-nums}
+.coverage-cell{font-weight:700}
+.coverage-high{color:#16a34a}
+.coverage-medium{color:#f59e0b}
+.coverage-low{color:#ef4444}
+
+.distribution-bar{width:100%;height:20px;display:flex;border:1px solid #dee2e6;border-radius:3px;overflow:hidden;background:#f8f9fa}
+.distribution-segment{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;min-width:12px;transition:opacity .15s ease;color:#fff;padding:0 4px}
+.distribution-segment:hover{opacity:.92}
+.distribution-label{font-size:10px;font-weight:600;pointer-events:none}
+
+.info-message{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;color:#6c757d;font-size:14px;background:#f9fafb;border:1px dashed #dbe2ea;border-radius:8px;text-align:center;gap:12px}
+.info-message i{font-size:28px;color:#22c55e}
+
+@media (max-width:900px){
+  :root{--gt-cols: minmax(200px,28%) minmax(160px,24%) 120px minmax(240px,1fr)}
+  .ground-truth-controls-panel{flex-direction:column;align-items:stretch}
+  .cache-controls{width:100%}
+  .cache-meta{max-width:none}
+}
+
+@media (max-width:600px){
+  :root{--gt-cols: minmax(160px,1fr) minmax(140px,1fr) 100px minmax(220px,1fr)}
+  .cell{padding:8px 10px;font-size:12px}
+  .phenotype-name{font-size:13px}
+  .type-inline{display:none}
+}
+</style>
+
+<script>
+(function(){
+  const selectEl = document.getElementById('gtStatsDataset');
+  const detailsEl = document.getElementById('gtDatasetDetails');
+  const cacheMetaEl = document.getElementById('gtCacheMeta');
+  const refreshBtn = document.getElementById('gtStatsRefresh');
+  const resultsArea = document.getElementById('gtResultsArea');
+  const initialMessage = document.getElementById('gtInitialMessage');
+  const rowsEl = document.getElementById('gtRows');
+
+  let currentDataset = null;
+  let lastPayload = null;
+  let isLoading = false;
+
+  async function init(){
+    await loadDatasets();
+    refreshBtn.addEventListener('click', () => {
+      if(!currentDataset || isLoading) return;
+      fetchStatistics(true);
+    });
+  }
+
+  async function loadDatasets(){
+    try{
+      const response = await fetch('/api/ground_truth/datasets');
+      const json = await response.json();
+      if(!json.success){
+        selectEl.innerHTML = '<option value="">Failed to load datasets</option>';
+        return;
+      }
+
+      selectEl.innerHTML = '';
+      if(json.datasets.length === 0){
+        selectEl.innerHTML = '<option value="">No datasets available</option>';
+        cacheMetaEl.textContent = 'Upload a dataset to compute statistics';
+        return;
+      }
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a dataset...';
+      selectEl.appendChild(placeholder);
+
+      let defaultDataset = null;
+      json.datasets.forEach(ds => {
+        const option = document.createElement('option');
+        option.value = ds.dataset_name;
+        option.textContent = ds.dataset_name;
+        option.dataset.template = ds.template_name || '';
+        option.dataset.count = ds.species_count || 0;
+        selectEl.appendChild(option);
+        if(ds.dataset_name === 'WA_Test_Dataset') defaultDataset = ds.dataset_name;
+      });
+
+      selectEl.addEventListener('change', handleDatasetChange);
+
+      if(defaultDataset){
+        selectEl.value = defaultDataset;
+        handleDatasetChange();
+      }
+    }catch(err){
+      console.error('Error loading datasets:', err);
+      selectEl.innerHTML = '<option value="">Error loading datasets</option>';
+      cacheMetaEl.textContent = 'Unable to reach dataset API';
+    }
+  }
+
+  function handleDatasetChange(){
+    const selected = selectEl.value;
+    currentDataset = selected || null;
+
+    if(!currentDataset){
+      detailsEl.innerHTML = '';
+      cacheMetaEl.textContent = 'Select a dataset to load statistics';
+      refreshBtn.disabled = true;
+      resultsArea.style.display = 'none';
+      initialMessage.style.display = 'block';
+      rowsEl.innerHTML = '';
+      lastPayload = null;
+      return;
+    }
+
+    refreshBtn.disabled = true;
+    refreshBtn.classList.remove('loading');
+    detailsEl.innerHTML = '<span><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading snapshot...</span>';
+    cacheMetaEl.textContent = 'Fetching cached statistics...';
+    fetchStatistics(false);
+  }
+
+  async function fetchStatistics(forceRefresh){
+    if(!currentDataset) return;
+    isLoading = true;
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('loading');
+    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+
+    try{
+      const refreshParam = forceRefresh ? '&refresh=1' : '';
+      const url = `/api/ground_truth/phenotype_statistics_cached?dataset_name=${encodeURIComponent(currentDataset)}${refreshParam}`;
+      const response = await fetch(url);
+      const json = await response.json();
+      if(!json.success){
+        throw new Error(json.error || 'Unknown error');
+      }
+
+      lastPayload = json;
+      updateDetails(json);
+      updateCacheMeta(json.cache_info || {});
+      renderStatistics(json.statistics || []);
+      resultsArea.style.display = json.statistics && json.statistics.length ? 'block' : 'none';
+      initialMessage.style.display = json.statistics && json.statistics.length ? 'none' : 'block';
+    }catch(err){
+      console.error('Failed to fetch cached stats:', err);
+      detailsEl.innerHTML = '<span style="color:#dc2626;">Snapshot unavailable</span>';
+      cacheMetaEl.textContent = err.message || 'Error fetching statistics';
+      resultsArea.style.display = 'none';
+      initialMessage.style.display = 'block';
+      initialMessage.querySelector('p').textContent = 'Unable to load cached statistics';
+    }finally{
+      refreshBtn.disabled = !currentDataset;
+      refreshBtn.classList.remove('loading');
+      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      isLoading = false;
+    }
+  }
+
+  function updateDetails(payload){
+    const meta = payload.metadata || {};
+    const total = payload.total_species ?? 0;
+    const reported = meta.reported_species_count;
+    const template = selectEl.selectedOptions[0]?.dataset.template || '';
+
+    const details = [];
+    details.push(`<strong>${total.toLocaleString()} species analyzed</strong>`);
+    if(reported && reported !== total){
+      details.push(`${reported.toLocaleString()} recorded in dataset metadata`);
+    }
+    if(template){
+      details.push(`Template: ${template}`);
+    }
+
+    const importDate = formatTimestamp(meta.import_date);
+    const importLine = importDate ? `Imported ${importDate}` : 'Import timestamp unavailable';
+
+    detailsEl.innerHTML = `
+      <span>${details.join(' · ')}</span>
+      <span>${importLine}</span>
+    `;
+  }
+
+  function updateCacheMeta(cacheInfo){
+    if(!cacheInfo || (!cacheInfo.cached && cacheInfo.cached !== false)){
+      cacheMetaEl.textContent = 'Snapshot status unknown';
+      return;
+    }
+
+    const computed = formatTimestamp(cacheInfo.computed_at);
+    const age = cacheInfo.age_seconds != null ? formatRelativeAge(cacheInfo.age_seconds) : null;
+    const status = cacheInfo.cached ? 'Using cached snapshot' : 'Snapshot refreshed';
+
+    let text = `<strong>${status}</strong>`;
+    if(computed){
+      text += ` · computed ${computed}`;
+    }
+    if(age){
+      text += ` · ${age} old`;
+    }
+    cacheMetaEl.innerHTML = text;
+  }
+
+  function renderStatistics(stats){
+    if(!stats || stats.length === 0){
+      rowsEl.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+    stats.forEach(stat => {
+      const label = stat.label || prettifyField(stat.field);
+      const typeLabel = stat.type ? stat.type.toUpperCase() : 'UNKNOWN';
+      const coverage = Number(stat.annotation_fraction || 0);
+      const coverageText = formatNumber(coverage);
+      const coverageClass = getCoverageClass(coverage);
+      const annotated = stat.annotated_species || 0;
+      const total = stat.total_species || lastPayload?.total_species || 0;
+      const missing = (total - annotated) > 0 ? (total - annotated).toLocaleString() : '0';
+
+      const distributionEntries = Object.entries(stat.value_distribution || {}).map(([value, data]) => ({
+        value,
+        count: data?.count ?? 0,
+        percentage: data?.percentage ?? 0
+      }));
+      distributionEntries.sort((a,b)=> b.count - a.count);
+
+      const uniqueCount = distributionEntries.length;
+      let valuesDisplay;
+      if(uniqueCount === 0){
+        valuesDisplay = 'No annotations';
+      } else if(uniqueCount <= 4){
+        valuesDisplay = '[' + distributionEntries.map(item => formatValueLabel(item.value)).join(', ') + ']';
+      } else {
+        valuesDisplay = `${uniqueCount} unique values`;
+      }
+
+      const tooltipValues = distributionEntries
+        .slice(0, 8)
+        .map(item => `${formatValueLabel(item.value)} (${item.count})`)
+        .join(', ');
+
+      const topSegments = distributionEntries.slice(0, 6);
+      const denom = annotated || topSegments.reduce((acc, item) => acc + item.count, 0) || 1;
+
+      let distributionHtml = '<div class="distribution-bar" role="img" aria-label="Phenotype distribution">';
+      topSegments.forEach(item => {
+        const pct = item.percentage || (item.count / denom * 100);
+        const colors = getColorForValue(item.value);
+        const labelText = buildDistributionLabel(item.value, pct, stat.field);
+        distributionHtml += `<div class="distribution-segment" style="width:${pct}%; background:${colors.background} !important; color:${colors.color} !important;" title="${escapeHtml(item.value)}: ${formatNumber(pct)}%">${labelText}</div>`;
+      });
+      if(uniqueCount > topSegments.length){
+        distributionHtml += `<div class="distribution-segment" style="width:8%; background:#e5e7eb; color:#374151;" title="${uniqueCount - topSegments.length} additional values">+${uniqueCount - topSegments.length}</div>`;
+      }
+      distributionHtml += '</div>';
+
+      html += `
+        <div class="gt-row" role="row">
+          <div class="cell phen" role="cell">
+            <div class="phenotype-with-type">
+              <span class="phenotype-name" title="${escapeHtml(label)}">${escapeHtml(label)} <span class="type-inline">${escapeHtml(typeLabel)}</span></span>
+              <span class="type-badge ${badgeClass(stat.type)}">${escapeHtml(typeLabel)}</span>
+            </div>
+          </div>
+          <div class="cell values" role="cell"><span class="values-list" title="${escapeHtml(tooltipValues || valuesDisplay)}">${escapeHtml(valuesDisplay)}</span></div>
+          <div class="cell coverage" role="cell"><span class="coverage-cell ${coverageClass}" title="${annotated.toLocaleString()} annotated · ${missing} missing">${coverageText}%</span></div>
+          <div class="cell dist" role="cell">${distributionHtml}</div>
+        </div>`;
+    });
+
+    rowsEl.innerHTML = html;
+  }
+
+  function formatValueLabel(value){
+    if(value === null || value === undefined || value === '') return 'NA';
+    const lower = String(value).toLowerCase();
+    if(lower === 'true' || lower === 'false') return lower.toUpperCase();
+    if(lower === 'positive' || lower === 'negative') return lower.charAt(0).toUpperCase() + lower.slice(1);
+    if(lower.startsWith('biosafety') || lower.includes('biosafety level')){
+      return lower.replace('biosafety level', 'BSL').toUpperCase();
+    }
+    return String(value)
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(part => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
+      .join(' ');
+  }
+
+  function buildDistributionLabel(value, pct, field){
+    if(pct < 8) return '';
+    const formatted = formatValueLabel(value);
+    if(pct < 15 && field === 'biosafety_level'){
+      return `<span class="distribution-label">${escapeHtml(formatted)}</span>`;
+    }
+    return `<span class="distribution-label">${escapeHtml(formatted)} ${Math.round(pct)}%</span>`;
+  }
+
+  function prettifyField(field){
+    if(!field) return 'Phenotype';
+    return field.replace(/_/g,' ').split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  }
+
+  function badgeClass(type){
+    if(!type) return 'type-badge default';
+    const lower = type.toLowerCase();
+    if(lower.includes('binary')) return 'type-badge binary';
+    if(lower.includes('multi')) return 'type-badge multi-class';
+    return 'type-badge default';
+  }
+
+  function getCoverageClass(value){
+    if(value >= 80) return 'coverage-high';
+    if(value >= 50) return 'coverage-medium';
+    return 'coverage-low';
+  }
+
+  function getColorForValue(value){
+    const lower = String(value).toLowerCase().trim();
+    const colorMap = {
+      'true':{background:'linear-gradient(135deg,#22c55e 0%,#16a34a 100%)',color:'white'},
+      'false':{background:'linear-gradient(135deg,#94a3b8 0%,#64748b 100%)',color:'white'},
+      'positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram-positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'gram-negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram_stain_positive':{background:'linear-gradient(135deg,#4caf50 0%,#45a049 100%)',color:'white'},
+      'gram_stain_negative':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'gram_stain_variable':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'aerobic':{background:'linear-gradient(135deg,#2196f3 0%,#1976d2 100%)',color:'white'},
+      'anaerobic':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'facultative':{background:'linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%)',color:'white'},
+      'facultative anaerobe':{background:'linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%)',color:'white'},
+      'obligate aerobe':{background:'linear-gradient(135deg,#2196f3 0%,#1976d2 100%)',color:'white'},
+      'obligate anaerobe':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'coccus':{background:'linear-gradient(135deg,#3f51b5 0%,#303f9f 100%)',color:'white'},
+      'bacillus':{background:'linear-gradient(135deg,#009688 0%,#00796b 100%)',color:'white'},
+      'spiral':{background:'linear-gradient(135deg,#ff5722 0%,#e64a19 100%)',color:'white'},
+      'spirillum':{background:'linear-gradient(135deg,#ff5722 0%,#e64a19 100%)',color:'white'},
+      'other':{background:'linear-gradient(135deg,#607d8b 0%,#455a64 100%)',color:'white'},
+      'biosafety_level_1':{background:'linear-gradient(135deg,#22c55e 0%,#16a34a 100%)',color:'white'},
+      'biosafety_level_2':{background:'linear-gradient(135deg,#ff9800 0%,#f57c00 100%)',color:'white'},
+      'biosafety_level_3':{background:'linear-gradient(135deg,#f44336 0%,#e53935 100%)',color:'white'},
+      'na':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'},
+      'n/a':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'},
+      'unknown':{background:'linear-gradient(135deg,#e2e3e5 0%,#d6d8db 100%)',color:'#6c757d'}
+    };
+    return colorMap[lower] || { background:'linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%)', color:'#495057' };
+  }
+
+  function formatNumber(value){
+    return new Intl.NumberFormat(undefined,{maximumFractionDigits:1}).format(value || 0);
+  }
+
+  function formatTimestamp(value){
+    if(!value) return '';
+    if(value instanceof Date && !isNaN(value)){
+      return value.toLocaleString();
+    }
+    const str = String(value);
+    try{
+      const normalized = str.includes('T') ? str : str.replace(' ', 'T');
+      const withZone = /Z$/.test(normalized) ? normalized : `${normalized}Z`;
+      const date = new Date(withZone);
+      if(isNaN(date.getTime())) throw new Error('Invalid date');
+      return date.toLocaleString();
+    }catch(_){
+      return str;
+    }
+  }
+
+  function formatRelativeAge(seconds){
+    if(seconds == null) return '';
+    if(seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+    if(seconds < 3600) return `${Math.round(seconds/60)}m`;
+    if(seconds < 86400) return `${Math.round(seconds/3600)}h`;
+    return `${Math.round(seconds/86400)}d`;
+  }
+
+  function escapeHtml(str){
+    if(str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

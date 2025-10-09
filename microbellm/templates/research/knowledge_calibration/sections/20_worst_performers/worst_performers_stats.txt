@@ -1,0 +1,76 @@
+
+================================================================================
+WORST PERFORMING MODELS - HALLUCINATION BENCHMARK
+Statistics for Manuscript - Template 3 (Query 3) Only
+================================================================================
+
+WORST 5 MODELS STATISTICS:
+----------------------------------------
+Number of worst models analyzed: 5
+Total test queries (5 worst models): 1,000
+Average correct rejection rate: 16.7%
+Average hallucination rate: 83.3%
+
+================================================================================
+INDIVIDUAL MODEL PERFORMANCE (5 Worst):
+--------------------------------------------------------------------------------
+Rank   Model                               Accuracy     NA Rate      Halluc. Rate
+--------------------------------------------------------------------------------
+1      llama-3.2-3b-instruct                      8.0%        6.5%         92.0%
+2      llama-3-8b-instruct                        9.5%        9.5%         90.5%
+3      mistral-nemo                              11.5%       11.0%         88.5%
+4      claude-3-sonnet                           27.0%       27.0%         73.0%
+5      gemma-3-27b-it                            27.5%       27.5%         72.5%
+
+================================================================================
+BREAKDOWN BY HALLUCINATION SEVERITY (5 Worst Models):
+--------------------------------------------------------------------------------
+Average hallucination distribution across worst 5 models:
+  - Limited hallucination: 34.8%
+  - Moderate hallucination: 43.5%
+  - Extensive hallucination: 5.0%
+  - Total hallucination rate: 83.3%
+
+================================================================================
+SUGGESTED MANUSCRIPT TEXT:
+================================================================================
+
+[SUGGESTED TEXT FOR YOUR MANUSCRIPT - Focus on worst performers:]
+
+At the opposite end of the performance spectrum, we identified models with 
+significantly higher hallucination rates when confronted with artificial taxa names. 
+The five worst-performing models exhibited an average correct rejection rate of only 
+16.7%, hallucinating phenotypic information for non-existent 
+species in 83.3% of cases.
+
+The worst performer, llama-3.2-3b-instruct, correctly identified artificial taxa 
+as unknown in only 8.0% of cases, with a hallucination rate of 
+92.0%. 
+Similarly poor performance was observed in 
+llama-3-8b-instruct (90.5% hallucination rate) and 
+mistral-nemo (88.5% hallucination rate).
+
+Among these worst performers, hallucination severity varied, with an average of 
+34.8% providing limited incorrect information, 43.5% generating 
+moderate hallucinations, and 5.0% producing extensive fabricated details 
+about non-existent microbial species.
+
+These results highlight substantial variability in model reliability when handling 
+unknown or fabricated microbial taxa, with the worst-performing models showing 
+hallucination rates exceeding 92%, compared to the 
+best performers which maintained hallucination rates below 10%. This 9-fold 
+difference in hallucination susceptibility underscores the importance of careful model 
+selection for microbiological applications where accurate identification of unknown 
+species is critical.
+
+================================================================================
+COMPARISON WITH TOP PERFORMERS:
+--------------------------------------------------------------------------------
+Key contrasts:
+- Worst 5 models average accuracy: 16.7%
+- Best models achieve >90% accuracy (see top_performers analysis)
+- Hallucination rate range: 83.3% (worst) vs <10% (best)
+- This represents a significant reliability gap in handling unknown taxa
+
+================================================================================
+

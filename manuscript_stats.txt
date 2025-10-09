@@ -1,0 +1,57 @@
+MANUSCRIPT STATISTICS
+============================================================
+
+PHENOTYPE ANALYSIS
+----------------------------------------
+Dataset: WA_Test_Dataset
+Species in dataset: 3876
+Total LLMs tested: 31
+Phenotypes analyzed: 10
+Total predictions generated: 120,258
+Unique species predicted: 3884
+
+Phenotypes analyzed:
+  - Animal Pathogenicity
+  - Biofilm Formation
+  - Biosafety Level
+  - Cell Shape
+  - Extreme Environment Tolerance
+  - Gram Staining
+  - Host Association
+  - Motility
+  - Plant Pathogenicity
+  - Spore Formation
+
+Best performing model:
+  Model: gemini-2.5-pro
+  Mean balanced accuracy: 0.766
+
+Top 5 models by balanced accuracy:
+  1. gemini-2.5-pro: 0.766
+  2. deepseek-r1: 0.764
+  3. claude-3.5-sonnet: 0.763
+  4. grok-3-mini: 0.763
+  5. gpt-5: 0.761
+
+
+KNOWLEDGE CALIBRATION
+----------------------------------------
+Total LLMs tested: 61
+Total knowledge assessments: 34,805
+Templates used: 3
+
+Templates and assessment counts:
+  - template1_knowlege: 12,200 assessments
+  - template2_knowlege: 11,199 assessments
+  - template3_knowlege: 11,406 assessments
+
+
+MANUSCRIPT TEXT SUGGESTIONS
+----------------------------------------
+
+We evaluated 73 different large language models across two major tasks:
+
+1. Phenotype Prediction: 31 LLMs were tested on 10 bacterial phenotypes, generating 120,258 individual predictions across 3884 unique bacterial species.
+   The best performing model was gemini-2.5-pro with a mean balanced accuracy of 76.6%.
+
+2. Knowledge Calibration: 61 LLMs were evaluated on their ability to assess their own knowledge levels, generating 34,805 knowledge assessments.

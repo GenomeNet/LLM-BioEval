@@ -1,0 +1,19 @@
+Extensive knowledge predictions without ground truth (LA_Test_Dataset)
+Total predictions: 2157
+Unique species: 270
+
+Counts by phenotype:
+  Gram Staining: 53
+  Motility: 370
+  Extreme Env. Tol.: 206
+  Biofilm Formation: 359
+  Animal Path.: 242
+  Biosafety Level: 159
+  Host Association: 109
+  Plant Path.: 183
+  Spore Formation: 318
+  Cell Shape: 158
+
+Counts by model:
+  x-ai/grok-3-mini: 1382
+  deepseek/deepseek-chat-v3.1: 775

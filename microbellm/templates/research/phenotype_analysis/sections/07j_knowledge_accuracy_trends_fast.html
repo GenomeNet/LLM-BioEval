@@ -1,0 +1,1015 @@
+<!-- Cached Knowledge Accuracy Trends -->
+<div id="knowledgeAccuracyTrendsFastContent" class="knowledge-trends-fast">
+  <style>
+  .knowledge-trends-fast {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    padding: 24px;
+  }
+
+  .trends-fast-header {
+    margin-bottom: 20px;
+  }
+
+  .trends-fast-explanation {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    border-radius: 10px;
+    padding: 16px 18px;
+    color: #1f2937;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .trends-fast-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+    margin: 20px 0;
+    padding: 18px;
+    background: #f9fafb;
+    border-radius: 10px;
+    border: 1px solid #dfe3e8;
+  }
+
+  .trends-fast-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .trends-fast-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .trends-fast-select {
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    color: #1f2937;
+  }
+
+  .trends-fast-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  .trends-fast-cache {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trends-fast-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #22c55e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .trends-fast-refresh:hover {
+    background: #16a34a;
+    box-shadow: 0 8px 14px rgba(34, 197, 94, 0.2);
+  }
+
+  .trends-fast-refresh:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .trends-fast-refresh.loading {
+    background: #1d4ed8;
+    box-shadow: 0 8px 14px rgba(29, 78, 216, 0.18);
+  }
+
+  .trends-fast-refresh.loading .fa-sync-alt {
+    animation: trends-fast-spin 1s linear infinite;
+  }
+
+  @keyframes trends-fast-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .trends-fast-meta {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+
+  .trends-fast-summary {
+    display: none;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #c7d2fe;
+    background: #eef2ff;
+    color: #1e3a8a;
+    font-size: 13px;
+  }
+
+  .trends-fast-canvas-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafafa;
+    padding: 20px;
+    overflow-x: auto;
+  }
+
+  .trends-fast-legend {
+    margin-top: 20px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 12px;
+  }
+
+  .trends-fast-legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+  }
+
+  .trends-fast-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .trends-fast-legend-item.disabled {
+    opacity: 0.3;
+  }
+
+  .trends-fast-legend-color {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .trends-fast-stats {
+    margin-top: 20px;
+  }
+
+  .trends-fast-stats h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 6px;
+  }
+
+  .trends-fast-stats p {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 12px;
+  }
+
+  .trends-fast-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .trends-fast-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 640px;
+  }
+
+  .trends-fast-table th {
+    background: #f3f4f6;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .trends-fast-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+  }
+
+  .trends-fast-table tr:hover {
+    background: #f9fafb;
+  }
+
+  .trends-fast-delta-positive { color: #16a34a; font-weight: 600; }
+  .trends-fast-delta-negative { color: #dc2626; font-weight: 600; }
+  .trends-fast-delta-neutral { color: #6b7280; font-weight: 600; }
+
+  .trends-fast-status {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+  }
+
+  .trends-fast-status i {
+    display: block;
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .knowledge-trends-fast { padding: 18px; }
+    .trends-fast-canvas-wrap { padding: 14px; }
+  }
+  </style>
+
+  <div class="trends-fast-header">
+    <div class="trends-fast-explanation">
+      <strong style="font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fas fa-chart-line"></i> Cached Weighted Mean Accuracy
+      </strong>
+      <div style="margin-top: 6px;">
+        This snapshot uses cached knowledge accuracy metrics to plot each model’s weighted mean phenotype accuracy per knowledge group.
+        We weight phenotypes by sample size to mirror the full interactive analysis while loading instantly.
+      </div>
+    </div>
+  </div>
+
+  <div class="trends-fast-controls">
+    <div class="trends-fast-control">
+      <label for="trendsFastDataset" class="trends-fast-label">Ground Truth Dataset</label>
+      <select id="trendsFastDataset" class="trends-fast-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div id="trendsFastDatasetDetails" class="trends-fast-meta"></div>
+    </div>
+
+    <div class="trends-fast-control">
+      <label for="trendsFastMinSamples" class="trends-fast-label">Min. Phenotype Samples</label>
+      <select id="trendsFastMinSamples" class="trends-fast-select">
+        <option value="0">Show all</option>
+        <option value="10">≥ 10</option>
+        <option value="25">≥ 25</option>
+        <option value="30" selected>≥ 30</option>
+        <option value="50">≥ 50</option>
+        <option value="100">≥ 100</option>
+      </select>
+    </div>
+
+    <div class="trends-fast-control trends-fast-cache">
+      <button id="trendsFastRefresh" class="trends-fast-refresh" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div id="trendsFastCacheMeta" class="trends-fast-meta">Select a dataset to load cached metrics</div>
+    </div>
+  </div>
+
+  <div id="trendsFastSummary" class="trends-fast-summary"></div>
+
+  <div id="trendsFastStatus" class="trends-fast-status">
+    <i class="fas fa-chart-bar"></i>
+    <p>Select a dataset to load cached knowledge accuracy trends.</p>
+  </div>
+
+  <div class="trends-fast-canvas-wrap" id="trendsFastCanvasWrap" style="display:none;">
+    <canvas id="trendsFastCanvas"></canvas>
+  </div>
+
+  <div id="trendsFastLegend" class="trends-fast-legend" style="display:none;"></div>
+
+  <div id="trendsFastStats" class="trends-fast-stats" style="display:none;">
+    <h4>Model Performance Summary</h4>
+    <p>Δ columns show accuracy changes between knowledge levels. Green = improvement, red = decline.</p>
+    <div class="trends-fast-table-wrapper">
+      <table class="trends-fast-table" id="trendsFastTable"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  if (window.__knowledgeTrendsFastInitialized) {
+    return;
+  }
+  window.__knowledgeTrendsFastInitialized = true;
+
+  const datasetSelect = document.getElementById('trendsFastDataset');
+  const minSamplesSelect = document.getElementById('trendsFastMinSamples');
+  const refreshButton = document.getElementById('trendsFastRefresh');
+  const cacheMeta = document.getElementById('trendsFastCacheMeta');
+  const datasetDetails = document.getElementById('trendsFastDatasetDetails');
+  const statusMessage = document.getElementById('trendsFastStatus');
+  const summaryBanner = document.getElementById('trendsFastSummary');
+  const canvasWrap = document.getElementById('trendsFastCanvasWrap');
+  const canvas = document.getElementById('trendsFastCanvas');
+  const legendContainer = document.getElementById('trendsFastLegend');
+  const statsSection = document.getElementById('trendsFastStats');
+  const tableEl = document.getElementById('trendsFastTable');
+
+  const KNOWLEDGE_GROUPS = ['limited', 'moderate', 'extensive'];
+  const KNOWLEDGE_LABELS = {
+    limited: 'Limited',
+    moderate: 'Moderate',
+    extensive: 'Extensive'
+  };
+
+  const MODEL_COLORS = [
+    '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#8b5cf6',
+    '#ec4899', '#06b6d4', '#f59e0b', '#10b981', '#6366f1',
+    '#f43f5e', '#84cc16', '#a855f7', '#14b8a6', '#f97316'
+  ];
+
+  let datasetsIndex = {};
+  let cachedResponse = null;
+  let processedData = null;
+  let activeModels = new Set();
+  let currentDataset = null;
+  let isLoading = false;
+
+  init();
+
+  function init() {
+    loadDatasets();
+    minSamplesSelect.addEventListener('change', () => {
+      if (!cachedResponse) {
+        return;
+      }
+      processMetrics();
+      renderVisualization();
+    });
+    refreshButton.addEventListener('click', () => {
+      if (!currentDataset || isLoading) {
+        return;
+      }
+      fetchCachedMetrics(true);
+    });
+  }
+
+  async function loadDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) {
+        throw new Error('Failed to load datasets');
+      }
+      const payload = await response.json();
+      if (!payload.success || !Array.isArray(payload.datasets) || !payload.datasets.length) {
+        throw new Error('No datasets available');
+      }
+
+      datasetsIndex = {};
+      datasetSelect.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a dataset...';
+      datasetSelect.appendChild(placeholder);
+
+      let defaultDataset = null;
+      payload.datasets.forEach(item => {
+        datasetsIndex[item.dataset_name] = item;
+        const opt = document.createElement('option');
+        opt.value = item.dataset_name;
+        opt.textContent = item.dataset_name;
+        datasetSelect.appendChild(opt);
+        if (item.dataset_name === 'WA_Test_Dataset') {
+          defaultDataset = item.dataset_name;
+        }
+      });
+
+      datasetSelect.addEventListener('change', handleDatasetChange);
+      if (defaultDataset) {
+        datasetSelect.value = defaultDataset;
+        handleDatasetChange();
+      }
+    } catch (error) {
+      console.error('[KnowledgeTrendsFast] loadDatasets failed:', error);
+      datasetSelect.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Unable to load datasets';
+      datasetSelect.appendChild(opt);
+      datasetSelect.disabled = true;
+      setStatus('ExclamationTriangle', 'Unable to load datasets. Refresh the page to try again.');
+    }
+  }
+
+  function handleDatasetChange() {
+    currentDataset = datasetSelect.value || null;
+    processedData = null;
+    cachedResponse = null;
+    summaryBanner.style.display = 'none';
+    canvasWrap.style.display = 'none';
+    legendContainer.style.display = 'none';
+    statsSection.style.display = 'none';
+    tableEl.innerHTML = '';
+
+    if (!currentDataset) {
+      datasetDetails.textContent = '';
+      cacheMeta.textContent = 'Select a dataset to load cached metrics';
+      refreshButton.disabled = true;
+      setStatus('ChartBar', 'Select a dataset to load cached knowledge accuracy trends.');
+      return;
+    }
+
+    updateDatasetDetails(currentDataset);
+    cacheMeta.textContent = 'Fetching cached metrics...';
+    refreshButton.disabled = true;
+    setStatus('Spinner', 'Loading cached knowledge accuracy metrics...');
+    fetchCachedMetrics(false);
+  }
+
+  function updateDatasetDetails(datasetName) {
+    const info = datasetsIndex[datasetName];
+    if (!info) {
+      datasetDetails.textContent = '';
+      return;
+    }
+    const parts = [];
+    if (info.species_count) {
+      parts.push(`${info.species_count} species`);
+    }
+    if (info.template_name) {
+      parts.push(`template ${info.template_name}`);
+    }
+    datasetDetails.textContent = parts.join(' • ');
+  }
+
+  async function fetchCachedMetrics(forceRefresh) {
+    if (!currentDataset) {
+      return;
+    }
+    isLoading = true;
+    refreshButton.disabled = true;
+    refreshButton.classList.add('loading');
+
+    try {
+      const url = new URL('/api/knowledge_accuracy_cached', window.location.origin);
+      url.searchParams.set('dataset_name', currentDataset);
+      if (forceRefresh) {
+        url.searchParams.set('refresh', 'true');
+      }
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Failed to retrieve cached metrics');
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Cached metrics unavailable');
+      }
+
+      cachedResponse = result;
+      processMetrics();
+      updateCacheMeta(result.cache_info);
+      renderVisualization();
+    } catch (error) {
+      console.error('[KnowledgeTrendsFast] fetchCachedMetrics failed:', error);
+      cachedResponse = null;
+      processedData = null;
+      cacheMeta.textContent = 'Unable to load cached metrics';
+      setStatus('ExclamationTriangle', error.message || 'Failed to load metrics.');
+    } finally {
+      isLoading = false;
+      refreshButton.classList.remove('loading');
+      refreshButton.disabled = !currentDataset;
+    }
+  }
+
+  function updateCacheMeta(cacheInfo) {
+    if (!cacheInfo) {
+      cacheMeta.textContent = 'Cache metadata unavailable';
+      return;
+    }
+    const computedAt = cacheInfo.computed_at ? new Date(cacheInfo.computed_at) : null;
+    const computedText = computedAt ? computedAt.toLocaleString() : 'recently';
+    const source = cacheInfo.cache_source || (cacheInfo.cached ? 'cache' : 'fresh');
+    cacheMeta.innerHTML = `<strong>Cached snapshot</strong><br>Generated ${computedText} (${source}).`;
+  }
+
+  function processMetrics() {
+    if (!cachedResponse || !Array.isArray(cachedResponse.entries)) {
+      processedData = null;
+      return;
+    }
+
+    const minSamples = parseInt(minSamplesSelect.value, 10) || 0;
+    const models = {};
+    const entries = cachedResponse.entries;
+    const phenotypes = Array.isArray(cachedResponse.phenotypes) && cachedResponse.phenotypes.length
+      ? cachedResponse.phenotypes
+      : Object.keys((entries[0] && entries[0].phenotype_accuracies) || {});
+
+    entries.forEach(entry => {
+      const model = entry.model;
+      const group = (entry.knowledge_group || '').toLowerCase();
+      if (!model || !KNOWLEDGE_GROUPS.includes(group)) {
+        return;
+      }
+
+      if (!models[model]) {
+        models[model] = {
+          limited: createEmptyGroup(),
+          moderate: createEmptyGroup(),
+          extensive: createEmptyGroup(),
+          totalPredictions: 0
+        };
+      }
+
+      const groupData = models[model][group];
+      const phenotypeAcc = entry.phenotype_accuracies || {};
+
+      let phenotypeCount = 0;
+      let accuracySum = 0;
+      let totalSamples = 0;
+
+      phenotypes.forEach(phenotype => {
+        const stats = phenotypeAcc[phenotype];
+        if (!stats) {
+          return;
+        }
+
+        const total = Number(stats.total) || 0;
+        const accuracy = Number(stats.accuracy);
+        if (total < minSamples || !Number.isFinite(accuracy)) {
+          return;
+        }
+
+        phenotypeCount += 1;
+        accuracySum += accuracy;
+        totalSamples += total;
+      });
+
+      if (phenotypeCount > 0) {
+        const meanAccuracy = accuracySum / phenotypeCount;
+        groupData.accuracy = meanAccuracy;
+        groupData.sampleSize = totalSamples;
+        groupData.correct = Math.round((meanAccuracy / 100) * totalSamples);
+      } else {
+        groupData.accuracy = 0;
+        groupData.sampleSize = 0;
+        groupData.correct = 0;
+      }
+
+      // Track total predictions regardless of filter for summary display
+      groupData.sources += 1;
+      groupData.allTotal += Number(entry.total_predictions) || 0;
+      models[model].totalPredictions += Number(entry.total_predictions) || 0;
+    });
+
+    Object.keys(models).forEach(model => {
+      KNOWLEDGE_GROUPS.forEach(group => {
+        const data = models[model][group];
+        if (!data) {
+          models[model][group] = {
+            ...createEmptyGroup(),
+            accuracy: 0
+          };
+          return;
+        }
+        if (!Number.isFinite(data.accuracy)) {
+          data.accuracy = 0;
+        }
+        if (!Number.isFinite(data.sampleSize)) {
+          data.sampleSize = 0;
+        }
+        if (!Number.isFinite(data.correct)) {
+          data.correct = 0;
+        }
+      });
+    });
+
+    processedData = {
+      models,
+      minSamples,
+      phenotypes,
+      metadata: cachedResponse.metadata || {},
+      summary: cachedResponse.summary || {}
+    };
+
+    activeModels = new Set(Object.keys(models));
+  }
+
+  function createEmptyGroup() {
+    return {
+      accuracy: null,
+      sampleSize: 0,
+      correct: 0,
+      sources: 0,
+      allTotal: 0
+    };
+  }
+
+  function renderVisualization() {
+    if (!processedData) {
+      setStatus('InfoCircle', 'No cached metrics available for this dataset. Refresh the snapshot after running validations.');
+      return;
+    }
+
+    const allModels = Object.keys(processedData.models);
+    const visibleModels = allModels.filter(model => {
+      if (!activeModels.has(model)) {
+        return false;
+      }
+      const data = processedData.models[model];
+      return data && KNOWLEDGE_GROUPS.some(group => Number.isFinite(data[group].accuracy));
+    });
+
+    if (!visibleModels.length) {
+      renderLegend(allModels);
+      summaryBanner.style.display = 'none';
+      canvasWrap.style.display = 'none';
+      statsSection.style.display = 'none';
+      statusMessage.style.display = 'block';
+      statusMessage.innerHTML = '<i class="fas fa-info-circle"></i><p>No models meet the current filters. Try lowering the minimum sample threshold or re-enable models.</p>';
+      return;
+    }
+
+    statusMessage.style.display = 'none';
+    renderLegend(allModels);
+    updateSummaryBanner(visibleModels.length);
+    drawChart(visibleModels);
+    renderTable(visibleModels);
+  }
+
+  function updateSummaryBanner(modelCount) {
+    const speciesFile = processedData.metadata && processedData.metadata.species_file;
+    const datasetLabel = currentDataset || 'Dataset';
+    const minSamples = processedData.minSamples;
+    summaryBanner.textContent = `${datasetLabel} • ${modelCount} models • ≥ ${minSamples} samples per phenotype and knowledge group${speciesFile ? ` • species file ${speciesFile}` : ''}`;
+    summaryBanner.style.display = 'block';
+  }
+
+  function drawChart(visibleModels) {
+    canvasWrap.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.max(720, visibleModels.length * 120);
+    const displayHeight = 400;
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+    const padding = { top: 30, right: 40, bottom: 60, left: 60 };
+    const chartWidth = displayWidth - padding.left - padding.right;
+    const chartHeight = displayHeight - padding.top - padding.bottom;
+
+    let minAccuracy = 100;
+    let maxAccuracy = 0;
+    let hasData = false;
+    visibleModels.forEach(model => {
+      const modelData = processedData.models[model];
+      KNOWLEDGE_GROUPS.forEach(group => {
+        const groupData = modelData[group];
+        if (groupData.sampleSize > 0) {
+          minAccuracy = Math.min(minAccuracy, groupData.accuracy);
+          maxAccuracy = Math.max(maxAccuracy, groupData.accuracy);
+          hasData = true;
+        }
+      });
+    });
+
+    if (!hasData) {
+      setStatus('InfoCircle', 'No accuracy values available after filtering.');
+      return;
+    }
+
+    if (!Number.isFinite(minAccuracy) || !Number.isFinite(maxAccuracy)) {
+      setStatus('InfoCircle', 'No accuracy values available after filtering.');
+      return;
+    }
+
+    const yMin = Math.max(0, Math.floor(minAccuracy / 10) * 10 - 10);
+    const yMax = Math.min(100, Math.ceil(maxAccuracy / 10) * 10 + 10);
+    const yRange = yMax - yMin || 1;
+
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, displayHeight - padding.bottom);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, displayHeight - padding.bottom);
+    ctx.lineTo(displayWidth - padding.right, displayHeight - padding.bottom);
+    ctx.stroke();
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+
+    const yStep = yRange <= 30 ? 5 : 10;
+    for (let value = yMin; value <= yMax; value += yStep) {
+      const y = displayHeight - padding.bottom - ((value - yMin) / yRange) * chartHeight;
+      ctx.fillText(`${value}%`, padding.left - 8, y + 4);
+      if (value > yMin) {
+        ctx.strokeStyle = '#f3f4f6';
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left + 1, y);
+        ctx.lineTo(displayWidth - padding.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    const xStep = chartWidth / (KNOWLEDGE_GROUPS.length - 1 || 1);
+    ctx.fillStyle = '#374151';
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    KNOWLEDGE_GROUPS.forEach((group, index) => {
+      const x = padding.left + index * xStep;
+      ctx.fillText(KNOWLEDGE_LABELS[group], x, displayHeight - padding.bottom + 20);
+    });
+
+    ctx.fillStyle = '#111827';
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Knowledge Accuracy Trends — ${currentDataset}`, displayWidth / 2, 20);
+
+    ctx.save();
+    ctx.translate(15, displayHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText('Weighted Mean Accuracy (%)', 0, 0);
+    ctx.restore();
+
+    const averageData = computeAverage(visibleModels);
+
+    visibleModels.forEach((model, index) => {
+      const color = MODEL_COLORS[index % MODEL_COLORS.length];
+      const modelData = processedData.models[model];
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      let started = false;
+
+      KNOWLEDGE_GROUPS.forEach((group, groupIdx) => {
+        const accuracy = modelData[group].accuracy;
+        if (accuracy === null) {
+          return;
+        }
+        const x = padding.left + groupIdx * xStep;
+        const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      KNOWLEDGE_GROUPS.forEach((group, groupIdx) => {
+        const accuracy = modelData[group].accuracy;
+        if (accuracy === null) {
+          return;
+        }
+        const x = padding.left + groupIdx * xStep;
+        const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+        if (modelData[group].sampleSize === 0) {
+          return;
+        }
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    if (averageData.total > 0) {
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 5]);
+      ctx.beginPath();
+      let started = false;
+
+      KNOWLEDGE_GROUPS.forEach((group, idx) => {
+        const accuracy = averageData[group].accuracy;
+        if (accuracy === null) {
+          return;
+        }
+        const x = padding.left + idx * xStep;
+        const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      KNOWLEDGE_GROUPS.forEach((group, idx) => {
+        const accuracy = averageData[group].accuracy;
+        if (accuracy === null) {
+          return;
+        }
+        const x = padding.left + idx * xStep;
+        const y = displayHeight - padding.bottom - ((accuracy - yMin) / yRange) * chartHeight;
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${accuracy.toFixed(1)}%`, x, y - 8);
+      });
+    }
+  }
+
+  function computeAverage(visibleModels) {
+    const totals = {
+      limited: { sum: 0, count: 0, accuracy: null },
+      moderate: { sum: 0, count: 0, accuracy: null },
+      extensive: { sum: 0, count: 0, accuracy: null },
+      total: 0
+    };
+    visibleModels.forEach(model => {
+      const modelData = processedData.models[model];
+      KNOWLEDGE_GROUPS.forEach(group => {
+        const data = modelData[group];
+        if (data.sampleSize > 0) {
+          totals[group].sum += data.accuracy;
+          totals[group].count += 1;
+          totals.total += 1;
+        }
+      });
+    });
+    KNOWLEDGE_GROUPS.forEach(group => {
+      const entry = totals[group];
+      if (entry.count > 0) {
+        entry.accuracy = entry.sum / entry.count;
+      } else {
+        entry.accuracy = null;
+      }
+    });
+    return totals;
+  }
+
+  function renderLegend(allModels) {
+    legendContainer.style.display = 'block';
+    const legendItems = allModels.map((model, index) => {
+      const color = MODEL_COLORS[index % MODEL_COLORS.length];
+      const disabled = !activeModels.has(model);
+      return `
+        <div class="trends-fast-legend-item ${disabled ? 'disabled' : ''}" data-model="${model}">
+          <span class="trends-fast-legend-color" style="background:${color};"></span>
+          <span>${formatModelName(model)}</span>
+        </div>
+      `;
+    }).join('');
+
+    legendContainer.innerHTML = `
+      <div style="font-size:13px; font-weight:600; margin-bottom:10px;">Models (click to toggle):</div>
+      <div class="trends-fast-legend-items">${legendItems}</div>
+    `;
+
+    legendContainer.querySelectorAll('.trends-fast-legend-item').forEach((item, index) => {
+      const model = item.getAttribute('data-model');
+      item.addEventListener('click', () => {
+        toggleModel(model);
+      });
+      const color = MODEL_COLORS[index % MODEL_COLORS.length];
+      item.querySelector('.trends-fast-legend-color').style.background = color;
+    });
+  }
+
+  function renderTable(visibleModels) {
+    statsSection.style.display = 'block';
+    const rows = visibleModels.map((model, index) => {
+      const data = processedData.models[model];
+      const limited = data.limited.accuracy;
+      const moderate = data.moderate.accuracy;
+      const extensive = data.extensive.accuracy;
+      const totalPredictions = data.totalPredictions;
+
+      const deltaLM = calcDelta(limited, moderate);
+      const deltaME = calcDelta(moderate, extensive);
+      const deltaLE = calcDelta(limited, extensive);
+
+      return `
+        <tr>
+          <td style="font-weight:600; color:${MODEL_COLORS[index % MODEL_COLORS.length]};">${formatModelName(model)}</td>
+          <td>${formatAccuracy(limited)}</td>
+          <td>${formatAccuracy(moderate)}</td>
+          <td>${formatAccuracy(extensive)}</td>
+          <td class="${deltaLM.className}">${deltaLM.text}</td>
+          <td class="${deltaME.className}">${deltaME.text}</td>
+          <td class="${deltaLE.className}">${deltaLE.text}</td>
+          <td>${totalPredictions.toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
+
+    tableEl.innerHTML = `
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Limited</th>
+          <th>Moderate</th>
+          <th>Extensive</th>
+          <th>Δ Lim→Mod</th>
+          <th>Δ Mod→Ext</th>
+          <th>Δ Total</th>
+          <th>Total Predictions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    `;
+  }
+
+  function calcDelta(a, b) {
+    if (a === null || b === null) {
+      return { text: '—', className: 'trends-fast-delta-neutral' };
+    }
+    const diff = b - a;
+    if (Math.abs(diff) < 0.05) {
+      return { text: '0.0%', className: 'trends-fast-delta-neutral' };
+    }
+    const text = `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
+    return {
+      text,
+      className: diff > 0 ? 'trends-fast-delta-positive' : 'trends-fast-delta-negative'
+    };
+  }
+
+  function formatAccuracy(value) {
+    return value === null ? '—' : `${value.toFixed(1)}%`;
+  }
+
+  function toggleModel(model) {
+    if (!processedData || !processedData.models[model]) {
+      return;
+    }
+    if (activeModels.has(model)) {
+      activeModels.delete(model);
+    } else {
+      activeModels.add(model);
+    }
+    renderVisualization();
+  }
+
+  function setStatus(icon, message) {
+    canvasWrap.style.display = 'none';
+    legendContainer.style.display = 'none';
+    statsSection.style.display = 'none';
+    summaryBanner.style.display = 'none';
+
+    statusMessage.style.display = 'block';
+    const iconClass = icon === 'Spinner' ? 'fas fa-spinner fa-spin' : icon === 'InfoCircle' ? 'fas fa-info-circle' : icon === 'ExclamationTriangle' ? 'fas fa-exclamation-triangle' : 'fas fa-chart-bar';
+    statusMessage.innerHTML = `<i class="${iconClass}"></i><p>${message}</p>`;
+  }
+
+  function formatModelName(name) {
+    if (!name || !name.includes('/')) {
+      return name || 'Unknown Model';
+    }
+    const [provider, model] = name.split('/');
+    const providerMap = {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      google: 'Google',
+      'meta-llama': 'Meta',
+      mistralai: 'Mistral',
+      cohere: 'Cohere',
+      deepseek: 'DeepSeek'
+    };
+    const label = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+    return `${label} ${model}`;
+  }
+
+  window.toggleKnowledgeTrendsModelFast = toggleModel;
+})();
+</script>

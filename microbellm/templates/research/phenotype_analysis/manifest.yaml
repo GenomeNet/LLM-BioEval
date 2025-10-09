@@ -41,13 +41,13 @@ sections:
     file: "sections/03_why_phenotype_prediction_matters.html"
     parent_type: "article"
     
-  # Ground Truth Dataset Statistics
+  # Ground Truth Dataset Statistics (cached snapshot)
   - id: "ground_truth_stats"
     type: "section_callout_dynamic"
-    file: "sections/04_ground_truth_stats.html"
+    file: "sections/04_ground_truth_stats_fast.html"
     container_id: "groundTruthStatsContent"
-    title: "Ground Truth Dataset Statistics"
-    text: "Overview of phenotype annotations in the ground truth dataset, showing coverage and value distributions for each characteristic."
+    title: "Ground Truth Snapshot (Cached)"
+    text: "Precomputed phenotype statistics served instantly from cache, with manual refresh to recalculate after dataset updates."
     
   # Analysis Insights - Article content between callouts
   - id: "analysis_insights"
@@ -141,13 +141,13 @@ sections:
     title: "Model Prediction Distributions by Phenotype"
     text: "Visual breakdown of how each model predicts different phenotype values, showing distribution patterns and confidence levels across bacterial characteristics."
     
-  # Model Accuracy Comparison - Dynamic Full Width
+  # Model Accuracy Snapshot (cached)
   - id: "model_accuracy"
     type: "section_callout_dynamic"
-    file: "sections/07c_model_accuracy_simple.html"
+    file: "sections/07c_model_accuracy_fast.html"
     container_id: "modelAccuracyContent"
-    title: "Model Accuracy by Phenotype"
-    text: "Performance comparison of language models against ground truth data, showing balanced accuracy and precision metrics for each phenotype prediction."
+    title: "Model Accuracy Snapshot (Cached)"
+    text: "Instant view of precomputed accuracy metrics. Refresh the snapshot after updating ground truth datasets or importing new model predictions."
     
   # Model Performance Overview - New section
   - id: "model_performance_overview"
@@ -180,54 +180,54 @@ sections:
     title: "Organization Model Comparison"
     text: "Filter and compare model performance by organization, revealing which models have benchmark data but lack metadata, and highlighting performance differences across providers."
 
-  # Model Performance Range Plot - New visualization
+  # Model Performance Ranges (cached)
   - id: "model_ranges"
     type: "section_callout_dynamic"
-    file: "sections/07e_model_ranges.html"
+    file: "sections/07e_model_ranges_fast.html"
     container_id: "modelRangesContent"
-    title: "Model Performance Ranges"
-    text: "Visual comparison of model accuracy ranges across phenotypes, showing the spread of performance and highlighting the best performer for each characteristic."
+    title: "Model Performance Ranges (Cached)"
+    text: "Precomputed accuracy ranges loaded instantly. Refresh the snapshot after updating ground truth datasets or predictions."
     
-  # Overall Model Ranking - New visualization
+  # Overall Model Ranking (cached)
   - id: "model_ranking"
     type: "section_callout_dynamic"
-    file: "sections/07f_model_ranking.html"
+    file: "sections/07f_model_ranking_fast.html"
     container_id: "modelRankingContent"
-    title: "Overall Model Performance Ranking"
-    text: "Comprehensive ranking of language models based on average performance across all phenotypes, showing both balanced accuracy and precision metrics."
+    title: "Overall Performance Ranking (Cached)"
+    text: "Instant overview of precomputed balanced accuracy and precision rankings. Refresh the snapshot after dataset or prediction updates."
     
-  # Best Models Per Phenotype
+  # Best Models Per Phenotype (cached)
   - id: "best_models"
     type: "section_callout_dynamic"
-    file: "sections/07g_best_models.html"
+    file: "sections/07g_best_models_fast.html"
     container_id: "bestModelsContent"
-    title: "Best Models Per Phenotype"
-    text: "Condensed view showing only the top-performing model for each phenotype prediction task."
+    title: "Best Models Per Phenotype (Cached)"
+    text: "Instant access to the top-performing model per phenotype using the shared accuracy snapshot. Refresh after updates to ground truth or predictions."
     
-  # Model Accuracy by Knowledge Group
+  # Model Accuracy by Knowledge Group (cached)
   - id: "accuracy_by_knowledge"
     type: "section_callout_dynamic"
-    file: "sections/07h_accuracy_by_knowledge.html"
+    file: "sections/07h_accuracy_by_knowledge_fast.html"
     container_id: "accuracyByKnowledgeContent"
-    title: "Model Accuracy by Knowledge Group"
-    text: "Analysis of phenotype prediction accuracy stratified by the model's self-reported knowledge level, revealing whether models perform better on species they claim to know well."
+    title: "Accuracy by Knowledge Group (Cached)"
+    text: "Instant knowledge-stratified accuracy view derived from the shared cache. Refresh after updating ground truth datasets or predictions."
     
-  # Knowledge Accuracy Visualization
+  # Knowledge Accuracy Visualization (cached)
   - id: "knowledge_accuracy_viz"
     type: "section_callout_dynamic"
-    file: "sections/07i_knowledge_accuracy_visualization.html"
+    file: "sections/07i_knowledge_accuracy_visualization_fast.html"
     container_id: "knowledgeAccuracyVizContent"
-    title: "Phenotype Accuracy Across Knowledge Groups"
-    text: "Visual comparison of how model accuracy varies across knowledge levels for each phenotype. Select a model to see detailed accuracy trends from NA to Extensive knowledge."
-    
-  # Knowledge Accuracy Trends
+    title: "Phenotype Accuracy Across Knowledge Groups (Cached)"
+    text: "Fast-loading snapshot of cached knowledge-stratified phenotype accuracy with dataset, model, and sampling controls. Refresh after updating ground truth or model predictions."
+
+  # Knowledge Accuracy Trends (cached)
   - id: "knowledge_accuracy_trends"
     type: "section_callout_dynamic"
-    file: "sections/07j_knowledge_accuracy_trends.html"
+    file: "sections/07j_knowledge_accuracy_trends_fast.html"
     container_id: "knowledgeAccuracyTrendsContent"
-    title: "Model Performance Trends by Knowledge Level"
-    text: "Comparison of how different models' accuracy changes across knowledge levels, using weighted mean accuracy across all phenotypes to provide a comprehensive performance overview."
-    
+    title: "Knowledge Accuracy Trends (Cached)"
+    text: "Precomputed knowledge-trend visualization with cached weighted accuracy metrics and instant toggles. Refresh after updating ground truth or cached snapshots."
+
   # Radar Plot Visualization
   - id: "radar_plot"
     type: "section_callout_dynamic"

@@ -122,6 +122,16 @@ Desktop.ini
 microbellm_jobs.db
 microbellm.db
 *.db
+*.db copy*
+
+# Large analysis outputs
+*.rds
+table_1*.csv
+microbellm/templates/research/phenotype_analysis/sections/07c_model_accuracy/*.csv
+gpt4_violin_clean.pdf
+test*.pdf
+test_*.pdf
+*.tmp.pdf
 
 # Local cleanup folder
 attic/

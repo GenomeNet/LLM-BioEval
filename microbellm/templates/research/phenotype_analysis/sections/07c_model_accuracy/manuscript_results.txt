@@ -1,0 +1,44 @@
+RESULTS
+
+============================================================
+
+Phenotype Prediction Performance
+
+----------------------------------------
+
+We evaluated 31 large language models on their ability to predict 10 bacterial phenotypes across 3,884 species from the WA Test Dataset, generating a total of 120,258 individual predictions.
+
+Gemini-2.5-Pro achieved the highest overall performance with a mean balanced accuracy of 76.6% (SD = 11.1%) and mean precision of 69.3% (SD = 19.1%) across all phenotypes.
+
+The top five models demonstrated strong performance across phenotypes:
+  1. Gemini-2.5-Pro: 76.6% balanced accuracy, best performer for 2 phenotypes
+  2. DeepSeek-R1: 76.4% balanced accuracy, best performer for 1 phenotype
+  3. Claude-3.5-Sonnet: 76.3% balanced accuracy, best performer for 1 phenotype
+  4. Grok 3 Mini: 76.3% balanced accuracy, best performer for 0 phenotypes
+  5. GPT-5: 76.1% balanced accuracy, best performer for 1 phenotype
+
+Model performance varied substantially, with balanced accuracies ranging from 53.8% to 76.6% (range: 22.8%), indicating significant differences in model capabilities for bacterial phenotype prediction.
+
+
+Phenotype-Specific Performance
+
+----------------------------------------
+
+Across all models, Spore Formation was the most accurately predicted phenotype (mean balanced accuracy: 89.8%), while Biofilm Formation proved most challenging (mean balanced accuracy: 53.0%).
+
+Notably, Gemini-2.5-Pro achieved best-in-class performance for 2 phenotypes (Gram Staining, Spore Formation), demonstrating broad capability across diverse bacterial traits.
+
+Interestingly, GPT-4.1-Nano was the top performer for Cell Shape prediction (balanced accuracy: 91.7%), significantly outperforming larger models on this morphological phenotype.
+
+
+Sample sizes varied across phenotype-model combinations, ranging from 251 to 3,840 predictions per evaluation (mean: 2940, SD: 1040).
+
+
+Statistical Analysis
+
+----------------------------------------
+
+The performance difference between the top two models (Gemini-2.5-Pro vs DeepSeek-R1) was 0.1% in terms of mean balanced accuracy.
+
+
+Across organizations with multiple models tested, DeepSeek achieved the highest mean accuracy (75.2%, n=2), followed by Anthropic (74.5%, n=3) and OpenAI (74.4%, n=10).

@@ -131,6 +131,27 @@ This tests:
 
 **Recommendation**: Run `pytest` for development and `python test_admin.py` for integration validation.
 
+## Cached Ground Truth Statistics
+
+Ground-truth phenotype statistics are cached in the database so all users (and deployments like Vercel) see the same precomputed snapshot. The cache is invalidated automatically whenever you import or delete a ground-truth dataset, but you must trigger a refresh to populate the new snapshot.
+
+**Rebuild the snapshot after an update:**
+
+```bash
+# Replace DATASET_NAME with the dataset you imported
+curl "http://localhost:5050/api/ground_truth/phenotype_statistics_cached?dataset_name=DATASET_NAME&refresh=1"
+```
+
+On production (e.g., Vercel), call the same endpoint with your deployed base URL. You can automate this step by hitting the endpoint from your import pipeline or a scheduled job.
+
+**Refresh the model accuracy snapshot (cached metrics used by the fast dashboard):**
+
+```bash
+curl "http://localhost:5050/api/model_accuracy_cached?dataset_name=DATASET_NAME&refresh=1"
+```
+
+This recomputes balanced accuracy/precision for all models against the selected dataset and stores the shared snapshot that the fast component renders.
+
 ## Documentation
 
 - [Database Architecture](docs/database_architecture.md) - Technical details about the database structure

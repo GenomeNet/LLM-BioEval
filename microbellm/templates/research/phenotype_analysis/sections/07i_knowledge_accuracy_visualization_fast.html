@@ -1,0 +1,709 @@
+<!-- Cached Knowledge Accuracy Visualization -->
+<div id="knowledgeAccuracyVizFastContent" class="knowledge-viz-fast">
+  <style>
+  .knowledge-viz-fast {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .knowledge-viz-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #dfe3e8;
+    padding: 20px;
+  }
+
+  .knowledge-viz-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .knowledge-viz-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .knowledge-viz-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    color: #1f2937;
+  }
+
+  .knowledge-viz-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  .knowledge-viz-details {
+    font-size: 12px;
+    color: #6b7280;
+    min-height: 32px;
+  }
+
+  .knowledge-viz-cache {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .knowledge-viz-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #22c55e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .knowledge-viz-refresh:hover {
+    background: #16a34a;
+    box-shadow: 0 8px 14px rgba(34, 197, 94, 0.2);
+  }
+
+  .knowledge-viz-refresh:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .knowledge-viz-refresh.loading {
+    background: #1d4ed8;
+    box-shadow: 0 8px 14px rgba(29, 78, 216, 0.18);
+  }
+
+  .knowledge-viz-refresh.loading .fa-sync-alt {
+    animation: knowledge-viz-spin 1s linear infinite;
+  }
+
+  @keyframes knowledge-viz-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .knowledge-viz-cache-meta {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .knowledge-viz-info {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+  }
+
+  .knowledge-viz-info i {
+    font-size: 48px;
+    color: #d1d5db;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .knowledge-viz-summary {
+    display: none;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    color: #1e3a8a;
+    font-size: 14px;
+  }
+
+  .knowledge-viz-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .knowledge-viz-card {
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 260px;
+  }
+
+  .knowledge-viz-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+  }
+
+  .knowledge-viz-canvas {
+    width: 100%;
+    height: 180px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  .knowledge-viz-metadata {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    font-size: 12px;
+    color: #4b5563;
+  }
+
+  .knowledge-viz-tag {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+  }
+
+  .knowledge-viz-tag strong {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .knowledge-viz-tag.limited strong { color: #ea580c; }
+  .knowledge-viz-tag.moderate strong { color: #2563eb; }
+  .knowledge-viz-tag.extensive strong { color: #16a34a; }
+
+  .knowledge-viz-tag span {
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  @media (max-width: 768px) {
+    .knowledge-viz-fast { padding: 16px; }
+    .knowledge-viz-controls { grid-template-columns: 1fr; }
+  }
+  </style>
+
+  <div class="knowledge-viz-controls">
+    <div class="knowledge-viz-control">
+      <label for="knowledgeVizDataset" class="knowledge-viz-label">Ground Truth Dataset</label>
+      <select id="knowledgeVizDataset" class="knowledge-viz-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div id="knowledgeVizDatasetDetails" class="knowledge-viz-details"></div>
+    </div>
+
+    <div class="knowledge-viz-control">
+      <label for="knowledgeVizModel" class="knowledge-viz-label">Select Model</label>
+      <select id="knowledgeVizModel" class="knowledge-viz-select" disabled>
+        <option value="">Select a dataset first</option>
+      </select>
+    </div>
+
+    <div class="knowledge-viz-control">
+      <label for="knowledgeVizSampleFilter" class="knowledge-viz-label">Min. Observations per Knowledge Group</label>
+      <select id="knowledgeVizSampleFilter" class="knowledge-viz-select">
+        <option value="0">Show all</option>
+        <option value="10">≥ 10</option>
+        <option value="25">≥ 25</option>
+        <option value="50" selected>≥ 50</option>
+        <option value="100">≥ 100</option>
+        <option value="200">≥ 200</option>
+      </select>
+    </div>
+
+    <div class="knowledge-viz-control knowledge-viz-cache">
+      <button id="knowledgeVizRefresh" class="knowledge-viz-refresh" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div id="knowledgeVizCacheMeta" class="knowledge-viz-cache-meta">Select a dataset to load cached metrics</div>
+    </div>
+  </div>
+
+  <div id="knowledgeVizStatusMessage" class="knowledge-viz-info">
+    <i class="fas fa-chart-bar"></i>
+    <p>Select a dataset to load cached knowledge accuracy metrics.</p>
+  </div>
+
+  <div id="knowledgeVizSummary" class="knowledge-viz-summary"></div>
+
+  <div id="knowledgeVizGrid" class="knowledge-viz-grid"></div>
+</div>
+
+<script>
+(function() {
+  if (window.__knowledgeVizFastInitialized) {
+    return;
+  }
+  window.__knowledgeVizFastInitialized = true;
+
+  const datasetSelect = document.getElementById('knowledgeVizDataset');
+  const datasetDetails = document.getElementById('knowledgeVizDatasetDetails');
+  const modelSelect = document.getElementById('knowledgeVizModel');
+  const sampleSelect = document.getElementById('knowledgeVizSampleFilter');
+  const refreshButton = document.getElementById('knowledgeVizRefresh');
+  const cacheMeta = document.getElementById('knowledgeVizCacheMeta');
+  const statusMessage = document.getElementById('knowledgeVizStatusMessage');
+  const summaryBanner = document.getElementById('knowledgeVizSummary');
+  const gridContainer = document.getElementById('knowledgeVizGrid');
+
+  const DATA_GROUPS = ['limited', 'moderate', 'extensive'];
+
+  let datasetsIndex = {};
+  let metricsByModel = {};
+  let phenotypes = [];
+  let selectedDataset = null;
+  let selectedModel = null;
+  let isLoading = false;
+
+  init();
+
+  function init() {
+    loadDatasets();
+    modelSelect.addEventListener('change', () => {
+      selectedModel = modelSelect.value || null;
+      renderVisualization();
+    });
+    sampleSelect.addEventListener('change', () => {
+      renderVisualization();
+    });
+    refreshButton.addEventListener('click', () => {
+      if (!selectedDataset || isLoading) {
+        return;
+      }
+      fetchCachedMetrics(true);
+    });
+  }
+
+  async function loadDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) {
+        throw new Error('Failed to load datasets');
+      }
+      const payload = await response.json();
+      if (!payload.success || !Array.isArray(payload.datasets)) {
+        throw new Error('No datasets available');
+      }
+
+      datasetsIndex = {};
+      datasetSelect.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a dataset...';
+      datasetSelect.appendChild(placeholder);
+
+      let defaultDataset = null;
+
+      payload.datasets.forEach(item => {
+        datasetsIndex[item.dataset_name] = item;
+        const opt = document.createElement('option');
+        opt.value = item.dataset_name;
+        opt.textContent = item.dataset_name;
+        datasetSelect.appendChild(opt);
+        if (item.dataset_name === 'WA_Test_Dataset') {
+          defaultDataset = item.dataset_name;
+        }
+      });
+
+      datasetSelect.addEventListener('change', handleDatasetChange);
+
+      if (defaultDataset) {
+        datasetSelect.value = defaultDataset;
+        handleDatasetChange();
+      }
+    } catch (error) {
+      console.error('[KnowledgeVizFast] Dataset load failed:', error);
+      datasetSelect.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Unable to load datasets';
+      datasetSelect.appendChild(opt);
+      datasetSelect.disabled = true;
+      setStatus('ExclamationTriangle', 'Unable to load datasets. Refresh the page to try again.');
+    }
+  }
+
+  function handleDatasetChange() {
+    selectedDataset = datasetSelect.value || null;
+    selectedModel = null;
+    metricsByModel = {};
+    phenotypes = [];
+    modelSelect.innerHTML = '<option value="">Select a dataset first</option>';
+    modelSelect.disabled = true;
+    summaryBanner.style.display = 'none';
+    gridContainer.style.display = 'none';
+    gridContainer.innerHTML = '';
+
+    if (!selectedDataset) {
+      datasetDetails.textContent = '';
+      cacheMeta.textContent = 'Select a dataset to load cached metrics';
+      refreshButton.disabled = true;
+      setStatus('ChartBar', 'Select a dataset to load cached knowledge accuracy metrics.');
+      return;
+    }
+
+    updateDatasetDetails(selectedDataset);
+    cacheMeta.textContent = 'Fetching cached metrics...';
+    refreshButton.disabled = true;
+    setStatus('Spinner', 'Loading cached knowledge accuracy metrics...');
+    fetchCachedMetrics(false);
+  }
+
+  function updateDatasetDetails(datasetName) {
+    const info = datasetsIndex[datasetName];
+    if (!info) {
+      datasetDetails.textContent = '';
+      return;
+    }
+    const parts = [];
+    if (info.species_count) {
+      parts.push(`${info.species_count} species`);
+    }
+    if (info.template_name) {
+      parts.push(`template ${info.template_name}`);
+    }
+    datasetDetails.textContent = parts.join(' • ');
+  }
+
+  async function fetchCachedMetrics(forceRefresh) {
+    if (!selectedDataset) {
+      return;
+    }
+    isLoading = true;
+    refreshButton.disabled = true;
+    refreshButton.classList.add('loading');
+
+    try {
+      const url = new URL('/api/knowledge_accuracy_cached', window.location.origin);
+      url.searchParams.set('dataset_name', selectedDataset);
+      if (forceRefresh) {
+        url.searchParams.set('refresh', 'true');
+      }
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Failed to load cached metrics');
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Cached metrics unavailable');
+      }
+
+      processMetrics(result);
+      updateCacheMeta(result.cache_info, result.metadata);
+      populateModelSelect(result.models || []);
+      if (modelSelect.value) {
+        selectedModel = modelSelect.value;
+        renderVisualization();
+      } else {
+        setStatus('ChartBar', 'Select a model to view cached knowledge accuracy charts.');
+      }
+    } catch (error) {
+      console.error('[KnowledgeVizFast] Metric load failed:', error);
+      cacheMeta.textContent = 'Unable to load cached metrics';
+      setStatus('ExclamationTriangle', error.message || 'Failed to load metrics.');
+    } finally {
+      isLoading = false;
+      refreshButton.classList.remove('loading');
+      refreshButton.disabled = !selectedDataset;
+    }
+  }
+
+  function processMetrics(result) {
+    metricsByModel = {};
+    phenotypes = Array.isArray(result.phenotypes) ? result.phenotypes.slice() : [];
+
+    if (phenotypes.length === 0 && Array.isArray(result.entries)) {
+      const phenotypeSet = new Set();
+      result.entries.forEach(entry => {
+        if (entry.phenotype_accuracies) {
+          Object.keys(entry.phenotype_accuracies).forEach(key => phenotypeSet.add(key));
+        }
+      });
+      phenotypes = Array.from(phenotypeSet);
+    }
+
+    const normalizedPhenotypes = phenotypes.length ? phenotypes : [];
+
+    if (Array.isArray(result.entries)) {
+      result.entries.forEach(entry => {
+        const model = entry.model;
+        const group = (entry.knowledge_group || '').toLowerCase();
+
+        if (!model || !DATA_GROUPS.includes(group)) {
+          return;
+        }
+
+        if (!metricsByModel[model]) {
+          metricsByModel[model] = {};
+        }
+        if (!metricsByModel[model][group]) {
+          metricsByModel[model][group] = {};
+        }
+
+        normalizedPhenotypes.forEach(phenotype => {
+          const stats = entry.phenotype_accuracies && entry.phenotype_accuracies[phenotype];
+          metricsByModel[model][group][phenotype] = {
+            accuracy: stats && Number.isFinite(stats.accuracy) ? stats.accuracy : 0,
+            total: stats && Number.isFinite(stats.total) ? stats.total : 0
+          };
+        });
+      });
+    }
+  }
+
+  function populateModelSelect(models) {
+    modelSelect.innerHTML = '';
+    const availableModels = models.length ? models : Object.keys(metricsByModel);
+
+    if (!availableModels.length) {
+      modelSelect.innerHTML = '<option value="">No cached models</option>';
+      modelSelect.disabled = true;
+      setStatus('ChartBar', 'No cached metrics available for this dataset. Refresh the snapshot after running validations.');
+      return;
+    }
+
+    availableModels.sort();
+    availableModels.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model;
+      option.textContent = formatModelName(model);
+      modelSelect.appendChild(option);
+    });
+
+    modelSelect.disabled = false;
+    modelSelect.value = availableModels[0];
+    selectedModel = modelSelect.value;
+  }
+
+  function renderVisualization() {
+    if (!selectedDataset) {
+      return;
+    }
+
+    if (!selectedModel || !metricsByModel[selectedModel]) {
+      setStatus('ChartBar', 'Select a model to view cached knowledge accuracy charts.');
+      return;
+    }
+
+    const minSample = parseInt(sampleSelect.value, 10) || 0;
+    const modelData = metricsByModel[selectedModel];
+
+    const filteredPhenotypes = phenotypes.filter(phenotype => {
+      return DATA_GROUPS.every(group => {
+        const stats = modelData[group] && modelData[group][phenotype];
+        return stats && stats.total >= minSample;
+      });
+    });
+
+    if (!filteredPhenotypes.length) {
+      summaryBanner.style.display = 'none';
+      gridContainer.style.display = 'none';
+      gridContainer.innerHTML = '';
+      setStatus('InfoCircle', `No phenotypes meet the minimum of ${minSample} observations per knowledge group. Try lowering the threshold.`);
+      return;
+    }
+
+    summaryBanner.textContent = `${formatModelName(selectedModel)} · showing ${filteredPhenotypes.length} of ${phenotypes.length} phenotypes with ≥ ${minSample} observations per knowledge group.`;
+    summaryBanner.style.display = 'block';
+    statusMessage.style.display = 'none';
+
+    gridContainer.innerHTML = '';
+    gridContainer.style.display = 'grid';
+
+    filteredPhenotypes.forEach(phenotype => {
+      const card = createPhenotypeCard(phenotype, modelData);
+      gridContainer.appendChild(card);
+    });
+  }
+
+  function createPhenotypeCard(phenotype, modelData) {
+    const card = document.createElement('div');
+    card.className = 'knowledge-viz-card';
+
+    const title = document.createElement('div');
+    title.className = 'knowledge-viz-card-title';
+    title.textContent = formatPhenotypeName(phenotype);
+    card.appendChild(title);
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'knowledge-viz-canvas';
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = 260;
+    const displayHeight = 180;
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+
+    card.appendChild(canvas);
+
+    const statsByGroup = DATA_GROUPS.map(group => {
+      const stats = modelData[group] && modelData[group][phenotype];
+      return {
+        group,
+        accuracy: stats ? stats.accuracy : 0,
+        total: stats ? stats.total : 0
+      };
+    });
+
+    drawKnowledgeChart(canvas, statsByGroup, dpr);
+
+    const metadata = document.createElement('div');
+    metadata.className = 'knowledge-viz-metadata';
+
+    statsByGroup.forEach(item => {
+      const tag = document.createElement('div');
+      tag.className = `knowledge-viz-tag ${item.group}`;
+      tag.innerHTML = `<strong>${formatGroupLabel(item.group)}</strong><span>${item.total} samples</span>`;
+      metadata.appendChild(tag);
+    });
+
+    card.appendChild(metadata);
+    return card;
+  }
+
+  function drawKnowledgeChart(canvas, statsByGroup, dpr) {
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const padding = { top: 16, right: 20, bottom: 40, left: 40 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, height - padding.bottom);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, height - padding.bottom);
+    ctx.lineTo(width - padding.right, height - padding.bottom);
+    ctx.stroke();
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+
+    [0, 25, 50, 75, 100].forEach(value => {
+      const y = height - padding.bottom - (value / 100) * chartHeight;
+      ctx.fillText(`${value}%`, padding.left - 6, y + 3);
+      if (value > 0 && value < 100) {
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+      }
+    });
+
+    const colors = {
+      limited: '#ea580c',
+      moderate: '#2563eb',
+      extensive: '#16a34a'
+    };
+
+    const barWidth = chartWidth / (statsByGroup.length * 1.8);
+    const gap = barWidth * 0.8;
+
+    statsByGroup.forEach((item, index) => {
+      const x = padding.left + gap + index * (barWidth + gap);
+      const heightRatio = Math.max(0, Math.min(100, item.accuracy)) / 100;
+      const barHeight = heightRatio * chartHeight;
+      const y = height - padding.bottom - barHeight;
+
+      ctx.fillStyle = colors[item.group] || '#94a3b8';
+      ctx.globalAlpha = item.total > 0 ? 1 : 0.4;
+      ctx.fillRect(x, y, barWidth, barHeight || 2);
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = '#1f2937';
+      ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${Math.round(item.accuracy)}%`, x + barWidth / 2, y - 6);
+
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillText(formatGroupLabel(item.group), x + barWidth / 2, height - padding.bottom + 16);
+    });
+  }
+
+  function updateCacheMeta(cacheInfo, metadata) {
+    if (!cacheInfo) {
+      cacheMeta.textContent = 'Cache metadata unavailable';
+      refreshButton.disabled = false;
+      return;
+    }
+
+    const computedAt = cacheInfo.computed_at ? new Date(cacheInfo.computed_at) : null;
+    const computedText = computedAt ? computedAt.toLocaleString() : 'recently';
+    const source = cacheInfo.cache_source || (cacheInfo.cached ? 'cache' : 'fresh');
+
+    cacheMeta.innerHTML = `<strong>Cached snapshot</strong><br>Generated ${computedText} (${source}).`;
+    refreshButton.disabled = false;
+  }
+
+  function setStatus(icon, message) {
+    summaryBanner.style.display = 'none';
+    gridContainer.style.display = 'none';
+    gridContainer.innerHTML = '';
+    statusMessage.style.display = 'block';
+    const iconClass = icon === 'Spinner' ? 'fas fa-spinner fa-spin' : icon === 'InfoCircle' ? 'fas fa-info-circle' : icon === 'ExclamationTriangle' ? 'fas fa-exclamation-triangle' : 'fas fa-chart-bar';
+    statusMessage.innerHTML = `<i class="${iconClass}"></i><p>${message}</p>`;
+  }
+
+  function formatModelName(name) {
+    if (!name || !name.includes('/')) {
+      return name || 'Unknown Model';
+    }
+    const [provider, model] = name.split('/');
+    const map = {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      google: 'Google',
+      'meta-llama': 'Meta',
+      mistralai: 'Mistral',
+      cohere: 'Cohere',
+      deepseek: 'DeepSeek'
+    };
+    const providerLabel = map[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+    return `${providerLabel} ${model}`;
+  }
+
+  function formatPhenotypeName(name) {
+    return name.replace(/_/g, ' ');
+  }
+
+  function formatGroupLabel(label) {
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+})();
+</script>

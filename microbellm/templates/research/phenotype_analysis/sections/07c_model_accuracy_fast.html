@@ -1,0 +1,1243 @@
+<!-- Model Accuracy Snapshot (Cached) -->
+<div class="accuracy-section">
+  <div class="accuracy-header">
+    <h3>Model Performance Snapshot (Cached)</h3>
+    <p>Precomputed accuracy metrics served instantly; refresh after ground truth or prediction updates.</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="accuracy-controls-panel">
+    <div class="dataset-selector">
+      <label for="groundTruthDataset">Ground Truth Dataset:</label>
+      <select id="groundTruthDataset" class="dataset-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div class="dataset-details" id="datasetDetails"></div>
+    </div>
+    <div class="cache-controls">
+      <button id="refreshSnapshot" class="refresh-button" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div class="cache-meta" id="cacheMeta">Select a dataset to load cached metrics</div>
+    </div>
+  </div>
+
+  <!-- Results Area -->
+  <div id="resultsArea" class="results-container" style="display:none;">
+    <!-- Metric Toggle -->
+    <div class="metric-toggle-container">
+      <label class="metric-toggle-label">Display Metric:</label>
+      <div class="metric-toggle-group">
+        <button id="toggleBalAcc" class="metric-toggle-btn active">Balanced Accuracy</button>
+        <button id="togglePrecision" class="metric-toggle-btn">Precision</button>
+      </div>
+    </div>
+
+    <!-- Performance Legend -->
+    <div class="performance-legend">
+      <h4>Performance Scale - <span id="legendMetricName">Balanced Accuracy</span></h4>
+      <div class="legend-container">
+        <div class="legend-section">
+          <h5>Accuracy Levels:</h5>
+          <div class="legend-grid">
+            <div class="legend-entry">
+              <span class="perf-box excellent"></span>
+              <span>&ge; 0.9 Excellent</span>
+            </div>
+            <div class="legend-entry">
+              <span class="perf-box good"></span>
+              <span>0.7-0.9 Good</span>
+            </div>
+            <div class="legend-entry">
+              <span class="perf-box moderate"></span>
+              <span>0.5-0.7 Moderate</span>
+            </div>
+            <div class="legend-entry">
+              <span class="perf-box poor"></span>
+              <span>&lt; 0.5 Poor</span>
+            </div>
+          </div>
+        </div>
+        <div class="legend-section">
+          <h5>Metric Definition:</h5>
+          <div class="metrics-info">
+            <div id="metricDefBalAcc" class="metric-desc">
+              <strong>Balanced Accuracy:</strong> Macro-average recall across all classes, providing equal weight to each class regardless of frequency
+            </div>
+            <div id="metricDefPrecision" class="metric-desc" style="display:none;">
+              <strong>Precision:</strong> Macro-average precision, measuring the proportion of correct predictions for each class
+            </div>
+            <div class="metric-desc">
+              <span class="best-indicator">★</span> = Best performer for this phenotype
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="results-table-container">
+      <div id="resultsTable"></div>
+    </div>
+  </div>
+
+  <!-- Initial Message -->
+  <div id="initialMessage" class="info-message">
+    <i class="fas fa-chart-line"></i>
+    <p>Select a ground truth dataset to load cached model accuracy metrics</p>
+  </div>
+</div>
+
+<style>
+/* Main container */
+.accuracy-section {
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  min-height: 400px;
+}
+
+.accuracy-header {
+  margin-bottom: 30px;
+}
+
+.accuracy-header h3 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.accuracy-header p {
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+}
+
+/* Controls Panel */
+.accuracy-controls-panel {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  flex-wrap: wrap;
+}
+
+.dataset-selector {
+  flex: 1;
+  min-width: 220px;
+}
+
+.dataset-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 14px;
+}
+
+.dataset-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dataset-select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+}
+
+.dataset-details {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c757d;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.cache-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.refresh-button:hover {
+  background: #16a34a;
+  box-shadow: 0 8px 14px rgba(34,197,94,0.2);
+}
+
+.refresh-button:disabled {
+  background: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.refresh-button.loading {
+  background: #1e40af;
+  box-shadow: 0 8px 14px rgba(30,64,175,0.2);
+}
+
+.refresh-button .fa-sync-alt {
+  transition: transform 0.4s ease;
+}
+
+.refresh-button.loading .fa-sync-alt {
+  animation: spin 1s linear infinite;
+}
+
+.cache-meta {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.4;
+  max-width: 260px;
+}
+
+.cache-meta strong {
+  color: #111827;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Results Container */
+.results-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Performance Legend */
+.performance-legend {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.performance-legend h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.legend-container {
+  display: flex;
+  gap: 40px;
+}
+
+.legend-section {
+  flex: 1;
+}
+
+.legend-section h5 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+}
+
+.legend-grid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.metrics-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-desc {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.metric-desc strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.best-indicator {
+  color: #fbbf24;
+  font-size: 16px;
+  vertical-align: middle;
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #495057;
+}
+
+.perf-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.perf-box.excellent { background: #22c55e; }
+.perf-box.good { background: #3b82f6; }
+.perf-box.moderate { background: #f59e0b; }
+.perf-box.poor { background: #ef4444; }
+
+/* Metric Toggle */
+.metric-toggle-container {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.metric-toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.metric-toggle-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.metric-toggle-btn {
+  padding: 8px 16px;
+  border: none;
+  background: white;
+  color: #6c757d;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-right: 1px solid #dee2e6;
+}
+
+.metric-toggle-btn:last-child { border-right: none; }
+
+.metric-toggle-btn:hover { background: #f8f9fa; }
+
+.metric-toggle-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+}
+
+/* Results Table */
+.results-table-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  position: relative;
+  max-width: 100%;
+  display: block;
+}
+
+.accuracy-results-table {
+  width: auto;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.accuracy-results-table th,
+.accuracy-results-table td {
+  padding: 4px 3px;
+  text-align: center;
+  border: 1px solid #e9ecef;
+  vertical-align: middle;
+  white-space: nowrap;
+  min-width: 60px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accuracy-results-table thead th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 9px;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 4px 2px;
+  line-height: 1.1;
+}
+
+.accuracy-results-table thead th:first-child,
+.accuracy-results-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: white;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.08);
+}
+
+.accuracy-results-table thead th:first-child {
+  background: #f8f9fa;
+  z-index: 11;
+}
+
+.accuracy-results-table tbody tr:hover { background: #f8f9fa; }
+
+.accuracy-results-table tbody tr:hover td:first-child { background: #f8f9fa; }
+
+.accuracy-results-table td.model-column {
+  text-align: left;
+  font-family: 'Monaco', 'Menlo', monospace;
+  white-space: nowrap;
+}
+
+.metric-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.metric-badge.excellent { background: rgba(34,197,94,0.15); color: #16a34a; }
+.metric-badge.good { background: rgba(59,130,246,0.15); color: #2563eb; }
+.metric-badge.moderate { background: rgba(245,158,11,0.15); color: #d97706; }
+.metric-badge.poor { background: rgba(239,68,68,0.15); color: #dc2626; }
+.metric-badge.na { background: #e9ecef; color: #6c757d; font-style: italic; }
+
+.metric-cell.best { position: relative; }
+.metric-cell.best .metric-badge { box-shadow: 0 0 0 2px #fbbf24; }
+.metric-cell .sample-size { display: block; font-size: 9px; color: #94a3b8; margin-top: 2px; }
+.metric-cell { position: relative; cursor: default; }
+.metric-cell:hover { background: #f0f4f8; }
+
+.model-column {
+  min-width: 120px !important;
+  max-width: 140px !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 5;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.best-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  font-size: 9px;
+  align-self: flex-start;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.best-indicator:hover { transform: translateY(-1px); }
+
+.best-indicator .best-count { font-weight: 700; color: #64748b; }
+.best-indicator .best-label { color: #94a3b8; font-weight: 500; }
+
+.best-indicator.top-performer {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  box-shadow: 0 1px 3px rgba(251,191,36,0.2);
+}
+
+.best-indicator.top-performer .best-count { color: #d97706; }
+
+.metric-tooltip,
+.best-tooltip {
+  display: none;
+  position: fixed;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 99999;
+  padding: 12px;
+  font-size: 12px;
+  pointer-events: none;
+  transform: translate3d(0,0,0);
+  will-change: left, top;
+}
+
+.metric-tooltip {
+  min-width: 280px;
+  max-width: 350px;
+}
+
+.best-tooltip {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.tooltip-header {
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+}
+
+.tooltip-stats { display: grid; gap: 4px; margin-bottom: 8px; }
+.tooltip-stats div { display: flex; justify-content: space-between; }
+.tooltip-matrix-title { font-weight: 600; margin: 8px 0 4px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+
+.confusion-matrix-wrapper {
+  position: relative;
+  padding-top: 20px;
+  padding-left: 35px;
+}
+
+.matrix-label-predicted {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.matrix-label-true {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.confusion-matrix {
+  width: auto;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 0 auto;
+}
+
+.confusion-matrix th,
+.confusion-matrix td {
+  padding: 6px 10px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  min-width: 40px;
+}
+
+.matrix-corner { border: none !important; background: transparent !important; }
+
+.matrix-header-col {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6 !important;
+}
+
+.matrix-header-row {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  text-align: right;
+  padding-right: 8px !important;
+  border-right: 2px solid #dee2e6 !important;
+}
+
+.matrix-cell { background: white; font-family: monospace; font-weight: 600; color: #495057; }
+
+.matrix-cell.matrix-diagonal { background: #e8f5e9; color: #2e7d32; font-weight: 700; }
+
+.best-tooltip-header {
+  font-weight: 600;
+  font-size: 13px;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.best-tooltip-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.best-tooltip-list li { margin: 4px 0; color: #495057; font-size: 12px; }
+
+.best-tooltip-empty { color: #6c757d; font-style: italic; font-size: 12px; }
+
+.info-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6c757d;
+  font-size: 14px;
+  background: #f9fafb;
+  border: 1px dashed #dbe2ea;
+  border-radius: 8px;
+  text-align: center;
+  gap: 12px;
+}
+
+.info-message i { font-size: 28px; color: #0ea5e9; }
+
+@media (max-width: 768px) {
+  .accuracy-controls-panel { flex-direction: column; align-items: stretch; }
+  .cache-controls { width: 100%; }
+  .legend-container { flex-direction: column; gap: 20px; }
+  .legend-grid { flex-direction: column; gap: 8px; }
+}
+
+@media (max-width: 600px) {
+  .metric-toggle-container { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .metric-toggle-group { width: 100%; }
+  .metric-toggle-btn { flex: 1; text-align: center; }
+  .cache-meta { max-width: none; }
+}
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const HIDDEN_PHENOTYPES = new Set(['aerophilicity', 'health_association', 'hemolysis']);
+
+  let currentMetrics = null;
+  let selectedMetric = 'balancedAcc';
+  let lastPayload = null;
+  let isLoading = false;
+
+  const datasetSelect = document.getElementById('groundTruthDataset');
+  const datasetDetails = document.getElementById('datasetDetails');
+  const cacheMetaEl = document.getElementById('cacheMeta');
+  const refreshBtn = document.getElementById('refreshSnapshot');
+  const resultsArea = document.getElementById('resultsArea');
+  const initialMessage = document.getElementById('initialMessage');
+
+  function init() {
+    loadDatasets();
+
+    const toggleBalAcc = document.getElementById('toggleBalAcc');
+    const togglePrecision = document.getElementById('togglePrecision');
+
+    if (toggleBalAcc) {
+      toggleBalAcc.addEventListener('click', () => switchMetric('balancedAcc'));
+    }
+
+    if (togglePrecision) {
+      togglePrecision.addEventListener('click', () => switchMetric('precision'));
+    }
+
+    refreshBtn.addEventListener('click', () => {
+      if (!datasetSelect.value || isLoading) return;
+      fetchCachedMetrics(true);
+    });
+  }
+
+  async function loadDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load datasets');
+      }
+
+      const select = datasetSelect;
+      select.innerHTML = '';
+
+      if (result.datasets.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No datasets available';
+        select.appendChild(opt);
+        cacheMetaEl.textContent = 'Import a dataset to generate metrics';
+        refreshBtn.disabled = true;
+        return;
+      }
+
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Select a dataset...';
+      select.appendChild(defaultOpt);
+
+      let defaultDataset = null;
+      result.datasets.forEach(dataset => {
+        const opt = document.createElement('option');
+        opt.value = dataset.dataset_name;
+        opt.textContent = dataset.dataset_name;
+        opt.dataset.template = dataset.template_name || '';
+        opt.dataset.count = dataset.species_count || 0;
+        select.appendChild(opt);
+
+        if (dataset.dataset_name === 'WA_Test_Dataset') {
+          defaultDataset = dataset.dataset_name;
+        }
+      });
+
+      select.addEventListener('change', handleDatasetChange);
+
+      if (defaultDataset) {
+        select.value = defaultDataset;
+        handleDatasetChange();
+      } else {
+        refreshBtn.disabled = true;
+        cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      }
+    } catch (error) {
+      console.error('Error loading datasets:', error);
+      datasetSelect.innerHTML = '';
+      const errorOpt = document.createElement('option');
+      errorOpt.value = '';
+      errorOpt.textContent = 'Error loading datasets - refresh';
+      datasetSelect.appendChild(errorOpt);
+      cacheMetaEl.textContent = 'Unable to reach dataset API';
+      refreshBtn.disabled = true;
+    }
+  }
+
+  function handleDatasetChange() {
+    const datasetName = datasetSelect.value;
+    if (!datasetName) {
+      datasetDetails.innerHTML = '';
+      cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      refreshBtn.disabled = true;
+      resultsArea.style.display = 'none';
+      initialMessage.style.display = 'block';
+      currentMetrics = null;
+      return;
+    }
+
+    refreshBtn.disabled = false;
+    cacheMetaEl.textContent = 'Fetching cached metrics...';
+    datasetDetails.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading snapshot...</span>';
+    fetchCachedMetrics(false);
+  }
+
+  async function fetchCachedMetrics(forceRefresh) {
+    if (!datasetSelect.value) return;
+    isLoading = true;
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('loading');
+    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+
+    try {
+      const datasetName = datasetSelect.value;
+      const refreshParam = forceRefresh ? '&refresh=1' : '';
+      const url = `/api/model_accuracy_cached?dataset_name=${encodeURIComponent(datasetName)}${refreshParam}`;
+      const response = await fetch(url);
+      const json = await response.json();
+
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to load cached metrics');
+      }
+
+      lastPayload = json;
+      currentMetrics = json.metrics || [];
+
+      updateDetails(json);
+      updateCacheMeta(json.cache_info || {});
+
+      if (currentMetrics.length > 0) {
+        displayResults(currentMetrics);
+        resultsArea.style.display = 'block';
+        initialMessage.style.display = 'none';
+      } else {
+        resultsArea.style.display = 'none';
+        initialMessage.style.display = 'block';
+        initialMessage.querySelector('p').textContent = 'No metrics available for this dataset yet';
+      }
+    } catch (error) {
+      console.error('Failed to fetch cached model accuracy:', error);
+      datasetDetails.innerHTML = '<span style="color:#dc2626;">Snapshot unavailable</span>';
+      cacheMetaEl.textContent = error.message || 'Error fetching metrics';
+      resultsArea.style.display = 'none';
+      initialMessage.style.display = 'block';
+      initialMessage.querySelector('p').textContent = 'Unable to load cached metrics';
+    } finally {
+      refreshBtn.disabled = !datasetSelect.value;
+      refreshBtn.classList.remove('loading');
+      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      isLoading = false;
+    }
+  }
+
+  function updateDetails(payload) {
+    const meta = payload.metadata || {};
+    const summary = payload.summary || {};
+    const totalSpecies = summary.ground_truth_species || 0;
+    const modelCount = summary.model_count || 0;
+    const predictionCount = summary.prediction_count || 0;
+    const phenotypes = summary.phenotype_count || 0;
+
+    const details = [];
+    details.push(`<strong>${modelCount} models</strong>`);
+    details.push(`${phenotypes} phenotypes`);
+    details.push(`${predictionCount.toLocaleString()} predictions`);
+
+    const importDate = formatTimestamp(meta.import_date);
+    const importLine = importDate ? `Imported ${importDate}` : 'Import timestamp unavailable';
+
+    datasetDetails.innerHTML = `
+      <span>${details.join(' · ')}</span>
+      <span>${totalSpecies.toLocaleString()} ground truth species</span>
+      <span>${importLine}</span>
+    `;
+  }
+
+  function updateCacheMeta(cacheInfo) {
+    if (!cacheInfo || (!cacheInfo.cached && cacheInfo.cached !== false)) {
+      cacheMetaEl.textContent = 'Snapshot status unknown';
+      return;
+    }
+
+    const computed = formatTimestamp(cacheInfo.computed_at);
+    const age = cacheInfo.age_seconds != null ? formatRelativeAge(cacheInfo.age_seconds) : null;
+    const status = cacheInfo.cached ? 'Using cached snapshot' : 'Snapshot refreshed';
+
+    let text = `<strong>${status}</strong>`;
+    if (computed) {
+      text += ` · computed ${computed}`;
+    }
+    if (age) {
+      text += ` · ${age} old`;
+    }
+    cacheMetaEl.innerHTML = text;
+  }
+
+  function switchMetric(metric) {
+    if (metric === selectedMetric) return;
+    selectedMetric = metric;
+
+    document.getElementById('toggleBalAcc').classList.toggle('active', metric === 'balancedAcc');
+    document.getElementById('togglePrecision').classList.toggle('active', metric === 'precision');
+
+    const metricName = metric === 'balancedAcc' ? 'Balanced Accuracy' : 'Precision';
+    document.getElementById('legendMetricName').textContent = metricName;
+
+    document.getElementById('metricDefBalAcc').style.display = metric === 'balancedAcc' ? 'block' : 'none';
+    document.getElementById('metricDefPrecision').style.display = metric === 'precision' ? 'block' : 'none';
+
+    if (currentMetrics) {
+      displayResults(currentMetrics);
+      if (typeof window.renderRangePlot === 'function') {
+        const phenos = [...new Set(currentMetrics.map(m => m.phenotype))].filter(p => !HIDDEN_PHENOTYPES.has(p));
+        window.renderRangePlot(currentMetrics, phenos);
+      }
+    }
+  }
+
+  function isFiniteNum(v) { return Number.isFinite(v); }
+  function fmt(v) { return isFiniteNum(v) ? Number(v).toFixed(3) : 'N/A'; }
+
+  function displayResults(metrics) {
+    const models = [...new Set(metrics.map(m => m.model))];
+    const phenotypes = [...new Set(metrics.map(m => m.phenotype))].filter(p => !HIDDEN_PHENOTYPES.has(p));
+    const metricField = selectedMetric;
+
+    const phenotypeMaxScore = {};
+    phenotypes.forEach(pheno => {
+      const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
+      const scores = phenoMetrics.map(m => m[metricField]).filter(isFiniteNum);
+      const maxScore = scores.length ? Math.max(...scores) : NaN;
+      phenotypeMaxScore[pheno] = maxScore;
+    });
+
+    phenotypes.sort((a, b) => {
+      const aVal = isFiniteNum(phenotypeMaxScore[a]) ? phenotypeMaxScore[a] : -1;
+      const bVal = isFiniteNum(phenotypeMaxScore[b]) ? phenotypeMaxScore[b] : -1;
+      return bVal - aVal;
+    });
+
+    const bestPerformers = {};
+    phenotypes.forEach(pheno => {
+      const phenoMetrics = metrics.filter(m => m.phenotype === pheno);
+      const validMetrics = phenoMetrics.filter(m => isFiniteNum(m[metricField]));
+      if (validMetrics.length > 0) {
+        const maxScore = Math.max(...validMetrics.map(m => m[metricField]));
+        const bestModel = validMetrics.find(m => m[metricField] === maxScore);
+        if (bestModel) {
+          bestPerformers[pheno] = bestModel.model;
+        }
+      }
+    });
+
+    const modelBestCounts = {};
+    const modelBestPhenotypes = {};
+    models.forEach(model => {
+      modelBestCounts[model] = 0;
+      modelBestPhenotypes[model] = [];
+    });
+    Object.entries(bestPerformers).forEach(([pheno, model]) => {
+      if (model) {
+        modelBestCounts[model]++;
+        modelBestPhenotypes[model].push(pheno);
+      }
+    });
+
+    models.sort((a, b) => {
+      const countDiff = (modelBestCounts[b] || 0) - (modelBestCounts[a] || 0);
+      if (countDiff !== 0) return countDiff;
+      return a.localeCompare(b);
+    });
+
+    let html = '<table class="accuracy-results-table">';
+    html += '<thead><tr><th class="model-column">Model</th>';
+
+    phenotypes.forEach(pheno => {
+      const fullName = pheno.replace(/_/g, ' ');
+      const shortName = fullName
+        .replace('extreme environment tolerance', 'extreme env.')
+        .replace('biofilm formation', 'biofilm')
+        .replace('animal pathogenicity', 'animal path.')
+        .replace('host association', 'host assoc.')
+        .replace('plant pathogenicity', 'plant path.')
+        .replace('spore formation', 'spore form.')
+        .replace('biosafety level', 'biosafety')
+        .replace('gram staining', 'gram stain');
+      html += `<th title="${fullName}" style="width:70px;max-width:70px;">${shortName}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    models.forEach(model => {
+      const shortName = model.includes('/') ? model.split('/').pop() : model;
+      const bestCount = modelBestCounts[model] || 0;
+      const maxCount = Math.max(...Object.values(modelBestCounts));
+      const isTopPerformer = bestCount === maxCount && bestCount > 0;
+      const bestPhenotypes = modelBestPhenotypes[model] || [];
+      const bestTooltipData = JSON.stringify({
+        model,
+        phenotypes: bestPhenotypes,
+        count: bestCount
+      }).replace(/"/g, '&quot;');
+
+      html += `<tr><td class="model-column">
+        <div class="model-info">
+          <span class="model-name" title="${model}">${shortName}</span>
+          <span class="best-indicator ${isTopPerformer ? 'top-performer' : ''}" data-best-tooltip="${bestTooltipData}">
+            <span class="best-count">${bestCount}</span>
+            <span class="best-label">best</span>
+          </span>
+        </div>
+      </td>`;
+
+      phenotypes.forEach(pheno => {
+        const metric = metrics.find(m => m.model === model && m.phenotype === pheno);
+        const isBest = bestPerformers[pheno] === model;
+
+        if (metric && isFiniteNum(metric[metricField])) {
+          const value = metric[metricField];
+          const perfClass = getPerformanceClass(value);
+          const bestClass = isBest ? ' best' : '';
+          const cellClass = isBest ? ' best-cell' : '';
+          const tooltipData = JSON.stringify({
+            model,
+            phenotype: pheno,
+            metric
+          }).replace(/"/g, '&quot;');
+
+          html += `<td class="metric-cell ${cellClass}" data-tooltip-data="${tooltipData}">
+            <span class="metric-badge ${perfClass}${bestClass}">${fmt(value)}</span>
+            <span class="sample-size">n=${metric.sampleSize}</span>
+          </td>`;
+        } else {
+          html += '<td><span class="metric-badge na">N/A</span></td>';
+        }
+      });
+
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('resultsTable').innerHTML = html;
+
+    let metricTooltip = document.getElementById('metricTooltip');
+    let bestTooltip = document.getElementById('bestTooltip');
+
+    if (!metricTooltip) {
+      metricTooltip = document.createElement('div');
+      metricTooltip.id = 'metricTooltip';
+      metricTooltip.className = 'metric-tooltip';
+      document.body.appendChild(metricTooltip);
+    }
+
+    if (!bestTooltip) {
+      bestTooltip = document.createElement('div');
+      bestTooltip.id = 'bestTooltip';
+      bestTooltip.className = 'best-tooltip';
+      document.body.appendChild(bestTooltip);
+    }
+
+    setTimeout(setupTooltips, 100);
+
+    if (typeof window.renderRangePlot === 'function') {
+      const phenos = phenotypes.slice();
+      window.renderRangePlot(metrics, phenos);
+    }
+  }
+
+  function getPerformanceClass(value) {
+    if (!isFiniteNum(value)) return 'na';
+    if (value >= 0.9) return 'excellent';
+    if (value >= 0.7) return 'good';
+    if (value >= 0.5) return 'moderate';
+    return 'poor';
+  }
+
+  function createTooltipContent(metric, phenotype) {
+    const phenoName = phenotype.replace(/_/g, ' ');
+    let html = `<div class="tooltip-header">${phenoName}</div>`;
+    html += `<div class="tooltip-stats">`;
+    html += `<div><strong>Sample Size:</strong> ${metric.sampleSize}</div>`;
+    html += `<div><strong>Balanced Acc:</strong> ${fmt(metric.balancedAcc)}</div>`;
+    html += `<div><strong>Precision:</strong> ${fmt(metric.precision)}</div>`;
+    html += `<div><strong>Recall:</strong> ${fmt(metric.recall)}</div>`;
+    html += `<div><strong>F1:</strong> ${fmt(metric.f1)}</div>`;
+    html += `</div>`;
+
+    if (metric.confusionMatrix && metric.labels) {
+      html += `<div class="tooltip-matrix-title">Confusion Matrix:</div>`;
+      html += `<div class="confusion-matrix-wrapper">`;
+      html += `<div class="matrix-label-predicted">Predicted</div>`;
+      html += `<div class="matrix-label-true">True</div>`;
+      html += `<table class="confusion-matrix">`;
+      html += `<thead><tr><th class="matrix-corner"></th>`;
+      metric.labels.forEach(label => {
+        html += `<th class="matrix-header-col">${label}</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+      metric.labels.forEach((label, i) => {
+        html += `<tr><th class="matrix-header-row">${label}</th>`;
+        metric.confusionMatrix[i].forEach((count, j) => {
+          const isCorrect = i === j;
+          html += `<td class="matrix-cell ${isCorrect ? 'matrix-diagonal' : ''}">${count}</td>`;
+        });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+      html += `</div>`;
+    }
+
+    return html;
+  }
+
+  function positionTooltipAtMouse(event, tooltip) {
+    if (!tooltip || tooltip.style.display === 'none') return;
+
+    const pad = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rect = tooltip.getBoundingClientRect();
+    const tooltipWidth = rect.width;
+    const tooltipHeight = rect.height;
+
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+
+    if (x + tooltipWidth > vw - 4) {
+      x = event.clientX - tooltipWidth - pad;
+    }
+
+    if (y + tooltipHeight > vh - 4) {
+      y = event.clientY - tooltipHeight - pad;
+    }
+
+    x = Math.max(4, Math.min(x, vw - tooltipWidth - 4));
+    y = Math.max(4, Math.min(y, vh - tooltipHeight - 4));
+
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
+  }
+
+  function setupTooltips() {
+    const metricTooltip = document.getElementById('metricTooltip');
+    const bestTooltip = document.getElementById('bestTooltip');
+    if (!metricTooltip || !bestTooltip) return;
+
+    let hideTimeout;
+    let currentElement = null;
+
+    const cells = document.querySelectorAll('.metric-cell');
+    cells.forEach(cell => {
+      const tooltipDataStr = cell.getAttribute('data-tooltip-data');
+      if (!tooltipDataStr) return;
+
+      cell.addEventListener('mouseenter', (e) => {
+        clearTimeout(hideTimeout);
+        currentElement = cell;
+        bestTooltip.style.display = 'none';
+        try {
+          const data = JSON.parse(tooltipDataStr.replace(/&quot;/g, '"'));
+          metricTooltip.innerHTML = createTooltipContent(data.metric, data.phenotype);
+          metricTooltip.style.display = 'block';
+          positionTooltipAtMouse(e, metricTooltip);
+        } catch (error) {
+          console.error('Error parsing tooltip data:', error);
+        }
+      });
+
+      cell.addEventListener('mousemove', (e) => {
+        if (currentElement === cell && metricTooltip.style.display === 'block') {
+          requestAnimationFrame(() => positionTooltipAtMouse(e, metricTooltip));
+        }
+      });
+
+      cell.addEventListener('mouseleave', () => {
+        currentElement = null;
+        hideTimeout = setTimeout(() => { metricTooltip.style.display = 'none'; }, 100);
+      });
+    });
+
+    const bestIndicators = document.querySelectorAll('.best-indicator[data-best-tooltip]');
+    bestIndicators.forEach(indicator => {
+      const tooltipDataStr = indicator.getAttribute('data-best-tooltip');
+      if (!tooltipDataStr) return;
+
+      indicator.addEventListener('mouseenter', (e) => {
+        clearTimeout(hideTimeout);
+        currentElement = indicator;
+        metricTooltip.style.display = 'none';
+        try {
+          const data = JSON.parse(tooltipDataStr.replace(/&quot;/g, '"'));
+          let tooltipContent = '<div class="best-tooltip-header">Best Performance</div>';
+          if (data.count > 0 && data.phenotypes.length > 0) {
+            tooltipContent += '<ul class="best-tooltip-list">';
+            data.phenotypes.forEach(pheno => {
+              tooltipContent += `<li>${pheno.replace(/_/g, ' ')}</li>`;
+            });
+            tooltipContent += '</ul>';
+          } else {
+            tooltipContent += '<div class="best-tooltip-empty">Not a best performer for any phenotype</div>';
+          }
+          bestTooltip.innerHTML = tooltipContent;
+          bestTooltip.style.display = 'block';
+          positionTooltipAtMouse(e, bestTooltip);
+        } catch (error) {
+          console.error('Error parsing best tooltip data:', error);
+        }
+      });
+
+      indicator.addEventListener('mousemove', (e) => {
+        if (currentElement === indicator && bestTooltip.style.display === 'block') {
+          requestAnimationFrame(() => positionTooltipAtMouse(e, bestTooltip));
+        }
+      });
+
+      indicator.addEventListener('mouseleave', () => {
+        currentElement = null;
+        hideTimeout = setTimeout(() => { bestTooltip.style.display = 'none'; }, 100);
+      });
+    });
+
+    window.addEventListener('scroll', () => {
+      metricTooltip.style.display = 'none';
+      bestTooltip.style.display = 'none';
+    }, { passive: true });
+
+    metricTooltip.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); });
+    metricTooltip.addEventListener('mouseleave', () => { metricTooltip.style.display = 'none'; });
+    bestTooltip.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); });
+    bestTooltip.addEventListener('mouseleave', () => { bestTooltip.style.display = 'none'; });
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return '';
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toLocaleString();
+    }
+    const str = String(value);
+    try {
+      const normalized = str.includes('T') ? str : str.replace(' ', 'T');
+      const withZone = /Z$/.test(normalized) ? normalized : `${normalized}Z`;
+      const date = new Date(withZone);
+      if (isNaN(date.getTime())) throw new Error('Invalid date');
+      return date.toLocaleString();
+    } catch (_) {
+      return str;
+    }
+  }
+
+  function formatRelativeAge(seconds) {
+    if (seconds == null) return '';
+    if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+    if (seconds < 3600) return `${Math.round(seconds/60)}m`;
+    if (seconds < 86400) return `${Math.round(seconds/3600)}h`;
+    return `${Math.round(seconds/86400)}d`;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

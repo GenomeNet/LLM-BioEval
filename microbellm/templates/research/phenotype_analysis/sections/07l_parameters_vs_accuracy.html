@@ -224,28 +224,32 @@
     </div>
 </div>
 
+<script src="/static/js/phenotype_metrics.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let predictionData = null;
-    let groundTruthData = null;
-    let modelMetadata = null;
+    let predictionData = [];
+    let groundTruthData = {};
+    let modelMetadata = {};
     let paramsChart = null;
+    let fieldDefinitions = {};
+    let metricsCache = [];
+    let metricsIndex = new Map();
+    let availablePhenotypes = [];
 
-    // Load model metadata
+    const EXCLUDED_PHENOTYPES = new Set(['aerophilicity', 'health_association']);
+    const AVERAGE_PHENOTYPES = new Set(['gram_staining', 'motility', 'extreme_environment_tolerance', 'biofilm_formation', 'animal_pathogenicity', 'biosafety_level', 'host_association', 'plant_pathogenicity', 'spore_formation', 'cell_shape']);
+    const SAMPLE_SIZE_THRESHOLD = 100;
+
     loadModelMetadata();
-
-    // Initialize dataset selector
     initializeDatasetSelector();
 
     async function loadModelMetadata() {
         try {
             const response = await fetch('/static/data/year_size.tsv');
             const text = await response.text();
-
-            // Parse TSV
             const lines = text.trim().split('\n');
             const headers = lines[0].split('\t');
 
@@ -257,20 +261,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     row[header] = values[index] || '';
                 });
 
-                // Store by model name (normalized)
                 const modelName = row['Model'];
                 if (modelName) {
-                    // Store multiple variations for better matching
-                    modelMetadata[modelName.toLowerCase().replace(/\s+/g, '')] = row;
-                    modelMetadata[modelName.toLowerCase()] = row;
-                    modelMetadata[modelName] = row;
-
-                    // Also try without hyphens
-                    modelMetadata[modelName.toLowerCase().replace(/[-_]/g, '')] = row;
+                    const variants = [
+                        modelName,
+                        modelName.toLowerCase(),
+                        modelName.toLowerCase().replace(/\s+/g, ''),
+                        modelName.toLowerCase().replace(/[-_\s]+/g, ''),
+                        modelName.replace(/-/g, ''),
+                        modelName.replace(/[_\-\s]/g, '')
+                    ];
+                    variants.forEach(key => {
+                        modelMetadata[key] = row;
+                    });
                 }
             }
-
-            console.log('Loaded metadata for', Object.keys(modelMetadata).length / 4, 'models');
         } catch (error) {
             console.error('Error loading model metadata:', error);
             modelMetadata = {};
@@ -279,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function initializeDatasetSelector() {
         try {
-            // Load ground truth datasets
             const response = await fetch('/api/ground_truth/datasets');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -287,15 +291,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             const select = document.getElementById('paramsDatasetSelect');
-
             if (!result.success || !result.datasets || result.datasets.length === 0) {
                 select.innerHTML = '<option value="">No datasets available</option>';
                 return;
             }
 
             select.innerHTML = '<option value="">Select a dataset...</option>';
-
             let waTestDataset = null;
+
             result.datasets.forEach(dataset => {
                 const option = document.createElement('option');
                 option.value = dataset.dataset_name;
@@ -305,28 +308,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     count: dataset.species_count
                 };
                 select.appendChild(option);
-
                 if (dataset.dataset_name === 'WA_Test_Dataset') {
                     waTestDataset = dataset;
                 }
             });
 
-            // Auto-select WA_Test_Dataset if available
-            if (waTestDataset) {
-                select.value = 'WA_Test_Dataset';
-                await loadPerformanceData('WA_Test_Dataset');
-            }
-
-            // Add event listeners
-            select.addEventListener('change', async (e) => {
-                if (e.target.value) {
-                    await loadPerformanceData(e.target.value);
+            select.addEventListener('change', async (event) => {
+                if (event.target.value) {
+                    await loadPerformanceData(event.target.value);
                 }
             });
 
             document.getElementById('paramsMetricSelect').addEventListener('change', updateChart);
             document.getElementById('paramsPhenotypeSelect').addEventListener('change', updateChart);
 
+            if (waTestDataset) {
+                select.value = 'WA_Test_Dataset';
+                await loadPerformanceData('WA_Test_Dataset');
+            }
         } catch (error) {
             console.error('Error loading datasets:', error);
             const select = document.getElementById('paramsDatasetSelect');
@@ -339,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const status = document.getElementById('paramsLoadingStatus');
         if (overlay) {
             overlay.style.display = 'flex';
-            if (status && message) {
+            if (status) {
                 status.textContent = message;
             }
         }
@@ -355,108 +354,127 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadPerformanceData(datasetName) {
         try {
             showLoading('Fetching prediction data...');
+            const select = document.getElementById('paramsDatasetSelect');
+            const option = select.selectedOptions[0];
+            const templateName = option?.dataset.template || '';
+            const details = document.getElementById('datasetDetails');
 
-            // Determine species file based on dataset name
             let speciesFile = 'wa_with_gcount.txt';
-            if (datasetName.includes('Artificial') || datasetName.includes('artificial')) {
+            if (datasetName.toLowerCase().includes('artificial')) {
                 speciesFile = 'artificial.txt';
             }
 
-            // Load prediction data
             const predResponse = await fetch(`/api/phenotype_analysis_filtered?species_file=${encodeURIComponent(speciesFile)}`);
             const predResult = await predResponse.json();
 
             if (!predResult.data || predResult.data.length === 0) {
-                console.error('No prediction data available');
-                hideLoading();
-                return;
+                throw new Error('No prediction data available');
             }
             predictionData = predResult.data;
 
-            // Update loading message
             showLoading('Loading ground truth data...');
-
-            // Load ground truth data
             const gtResponse = await fetch(`/api/ground_truth/data?dataset=${datasetName}&per_page=20000`);
             const gtResult = await gtResponse.json();
-
             if (!gtResult.success || !gtResult.data) {
-                console.error('Failed to load ground truth data');
-                hideLoading();
-                return;
+                throw new Error('Failed to load ground truth data');
             }
 
-            // Create ground truth map
-            showLoading('Processing data...');
             groundTruthData = {};
             gtResult.data.forEach(item => {
-                groundTruthData[item.binomial_name.toLowerCase()] = item;
+                if (item.binomial_name) {
+                    groundTruthData[item.binomial_name.toLowerCase()] = item;
+                }
             });
 
-            updateChart();
+            fieldDefinitions = {};
+            if (templateName) {
+                showLoading('Loading phenotype definitions...');
+                const templateResp = await fetch(`/api/template_field_definitions?template=${templateName}`);
+                const templateResult = await templateResp.json();
+                if (templateResult.success && templateResult.field_definitions) {
+                    fieldDefinitions = templateResult.field_definitions;
+                }
+            }
 
+            availablePhenotypes = Object.keys(fieldDefinitions || {}).filter(ph => !EXCLUDED_PHENOTYPES.has(ph));
+            if (!availablePhenotypes.length && predictionData.length) {
+                availablePhenotypes = Object.keys(predictionData[0] || {})
+                    .filter(key => !['model', 'binomial_name'].includes(key))
+                    .filter(ph => !EXCLUDED_PHENOTYPES.has(ph));
+            }
+
+            metricsCache = window.PhenotypeMetrics.calculateMetrics(predictionData, groundTruthData, {
+                phenotypes: availablePhenotypes
+            });
+            console.log('Metrics cache computed:', metricsCache.length, 'phenotypes:', availablePhenotypes.length);
+            metricsIndex = new Map();
+            metricsCache.forEach(metric => {
+                metricsIndex.set(`${metric.model}||${metric.phenotype}`, metric);
+            });
+            console.log('Metrics cache computed:', metricsCache.length, 'phenotypes:', availablePhenotypes.length);
+
+            const uniqueModels = new Set(predictionData.map(p => p.model));
+            const uniqueSpecies = new Set(predictionData.map(p => p.binomial_name));
+            if (details) {
+                details.innerHTML = `<span>${uniqueSpecies.size} species • ${uniqueModels.size} models • ${predictionData.length.toLocaleString()} predictions</span>`;
+            }
+
+            const infoSection = document.getElementById('initialMessage');
+            if (infoSection) {
+                infoSection.style.display = 'none';
+            }
+            const resultsSection = document.getElementById('resultsArea');
+            if (resultsSection) {
+                resultsSection.style.display = 'block';
+            }
+
+            updateChart();
         } catch (error) {
             console.error('Error loading performance data:', error);
+            alert('Error loading performance data: ' + error.message);
             hideLoading();
         }
     }
 
     function findModelMetadata(modelName) {
         if (!modelMetadata || !modelName) return null;
-
-        // Extract model name from path if it contains "/"
         let cleanModelName = modelName;
         if (modelName.includes('/')) {
             const parts = modelName.split('/');
             cleanModelName = parts[parts.length - 1];
         }
 
-        // Try exact match
-        if (modelMetadata[cleanModelName]) return modelMetadata[cleanModelName];
-
-        // Try normalized versions
-        const normalized = cleanModelName.toLowerCase().replace(/[-_\s]+/g, '');
-
-        // Try various matches
-        const possibleKeys = [
+        const candidates = [
             modelName,
             cleanModelName,
             modelName.toLowerCase(),
             cleanModelName.toLowerCase(),
-            normalized,
-            modelName.replace(/\//g, '_'),
-            cleanModelName.replace(/-/g, ''),
-            cleanModelName.replace(/_/g, '-')
+            modelName.toLowerCase().replace(/[-_\s]+/g, ''),
+            cleanModelName.toLowerCase().replace(/[-_\s]+/g, '')
         ];
 
-        for (const key of possibleKeys) {
+        for (const key of candidates) {
             if (modelMetadata[key]) {
                 return modelMetadata[key];
             }
         }
 
-        // Try partial matches
-        const modelKey = Object.keys(modelMetadata).find(key => {
-            const keyNorm = key.toLowerCase().replace(/[-_\s]+/g, '');
-            return keyNorm === normalized ||
-                   keyNorm.includes(normalized) ||
-                   normalized.includes(keyNorm) ||
-                   key.toLowerCase().includes(cleanModelName.toLowerCase());
+        const fallback = Object.keys(modelMetadata).find(key => {
+            const normalizedKey = key.toLowerCase().replace(/[-_\s]+/g, '');
+            const normalizedTarget = cleanModelName.toLowerCase().replace(/[-_\s]+/g, '');
+            return normalizedKey === normalizedTarget ||
+                   normalizedKey.includes(normalizedTarget) ||
+                   normalizedTarget.includes(normalizedKey);
         });
 
-        return modelKey ? modelMetadata[modelKey] : null;
+        return fallback ? modelMetadata[fallback] : null;
     }
 
     function parseParameters(paramStr) {
         if (!paramStr || paramStr === '' || paramStr === 'Unknown') return null;
-
-        // Remove commas and convert to number
         const cleanStr = paramStr.replace(/,/g, '');
         const num = parseFloat(cleanStr);
-
-        if (isNaN(num) || num <= 0) return null;
-
-        return num;
+        return Number.isFinite(num) && num > 0 ? num : null;
     }
 
     function formatParameters(num) {
@@ -467,248 +485,92 @@ document.addEventListener('DOMContentLoaded', function() {
         return num.toString();
     }
 
-    function calculateMetricsForModel(modelPredictions, phenotype) {
-        if (phenotype === 'average') {
-            // Calculate average across all phenotypes (excluding aerophilicity and health_association)
-            const phenotypes = [
-                'gram_staining', 'motility', 'extreme_environment_tolerance',
-                'biofilm_formation', 'animal_pathogenicity', 'biosafety_level',
-                'host_association', 'plant_pathogenicity',
-                'spore_formation', 'hemolysis', 'cell_shape'
-            ];
-
-            const metrics = { balanced_accuracy: [], precision: [], recall: [], f1: [] };
-
-            phenotypes.forEach(ph => {
-                const result = calculateSinglePhenotypeMetrics(modelPredictions, ph);
-                if (result && result.sampleSize >= 100) {
-                    metrics.balanced_accuracy.push(result.balanced_accuracy);
-                    metrics.precision.push(result.precision);
-                    metrics.recall.push(result.recall);
-                    metrics.f1.push(result.f1);
-                }
-            });
-
-            if (metrics.balanced_accuracy.length === 0) return null;
-
-            return {
-                balanced_accuracy: average(metrics.balanced_accuracy),
-                precision: average(metrics.precision),
-                recall: average(metrics.recall),
-                f1: average(metrics.f1),
-                phenotype_count: metrics.balanced_accuracy.length
-            };
-        } else {
-            // Calculate for specific phenotype
-            const result = calculateSinglePhenotypeMetrics(modelPredictions, phenotype);
-            if (result) {
-                result.phenotype_count = 1;
-            }
-            return result;
-        }
-    }
-
-    function calculateSinglePhenotypeMetrics(predictions, phenotype) {
-        // Check if this is a categorical phenotype
-        const categoricalPhenotypes = ['cell_shape'];
-        const isCategorical = categoricalPhenotypes.includes(phenotype);
-
-        if (isCategorical) {
-            // For categorical phenotypes, calculate accuracy directly
-            let correct = 0;
-            let total = 0;
-
-            predictions.forEach(pred => {
-                const predValue = pred[phenotype];
-                const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
-
-                if (predValue && groundTruth &&
-                    predValue !== 'N/A' && groundTruth !== 'N/A' &&
-                    predValue !== 'Unknown' && groundTruth !== 'Unknown') {
-
-                    total++;
-                    // Compare as lowercase strings
-                    if (String(predValue).toLowerCase().trim() === String(groundTruth).toLowerCase().trim()) {
-                        correct++;
-                    }
-                }
-            });
-
-            if (total === 0) return null;
-
-            const accuracy = correct / total;
-
-            // For categorical, return accuracy as all metrics
-            return {
-                balanced_accuracy: accuracy,
-                precision: accuracy,
-                recall: accuracy,
-                f1: accuracy,
-                sampleSize: total
-            };
-        } else {
-            // For boolean phenotypes, use the existing logic
-            let tp = 0, fp = 0, tn = 0, fn = 0;
-
-            predictions.forEach(pred => {
-                const predValue = pred[phenotype];
-                const groundTruth = getGroundTruth(pred.binomial_name, phenotype);
-
-                if (predValue && groundTruth && predValue !== 'N/A' && groundTruth !== 'N/A') {
-                    const predBool = normalizeBooleanValue(predValue);
-                    const truthBool = normalizeBooleanValue(groundTruth);
-
-                    if (predBool !== null && truthBool !== null) {
-                        if (predBool === true && truthBool === true) tp++;
-                        else if (predBool === true && truthBool === false) fp++;
-                        else if (predBool === false && truthBool === false) tn++;
-                        else if (predBool === false && truthBool === true) fn++;
-                    }
-                }
-            });
-
-            const sampleSize = tp + fp + tn + fn;
-            if (sampleSize === 0) return null;
-
-            const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
-            const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
-            const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
-            const balanced_accuracy = (recall + specificity) / 2;
-            const f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
-
-            return { balanced_accuracy, precision, recall, f1, sampleSize };
-        }
-    }
-
-    function normalizeBooleanValue(value) {
-        if (typeof value === 'boolean') return value;
-        if (typeof value === 'string') {
-            const lower = value.toLowerCase();
-            if (lower === 'true' || lower === 't' || lower === '1') return true;
-            if (lower === 'false' || lower === 'f' || lower === '0') return false;
-        }
-        return null;
-    }
-
-    function getGroundTruth(binomialName, phenotype) {
-        const gt = groundTruthData[binomialName.toLowerCase()];
-        return gt ? gt[phenotype] : null;
-    }
-
-    function average(arr) {
-        return arr.reduce((a, b) => a + b, 0) / arr.length;
-    }
-
     function updateChart() {
-        if (!predictionData || !groundTruthData) {
-            console.log('Missing data:', { predictionData: !!predictionData, groundTruthData: !!groundTruthData });
+        if (!predictionData.length || !metricsCache.length) {
             return;
         }
 
         showLoading('Calculating metrics...');
 
-        const metric = document.getElementById('paramsMetricSelect').value;
-        const phenotype = document.getElementById('paramsPhenotypeSelect').value;
+        const metricSelection = document.getElementById('paramsMetricSelect').value;
+        const phenotypeSelection = document.getElementById('paramsPhenotypeSelect').value;
 
-        console.log('Updating chart for metric:', metric, 'phenotype:', phenotype);
+        const metricKeyMap = {
+            balanced_accuracy: 'balancedAcc',
+            precision: 'precision',
+            recall: 'recall',
+            f1: 'f1'
+        };
+        const metricKey = metricKeyMap[metricSelection] || 'balancedAcc';
 
-        // Group predictions by model
-        const modelGroups = {};
+        const predictionsByModel = new Map();
         predictionData.forEach(pred => {
-            if (!modelGroups[pred.model]) {
-                modelGroups[pred.model] = [];
+            if (!pred.model) return;
+            if (!predictionsByModel.has(pred.model)) {
+                predictionsByModel.set(pred.model, []);
             }
-            modelGroups[pred.model].push(pred);
+            predictionsByModel.get(pred.model).push(pred);
         });
 
-        console.log('Found', Object.keys(modelGroups).length, 'models in predictions');
-
-        // Prepare chart data
         const chartData = [];
         let modelsWithParams = 0;
-        let totalModels = Object.keys(modelGroups).length;
-        let modelsWithoutParams = [];
+        const totalModels = predictionsByModel.size;
 
-        Object.keys(modelGroups).forEach(model => {
+        predictionsByModel.forEach((rows, model) => {
             const meta = findModelMetadata(model);
-            if (meta && meta['Parameters']) {
-                const parameters = parseParameters(meta['Parameters']);
-
-                if (parameters) {
-                    const metrics = calculateMetricsForModel(modelGroups[model], phenotype);
-
-                    if (metrics && metrics[metric] !== undefined && !isNaN(metrics[metric])) {
-                        // Validate that metric value is between 0 and 1
-                        const metricValue = metrics[metric];
-                        if (metricValue >= 0 && metricValue <= 1) {
-                            modelsWithParams++;
-                            chartData.push({
-                                x: metricValue,  // Accuracy on x-axis
-                                y: parameters,   // Parameters on y-axis (will use log scale)
-                                model: model,
-                                organization: meta['Organization'] || 'Unknown',
-                                parameters: parameters,
-                                parameterStr: formatParameters(parameters),
-                                phenotype_count: metrics.phenotype_count || 0,
-                                publicationDate: meta['Publication date'] || 'Unknown'
-                            });
-                            console.log('Added data point for', model, '- params:', formatParameters(parameters), 'accuracy:', metricValue.toFixed(3));
-                        } else {
-                            console.warn('Invalid metric value for', model, ':', metricValue, '(expected 0-1)');
-                        }
-                    } else {
-                        console.log('No valid metrics for model:', model, 'metrics:', metrics, 'phenotype:', phenotype);
-                    }
-                } else {
-                    console.log('Invalid parameters for model:', model, 'value:', meta['Parameters']);
-                }
-            } else {
-                modelsWithoutParams.push(model);
-                if (modelsWithoutParams.length <= 5) {
-                    console.log('No parameter data found for model:', model);
-                }
+            const parameters = meta ? parseParameters(meta['Parameters']) : null;
+            if (!parameters) {
+                return;
             }
+
+            let metricValue = null;
+            let phenotypeCount = 0;
+            let aggregateSampleSize = 0;
+
+            if (phenotypeSelection === 'average') {
+                const validMetrics = metricsCache
+                    .filter(metric => metric.model === model && AVERAGE_PHENOTYPES.has(metric.phenotype) && Number.isFinite(metric[metricKey]) && metric.sampleSize >= SAMPLE_SIZE_THRESHOLD);
+
+                if (validMetrics.length === 0) {
+                    return;
+                }
+
+                metricValue = validMetrics.reduce((sum, metric) => sum + metric[metricKey], 0) / validMetrics.length;
+                phenotypeCount = validMetrics.length;
+                aggregateSampleSize = validMetrics.reduce((sum, metric) => sum + metric.sampleSize, 0);
+            } else {
+                const metric = metricsIndex.get(`${model}||${phenotypeSelection}`);
+                if (!metric || !Number.isFinite(metric[metricKey]) || metric.sampleSize < SAMPLE_SIZE_THRESHOLD) {
+                    return;
+                }
+                metricValue = metric[metricKey];
+                phenotypeCount = 1;
+                aggregateSampleSize = metric.sampleSize;
+            }
+
+            if (metricValue === null || metricValue === undefined) {
+                return;
+            }
+
+            modelsWithParams++;
+            chartData.push({
+                x: metricValue,
+                y: parameters,
+                model,
+                organization: meta['Organization'] || 'Unknown',
+                parameters,
+                parameterStr: formatParameters(parameters),
+                phenotype_count: phenotypeCount,
+                sampleSize: aggregateSampleSize,
+                publicationDate: meta['Publication date'] || 'Unknown'
+            });
         });
 
-        console.log('Models without parameter data:', modelsWithoutParams.length);
-        console.log('Chart data points:', chartData.length);
-
-        showLoading('Generating visualization...');
-
-        // Use setTimeout to allow the UI to update
         setTimeout(() => {
-            // Update statistics
-            updateStatistics(chartData, metric, modelsWithParams, totalModels);
-
-            // Create chart without frontier line
-            createScatterChart(chartData, metric, null);
-
-            // Hide loading indicator
+            updateStatistics(chartData, metricSelection, modelsWithParams, totalModels);
+            createScatterChart(chartData, metricSelection);
             hideLoading();
         }, 100);
-    }
-
-    function calculateEfficiencyFrontier(chartData) {
-        if (chartData.length === 0) return [];
-
-        // Sort by parameters (ascending)
-        const sortedData = [...chartData].sort((a, b) => a.y - b.y);
-
-        const frontier = [];
-        let currentBestAccuracy = 0;
-
-        sortedData.forEach(point => {
-            if (point.x > currentBestAccuracy) {
-                frontier.push({
-                    x: point.x,
-                    y: point.y,
-                    model: point.model
-                });
-                currentBestAccuracy = point.x;
-            }
-        });
-
-        return frontier;
     }
 
     function updateStatistics(chartData, metric, modelsWithParams, totalModels) {
@@ -716,24 +578,20 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modelsWithParamsDesc').textContent = `out of ${totalModels} total models`;
 
         if (chartData.length > 0) {
-            // Size range
             const parameters = chartData.map(d => d.parameters);
             const minParams = Math.min(...parameters);
             const maxParams = Math.max(...parameters);
-            const sizeRange = `${formatParameters(minParams)} - ${formatParameters(maxParams)}`;
-            document.getElementById('sizeRange').textContent = sizeRange;
+            document.getElementById('sizeRange').textContent = `${formatParameters(minParams)} - ${formatParameters(maxParams)}`;
 
-            // Calculate correlation (using log of parameters)
             const correlation = calculateCorrelation(chartData);
             document.getElementById('paramsCorrelation').textContent = correlation.toFixed(3);
             document.getElementById('paramsCorrelationDesc').textContent =
                 correlation > 0.3 ? 'Larger models perform better' :
                 correlation < -0.3 ? 'Smaller models perform better' : 'No clear relationship';
 
-            // Most efficient model (highest accuracy per parameter)
             const efficiency = chartData.map(d => ({
                 model: d.model,
-                efficiency: d.x / Math.log10(d.parameters)  // Accuracy per log10(params)
+                efficiency: d.x / Math.log10(d.parameters)
             }));
             const mostEfficient = efficiency.reduce((best, current) =>
                 current.efficiency > best.efficiency ? current : best
@@ -749,10 +607,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function calculateCorrelation(data) {
         if (data.length < 2) return 0;
-
-        // Use log10 of parameters for correlation
-        const xValues = data.map(d => d.x);  // Accuracy
-        const yValues = data.map(d => Math.log10(d.y));  // Log of parameters
+        const xValues = data.map(d => d.x);
+        const yValues = data.map(d => Math.log10(d.y));
 
         const n = xValues.length;
         const sumX = xValues.reduce((a, b) => a + b, 0);
@@ -761,63 +617,52 @@ document.addEventListener('DOMContentLoaded', function() {
         const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
         const sumY2 = yValues.reduce((sum, y) => sum + y * y, 0);
 
-        const correlation = (n * sumXY - sumX * sumY) /
-            Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-
-        return isNaN(correlation) ? 0 : correlation;
+        const numerator = (n * sumXY) - (sumX * sumY);
+        const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+        const correlation = denominator !== 0 ? numerator / denominator : 0;
+        return Number.isFinite(correlation) ? correlation : 0;
     }
 
-    function createScatterChart(data, metric, frontierData) {
-        console.log('Creating chart with', data.length, 'data points for metric:', metric);
-
-        // Get canvas element
+    function createScatterChart(data, metric) {
         const canvas = document.getElementById('paramsAccuracyChart');
         if (!canvas) {
             console.error('Canvas element not found');
             return;
         }
 
-        // Check if we have data
         if (!data || data.length === 0) {
             console.warn('No data to display in chart');
+            if (paramsChart) {
+                paramsChart.destroy();
+                paramsChart = null;
+            }
             return;
         }
 
-        // Calculate x-axis range based on data
         const xValues = data.map(d => d.x);
         const minX = Math.min(...xValues);
         const maxX = Math.max(...xValues);
-        const xPadding = (maxX - minX) * 0.05; // 5% padding
+        const xPadding = (maxX - minX) * 0.05;
         const xMin = Math.max(0, minX - xPadding);
         const xMax = Math.min(1, maxX + xPadding);
 
-        // Destroy any existing chart
         if (paramsChart) {
             paramsChart.destroy();
             paramsChart = null;
         }
-
-        // Also check if Chart.js has a chart registered for this canvas
         const existingChart = Chart.getChart(canvas);
         if (existingChart) {
             existingChart.destroy();
         }
 
         const ctx = canvas.getContext('2d');
-
-        // Group by organization for coloring
         const organizations = [...new Set(data.map(d => d.organization))];
+        const colors = ['#60A5FA', '#C084FC', '#86EFAC', '#FCA5A5', '#FDBA74', '#67E8F9', '#A5B4FC', '#FDE047', '#C7D2FE', '#FED7AA'];
         const colorMap = {};
-        const colors = [
-            '#60A5FA', '#C084FC', '#86EFAC', '#FCA5A5', '#FDBA74',
-            '#67E8F9', '#A5B4FC', '#FDE047', '#C7D2FE', '#FED7AA'
-        ];
-
-        organizations.forEach((org, i) => {
-            colorMap[org] = colors[i % colors.length];
+        organizations.forEach((org, index) => {
+            colorMap[org] = colors[index % colors.length];
         });
 
-        // Prepare datasets by organization
         const datasets = organizations.map(org => ({
             label: org,
             data: data.filter(d => d.organization === org),
@@ -829,95 +674,68 @@ document.addEventListener('DOMContentLoaded', function() {
             showLine: false
         }));
 
-        // Create the chart
-        try {
-            paramsChart = new Chart(ctx, {
-                type: 'scatter',
-                data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: {
-                        padding: {
-                            top: 20,
-                            right: 20,
-                            bottom: 20,
-                            left: 20
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const point = context.raw;
-                                    return [
-                                        `Model: ${point.model}`,
-                                        `Parameters: ${point.parameterStr}`,
-                                        `${metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${point.x.toFixed(3)}`,
-                                        `Organization: ${point.organization}`,
-                                        `Published: ${point.publicationDate}`,
-                                        `Phenotypes evaluated: ${point.phenotype_count}`
-                                    ];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            title: {
-                                display: true,
-                                text: metric.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-                            },
-                            min: xMin,
-                            max: xMax,
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(2);
-                                }
-                            },
-                            grid: {
-                                display: true,
-                                color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                        },
-                        y: {
-                            type: 'logarithmic',
-                            title: {
-                                display: true,
-                                text: 'Model Parameters (log scale)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return formatParameters(value);
-                                }
-                            },
-                            grid: {
-                                display: true,
-                                color: 'rgba(0, 0, 0, 0.05)'
+        const prettyMetric = metric.replace('_', ' ').replace(/\w/g, l => l.toUpperCase());
+
+        paramsChart = new Chart(ctx, {
+            type: 'scatter',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw;
+                                return [
+                                    `Model: ${point.model}`,
+                                    `Parameters: ${point.parameterStr}`,
+                                    `${prettyMetric}: ${point.x.toFixed(3)}`,
+                                    `Organization: ${point.organization}`,
+                                    `Published: ${point.publicationDate}`,
+                                    `Phenotypes evaluated: ${point.phenotype_count}`,
+                                    `Samples: ${point.sampleSize}`
+                                ];
                             }
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: { display: true, text: prettyMetric },
+                        min: xMin,
+                        max: xMax,
+                        ticks: {
+                            callback: function(value) {
+                                return Number(value).toFixed(2);
+                            }
+                        },
+                        grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    y: {
+                        type: 'logarithmic',
+                        title: { display: true, text: 'Model Parameters (log scale)' },
+                        ticks: {
+                            callback: function(value) {
+                                return formatParameters(value);
+                            }
+                        },
+                        grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }
+                    }
                 }
-            });
+            }
+        });
 
-            console.log('Chart created successfully');
-            // Update legend
-            updateLegend(organizations, colorMap);
-        } catch (error) {
-            console.error('Error creating chart:', error);
-        }
+        updateLegend(organizations, colorMap);
     }
-
     function updateLegend(organizations, colorMap) {
         const legendContainer = document.getElementById('paramsChartLegend');
+        if (!legendContainer) return;
         legendContainer.innerHTML = '';
 
-        // Add organizations
         organizations.slice(0, 10).forEach(org => {
             const item = document.createElement('div');
             item.className = 'params-legend-item';
@@ -935,5 +753,6 @@ document.addEventListener('DOMContentLoaded', function() {
             legendContainer.appendChild(item);
         }
     }
+
 });
 </script>

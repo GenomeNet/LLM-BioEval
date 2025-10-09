@@ -1,0 +1,662 @@
+<!-- Cached Model Performance Range Visualization -->
+<div id="modelRangesFastContent" class="range-plot-section">
+  <style>
+  .range-plot-section { padding: 0; background: transparent; }
+
+  .range-controls-panel {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+  }
+
+  .range-dataset-selector { flex: 1; min-width: 220px; }
+  .range-dataset-selector label { display: block; margin-bottom: 8px; font-weight: 500; color: #495057; font-size: 14px; }
+  .range-dataset-select { width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; background: white; color: #495057; font-size: 14px; cursor: pointer; }
+  .range-dataset-select:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+  .range-dataset-details { margin-top: 8px; font-size: 12px; color: #6c757d; display: flex; flex-direction: column; gap: 4px; min-height: 32px; }
+
+  .cache-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 220px; }
+  .refresh-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: #22c55e; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s ease; }
+  .refresh-button:hover { background: #16a34a; box-shadow: 0 8px 14px rgba(34,197,94,0.2); }
+  .refresh-button:disabled { background: #d1d5db; color: #6b7280; cursor: not-allowed; box-shadow: none; }
+  .refresh-button.loading { background: #1e40af; box-shadow: 0 8px 14px rgba(30,64,175,0.2); }
+  .refresh-button .fa-sync-alt { transition: transform 0.4s ease; }
+  .refresh-button.loading .fa-sync-alt { animation: spin 1s linear infinite; }
+  .cache-meta { font-size: 12px; color: #6c757d; line-height: 1.4; max-width: 260px; }
+  .cache-meta strong { color: #111827; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .metric-toggle-container { margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+  .metric-toggle-label { font-size: 14px; font-weight: 600; color: #495057; }
+  .metric-toggle-group { display: flex; gap: 0; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
+  .metric-toggle-btn { padding: 8px 16px; border: none; background: white; color: #6c757d; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; border-right: 1px solid #dee2e6; }
+  .metric-toggle-btn:last-child { border-right: none; }
+  .metric-toggle-btn:hover { background: #f8f9fa; }
+  .metric-toggle-btn.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+
+  .range-plot-header { margin-bottom: 24px; text-align: center; }
+  .range-plot-header h4 { font-size: 20px; font-weight: 600; color: #2c3e50; margin: 0 0 8px 0; }
+  .range-plot-header small { font-size: 14px; color: #6c757d; }
+
+  .range-plot-grid { display: grid; grid-template-columns: 1fr 300px; gap: 30px; margin-top: 20px; }
+  .range-plot-svg { background: #fafafa; border: 1px solid #e9ecef; border-radius: 8px; padding: 10px; overflow-x: auto; }
+  .range-plot-right { background: #f8f9fa; border-radius: 8px; padding: 20px; border: 1px solid #e9ecef; }
+  .range-legend-title { font-weight: 600; font-size: 14px; color: #495057; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .range-best-list { list-style: none; padding: 0; margin: 0; }
+  .range-best-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; padding: 8px 0; border-bottom: 1px solid #dee2e6; font-size: 12px; }
+  .range-best-list li:last-child { border-bottom: none; }
+  .range-best-list li span:first-child { font-weight: 500; color: #2c3e50; text-transform: capitalize; }
+  .range-best-list li span:nth-child(2) { color: #6c757d; font-family: monospace; font-size: 11px; }
+  .range-best-score { font-weight: 600; color: #22c55e; font-family: monospace; }
+
+  .range-axis text { font-size: 11px; fill: #6c757d; }
+  .range-tick { stroke: #e9ecef; stroke-width: 1; }
+  .range-xlabel { font-size: 12px; font-weight: 600; fill: #495057; }
+  .range-row-label { font-size: 12px; fill: #2c3e50; font-weight: 500; alignment-baseline: middle; }
+  .range-band { fill: #cbd5e1; opacity: 0.6; cursor: pointer; transition: opacity 0.2s; }
+  .range-band:hover { opacity: 0.8; }
+  .range-line { stroke: #94a3b8; stroke-width: 1.5; opacity: 0.4; cursor: pointer; transition: opacity 0.2s, stroke-width 0.2s; }
+  .range-line:hover { opacity: 0.8; stroke-width: 2.5; }
+  .range-dot-best { fill: #dc2626; stroke: white; stroke-width: 2; cursor: pointer; }
+  .range-best-label { font-size: 10px; font-weight: 600; fill: #dc2626; text-anchor: start; dominant-baseline: middle; pointer-events: none; text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white; }
+
+  .metric-tooltip,
+  .best-tooltip {
+    display: none;
+    position: fixed;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    padding: 12px;
+    font-size: 12px;
+    pointer-events: none;
+    transform: translate3d(0,0,0);
+    will-change: left, top;
+  }
+  .metric-tooltip { min-width: 280px; max-width: 350px; }
+  .best-tooltip { min-width: 200px; max-width: 300px; }
+
+  .tooltip-header { font-weight: 600; font-size: 13px; color: #2c3e50; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e9ecef; text-transform: capitalize; }
+  .tooltip-stats { margin-bottom: 12px; color: #495057; }
+  .tooltip-stats div { margin: 4px 0; display: flex; justify-content: space-between; }
+  .tooltip-stats strong { color: #2c3e50; font-weight: 600; }
+
+  .confusion-matrix-wrapper { position: relative; padding-top: 20px; padding-left: 35px; }
+  .matrix-label-predicted { position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .matrix-label-true { position: absolute; left: 0; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: center; font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .confusion-matrix { width: auto; border-collapse: collapse; font-size: 11px; margin: 0 auto; }
+  .confusion-matrix th,
+  .confusion-matrix td { padding: 6px 10px; text-align: center; border: 1px solid #dee2e6; min-width: 40px; }
+  .matrix-corner { border: none !important; background: transparent !important; }
+  .matrix-header-col { background: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6 !important; }
+  .matrix-header-row { background: #f8f9fa; font-weight: 600; color: #495057; text-align: right; padding-right: 8px !important; border-right: 2px solid #dee2e6 !important; }
+  .matrix-cell { background: white; font-family: monospace; font-weight: 600; color: #495057; }
+  .matrix-cell.matrix-diagonal { background: #e8f5e9; color: #2e7d32; font-weight: 700; }
+  .best-tooltip-header { font-weight: 600; font-size: 13px; color: #2c3e50; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e9ecef; }
+  .best-tooltip-list { margin: 0; padding-left: 20px; max-height: 140px; overflow-y: auto; }
+  .best-tooltip-list li { margin: 4px 0; color: #495057; font-size: 12px; }
+  .best-tooltip-empty { color: #6c757d; font-style: italic; font-size: 12px; }
+
+  .range-loading { text-align: center; padding: 40px; color: #6c757d; }
+  .range-loading i { font-size: 24px; margin-bottom: 12px; display: block; }
+
+  @media (max-width: 1024px) {
+    .range-plot-grid { grid-template-columns: 1fr; }
+    .range-plot-right { max-height: 300px; overflow-y: auto; }
+  }
+
+  @media (max-width: 768px) {
+    .range-controls-panel { flex-direction: column; align-items: stretch; }
+    .cache-controls { width: 100%; }
+  }
+  </style>
+
+  <div class="range-controls-panel">
+    <div class="range-dataset-selector">
+      <label for="rangeGroundTruthDataset">Ground Truth Dataset:</label>
+      <select id="rangeGroundTruthDataset" class="range-dataset-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div class="range-dataset-details" id="rangeDatasetDetails"></div>
+    </div>
+    <div class="cache-controls">
+      <button id="rangeRefreshSnapshot" class="refresh-button" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div class="cache-meta" id="rangeCacheMeta">Select a dataset to load cached metrics</div>
+    </div>
+  </div>
+
+  <div class="metric-toggle-container" id="rangeMetricToggle" style="display:none;">
+    <label class="metric-toggle-label">Display Metric:</label>
+    <div class="metric-toggle-group">
+      <button id="rangeToggleBalAcc" class="metric-toggle-btn active">Balanced Accuracy</button>
+      <button id="rangeTogglePrecision" class="metric-toggle-btn">Precision</button>
+    </div>
+  </div>
+
+  <div id="rangePlotContainer" class="range-plot-section" style="display:none;">
+    <div class="range-plot-header">
+      <h4>Model Performance Range</h4>
+      <small>Metric: <span id="rangePlotMetricLabel">Balanced Accuracy</span></small>
+    </div>
+    <div class="range-plot-grid">
+      <div id="rangePlotSvgWrap" class="range-plot-svg"></div>
+      <div class="range-plot-right">
+        <div class="range-legend-title">Best Model per Phenotype</div>
+        <ul id="rangeBestList" class="range-best-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="range-loading" id="rangeLoadingState">
+    <i class="fas fa-chart-line"></i>
+    <p>Select a dataset above to view model performance ranges</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const datasetSelect = document.getElementById('rangeGroundTruthDataset');
+  const datasetDetails = document.getElementById('rangeDatasetDetails');
+  const cacheMetaEl = document.getElementById('rangeCacheMeta');
+  const refreshBtn = document.getElementById('rangeRefreshSnapshot');
+  const metricToggle = document.getElementById('rangeMetricToggle');
+  const toggleBalAcc = document.getElementById('rangeToggleBalAcc');
+  const togglePrecision = document.getElementById('rangeTogglePrecision');
+  const loadingState = document.getElementById('rangeLoadingState');
+
+  let currentMetrics = [];
+  let currentPhenotypes = [];
+  let selectedDataset = null;
+  let isLoading = false;
+  let selectedMetric = window.selectedMetric === 'precision' ? 'precision' : 'balancedAcc';
+
+  function init() {
+    loadDatasets();
+
+    if (toggleBalAcc) {
+      toggleBalAcc.addEventListener('click', () => switchMetric('balancedAcc'));
+    }
+    if (togglePrecision) {
+      togglePrecision.addEventListener('click', () => switchMetric('precision'));
+    }
+
+    refreshBtn.addEventListener('click', () => {
+      if (!selectedDataset || isLoading) return;
+      fetchCachedMetrics(true);
+    });
+  }
+
+  async function loadDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Failed to load datasets');
+
+      datasetSelect.innerHTML = '';
+      if (result.datasets.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No datasets available';
+        datasetSelect.appendChild(opt);
+        cacheMetaEl.textContent = 'Import a dataset to generate metrics';
+        refreshBtn.disabled = true;
+        return;
+      }
+
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Select a dataset...';
+      datasetSelect.appendChild(defaultOpt);
+
+      let defaultDataset = null;
+      result.datasets.forEach(dataset => {
+        const opt = document.createElement('option');
+        opt.value = dataset.dataset_name;
+        opt.textContent = dataset.dataset_name;
+        opt.dataset.template = dataset.template_name || '';
+        opt.dataset.count = dataset.species_count || 0;
+        datasetSelect.appendChild(opt);
+        if (dataset.dataset_name === 'WA_Test_Dataset') {
+          defaultDataset = dataset.dataset_name;
+        }
+      });
+
+      datasetSelect.addEventListener('change', handleDatasetChange);
+
+      if (defaultDataset) {
+        datasetSelect.value = defaultDataset;
+        handleDatasetChange();
+      } else {
+        refreshBtn.disabled = true;
+        cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      }
+    } catch (error) {
+      console.error('Error loading datasets:', error);
+      datasetSelect.innerHTML = '';
+      const errorOpt = document.createElement('option');
+      errorOpt.value = '';
+      errorOpt.textContent = 'Error loading datasets - refresh';
+      datasetSelect.appendChild(errorOpt);
+      cacheMetaEl.textContent = 'Unable to reach dataset API';
+      refreshBtn.disabled = true;
+    }
+  }
+
+  function handleDatasetChange() {
+    selectedDataset = datasetSelect.value || null;
+    if (!selectedDataset) {
+      datasetDetails.innerHTML = '';
+      cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      refreshBtn.disabled = true;
+      loadingState.style.display = 'block';
+      document.getElementById('rangePlotContainer').style.display = 'none';
+      metricToggle.style.display = 'none';
+      currentMetrics = [];
+      return;
+    }
+
+    refreshBtn.disabled = false;
+    cacheMetaEl.textContent = 'Fetching cached metrics...';
+    datasetDetails.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading snapshot...</span>';
+    fetchCachedMetrics(false);
+  }
+
+  async function fetchCachedMetrics(forceRefresh) {
+    if (!selectedDataset) return;
+    isLoading = true;
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('loading');
+    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+
+    try {
+      const refreshParam = forceRefresh ? '&refresh=1' : '';
+      const url = `/api/model_accuracy_cached?dataset_name=${encodeURIComponent(selectedDataset)}${refreshParam}`;
+      const response = await fetch(url);
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || 'Failed to load cached metrics');
+
+      currentMetrics = json.metrics || [];
+      currentPhenotypes = Array.isArray(json.phenotypes) ? json.phenotypes : [];
+      updateDetails(json);
+      updateCacheMeta(json.cache_info || {});
+
+      if (currentMetrics.length) {
+        metricToggle.style.display = 'flex';
+        updateMetricToggleState();
+        renderRangePlot();
+      } else {
+        metricToggle.style.display = 'none';
+        loadingState.style.display = 'block';
+        document.getElementById('rangePlotContainer').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Failed to fetch cached model ranges:', error);
+      datasetDetails.innerHTML = '<span style="color:#dc2626;">Snapshot unavailable</span>';
+      cacheMetaEl.textContent = error.message || 'Error fetching metrics';
+      loadingState.style.display = 'block';
+      document.getElementById('rangePlotContainer').style.display = 'none';
+      metricToggle.style.display = 'none';
+      currentMetrics = [];
+    } finally {
+      refreshBtn.disabled = !selectedDataset;
+      refreshBtn.classList.remove('loading');
+      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      isLoading = false;
+    }
+  }
+
+  function updateDetails(payload) {
+    const meta = payload.metadata || {};
+    const summary = payload.summary || {};
+    const totalSpecies = summary.ground_truth_species || 0;
+    const modelCount = summary.model_count || 0;
+    const predictionCount = summary.prediction_count || 0;
+    const phenotypes = summary.phenotype_count || 0;
+
+    const importDate = formatTimestamp(meta.import_date);
+    const importLine = importDate ? `Imported ${importDate}` : 'Import timestamp unavailable';
+
+    datasetDetails.innerHTML = `
+      <span><strong>${modelCount} models</strong> · ${phenotypes} phenotypes</span>
+      <span>${predictionCount.toLocaleString()} predictions · ${totalSpecies.toLocaleString()} ground truth species</span>
+      <span>${importLine}</span>
+    `;
+  }
+
+  function updateCacheMeta(cacheInfo) {
+    if (!cacheInfo || (!cacheInfo.cached && cacheInfo.cached !== false)) {
+      cacheMetaEl.textContent = 'Snapshot status unknown';
+      return;
+    }
+
+    const computed = formatTimestamp(cacheInfo.computed_at);
+    const age = cacheInfo.age_seconds != null ? formatRelativeAge(cacheInfo.age_seconds) : null;
+    const status = cacheInfo.cached ? 'Using cached snapshot' : 'Snapshot refreshed';
+
+    let text = `<strong>${status}</strong>`;
+    if (computed) text += ` · computed ${computed}`;
+    if (age) text += ` · ${age} old`;
+    cacheMetaEl.innerHTML = text;
+  }
+
+  function switchMetric(metric) {
+    if (metric === selectedMetric) return;
+    selectedMetric = metric;
+    window.selectedMetric = metric;
+    updateMetricToggleState();
+    if (currentMetrics.length) {
+      renderRangePlot();
+    }
+  }
+
+  function updateMetricToggleState() {
+    if (!toggleBalAcc || !togglePrecision) return;
+    toggleBalAcc.classList.toggle('active', selectedMetric === 'balancedAcc');
+    togglePrecision.classList.toggle('active', selectedMetric === 'precision');
+    const metricLabel = document.getElementById('rangePlotMetricLabel');
+    if (metricLabel) {
+      metricLabel.textContent = selectedMetric === 'precision' ? 'Precision' : 'Balanced Accuracy';
+    }
+  }
+
+  function renderRangePlot() {
+    const container = document.getElementById('rangePlotContainer');
+    const svgWrap = document.getElementById('rangePlotSvgWrap');
+    const bestList = document.getElementById('rangeBestList');
+    if (!container || !svgWrap || !bestList) return;
+
+    const metricField = selectedMetric === 'precision' ? 'precision' : 'balancedAcc';
+    const phenotypes = (currentPhenotypes && currentPhenotypes.length ? currentPhenotypes : [...new Set(currentMetrics.map(m => m.phenotype))])
+      .filter(p => p !== 'aerophilicity' && p !== 'health_association' && p !== 'hemolysis');
+
+    const byPheno = {};
+    phenotypes.forEach(p => { byPheno[p] = []; });
+
+    currentMetrics.forEach(m => {
+      if (!byPheno.hasOwnProperty(m.phenotype)) return;
+      const value = Number.isFinite(m[metricField]) ? Number(m[metricField]) : NaN;
+      if (!Number.isFinite(value)) return;
+      byPheno[m.phenotype].push({ model: m.model, value, sampleSize: m.sampleSize });
+    });
+
+    const rows = [];
+    for (const pheno of phenotypes) {
+      const points = byPheno[pheno] || [];
+      if (!points.length) continue;
+      let min = Infinity;
+      let max = -Infinity;
+      let best = null;
+      points.forEach(p => {
+        if (p.value < min) min = p.value;
+        if (p.value > max) {
+          max = p.value;
+          best = p;
+        }
+      });
+      rows.push({ phenotype: pheno, points, min, max, best });
+    }
+
+    if (!rows.length) {
+      container.style.display = 'none';
+      loadingState.style.display = 'block';
+      return;
+    }
+
+    rows.sort((a, b) => b.max - a.max);
+
+    const xMin = 0.5;
+    const xMax = 1.0;
+    const leftPad = 180;
+    const rightPad = 20;
+    const topPad = 30;
+    const bottomPad = 40;
+    const rowH = 32;
+    const height = topPad + bottomPad + rowH * rows.length;
+    const width = Math.max(700, svgWrap.clientWidth || 900);
+    const plotWidth = width - leftPad - rightPad;
+
+    const xScale = (value) => {
+      const t = (value - xMin) / (xMax - xMin);
+      return leftPad + Math.max(0, Math.min(1, t)) * plotWidth;
+    };
+    const yForRow = (index) => topPad + rowH * index + rowH / 2;
+
+    loadingState.style.display = 'none';
+    container.style.display = 'block';
+    svgWrap.innerHTML = '';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svgWrap.appendChild(svg);
+
+    const axisG = document.createElementNS(svg.namespaceURI, 'g');
+    axisG.setAttribute('class', 'range-axis');
+    svg.appendChild(axisG);
+
+    for (let t = 0.5; t <= 1.0001; t += 0.1) {
+      const x = xScale(Number(t.toFixed(10)));
+      const gridline = document.createElementNS(svg.namespaceURI, 'line');
+      gridline.setAttribute('x1', x);
+      gridline.setAttribute('x2', x);
+      gridline.setAttribute('y1', topPad - 6);
+      gridline.setAttribute('y2', height - bottomPad + 6);
+      gridline.setAttribute('class', 'range-tick');
+      axisG.appendChild(gridline);
+
+      const label = document.createElementNS(svg.namespaceURI, 'text');
+      label.setAttribute('x', x);
+      label.setAttribute('y', height - bottomPad + 18);
+      label.setAttribute('text-anchor', 'middle');
+      label.textContent = t.toFixed(1);
+      axisG.appendChild(label);
+    }
+
+    const xlabel = document.createElementNS(svg.namespaceURI, 'text');
+    xlabel.setAttribute('x', leftPad + plotWidth / 2);
+    xlabel.setAttribute('y', height - 8);
+    xlabel.setAttribute('text-anchor', 'middle');
+    xlabel.setAttribute('class', 'range-xlabel');
+    xlabel.textContent = metricField === 'precision' ? 'Precision' : 'Balanced Accuracy';
+    svg.appendChild(xlabel);
+
+    let rangeTooltip = document.getElementById('rangeTooltip');
+    if (!rangeTooltip) {
+      rangeTooltip = document.createElement('div');
+      rangeTooltip.id = 'rangeTooltip';
+      rangeTooltip.className = 'metric-tooltip';
+      document.body.appendChild(rangeTooltip);
+    }
+
+    const hideTooltip = () => { rangeTooltip.style.display = 'none'; };
+    const showTooltip = (html, evt) => {
+      rangeTooltip.innerHTML = html;
+      rangeTooltip.style.display = 'block';
+      positionTooltipAtMouse(evt, rangeTooltip);
+    };
+
+    bestList.innerHTML = '';
+
+    rows.forEach((row, idx) => {
+      const y = yForRow(idx);
+      const phenoName = row.phenotype.replace(/_/g, ' ')
+        .replace('extreme environment tolerance', 'extreme env.')
+        .replace('biofilm formation', 'biofilm')
+        .replace('animal pathogenicity', 'animal path.')
+        .replace('host association', 'host assoc.')
+        .replace('plant pathogenicity', 'plant path.')
+        .replace('spore formation', 'spore form.')
+        .replace('biosafety level', 'biosafety')
+        .replace('gram staining', 'gram stain');
+
+      const label = document.createElementNS(svg.namespaceURI, 'text');
+      label.setAttribute('x', 10);
+      label.setAttribute('y', y + 4);
+      label.setAttribute('class', 'range-row-label');
+      label.textContent = phenoName;
+      svg.appendChild(label);
+
+      const x1 = xScale(row.min);
+      const x2 = xScale(row.max);
+      const rect = document.createElementNS(svg.namespaceURI, 'rect');
+      rect.setAttribute('x', Math.min(x1, x2));
+      rect.setAttribute('y', y - 8);
+      rect.setAttribute('width', Math.max(2, Math.abs(x2 - x1)));
+      rect.setAttribute('height', 16);
+      rect.setAttribute('rx', 8);
+      rect.setAttribute('class', 'range-band');
+
+      rect.addEventListener('mouseenter', (event) => {
+        const html = `
+          <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+          <div class="tooltip-stats">
+            <div><strong>Range:</strong> ${row.min.toFixed(3)} → ${row.max.toFixed(3)}</div>
+            <div><strong>Best:</strong> ${row.best.model} (${row.max.toFixed(3)})</div>
+            <div><strong>Models evaluated:</strong> ${row.points.length}</div>
+          </div>`;
+        showTooltip(html, event);
+      });
+      rect.addEventListener('mousemove', (event) => positionTooltipAtMouse(event, rangeTooltip));
+      rect.addEventListener('mouseleave', hideTooltip);
+      svg.appendChild(rect);
+
+      row.points.forEach((point) => {
+        const x = xScale(point.value);
+        const isBest = point === row.best;
+        if (isBest) return;
+        const line = document.createElementNS(svg.namespaceURI, 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('x2', x);
+        line.setAttribute('y1', y - 6);
+        line.setAttribute('y2', y + 6);
+        line.setAttribute('class', 'range-line');
+
+        line.addEventListener('mouseenter', (event) => {
+          const html = `
+            <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+            <div class="tooltip-stats">
+              <div><strong>Model:</strong> ${point.model}</div>
+              <div><strong>${metricField === 'precision' ? 'Precision' : 'Balanced Acc'}:</strong> ${point.value.toFixed(3)}</div>
+              <div><strong>Sample size:</strong> ${point.sampleSize}</div>
+            </div>`;
+          showTooltip(html, event);
+        });
+        line.addEventListener('mousemove', (event) => positionTooltipAtMouse(event, rangeTooltip));
+        line.addEventListener('mouseleave', hideTooltip);
+        svg.appendChild(line);
+      });
+
+      if (row.best) {
+        const x = xScale(row.best.value);
+        const group = document.createElementNS(svg.namespaceURI, 'g');
+        const circle = document.createElementNS(svg.namespaceURI, 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', 5);
+        circle.setAttribute('class', 'range-dot-best');
+        group.appendChild(circle);
+
+        const labelText = document.createElementNS(svg.namespaceURI, 'text');
+        labelText.setAttribute('x', x + 8);
+        labelText.setAttribute('y', y);
+        labelText.setAttribute('class', 'range-best-label');
+        const shortName = row.best.model.includes('/') ? row.best.model.split('/').pop() : row.best.model;
+        labelText.textContent = shortName;
+        group.appendChild(labelText);
+
+        group.addEventListener('mouseenter', (event) => {
+          const html = `
+            <div class="tooltip-header">${row.phenotype.replace(/_/g, ' ')}</div>
+            <div class="tooltip-stats">
+              <div><strong>Model:</strong> ${row.best.model}</div>
+              <div><strong>${metricField === 'precision' ? 'Precision' : 'Balanced Acc'}:</strong> ${row.best.value.toFixed(3)}</div>
+              <div><strong>Sample size:</strong> ${row.best.sampleSize}</div>
+              <div style="color:#dc2626;font-weight:600;">★ Best performer for this phenotype</div>
+            </div>`;
+          showTooltip(html, event);
+        });
+        group.addEventListener('mousemove', (event) => positionTooltipAtMouse(event, rangeTooltip));
+        group.addEventListener('mouseleave', hideTooltip);
+        svg.appendChild(group);
+      }
+
+      const li = document.createElement('li');
+      const nameEl = document.createElement('span');
+      nameEl.textContent = phenoName;
+      const modelEl = document.createElement('span');
+      modelEl.textContent = row.best.model.replace('/', '/\u200B');
+      const scoreEl = document.createElement('span');
+      scoreEl.className = 'range-best-score';
+      scoreEl.textContent = row.max.toFixed(3);
+      li.appendChild(nameEl);
+      li.appendChild(modelEl);
+      li.appendChild(scoreEl);
+      bestList.appendChild(li);
+    });
+
+    window.addEventListener('scroll', hideTooltip, { passive: true });
+  }
+
+  function positionTooltipAtMouse(event, tooltip) {
+    if (!tooltip || tooltip.style.display === 'none') return;
+    const pad = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rect = tooltip.getBoundingClientRect();
+    const tooltipWidth = rect.width;
+    const tooltipHeight = rect.height;
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    if (x + tooltipWidth > vw - 4) x = event.clientX - tooltipWidth - pad;
+    if (y + tooltipHeight > vh - 4) y = event.clientY - tooltipHeight - pad;
+    x = Math.max(4, Math.min(x, vw - tooltipWidth - 4));
+    y = Math.max(4, Math.min(y, vh - tooltipHeight - 4));
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return '';
+    if (value instanceof Date && !isNaN(value)) return value.toLocaleString();
+    const str = String(value);
+    try {
+      const normalized = str.includes('T') ? str : str.replace(' ', 'T');
+      const withZone = /Z$/.test(normalized) ? normalized : `${normalized}Z`;
+      const date = new Date(withZone);
+      if (isNaN(date.getTime())) throw new Error('Invalid date');
+      return date.toLocaleString();
+    } catch (_) {
+      return str;
+    }
+  }
+
+  function formatRelativeAge(seconds) {
+    if (seconds == null) return '';
+    if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+    if (seconds < 3600) return `${Math.round(seconds/60)}m`;
+    if (seconds < 86400) return `${Math.round(seconds/3600)}h`;
+    return `${Math.round(seconds/86400)}d`;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

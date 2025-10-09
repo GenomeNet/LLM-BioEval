@@ -332,13 +332,20 @@
 (function() {
   let knowledgeData = null;
   let groundTruthData = null;
-  let phenotypeFields = [
-    'gram_staining', 'motility', 'aerophilicity', 
-    'extreme_environment_tolerance', 'biofilm_formation',
-    'animal_pathogenicity', 'biosafety_level', 'health_association',
-    'host_association', 'plant_pathogenicity', 'spore_formation',
-    'hemolysis', 'cell_shape'
+  // Phenotypes considered in manuscript analyses
+  const phenotypeFields = [
+    'gram_staining',
+    'motility',
+    'extreme_environment_tolerance',
+    'biofilm_formation',
+    'animal_pathogenicity',
+    'biosafety_level',
+    'host_association',
+    'plant_pathogenicity',
+    'spore_formation',
+    'cell_shape'
   ];
+  const MIN_SAMPLES_PER_PHENOTYPE = 30;
   
   // Load available datasets and auto-select WA dataset
   async function loadDatasets() {
@@ -498,68 +505,75 @@
       
       if (!results[model][knowledgeGroup]) {
         results[model][knowledgeGroup] = {
-          correct: {},
-          total: {},
-          samples: []
+          observations: {},
+          species: new Set()
         };
-        
-        // Initialize counters for each phenotype
-        phenotypeFields.forEach(field => {
-          results[model][knowledgeGroup].correct[field] = 0;
-          results[model][knowledgeGroup].total[field] = 0;
-        });
       }
-      
-      // Compare predictions with ground truth
+
       phenotypeFields.forEach(field => {
-        const predicted = normalizeValue(item.predictions[field]);
-        const truth = normalizeValue(item.ground_truth[field]);
-        
-        if (predicted !== null && truth !== null) {
-          results[model][knowledgeGroup].total[field]++;
-          if (predicted === truth) {
-            results[model][knowledgeGroup].correct[field]++;
-          }
+        const predicted = normalizePhenotypeValue(field, item.predictions[field]);
+        const truth = normalizePhenotypeValue(field, item.ground_truth[field]);
+
+        if (predicted === null || truth === null) {
+          return;
         }
+
+        if (!results[model][knowledgeGroup].observations[field]) {
+          results[model][knowledgeGroup].observations[field] = [];
+        }
+
+        results[model][knowledgeGroup].observations[field].push({
+          prediction: predicted,
+          truth: truth
+        });
       });
-      
-      results[model][knowledgeGroup].samples.push(item.binomial_name);
+
+      results[model][knowledgeGroup].species.add(item.binomial_name);
     });
-    
+
     // Calculate accuracies
     const metrics = [];
-    
+
     Object.keys(results).forEach(model => {
       Object.keys(results[model]).forEach(knowledgeGroup => {
         const groupData = results[model][knowledgeGroup];
-        
-        // Calculate overall accuracy
-        let totalCorrect = 0;
-        let totalPredictions = 0;
+
+        let totalSamples = 0;
         const phenotypeAccuracies = {};
-        
+        const perPhenotypeScores = [];
+
         phenotypeFields.forEach(field => {
-          if (groupData.total[field] > 0) {
-            const accuracy = (groupData.correct[field] / groupData.total[field]) * 100;
-            phenotypeAccuracies[field] = {
-              accuracy: accuracy,
-              correct: groupData.correct[field],
-              total: groupData.total[field]
-            };
-            totalCorrect += groupData.correct[field];
-            totalPredictions += groupData.total[field];
+          const observations = groupData.observations[field] || [];
+          if (observations.length < MIN_SAMPLES_PER_PHENOTYPE) {
+            return;
           }
+
+          const balancedAcc = calculateBalancedAccuracy(field, observations);
+          if (!Number.isFinite(balancedAcc)) {
+            return;
+          }
+
+          const correct = Math.round(balancedAcc * observations.length);
+          phenotypeAccuracies[field] = {
+            accuracy: balancedAcc * 100,
+            correct: correct,
+            total: observations.length
+          };
+
+          perPhenotypeScores.push(balancedAcc * 100);
+          totalSamples += observations.length;
         });
-        
-        const overallAccuracy = totalPredictions > 0 ? 
-          (totalCorrect / totalPredictions) * 100 : 0;
-        
+
+        const overallAccuracy = perPhenotypeScores.length > 0
+          ? perPhenotypeScores.reduce((sum, value) => sum + value, 0) / perPhenotypeScores.length
+          : 0;
+
         metrics.push({
           model: model,
           knowledgeGroup: knowledgeGroup,
           overallAccuracy: overallAccuracy,
-          sampleSize: groupData.samples.length,
-          totalPredictions: totalPredictions,
+          sampleSize: groupData.species.size,
+          totalPredictions: totalSamples,
           phenotypeAccuracies: phenotypeAccuracies
         });
       });
@@ -580,25 +594,98 @@
   }
   
   // Normalize values for comparison
-  function normalizeValue(value) {
-    if (value === null || value === undefined || value === '' || 
-        value === 'NA' || value === 'N/A' || value === 'n/a') {
+  function normalizePhenotypeValue(phenotype, value) {
+    if (value === null || value === undefined) {
       return null;
     }
-    
-    // Convert to lowercase string for comparison
-    const strValue = String(value).toLowerCase().trim();
-    
-    // Handle boolean values
-    if (strValue === 'true' || strValue === '1' || strValue === 'yes') return 'true';
-    if (strValue === 'false' || strValue === '0' || strValue === 'no') return 'false';
-    
-    // Handle gram staining normalization
-    if (strValue.includes('positive')) return 'positive';
-    if (strValue.includes('negative')) return 'negative';
-    if (strValue.includes('variable')) return 'variable';
-    
-    return strValue;
+
+    const str = String(value).trim().toLowerCase();
+    if (!str || str === 'na' || str === 'n/a' || str === '-') {
+      return null;
+    }
+
+    if (phenotype === 'gram_staining') {
+      if (str.includes('positive')) return 'positive';
+      if (str.includes('negative')) return 'negative';
+      if (str.includes('variable')) return 'variable';
+    }
+
+    if (phenotype === 'biosafety_level') {
+      if (str.includes('1')) return 'level_1';
+      if (str.includes('2')) return 'level_2';
+      if (str.includes('3')) return 'level_3';
+    }
+
+    if (phenotype === 'cell_shape') {
+      if (str.includes('bacillus')) return 'bacillus';
+      if (str.includes('coccus')) return 'coccus';
+      if (str.includes('spirillum')) return 'spirillum';
+      if (str.includes('tail')) return 'tail';
+      if (str.includes('filamentous')) return 'filamentous';
+    }
+
+    if (str === 'true' || str === 't' || str === 'yes' || str === '1') {
+      return true;
+    }
+    if (str === 'false' || str === 'f' || str === 'no' || str === '0') {
+      return false;
+    }
+
+    return str;
+  }
+
+  function calculateBalancedAccuracy(phenotype, observations) {
+    const truths = observations.map(o => o.truth);
+    const preds = observations.map(o => o.prediction);
+
+    const isBoolean = typeof truths[0] === 'boolean' || typeof preds[0] === 'boolean';
+
+    if (isBoolean) {
+      let tp = 0, tn = 0, fp = 0, fn = 0;
+      observations.forEach(({ truth, prediction }) => {
+        if (prediction === true && truth === true) tp += 1;
+        else if (prediction === true && truth === false) fp += 1;
+        else if (prediction === false && truth === false) tn += 1;
+        else if (prediction === false && truth === true) fn += 1;
+      });
+
+      const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+      const specificity = tn + fp > 0 ? tn / (tn + fp) : 0;
+      return (recall + specificity) / 2;
+    }
+
+    const labels = Array.from(new Set(truths.concat(preds)));
+    if (labels.length === 0) {
+      return NaN;
+    }
+
+    const counts = {};
+    labels.forEach(label => {
+      counts[label] = { tp: 0, fn: 0 };
+    });
+
+    observations.forEach(({ truth, prediction }) => {
+      if (!counts[truth]) {
+        counts[truth] = { tp: 0, fn: 0 };
+      }
+      if (!counts[prediction]) {
+        counts[prediction] = { tp: 0, fn: 0 };
+      }
+
+      if (truth === prediction) {
+        counts[truth].tp += 1;
+      } else {
+        counts[truth].fn += 1;
+      }
+    });
+
+    const recalls = labels.map(label => {
+      const { tp, fn } = counts[label] || { tp: 0, fn: 0 };
+      return tp + fn > 0 ? tp / (tp + fn) : 0;
+    });
+
+    const recallSum = recalls.reduce((sum, value) => sum + value, 0);
+    return recallSum / recalls.length;
   }
   
   // Display results in table

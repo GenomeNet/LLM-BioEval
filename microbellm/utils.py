@@ -974,6 +974,39 @@ def create_ground_truth_tables():
             validation_summary TEXT
         )
     ''')
+
+    # Cached ground truth statistics snapshots
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ground_truth_statistics_cache (
+            dataset_name TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            import_timestamp REAL DEFAULT 0,
+            computed_at REAL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Cached model accuracy snapshots
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS model_accuracy_cache (
+            dataset_name TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            import_timestamp REAL DEFAULT 0,
+            computed_at REAL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Cached knowledge accuracy snapshots
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS knowledge_accuracy_cache (
+            dataset_name TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            import_timestamp REAL DEFAULT 0,
+            computed_at REAL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     conn.commit()
     conn.close()

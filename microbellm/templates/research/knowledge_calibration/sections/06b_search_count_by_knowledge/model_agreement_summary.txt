@@ -1,0 +1,159 @@
+================================================================================
+MODEL KNOWLEDGE GROUP PREFERENCES ANALYSIS
+================================================================================
+
+TOP 5 MODELS FOR EACH KNOWLEDGE GROUP
+----------------------------------------
+
+NA (No Information / Uncertain):
+  1. gpt-5-nano                      99.5% of predictions
+  2. gpt-5                           97.5% of predictions
+  3. grok-4                          96.0% of predictions
+  4. sonar-reasoning-pro             94.0% of predictions
+  5. gpt-oss-120b                    92.5% of predictions
+
+Limited Knowledge:
+  1. claude-3.5-haiku                63.5% of predictions
+  2. claude-3-haiku:beta             61.0% of predictions
+  3. claude-3.7-sonnet               53.5% of predictions
+  4. claude-3-sonnet                 49.5% of predictions
+  5. deepseek-chat-v3.1              49.5% of predictions
+
+Moderate Knowledge:
+  1. llama-3.2-3b-instruct           60.9% of predictions
+  2. llama-3-8b-instruct             54.0% of predictions
+  3. gemma-3-27b-it                  51.5% of predictions
+  4. gemma-3-4b-it                   42.9% of predictions
+  5. llama-3.1-8b-instruct           40.7% of predictions
+
+Extensive Knowledge:
+  1. gpt-4o-mini                     16.0% of predictions
+  2. gpt-4o-mini-search-preview      11.9% of predictions
+  3. mistral-nemo                     8.5% of predictions
+  4. sonar                            7.5% of predictions
+  5. claude-3-sonnet                  6.0% of predictions
+
+
+================================================================================
+TOP 10 SPECIES WITH HIGHEST DISAGREEMENT
+----------------------------------------
+
+1. Metamycoplasma arthritidis
+   Entropy: 1.382
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Extensive :  5 models (26.3%)
+     - Na        :  5 models (26.3%)
+     - Limited   :  5 models (26.3%)
+     - Moderate  :  4 models (21.1%)
+
+2. Streptomyces terra
+   Entropy: 1.367
+   Models tested: 56
+   Number of different classifications: 4
+   Distribution:
+     - Moderate  : 18 models (32.1%)
+     - Na        : 15 models (26.8%)
+     - Limited   : 12 models (21.4%)
+     - Extensive : 11 models (19.6%)
+
+3. Streptomyces albiflaviniger
+   Entropy: 1.358
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Moderate  :  6 models (31.6%)
+     - Limited   :  5 models (26.3%)
+     - Na        :  5 models (26.3%)
+     - Extensive :  3 models (15.8%)
+
+4. Macrococcus epidermidis
+   Entropy: 1.358
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Extensive :  6 models (31.6%)
+     - Limited   :  5 models (26.3%)
+     - Na        :  5 models (26.3%)
+     - Moderate  :  3 models (15.8%)
+
+5. Photobacterium rosenbergii
+   Entropy: 1.355
+   Models tested: 18
+   Number of different classifications: 4
+   Distribution:
+     - Limited   :  6 models (33.3%)
+     - Moderate  :  5 models (27.8%)
+     - Na        :  4 models (22.2%)
+     - Extensive :  3 models (16.7%)
+
+6. Streptomyces melanogenes
+   Entropy: 1.355
+   Models tested: 18
+   Number of different classifications: 4
+   Distribution:
+     - Limited   :  6 models (33.3%)
+     - Moderate  :  5 models (27.8%)
+     - Extensive :  4 models (22.2%)
+     - Na        :  3 models (16.7%)
+
+7. Rhodopseudomonas pseudopalustris
+   Entropy: 1.352
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Extensive :  7 models (36.8%)
+     - Moderate  :  4 models (21.1%)
+     - Na        :  4 models (21.1%)
+     - Limited   :  4 models (21.1%)
+
+8. Streptococcus infantis
+   Entropy: 1.352
+   Models tested: 21
+   Number of different classifications: 4
+   Distribution:
+     - Limited   :  6 models (28.6%)
+     - Moderate  :  6 models (28.6%)
+     - Extensive :  6 models (28.6%)
+     - Na        :  3 models (14.3%)
+
+9. Pseudomonas alloputida
+   Entropy: 1.347
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Moderate  :  6 models (31.6%)
+     - Na        :  6 models (31.6%)
+     - Limited   :  4 models (21.1%)
+     - Extensive :  3 models (15.8%)
+
+10. Streptomyces tacrolimicus
+   Entropy: 1.347
+   Models tested: 19
+   Number of different classifications: 4
+   Distribution:
+     - Limited   :  6 models (31.6%)
+     - Moderate  :  6 models (31.6%)
+     - Extensive :  4 models (21.1%)
+     - Na        :  3 models (15.8%)
+
+
+================================================================================
+KEY FINDINGS
+----------------------------------------
+
+1. Model Calibration Patterns:
+   - Models vary significantly in their confidence calibration
+   - Some models are conservative (high NA %), others confident (high extensive %)
+   - This affects reliability of knowledge claims
+
+2. Species with High Disagreement:
+   - Often less common or recently discovered species
+   - Streptomyces species show particularly high disagreement
+   - May indicate gaps in training data or ambiguous taxonomy
+
+3. Implications for Users:
+   - Cross-reference multiple models for uncertain species
+   - High agreement on well-studied species (E. coli, S. aureus)
+   - Consider model ensemble for critical applications

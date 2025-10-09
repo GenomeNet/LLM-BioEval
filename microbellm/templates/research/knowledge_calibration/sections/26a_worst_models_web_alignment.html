@@ -68,9 +68,24 @@
         console.log('[WorstModelsWebAlignment] File data:', fileData);
         
         let modelResults = [];
+        const minSampleSize = 500; // Minimum sample size to ensure statistical reliability
+        const excludeModels = ['gemini-2.5-pro']; // Models to exclude from worst performers
+
         Object.entries(fileData).forEach(([templateName, models]) => {
             Object.entries(models).forEach(([modelName, d]) => {
-                if (d.species_count < 2) return;
+                // Skip if insufficient data
+                if (d.species_count < minSampleSize) {
+                    console.log(`[WorstModelsWebAlignment] Skipping ${modelName}: insufficient data (n=${d.species_count}, min=${minSampleSize})`);
+                    return;
+                }
+
+                // Skip excluded models
+                const shortName = modelName.split('/').pop();
+                if (excludeModels.some(excluded => shortName.toLowerCase().includes(excluded.toLowerCase()))) {
+                    console.log(`[WorstModelsWebAlignment] Excluding ${modelName} from worst performers list`);
+                    return;
+                }
+
                 modelResults.push({
                     modelName,
                     templateName,
@@ -81,13 +96,14 @@
                 });
             });
         });
-        
+
         // Sort by correlation ascending (worst first)
         modelResults.sort((a, b) => a.correlation - b.correlation);
-        
+
         // Get worst 4 models (only if we have more than 7 total models, similar to other worst performers)
         const worst4Models = modelResults.length > 7 ? modelResults.slice(0, 4) : [];
-        
+        const totalModels = modelResults.length; // Total number of models after filtering
+
         let html = "";
         if (worst4Models.length > 0) {
             html += `<div class="worst-performers-section">
@@ -96,15 +112,14 @@
 
             worst4Models.forEach((m, idx) => {
                 const displayName = m.modelName.split('/').pop();
-                const rank = modelResults.length - idx; // Rank from bottom
+                const rank = totalModels - idx; // Rank from bottom (e.g., if 20 models total: 20, 19, 18, 17)
                 html += `
         <div class="performer-card">
             <div class="performer-rank">${rank}</div>
             <div style="flex: 1;">
                 <div class="performer-name">${displayName}</div>
                 <div class="performer-score">Correlation: <strong>${m.correlation.toFixed(3)}</strong></div>
-                <div class="performer-detail">Template: ${m.templateName}</div>
-                <div class="performer-detail">Species Count: ${m.speciesCount}</div>
+                <div class="performer-detail">Sample Size: <strong>n=${m.speciesCount}</strong></div>
                 <div class="performer-dist-chart" style="margin-top: 12px;">
                     ${renderKnowledgeDistBar(m.knowledgeDist, m.speciesCount)}
                 </div>

@@ -1,0 +1,112 @@
+================================================================================
+SPECIES WITH UNANIMOUS MODEL AGREEMENT
+================================================================================
+
+Total species with unanimous agreement: 91
+
+------------------------------------------------------------
+EXTENSIVE KNOWLEDGE (78 species)
+------------------------------------------------------------
+  - Agrobacterium tumefaciens
+  - Aliivibrio fischeri
+  - Bacillus anthracis
+  - Bacillus subtilis
+  - Bacillus thuringiensis
+  - Bacteroides thetaiotaomicron
+  - Bifidobacterium animalis
+  - Bifidobacterium bifidum
+  - Bifidobacterium longum
+  - Bordetella bronchiseptica
+  - Borreliella burgdorferi
+  - Brucella melitensis
+  - Burkholderia cenocepacia
+  - Burkholderia cepacia
+  - Burkholderia pseudomallei
+  - Campylobacter coli
+  - Campylobacter jejuni
+  - Clostridioides difficile
+  - Clostridium acetobutylicum
+  - Clostridium perfringens
+  - Clostridium tetani
+  - Corynebacterium diphtheriae
+  - Corynebacterium glutamicum
+  - Cutibacterium acnes
+  - Deinococcus radiodurans
+  - Enterobacter cloacae
+  - Enterococcus faecium
+  - Erwinia amylovora
+  - Escherichia coli
+  - Gardnerella vaginalis
+  - Haemophilus influenzae
+  - Klebsiella pneumoniae
+  - Lactobacillus acidophilus
+  - Lactococcus lactis
+  - Legionella pneumophila
+  - Leptospira interrogans
+  - Listeria monocytogenes
+  - Methanosarcina barkeri
+  - Mycobacterium intracellulare
+  - Mycobacterium tuberculosis
+  - Mycolicibacterium smegmatis
+  - Myxococcus xanthus
+  - Neisseria gonorrhoeae
+  - Neisseria meningitidis
+  - Pasteurella multocida
+  - Proteus mirabilis
+  - Pseudomonas aeruginosa
+  - Pseudomonas fluorescens
+  - Pseudomonas syringae
+  - Ralstonia solanacearum
+  - Rhodopseudomonas palustris
+  - Rickettsia prowazekii
+  - Saccharopolyspora erythraea
+  - Salmonella enterica
+  - Serratia marcescens
+  - Shigella dysenteriae
+  - Shigella flexneri
+  - Sinorhizobium meliloti
+  - Staphylococcus aureus
+  - Staphylococcus epidermidis
+  - Stenotrophomonas maltophilia
+  - Streptococcus agalactiae
+  - Streptococcus equi
+  - Streptococcus pneumoniae
+  - Streptococcus pyogenes
+  - Streptococcus suis
+  - Streptococcus thermophilus
+  - Streptomyces avermitilis
+  - Streptomyces clavuligerus
+  - Streptomyces coelicolor
+  - Streptomyces venezuelae
+  - Thermotoga maritima
+  - Thermus aquaticus
+  - Vibrio cholerae
+  - Vibrio parahaemolyticus
+  - Xanthomonas campestris
+  - Xanthomonas oryzae
+  - Yersinia pestis
+
+------------------------------------------------------------
+LIMITED KNOWLEDGE (13 species)
+------------------------------------------------------------
+  - Bhargavaea cecembensis
+  - Bhargavaea ullalensis
+  - Bizionia argentinensis
+  - Chryseobacterium arachidis
+  - Chryseobacterium endophyticum
+  - Chryseobacterium ginsengisoli
+  - Chryseobacterium rhizoplanae
+  - Chryseobacterium rigui
+  - Chryseobacterium taeanense
+  - Chryseobacterium ureilyticum
+  - Kaistia dalseonensis
+  - Kaistia geumhonensis
+  - Kutzneria buriramensis
+
+================================================================================
+SUMMARY STATISTICS
+================================================================================
+Extensive   :  78 species ( 85.7%)
+Moderate    :   0 species (  0.0%)
+Limited     :  13 species ( 14.3%)
+Na          :   0 species (  0.0%)

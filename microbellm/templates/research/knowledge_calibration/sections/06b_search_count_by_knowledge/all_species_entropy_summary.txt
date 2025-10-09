@@ -1,0 +1,51 @@
+================================================================================
+ENTROPY DISTRIBUTION SUMMARY FOR ALL SPECIES
+================================================================================
+
+Total species analyzed: 3,884
+Mean entropy: 0.8195
+Median entropy: 0.8461
+Std deviation: 0.2615
+Min entropy: 0.0000
+Max entropy: 1.3762
+
+Distribution breakdown:
+  H = 0 (perfect agreement): 91 species
+  H < 0.5 (high agreement): 360 species
+  0.5 ≤ H < 1.0 (moderate disagreement): 2,575 species
+  1.0 ≤ H < 1.3 (high disagreement): 920 species
+  H ≥ 1.3 (very high disagreement): 29 species
+
+Percentiles:
+  10th percentile: 0.5004
+  25th percentile: 0.6829
+  50th percentile: 0.8461
+  75th percentile: 0.9986
+  90th percentile: 1.1196
+  95th percentile: 1.1922
+  99th percentile: 1.2871
+
+================================================================================
+TOP 20 SPECIES BY ENTROPY
+----------------------------------------
+
+ 1. Metamycoplasma arthritidis                         H=1.3762 (n=20)
+ 2. Rhodopseudomonas pseudopalustris                   H=1.3578 (n=20)
+ 3. Halalkalibacterium halodurans                      H=1.3558 (n=21)
+ 4. Streptomyces albiflaviniger                        H=1.3535 (n=20)
+ 5. Macrococcus epidermidis                            H=1.3535 (n=20)
+ 6. Streptococcus infantis                             H=1.3438 (n=21)
+ 7. Nitrobacter vulgaris                               H=1.3438 (n=21)
+ 8. Photobacterium rosenbergii                         H=1.3387 (n=19)
+ 9. Streptomyces melanogenes                           H=1.3387 (n=19)
+10. Streptomyces pseudovenezuelae                      H=1.3351 (n=20)
+11. Pseudomonas alloputida                             H=1.3351 (n=20)
+12. Streptomyces graminearus                           H=1.3351 (n=20)
+13. Streptomyces gougerotii                            H=1.3351 (n=20)
+14. Streptomyces tacrolimicus                          H=1.3351 (n=20)
+15. Halorubrum halophilum                              H=1.3351 (n=20)
+16. Sorangium reichenbachii                            H=1.3351 (n=20)
+17. Rhodococcus gordoniae                              H=1.3322 (n=20)
+18. Streptomyces vinaceusdrappus                       H=1.3195 (n=20)
+19. Streptomyces inhibens                              H=1.3195 (n=20)
+20. Bradyrhizobium commune                             H=1.3195 (n=20)

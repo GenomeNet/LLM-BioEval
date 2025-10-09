@@ -1,0 +1,387 @@
+<!-- Cached Best Models Per Phenotype -->
+<div id="bestModelsFastContent" class="best-models-section">
+  <style>
+  .best-models-section { padding: 0; background: transparent; }
+  .best-models-controls {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+  }
+  .best-models-selector { flex: 1; min-width: 220px; }
+  .best-models-selector label { display: block; margin-bottom: 8px; font-weight: 500; color: #495057; font-size: 14px; }
+  .best-models-select { width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; background: white; color: #495057; font-size: 14px; cursor: pointer; }
+  .best-models-select:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+  .best-models-details { margin-top: 8px; font-size: 12px; color: #6c757d; display: flex; flex-direction: column; gap: 4px; min-height: 32px; }
+
+  .cache-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 220px; }
+  .refresh-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: #22c55e; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s ease; }
+  .refresh-button:hover { background: #16a34a; box-shadow: 0 8px 14px rgba(34,197,94,0.2); }
+  .refresh-button:disabled { background: #d1d5db; color: #6b7280; cursor: not-allowed; box-shadow: none; }
+  .refresh-button.loading { background: #1e40af; box-shadow: 0 8px 14px rgba(30,64,175,0.2); }
+  .refresh-button .fa-sync-alt { transition: transform 0.4s ease; }
+  .refresh-button.loading .fa-sync-alt { animation: spin 1s linear infinite; }
+  .cache-meta { font-size: 12px; color: #6c757d; line-height: 1.4; max-width: 260px; }
+  .cache-meta strong { color: #111827; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .best-models-results { display: none; background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+  .best-models-header { text-align: center; margin-bottom: 32px; }
+  .best-models-title { font-size: 28px; font-weight: 700; color: #1a202c; margin: 0 0 8px 0; }
+  .best-models-subtitle { font-size: 15px; color: #718096; }
+
+  .best-metric-toggle { display: flex; justify-content: center; gap: 0; margin-bottom: 24px; }
+  .best-metric-btn { padding: 8px 20px; border: 1px solid #dee2e6; background: white; color: #6c757d; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .best-metric-btn:first-child { border-radius: 8px 0 0 8px; }
+  .best-metric-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+  .best-metric-btn:hover { background: #f8f9fa; }
+  .best-metric-btn.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+
+  .best-models-table-wrapper { background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 10px; overflow: hidden; }
+  .best-models-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .best-models-table thead { background: linear-gradient(135deg, #f7f9fc 0%, #f1f5f9 100%); }
+  .best-models-table th { padding: 16px; text-align: left; font-weight: 600; color: #2d3748; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+  .best-models-table th:nth-child(2),
+  .best-models-table th:nth-child(4) { text-align: center; }
+  .best-models-table tbody tr { border-bottom: 1px solid #e9ecef; transition: background 0.2s; }
+  .best-models-table tbody tr:hover { background: #f8fafb; }
+  .best-models-table tbody tr:last-child { border-bottom: none; }
+  .best-models-table td { padding: 14px 16px; color: #4a5568; }
+  .best-models-table td:first-child { font-weight: 500; color: #2d3748; text-transform: capitalize; }
+  .best-models-table td:nth-child(2),
+  .best-models-table td:nth-child(4) { text-align: center; }
+  .accuracy-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-family: monospace; font-size: 13px; }
+  .accuracy-badge.excellent { background: rgba(34,197,94,0.12); color: #16a34a; }
+  .accuracy-badge.good { background: rgba(59,130,246,0.12); color: #2563eb; }
+  .accuracy-badge.moderate { background: rgba(245,158,11,0.12); color: #d97706; }
+  .accuracy-badge.poor { background: rgba(239,68,68,0.12); color: #dc2626; }
+  .sample-size { font-size: 12px; color: #94a3b8; margin-left: 8px; }
+
+  .ranking-loading { text-align: center; padding: 60px 20px; color: #6c757d; }
+  .ranking-loading i { font-size: 48px; color: #dee2e6; margin-bottom: 16px; }
+
+  @media (max-width: 768px) {
+    .best-models-controls { flex-direction: column; align-items: stretch; }
+    .cache-controls { width: 100%; }
+  }
+  </style>
+
+  <div class="best-models-controls">
+    <div class="best-models-selector">
+      <label for="bestModelsDataset">Ground Truth Dataset:</label>
+      <select id="bestModelsDataset" class="best-models-select">
+        <option value="">Loading datasets...</option>
+      </select>
+      <div class="best-models-details" id="bestModelsDetails"></div>
+    </div>
+    <div class="cache-controls">
+      <button id="bestModelsRefresh" class="refresh-button" disabled>
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        <span>Refresh Snapshot</span>
+      </button>
+      <div class="cache-meta" id="bestModelsCacheMeta">Select a dataset to load cached metrics</div>
+    </div>
+  </div>
+
+  <div class="best-models-results" id="bestModelsResults">
+    <div class="best-models-header">
+      <h2 class="best-models-title">Top Performing Models per Phenotype</h2>
+      <p class="best-models-subtitle">Sorted by selected metric (balanced accuracy by default). Toggle to view precision leaders.</p>
+    </div>
+    <div class="best-metric-toggle" id="bestModelsToggle">
+      <button id="bestModelsBalAcc" class="best-metric-btn active">Balanced Accuracy</button>
+      <button id="bestModelsPrecision" class="best-metric-btn">Precision</button>
+    </div>
+    <div class="best-models-table-wrapper">
+      <table class="best-models-table">
+        <thead>
+          <tr>
+            <th>Phenotype</th>
+            <th>Best Model</th>
+            <th>Performance</th>
+            <th>Sample Size</th>
+          </tr>
+        </thead>
+        <tbody id="bestModelsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="ranking-loading" id="bestModelsLoading">
+    <i class="fas fa-crown"></i>
+    <p>Select a dataset to see the top model per phenotype</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const datasetSelect = document.getElementById('bestModelsDataset');
+  const datasetDetails = document.getElementById('bestModelsDetails');
+  const cacheMetaEl = document.getElementById('bestModelsCacheMeta');
+  const refreshBtn = document.getElementById('bestModelsRefresh');
+  const loadingState = document.getElementById('bestModelsLoading');
+  const resultsContainer = document.getElementById('bestModelsResults');
+  const tableBody = document.getElementById('bestModelsTableBody');
+  const toggleBalAcc = document.getElementById('bestModelsBalAcc');
+  const togglePrecision = document.getElementById('bestModelsPrecision');
+
+  let currentMetrics = [];
+  let selectedDataset = null;
+  let selectedMetric = 'balancedAcc';
+  let isLoading = false;
+
+  function init() {
+    loadDatasets();
+    toggleBalAcc.addEventListener('click', () => switchMetric('balancedAcc'));
+    togglePrecision.addEventListener('click', () => switchMetric('precision'));
+    refreshBtn.addEventListener('click', () => {
+      if (!selectedDataset || isLoading) return;
+      fetchCachedMetrics(true);
+    });
+  }
+
+  async function loadDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Failed to load datasets');
+
+      datasetSelect.innerHTML = '';
+      if (result.datasets.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No datasets available';
+        datasetSelect.appendChild(opt);
+        cacheMetaEl.textContent = 'Import a dataset to generate metrics';
+        refreshBtn.disabled = true;
+        return;
+      }
+
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Select a dataset...';
+      datasetSelect.appendChild(defaultOpt);
+
+      let defaultDataset = null;
+      result.datasets.forEach(dataset => {
+        const opt = document.createElement('option');
+        opt.value = dataset.dataset_name;
+        opt.textContent = dataset.dataset_name;
+        opt.dataset.template = dataset.template_name || '';
+        opt.dataset.count = dataset.species_count || 0;
+        datasetSelect.appendChild(opt);
+        if (dataset.dataset_name === 'WA_Test_Dataset') defaultDataset = dataset.dataset_name;
+      });
+
+      datasetSelect.addEventListener('change', handleDatasetChange);
+      if (defaultDataset) {
+        datasetSelect.value = defaultDataset;
+        handleDatasetChange();
+      } else {
+        refreshBtn.disabled = true;
+        cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      }
+    } catch (error) {
+      console.error('Error loading datasets:', error);
+      datasetSelect.innerHTML = '';
+      const errorOpt = document.createElement('option');
+      errorOpt.value = '';
+      errorOpt.textContent = 'Error loading datasets - refresh';
+      datasetSelect.appendChild(errorOpt);
+      cacheMetaEl.textContent = 'Unable to reach dataset API';
+      refreshBtn.disabled = true;
+    }
+  }
+
+  function handleDatasetChange() {
+    selectedDataset = datasetSelect.value || null;
+    if (!selectedDataset) {
+      datasetDetails.innerHTML = '';
+      cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
+      refreshBtn.disabled = true;
+      loadingState.style.display = 'block';
+      resultsContainer.style.display = 'none';
+      currentMetrics = [];
+      return;
+    }
+
+    refreshBtn.disabled = false;
+    cacheMetaEl.textContent = 'Fetching cached metrics...';
+    datasetDetails.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading snapshot...</span>';
+    fetchCachedMetrics(false);
+  }
+
+  async function fetchCachedMetrics(forceRefresh) {
+    if (!selectedDataset) return;
+    isLoading = true;
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('loading');
+    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+
+    try {
+      const refreshParam = forceRefresh ? '&refresh=1' : '';
+      const url = `/api/model_accuracy_cached?dataset_name=${encodeURIComponent(selectedDataset)}${refreshParam}`;
+      const response = await fetch(url);
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || 'Failed to load cached metrics');
+
+      currentMetrics = json.metrics || [];
+      updateDetails(json);
+      updateCacheMeta(json.cache_info || {});
+
+      if (currentMetrics.length) {
+        renderBestModels();
+      } else {
+        loadingState.style.display = 'block';
+        resultsContainer.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Failed to fetch cached best models:', error);
+      datasetDetails.innerHTML = '<span style="color:#dc2626;">Snapshot unavailable</span>';
+      cacheMetaEl.textContent = error.message || 'Error fetching metrics';
+      loadingState.style.display = 'block';
+      resultsContainer.style.display = 'none';
+      currentMetrics = [];
+    } finally {
+      refreshBtn.disabled = !selectedDataset;
+      refreshBtn.classList.remove('loading');
+      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      isLoading = false;
+    }
+  }
+
+  function updateDetails(payload) {
+    const meta = payload.metadata || {};
+    const summary = payload.summary || {};
+    const totalSpecies = summary.ground_truth_species || 0;
+    const modelCount = summary.model_count || 0;
+    const predictionCount = summary.prediction_count || 0;
+    const phenotypes = summary.phenotype_count || 0;
+
+    const importDate = formatTimestamp(meta.import_date);
+    const importLine = importDate ? `Imported ${importDate}` : 'Import timestamp unavailable';
+
+    datasetDetails.innerHTML = `
+      <span><strong>${modelCount} models</strong> · ${phenotypes} phenotypes</span>
+      <span>${predictionCount.toLocaleString()} predictions · ${totalSpecies.toLocaleString()} ground truth species</span>
+      <span>${importLine}</span>
+    `;
+  }
+
+  function updateCacheMeta(cacheInfo) {
+    if (!cacheInfo || (!cacheInfo.cached && cacheInfo.cached !== false)) {
+      cacheMetaEl.textContent = 'Snapshot status unknown';
+      return;
+    }
+    const computed = formatTimestamp(cacheInfo.computed_at);
+    const age = cacheInfo.age_seconds != null ? formatRelativeAge(cacheInfo.age_seconds) : null;
+    const status = cacheInfo.cached ? 'Using cached snapshot' : 'Snapshot refreshed';
+    let text = `<strong>${status}</strong>`;
+    if (computed) text += ` · computed ${computed}`;
+    if (age) text += ` · ${age} old`;
+    cacheMetaEl.innerHTML = text;
+  }
+
+  function switchMetric(metric) {
+    if (metric === selectedMetric) return;
+    selectedMetric = metric;
+    toggleBalAcc.classList.toggle('active', metric === 'balancedAcc');
+    togglePrecision.classList.toggle('active', metric === 'precision');
+    if (currentMetrics.length) renderBestModels();
+  }
+
+  function renderBestModels() {
+    const metricField = selectedMetric === 'precision' ? 'precision' : 'balancedAcc';
+    const phenotypes = [...new Set(currentMetrics.map(m => m.phenotype))]
+      .filter(p => !['aerophilicity', 'health_association', 'hemolysis'].includes(p));
+
+    const bestByPhenotype = phenotypes.map(phenotype => {
+      const metrics = currentMetrics.filter(m => m.phenotype === phenotype && Number.isFinite(m[metricField]));
+      if (!metrics.length) return null;
+      metrics.sort((a, b) => b[metricField] - a[metricField]);
+      const best = metrics[0];
+      return {
+        phenotype,
+        model: best.model,
+        value: best[metricField],
+        sampleSize: best.sampleSize
+      };
+    }).filter(Boolean);
+
+    if (!bestByPhenotype.length) {
+      loadingState.style.display = 'block';
+      resultsContainer.style.display = 'none';
+      return;
+    }
+
+    loadingState.style.display = 'none';
+    resultsContainer.style.display = 'block';
+
+    bestByPhenotype.sort((a, b) => b.value - a.value);
+
+    tableBody.innerHTML = '';
+    bestByPhenotype.forEach(item => {
+      const row = document.createElement('tr');
+      const formattedPhenotype = item.phenotype.replace(/_/g, ' ');
+      const shortModel = item.model.includes('/') ? item.model.split('/').pop() : item.model;
+      const badgeClass = getBadgeClass(item.value);
+
+      row.innerHTML = `
+        <td>${formattedPhenotype}</td>
+        <td>${shortModel}</td>
+        <td>
+          <span class="accuracy-badge ${badgeClass}">${item.value.toFixed(3)}</span>
+          <span class="sample-size">n=${item.sampleSize.toLocaleString()}</span>
+        </td>
+        <td>${item.sampleSize.toLocaleString()}</td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }
+
+  function getBadgeClass(value) {
+    if (!Number.isFinite(value)) return 'poor';
+    if (value >= 0.9) return 'excellent';
+    if (value >= 0.7) return 'good';
+    if (value >= 0.5) return 'moderate';
+    return 'poor';
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return '';
+    if (value instanceof Date && !isNaN(value)) return value.toLocaleString();
+    const str = String(value);
+    try {
+      const normalized = str.includes('T') ? str : str.replace(' ', 'T');
+      const withZone = /Z$/.test(normalized) ? normalized : `${normalized}Z`;
+      const date = new Date(withZone);
+      if (isNaN(date.getTime())) throw new Error('Invalid date');
+      return date.toLocaleString();
+    } catch (_) {
+      return str;
+    }
+  }
+
+  function formatRelativeAge(seconds) {
+    if (seconds == null) return '';
+    if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+    if (seconds < 3600) return `${Math.round(seconds/60)}m`;
+    if (seconds < 86400) return `${Math.round(seconds/3600)}h`;
+    return `${Math.round(seconds/86400)}d`;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

@@ -1,0 +1,432 @@
+{
+  "high_agreement_species": [
+    {
+      "species": "Twilight Spark",
+      "agreement_ratio": 1.0,
+      "num_models": 56,
+      "consensus": "na",
+      "distribution": {
+        "na": 56
+      }
+    },
+    {
+      "species": "Campylobacter jejuni",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Pseudomonas aeruginosa",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Escherichia coli",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Streptococcus thermophilus",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Staphylococcus aureus",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Bacillus thuringiensis",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Listeria monocytogenes",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Serratia marcescens",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Haemophilus influenzae",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Salmonella enterica",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Streptococcus pneumoniae",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Bacillus subtilis",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Streptococcus pyogenes",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Neisseria gonorrhoeae",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Bacillus anthracis",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Neisseria meningitidis",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Vibrio cholerae",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Pseudomonas fluorescens",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    },
+    {
+      "species": "Agrobacterium tumefaciens",
+      "agreement_ratio": 1.0,
+      "num_models": 21,
+      "consensus": "extensive",
+      "distribution": {
+        "extensive": 21
+      }
+    }
+  ],
+  "high_disagreement_species": [
+    {
+      "species": "Metamycoplasma arthritidis",
+      "entropy": 1.3819786564827001,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "moderate": 4,
+        "extensive": 5,
+        "na": 5,
+        "limited": 5
+      }
+    },
+    {
+      "species": "Streptomyces terra",
+      "entropy": 1.3674378968618959,
+      "num_models": 56,
+      "num_classes": 4,
+      "distribution": {
+        "extensive": 11,
+        "na": 15,
+        "limited": 12,
+        "moderate": 18
+      }
+    },
+    {
+      "species": "Streptomyces albiflaviniger",
+      "entropy": 1.3580825157078267,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 5,
+        "na": 5,
+        "moderate": 6,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Macrococcus epidermidis",
+      "entropy": 1.3580825157078267,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 5,
+        "moderate": 3,
+        "extensive": 6,
+        "na": 5
+      }
+    },
+    {
+      "species": "Photobacterium rosenbergii",
+      "entropy": 1.3548850530060133,
+      "num_models": 18,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "na": 4,
+        "moderate": 5,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Streptomyces melanogenes",
+      "entropy": 1.3548850530060133,
+      "num_models": 18,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "extensive": 4,
+        "moderate": 5,
+        "na": 3
+      }
+    },
+    {
+      "species": "Rhodopseudomonas pseudopalustris",
+      "entropy": 1.3519703803861307,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "moderate": 4,
+        "na": 4,
+        "extensive": 7,
+        "limited": 4
+      }
+    },
+    {
+      "species": "Streptococcus infantis",
+      "entropy": 1.351783994289646,
+      "num_models": 21,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "moderate": 6,
+        "extensive": 6,
+        "na": 3
+      }
+    },
+    {
+      "species": "Pseudomonas alloputida",
+      "entropy": 1.3474848769969376,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "moderate": 6,
+        "na": 6,
+        "limited": 4,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Streptomyces tacrolimicus",
+      "entropy": 1.3474848769969376,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "extensive": 4,
+        "moderate": 6,
+        "na": 3
+      }
+    },
+    {
+      "species": "Sorangium reichenbachii",
+      "entropy": 1.3474848769969376,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "moderate": 6,
+        "extensive": 4,
+        "na": 3
+      }
+    },
+    {
+      "species": "Nitrobacter vulgaris",
+      "entropy": 1.3451529218673646,
+      "num_models": 20,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 7,
+        "na": 5,
+        "moderate": 5,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Bacillus paranthracis",
+      "entropy": 1.3438103288219774,
+      "num_models": 21,
+      "num_classes": 4,
+      "distribution": {
+        "moderate": 6,
+        "na": 5,
+        "limited": 7,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Sorangium orientale",
+      "entropy": 1.3386718783221465,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 7,
+        "moderate": 4,
+        "na": 5,
+        "extensive": 3
+      }
+    },
+    {
+      "species": "Streptomyces pseudovenezuelae",
+      "entropy": 1.3386718783221463,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 7,
+        "na": 3,
+        "moderate": 5,
+        "extensive": 4
+      }
+    },
+    {
+      "species": "Streptomyces graminearus",
+      "entropy": 1.3386718783221463,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 7,
+        "na": 5,
+        "extensive": 3,
+        "moderate": 4
+      }
+    },
+    {
+      "species": "Niallia circulans",
+      "entropy": 1.3350851650920204,
+      "num_models": 20,
+      "num_classes": 4,
+      "distribution": {
+        "extensive": 7,
+        "na": 4,
+        "moderate": 3,
+        "limited": 6
+      }
+    },
+    {
+      "species": "Halalkalibacterium halodurans",
+      "entropy": 1.3350851650920204,
+      "num_models": 20,
+      "num_classes": 4,
+      "distribution": {
+        "moderate": 7,
+        "limited": 6,
+        "extensive": 4,
+        "na": 3
+      }
+    },
+    {
+      "species": "Streptococcus lactarius",
+      "entropy": 1.3194222729952845,
+      "num_models": 21,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 6,
+        "na": 8,
+        "moderate": 3,
+        "extensive": 4
+      }
+    },
+    {
+      "species": "Leclercia pneumoniae",
+      "entropy": 1.3163022657965955,
+      "num_models": 19,
+      "num_classes": 4,
+      "distribution": {
+        "limited": 5,
+        "na": 6,
+        "moderate": 6,
+        "extensive": 2
+      }
+    }
+  ],
+  "summary": {
+    "total_high_agreement": 20,
+    "total_high_disagreement": 20,
+    "avg_agreement_ratio": 1.0,
+    "avg_disagreement_entropy": 1.3466217225535282
+  }
+}

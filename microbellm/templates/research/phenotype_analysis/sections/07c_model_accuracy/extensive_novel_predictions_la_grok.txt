@@ -1,0 +1,39 @@
+Extensive knowledge predictions without ground truth (LA_Test_Dataset, model=x-ai/grok-3-mini)
+Total predictions: 1382
+Unique species: 253
+
+Counts by phenotype:
+  Motility: 236
+    - False: 150
+    - True: 86
+  Biofilm Formation: 228
+    - True: 179
+    - False: 49
+  Spore Formation: 201
+    - False: 179
+    - True: 22
+  Animal Path.: 153
+    - False: 106
+    - True: 47
+  Extreme Env. Tol.: 133
+    - False: 105
+    - True: 28
+  Plant Path.: 111
+    - False: 111
+  Cell Shape: 106
+    - Bacillus: 77
+    - Coccus: 24
+    - Spirillum: 5
+  Biosafety Level: 105
+    - Biosafety Level 1: 52
+    - Biosafety Level 2: 46
+    - Biosafety Level 3: 7
+  Host Association: 75
+    - True: 41
+    - False: 34
+  Gram Staining: 34
+    - Gram Stain Negative: 29
+    - Gram Stain Positive: 5
+
+Counts by model:
+  x-ai/grok-3-mini: 1382
