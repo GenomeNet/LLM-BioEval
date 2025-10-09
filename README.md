@@ -1,192 +1,84 @@
-# MicrobeLLM
+# LLM-BioEval
 
-[![DOI](https://zenodo.org/badge/851077612.svg)](https://zenodo.org/doi/10.5281/zenodo.13839818)
+LLM-BioEval is an open toolkit for benchmarking large language models on structured microbial knowledge tasks. The codebase underpins the analyses in our manuscript, pairing curated BacDive/bugphyzz ground truth with automated inference pipelines, validation dashboards, and public reporting components.
 
-MicrobeLLM is a Python tool designed to evaluate Large Language Models (LLMs) on their ability to predict microbial phenotypes. This tool helps researchers assess how well different LLMs perform on microbiological tasks by querying them with bacterial species names and comparing their predictions against known characteristics.
+## Project Highlights
 
-## Key Features
+- **End-to-end evaluation stack** – Deterministic template-based prompting, real-time admin dashboard for job orchestration, and a public web portal that serves the latest benchmark summaries from a shared SQLite database.
+- **Curated microbial datasets** – 19k harmonized species records with 13 phenotype traits, plus synthetic taxa for hallucination stress tests and low-annotation cohorts for out-of-distribution evaluation.
+- **Reproducible manuscript workflows** – Versioned scripts generate the knowledge calibration, hallucination, and phenotype accuracy figures reported in the paper, with outputs cached under the `microbellm/templates/research` directory.
+- **Model-agnostic design** – Works with any model accessible through OpenRouter (300+ providers and releases), making it easy to compare frontier APIs with open checkpoints.
 
-- **Model Evaluation**: Test multiple LLMs on microbial phenotype prediction tasks
-- **Web Interface**: Real-time monitoring and management of prediction jobs
-- **Batch Processing**: Evaluate models on large datasets with parallel processing
-- **OpenRouter Integration**: Access to 20+ LLMs through a single API
-- **Job Management**: Pause, resume, and track progress of multiple concurrent jobs
+## Repository Structure
+
+```
+├─ microbellm/                 # Core package (Flask apps, job orchestration, utilities)
+├─ microbellm/templates/       # Research dashboards, manuscript figures & scripts
+├─ data/                       # Harmonized ground-truth exports and species cohorts
+├─ scripts/                    # CLI utilities for summary tables and stats dumps
+└─ tests/                      # Pytest suite covering API, database, and utils
+```
 
 ## Quick Start
 
-### 1. Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/GenomeNet/microbeLLM.git
-cd microbeLLM
-
-# Create conda environment and install
+# clone and install (editable)
+git clone https://github.com/GenomeNet/LLM-BioEval.git
+cd LLM-BioEval
 conda env create -f environment.yml
 conda activate microbellm
 pip install -e .
+export OPENROUTER_API_KEY="your-openrouter-api-key"
 ```
 
-### 2. Set up API Key
+### Launch the dashboards
 
 ```bash
-export OPENROUTER_API_KEY='your-openrouter-api-key'
-```
-
-### 3. Launch Web Interface
-
-**Choose your interface:**
-
-**Research & Analysis Interface:**
-```bash
+# Administrative inference dashboard (local-only)
+microbellm-admin --debug --port 5051
+# Public research portal
 microbellm-web --debug --port 5050
 ```
-Open your browser to `http://localhost:5000`
 
-**Administrative Interface:**
-```bash
-microbellm-admin --debug --port 5051
-```
-Open your browser to `http://localhost:5050`
+Both services use the same SQLite database. The admin UI lets you queue model/species/template combinations, monitor jobs in real time, and review raw LLM outputs. The web portal renders all figures used in the manuscript and refreshes automatically when new inferences are written to the database.
 
-## Using the Web Interface
-
-### Creating a Job
-1. Click "Create New Job" on the dashboard
-2. Enter a job name
-3. Add species names (one per line)
-4. Add model names (e.g., `anthropic/claude-3.5-sonnet`)
-5. Specify template file paths
-6. Click "Create Job" then "Start Job"
-
-### Features
-- **Real-time Progress**: Monitor job progress with live updates
-- **Multi-Model Support**: Run predictions across different LLMs simultaneously
-- **Error Tracking**: View detailed error logs and statistics
-- **Resume Capability**: Jobs automatically skip completed tasks when restarted
-
-## Web Interfaces
-
-MicrobeLLM provides two different web interfaces for different use cases:
-
-### **1. User-Centric Research Interface**
-Interactive exploration and analysis of microbial data:
-
-```bash
-microbellm-web --debug
-```
-
-Access at `http://localhost:5000`
-
-**Features:**
-- Explore ground truth datasets
-- View phenotype distributions
-- Research project interfaces
-- Data visualization and analysis
-
-### **2. Admin Dashboard**
-Administrative interface for managing jobs and results:
-
-```bash
-microbellm-admin --debug
-```
-
-Access at `http://localhost:5050`
-
-**Features:**
-- Create and manage prediction jobs
-- Monitor job progress in real-time
-- View detailed error logs
-- Manage models and templates
-
-## Testing
-
-MicrobeLLM has two complementary testing approaches:
-
-### **1. Integration Testing (End-to-End)**
-Run full application integration tests:
-
-```bash
-python test_admin.py
-```
-
-This starts the Flask application and tests:
-- Database operations with real data
-- API endpoints with live HTTP requests
-- UI functionality and user workflows
-- End-to-end application behavior
-
-### **2. Unit & Component Testing**
-Run comprehensive unit tests:
+### Run the automated tests
 
 ```bash
 pytest
 ```
 
-This tests:
-- Individual functions and modules in isolation
-- API endpoints with mocked dependencies
-- Edge cases and error handling
-- Code coverage and quality metrics
+## Reproducing Manuscript Analyses
 
-**Recommendation**: Run `pytest` for development and `python test_admin.py` for integration validation.
+1. Generate or refresh the harmonized phenotype table (`data/original_data_generation/bugphyzz_corrected.R`).
+2. Queue the desired model runs via the admin dashboard (or CLI wrappers in `microbellm/templates/research/phenotype_analysis/sections/07c_model_accuracy`).
+3. Execute the analysis scripts for hallucination benchmarks, knowledge calibration, and phenotype accuracy (each section contains `generate_*.py` helpers).
+4. Export CSV/JSON summaries through the dashboard or `scripts/export_model_accuracy_table.py`, and update the manuscript text via `generate_manuscript_stats.py` if needed.
 
-## Cached Ground Truth Statistics
+Intermediate CSV/PDF outputs are intentionally Git-ignored; rerun the scripts to regenerate figures for publication or supplementary data.
 
-Ground-truth phenotype statistics are cached in the database so all users (and deployments like Vercel) see the same precomputed snapshot. The cache is invalidated automatically whenever you import or delete a ground-truth dataset, but you must trigger a refresh to populate the new snapshot.
+## Data Notes
 
-**Rebuild the snapshot after an update:**
+- **Ground truth**: Harmonized BacDive/bugphyzz export (`merged_data.rds`) filtered to single-valued phenotypes for the main benchmark.
+- **Synthetic taxa**: 200 artificial binomial names grouped into four realism tiers for hallucination detection.
+- **Species cohorts**: `wa_with_gcount.txt` (well-annotated) and `la.txt` (low-annotation) drive the phenotype benchmarks.
 
-```bash
-# Replace DATASET_NAME with the dataset you imported
-curl "http://localhost:5050/api/ground_truth/phenotype_statistics_cached?dataset_name=DATASET_NAME&refresh=1"
-```
-
-On production (e.g., Vercel), call the same endpoint with your deployed base URL. You can automate this step by hitting the endpoint from your import pipeline or a scheduled job.
-
-**Refresh the model accuracy snapshot (cached metrics used by the fast dashboard):**
-
-```bash
-curl "http://localhost:5050/api/model_accuracy_cached?dataset_name=DATASET_NAME&refresh=1"
-```
-
-This recomputes balanced accuracy/precision for all models against the selected dataset and stores the shared snapshot that the fast component renders.
-
-## Documentation
-
-- [Database Architecture](docs/database_architecture.md) - Technical details about the database structure
-
-
-## Input/Output
-
-**Input CSV format:**
-```csv
-Binomial.name
-Escherichia coli
-Bacillus subtilis
-Staphylococcus aureus
-```
-
-**Output includes predictions for:**
-- Oxygen requirements
-- Gram staining
-- Spore formation
-- Motility
-- Biosafety level
-- Cell shape
-- And more...
-
-## License
-
-MIT License - see LICENSE file for details.
+Please ensure you have permission to access model APIs and comply with provider usage policies when running large-scale evaluations.
 
 ## Citation
 
-```bibtex
-@software{microbellm2024,
-  title={MicrobeLLM: Evaluating Large Language Models on Microbial Phenotype Prediction},
-  author={GenomeNet Team},
-  year={2024},
-  url={https://github.com/GenomeNet/microbeLLM}
+If you use LLM-BioEval or our benchmark results, please cite the accompanying manuscript and the Zenodo archive:
+
+```
+@software{llm_bioeval_zenodo,
+  title        = {LLM-BioEval: Benchmarking Large Language Models on Microbial Knowledge},
+  author       = {GenomeNet team},
+  year         = {2025},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.13839818}
 }
 ```
+
+## License
+
+LLM-BioEval is released under the MIT License. Refer to `LICENSE` for details.
