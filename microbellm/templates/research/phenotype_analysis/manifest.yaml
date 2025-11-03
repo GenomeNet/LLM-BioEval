@@ -114,15 +114,8 @@ sections:
     type: "article_content"
     file: "sections/06b_methodology_cont.html"
     parent_type: "article"
-    
-  # Phenotype categories animation
-  - id: "phenotype_animation"
-    type: "callout_inline"
-    file: "sections/06c_phenotype_animation.html"
-    callout_type: "phenotype"
-    parent_type: "article"
     close_article: true
-    
+
   # Model Phenotype Predictions - Dynamic Full Width
   - id: "model_predictions"
     type: "section_callout_dynamic"

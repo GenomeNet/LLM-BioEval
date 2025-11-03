@@ -1,10 +1,5 @@
 <!-- Ground Truth Dataset Statistics – Cached Snapshot Version -->
 <div class="ground-truth-section">
-  <div class="ground-truth-header">
-    <h3>Ground Truth Dataset Snapshot (Cached)</h3>
-    <p>Precomputed phenotype statistics served instantly with on-demand refresh</p>
-  </div>
-
   <!-- Controls -->
   <div class="ground-truth-controls-panel">
     <div class="dataset-selector">
@@ -48,9 +43,6 @@
 <style>
 /* ============ Core ============ */
 .ground-truth-section{padding:20px;background:#fff;border-radius:12px;min-height:400px}
-.ground-truth-header{margin-bottom:30px}
-.ground-truth-header h3{font-size:24px;font-weight:600;color:#2c3e50;margin:0 0 8px 0}
-.ground-truth-header p{font-size:14px;color:#6c757d;margin:0}
 
 /* Controls */
 .ground-truth-controls-panel{display:flex;gap:20px;align-items:flex-end;margin-bottom:30px;padding:20px;background:#f8f9fa;border-radius:8px;border:1px solid #dee2e6;flex-wrap:wrap}
@@ -315,6 +307,12 @@
 
     let html = '';
     stats.forEach(stat => {
+      // Skip hidden phenotypes
+      const hiddenPhenotypes = ['hemolysis', 'aerophilicity', 'health_association'];
+      if (hiddenPhenotypes.includes(stat.field)) {
+        return;
+      }
+
       const label = stat.label || prettifyField(stat.field);
       const typeLabel = stat.type ? stat.type.toUpperCase() : 'UNKNOWN';
       const coverage = Number(stat.annotation_fraction || 0);
