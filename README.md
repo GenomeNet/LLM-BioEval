@@ -31,6 +31,8 @@ pip install -e .
 export OPENROUTER_API_KEY="your-openrouter-api-key"
 ```
 
+*Note:* The conda environment now uses only the `conda-forge` channel. If you maintain a shared config, ensure channel priority is set so packages resolve from `conda-forge` (e.g., `conda config --set channel_priority strict`).
+
 ### Launch the dashboards
 
 ```bash
@@ -70,13 +72,7 @@ Please ensure you have permission to access model APIs and comply with provider 
 If you use LLM-BioEval or our benchmark results, please cite the accompanying manuscript and the Zenodo archive:
 
 ```
-@software{llm_bioeval_zenodo,
-  title        = {LLM-BioEval: Benchmarking Large Language Models on Microbial Knowledge},
-  author       = {GenomeNet team},
-  year         = {2025},
-  publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.13839818}
-}
+TODO
 ```
 
 ## License

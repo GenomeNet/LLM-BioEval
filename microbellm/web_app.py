@@ -7,6 +7,7 @@ import threading
 import time
 import math
 import re
+import secrets
 from collections import defaultdict
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
@@ -32,8 +33,57 @@ import yaml
 from microbellm.unified_db import UnifiedDB
 from microbellm.validation import PredictionValidator
 
+def _load_env_file(name: str) -> None:
+    """Populate os.environ with variables from a simple KEY=VALUE file if present"""
+    env_path = Path(__file__).resolve().parent.parent / name
+    if not env_path.exists():
+        return
+
+    try:
+        for raw_line in env_path.read_text().splitlines():
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith('#'):
+                continue
+
+            key, sep, value = stripped.partition('=')
+            if not sep:
+                continue
+
+            key = key.strip()
+            value = value.strip()
+            if not key:
+                continue
+
+            if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                value = value[1:-1]
+
+            os.environ.setdefault(key, value)
+    except OSError as exc:
+        print(f"Warning: unable to load environment variables from {env_path}: {exc}")
+
+
+if not os.getenv('MICROBELLM_SECRET_KEY'):
+    _load_env_file('.env.local')
+
+
+def _resolve_secret_key() -> str:
+    """Return Flask secret key from environment, falling back to an ephemeral value"""
+    secret_key = os.getenv('MICROBELLM_SECRET_KEY')
+    if secret_key:
+        return secret_key
+
+    fallback = os.getenv('FLASK_SECRET_KEY')
+    if fallback:
+        print("Warning: using FLASK_SECRET_KEY fallback; set MICROBELLM_SECRET_KEY for consistency.")
+        return fallback
+
+    ephemeral = secrets.token_urlsafe(32)
+    print("Warning: MICROBELLM_SECRET_KEY not set. Generated ephemeral secret key; sessions reset on restart.")
+    return ephemeral
+
+
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-app.config['SECRET_KEY'] = 'microbellm-secret-key'
+app.config['SECRET_KEY'] = _resolve_secret_key()
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def load_page_manifest(page_name):
