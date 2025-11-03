@@ -78,8 +78,6 @@ sections:
   - id: "search_count_by_knowledge"
     type: "section_callout"
     file: "sections/06b_search_count_by_knowledge.html"
-    title: "Search Frequency by Knowledge Group"
-    text: "How research attention correlates with model-reported confidence levels."
     
   # Dynamic stats callout
   - id: "dynamic_stats"
