@@ -101,14 +101,6 @@ sections:
     title: "Analysis Methodology"
     include_sidebar: false
     
-  # Methodology callout
-  - id: "methodology_callout"
-    type: "callout_inline"
-    file: "sections/06a_methodology_callout.html"
-    callout_type: "methodology"
-    header: "Prediction Distribution Analysis"
-    parent_type: "article"
-    
   # Methodology continuation
   - id: "methodology_cont"
     type: "article_content"

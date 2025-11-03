@@ -176,6 +176,16 @@
   const toggleBalAcc = document.getElementById('rangeToggleBalAcc');
   const togglePrecision = document.getElementById('rangeTogglePrecision');
   const loadingState = document.getElementById('rangeLoadingState');
+  const allowManualRefresh = new URLSearchParams(window.location.search).has('show_refresh');
+
+  if(!allowManualRefresh && refreshBtn){
+    refreshBtn.style.display = 'none';
+    const cacheControlsEl = refreshBtn.closest('.cache-controls');
+    if(cacheControlsEl){
+      cacheControlsEl.style.gap = '0';
+    }
+    refreshBtn.disabled = true;
+  }
 
   let currentMetrics = [];
   let currentPhenotypes = [];
@@ -193,10 +203,12 @@
       togglePrecision.addEventListener('click', () => switchMetric('precision'));
     }
 
-    refreshBtn.addEventListener('click', () => {
-      if (!selectedDataset || isLoading) return;
-      fetchCachedMetrics(true);
-    });
+    if(allowManualRefresh && refreshBtn){
+      refreshBtn.addEventListener('click', () => {
+        if (!selectedDataset || isLoading) return;
+        fetchCachedMetrics(true);
+      });
+    }
   }
 
   async function loadDatasets() {
@@ -213,7 +225,9 @@
         opt.textContent = 'No datasets available';
         datasetSelect.appendChild(opt);
         cacheMetaEl.textContent = 'Import a dataset to generate metrics';
-        refreshBtn.disabled = true;
+        if(allowManualRefresh && refreshBtn){
+          refreshBtn.disabled = true;
+        }
         return;
       }
 
@@ -241,7 +255,9 @@
         datasetSelect.value = defaultDataset;
         handleDatasetChange();
       } else {
-        refreshBtn.disabled = true;
+        if(allowManualRefresh && refreshBtn){
+          refreshBtn.disabled = true;
+        }
         cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
       }
     } catch (error) {
@@ -252,7 +268,9 @@
       errorOpt.textContent = 'Error loading datasets - refresh';
       datasetSelect.appendChild(errorOpt);
       cacheMetaEl.textContent = 'Unable to reach dataset API';
-      refreshBtn.disabled = true;
+      if(allowManualRefresh && refreshBtn){
+        refreshBtn.disabled = true;
+      }
     }
   }
 
@@ -261,7 +279,9 @@
     if (!selectedDataset) {
       datasetDetails.innerHTML = '';
       cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
-      refreshBtn.disabled = true;
+      if(allowManualRefresh && refreshBtn){
+        refreshBtn.disabled = true;
+      }
       loadingState.style.display = 'block';
       document.getElementById('rangePlotContainer').style.display = 'none';
       metricToggle.style.display = 'none';
@@ -269,7 +289,9 @@
       return;
     }
 
-    refreshBtn.disabled = false;
+    if(allowManualRefresh && refreshBtn){
+      refreshBtn.disabled = false;
+    }
     cacheMetaEl.textContent = 'Fetching cached metrics...';
     datasetDetails.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> Loading snapshot...</span>';
     fetchCachedMetrics(false);
@@ -278,9 +300,11 @@
   async function fetchCachedMetrics(forceRefresh) {
     if (!selectedDataset) return;
     isLoading = true;
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add('loading');
-    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    if(allowManualRefresh && refreshBtn){
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('loading');
+      refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    }
 
     try {
       const refreshParam = forceRefresh ? '&refresh=1' : '';
@@ -312,9 +336,11 @@
       metricToggle.style.display = 'none';
       currentMetrics = [];
     } finally {
-      refreshBtn.disabled = !selectedDataset;
-      refreshBtn.classList.remove('loading');
-      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      if(allowManualRefresh && refreshBtn){
+        refreshBtn.disabled = !selectedDataset;
+        refreshBtn.classList.remove('loading');
+        refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      }
       isLoading = false;
     }
   }

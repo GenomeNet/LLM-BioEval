@@ -139,16 +139,28 @@
   const initialMessage = document.getElementById('gtInitialMessage');
   const rowsEl = document.getElementById('gtRows');
 
+  const allowManualRefresh = new URLSearchParams(window.location.search).has('show_refresh');
+  if(!allowManualRefresh && refreshBtn){
+    refreshBtn.style.display = 'none';
+    const cacheControlsEl = refreshBtn.closest('.cache-controls');
+    if(cacheControlsEl){
+      cacheControlsEl.style.gap = '0';
+    }
+    refreshBtn.disabled = true;
+  }
+
   let currentDataset = null;
   let lastPayload = null;
   let isLoading = false;
 
   async function init(){
     await loadDatasets();
-    refreshBtn.addEventListener('click', () => {
-      if(!currentDataset || isLoading) return;
-      fetchStatistics(true);
-    });
+    if(allowManualRefresh){
+      refreshBtn.addEventListener('click', () => {
+        if(!currentDataset || isLoading) return;
+        fetchStatistics(true);
+      });
+    }
   }
 
   async function loadDatasets(){
@@ -203,7 +215,9 @@
     if(!currentDataset){
       detailsEl.innerHTML = '';
       cacheMetaEl.textContent = 'Select a dataset to load statistics';
-      refreshBtn.disabled = true;
+      if(allowManualRefresh && refreshBtn){
+        refreshBtn.disabled = true;
+      }
       resultsArea.style.display = 'none';
       initialMessage.style.display = 'block';
       rowsEl.innerHTML = '';
@@ -211,8 +225,10 @@
       return;
     }
 
-    refreshBtn.disabled = true;
-    refreshBtn.classList.remove('loading');
+    if(allowManualRefresh && refreshBtn){
+      refreshBtn.disabled = true;
+      refreshBtn.classList.remove('loading');
+    }
     detailsEl.innerHTML = '<span><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading snapshot...</span>';
     cacheMetaEl.textContent = 'Fetching cached statistics...';
     fetchStatistics(false);
@@ -221,9 +237,11 @@
   async function fetchStatistics(forceRefresh){
     if(!currentDataset) return;
     isLoading = true;
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add('loading');
-    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    if(allowManualRefresh && refreshBtn){
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('loading');
+      refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    }
 
     try{
       const refreshParam = forceRefresh ? '&refresh=1' : '';
@@ -248,9 +266,11 @@
       initialMessage.style.display = 'block';
       initialMessage.querySelector('p').textContent = 'Unable to load cached statistics';
     }finally{
-      refreshBtn.disabled = !currentDataset;
-      refreshBtn.classList.remove('loading');
-      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      if(allowManualRefresh && refreshBtn){
+        refreshBtn.disabled = !currentDataset;
+        refreshBtn.classList.remove('loading');
+        refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      }
       isLoading = false;
     }
   }

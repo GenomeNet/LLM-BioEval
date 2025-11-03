@@ -108,6 +108,16 @@
   const cacheMetaEl = document.getElementById('rankingCacheMeta');
   const refreshBtn = document.getElementById('rankingRefreshSnapshot');
   const loadingState = document.getElementById('rankingLoadingState');
+  const allowManualRefresh = new URLSearchParams(window.location.search).has('show_refresh');
+
+  if(!allowManualRefresh && refreshBtn){
+    refreshBtn.style.display = 'none';
+    const cacheControlsEl = refreshBtn.closest('.cache-controls');
+    if(cacheControlsEl){
+      cacheControlsEl.style.gap = '0';
+    }
+    refreshBtn.disabled = true;
+  }
 
   let currentMetrics = [];
   let selectedDataset = null;
@@ -115,10 +125,12 @@
 
   function init() {
     loadDatasets();
-    refreshBtn.addEventListener('click', () => {
-      if (!selectedDataset || isLoading) return;
-      fetchCachedMetrics(true);
-    });
+    if(allowManualRefresh){
+      refreshBtn.addEventListener('click', () => {
+        if (!selectedDataset || isLoading) return;
+        fetchCachedMetrics(true);
+      });
+    }
   }
 
   async function loadDatasets() {
@@ -135,7 +147,9 @@
         opt.textContent = 'No datasets available';
         datasetSelect.appendChild(opt);
         cacheMetaEl.textContent = 'Import a dataset to generate metrics';
-        refreshBtn.disabled = true;
+        if(allowManualRefresh){
+          refreshBtn.disabled = true;
+        }
         return;
       }
 
@@ -160,7 +174,9 @@
         datasetSelect.value = defaultDataset;
         handleDatasetChange();
       } else {
-        refreshBtn.disabled = true;
+        if(allowManualRefresh){
+          refreshBtn.disabled = true;
+        }
         cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
       }
     } catch (error) {
@@ -171,7 +187,9 @@
       errorOpt.textContent = 'Error loading datasets - refresh';
       datasetSelect.appendChild(errorOpt);
       cacheMetaEl.textContent = 'Unable to reach dataset API';
-      refreshBtn.disabled = true;
+      if(allowManualRefresh){
+        refreshBtn.disabled = true;
+      }
     }
   }
 
@@ -180,14 +198,18 @@
     if (!selectedDataset) {
       datasetDetails.innerHTML = '';
       cacheMetaEl.textContent = 'Select a dataset to load cached metrics';
-      refreshBtn.disabled = true;
+      if(allowManualRefresh){
+        refreshBtn.disabled = true;
+      }
       loadingState.style.display = 'block';
       document.getElementById('rankingPlotContainer').style.display = 'none';
       currentMetrics = [];
       return;
     }
 
-    refreshBtn.disabled = false;
+    if(allowManualRefresh){
+      refreshBtn.disabled = false;
+    }
     cacheMetaEl.textContent = 'Fetching cached metrics...';
     datasetDetails.innerHTML = '<span><i class="fas ц-sync-alt"></i> Loading snapshot...</span>';
     fetchCachedMetrics(false);
@@ -196,9 +218,11 @@
   async function fetchCachedMetrics(forceRefresh) {
     if (!selectedDataset) return;
     isLoading = true;
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add('loading');
-    refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    if(allowManualRefresh){
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('loading');
+      refreshBtn.querySelector('span').textContent = forceRefresh ? 'Refreshing...' : 'Loading...';
+    }
 
     try {
       const refreshParam = forceRefresh ? '&refresh=1' : '';
@@ -225,9 +249,11 @@
       document.getElementById('rankingPlotContainer').style.display = 'none';
       currentMetrics = [];
     } finally {
-      refreshBtn.disabled = !selectedDataset;
-      refreshBtn.classList.remove('loading');
-      refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      if(allowManualRefresh){
+        refreshBtn.disabled = !selectedDataset;
+        refreshBtn.classList.remove('loading');
+        refreshBtn.querySelector('span').textContent = 'Refresh Snapshot';
+      }
       isLoading = false;
     }
   }

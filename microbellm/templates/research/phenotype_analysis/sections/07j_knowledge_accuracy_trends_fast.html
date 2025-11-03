@@ -317,6 +317,16 @@
   const legendContainer = document.getElementById('trendsFastLegend');
   const statsSection = document.getElementById('trendsFastStats');
   const tableEl = document.getElementById('trendsFastTable');
+  const allowManualRefresh = new URLSearchParams(window.location.search).has('show_refresh');
+
+  if(!allowManualRefresh && refreshButton){
+    refreshButton.style.display = 'none';
+    const cacheControlsEl = refreshButton.closest('.trends-fast-cache');
+    if(cacheControlsEl){
+      cacheControlsEl.style.gap = '6px';
+    }
+    refreshButton.disabled = true;
+  }
 
   const KNOWLEDGE_GROUPS = ['limited', 'moderate', 'extensive'];
   const KNOWLEDGE_LABELS = {
@@ -349,12 +359,14 @@
       processMetrics();
       renderVisualization();
     });
-    refreshButton.addEventListener('click', () => {
-      if (!currentDataset || isLoading) {
-        return;
-      }
-      fetchCachedMetrics(true);
-    });
+    if(allowManualRefresh && refreshButton){
+      refreshButton.addEventListener('click', () => {
+        if (!currentDataset || isLoading) {
+          return;
+        }
+        fetchCachedMetrics(true);
+      });
+    }
   }
 
   async function loadDatasets() {
@@ -418,14 +430,18 @@
     if (!currentDataset) {
       datasetDetails.textContent = '';
       cacheMeta.textContent = 'Select a dataset to load cached metrics';
-      refreshButton.disabled = true;
+      if(allowManualRefresh && refreshButton){
+        refreshButton.disabled = true;
+      }
       setStatus('ChartBar', 'Select a dataset to load cached knowledge accuracy trends.');
       return;
     }
 
     updateDatasetDetails(currentDataset);
     cacheMeta.textContent = 'Fetching cached metrics...';
-    refreshButton.disabled = true;
+    if(allowManualRefresh && refreshButton){
+      refreshButton.disabled = true;
+    }
     setStatus('Spinner', 'Loading cached knowledge accuracy metrics...');
     fetchCachedMetrics(false);
   }
@@ -451,8 +467,10 @@
       return;
     }
     isLoading = true;
-    refreshButton.disabled = true;
-    refreshButton.classList.add('loading');
+    if(allowManualRefresh && refreshButton){
+      refreshButton.disabled = true;
+      refreshButton.classList.add('loading');
+    }
 
     try {
       const url = new URL('/api/knowledge_accuracy_cached', window.location.origin);
@@ -481,8 +499,10 @@
       setStatus('ExclamationTriangle', error.message || 'Failed to load metrics.');
     } finally {
       isLoading = false;
-      refreshButton.classList.remove('loading');
-      refreshButton.disabled = !currentDataset;
+      if(allowManualRefresh && refreshButton){
+        refreshButton.classList.remove('loading');
+        refreshButton.disabled = !currentDataset;
+      }
     }
   }
 

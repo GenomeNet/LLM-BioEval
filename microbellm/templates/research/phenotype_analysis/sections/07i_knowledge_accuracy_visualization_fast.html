@@ -264,6 +264,16 @@
   const statusMessage = document.getElementById('knowledgeVizStatusMessage');
   const summaryBanner = document.getElementById('knowledgeVizSummary');
   const gridContainer = document.getElementById('knowledgeVizGrid');
+  const allowManualRefresh = new URLSearchParams(window.location.search).has('show_refresh');
+
+  if(!allowManualRefresh && refreshButton){
+    refreshButton.style.display = 'none';
+    const cacheControlsEl = refreshButton.closest('.knowledge-viz-cache');
+    if(cacheControlsEl){
+      cacheControlsEl.style.gap = '4px';
+    }
+    refreshButton.disabled = true;
+  }
 
   const DATA_GROUPS = ['limited', 'moderate', 'extensive'];
 
@@ -285,12 +295,14 @@
     sampleSelect.addEventListener('change', () => {
       renderVisualization();
     });
-    refreshButton.addEventListener('click', () => {
-      if (!selectedDataset || isLoading) {
-        return;
-      }
-      fetchCachedMetrics(true);
-    });
+    if(allowManualRefresh && refreshButton){
+      refreshButton.addEventListener('click', () => {
+        if (!selectedDataset || isLoading) {
+          return;
+        }
+        fetchCachedMetrics(true);
+      });
+    }
   }
 
   async function loadDatasets() {
@@ -357,14 +369,18 @@
     if (!selectedDataset) {
       datasetDetails.textContent = '';
       cacheMeta.textContent = 'Select a dataset to load cached metrics';
-      refreshButton.disabled = true;
+      if(allowManualRefresh && refreshButton){
+        refreshButton.disabled = true;
+      }
       setStatus('ChartBar', 'Select a dataset to load cached knowledge accuracy metrics.');
       return;
     }
 
     updateDatasetDetails(selectedDataset);
     cacheMeta.textContent = 'Fetching cached metrics...';
-    refreshButton.disabled = true;
+    if(allowManualRefresh && refreshButton){
+      refreshButton.disabled = true;
+    }
     setStatus('Spinner', 'Loading cached knowledge accuracy metrics...');
     fetchCachedMetrics(false);
   }
@@ -390,8 +406,10 @@
       return;
     }
     isLoading = true;
-    refreshButton.disabled = true;
-    refreshButton.classList.add('loading');
+    if(allowManualRefresh && refreshButton){
+      refreshButton.disabled = true;
+      refreshButton.classList.add('loading');
+    }
 
     try {
       const url = new URL('/api/knowledge_accuracy_cached', window.location.origin);
@@ -424,8 +442,10 @@
       setStatus('ExclamationTriangle', error.message || 'Failed to load metrics.');
     } finally {
       isLoading = false;
-      refreshButton.classList.remove('loading');
-      refreshButton.disabled = !selectedDataset;
+      if(allowManualRefresh && refreshButton){
+        refreshButton.classList.remove('loading');
+        refreshButton.disabled = !selectedDataset;
+      }
     }
   }
 
@@ -659,7 +679,9 @@
   function updateCacheMeta(cacheInfo, metadata) {
     if (!cacheInfo) {
       cacheMeta.textContent = 'Cache metadata unavailable';
-      refreshButton.disabled = false;
+      if(allowManualRefresh && refreshButton){
+        refreshButton.disabled = false;
+      }
       return;
     }
 
@@ -668,7 +690,9 @@
     const source = cacheInfo.cache_source || (cacheInfo.cached ? 'cache' : 'fresh');
 
     cacheMeta.innerHTML = `<strong>Cached snapshot</strong><br>Generated ${computedText} (${source}).`;
-    refreshButton.disabled = false;
+    if(allowManualRefresh && refreshButton){
+      refreshButton.disabled = false;
+    }
   }
 
   function setStatus(icon, message) {
