@@ -331,6 +331,7 @@ html, body {
 <div class="main-content">
 
 {% for section in manifest.sections %}
+    {% if not (section.disabled or section.hidden) %}
     <div class="page-section">
     {# Handle hero section #}
     {% if section.type == 'hero' %}
@@ -421,6 +422,7 @@ html, body {
         {% endif %}
     {% endif %}
     </div> <!-- Close page-section -->
+    {% endif %}
 {% endfor %}
 
 </div> <!-- Close main-content -->

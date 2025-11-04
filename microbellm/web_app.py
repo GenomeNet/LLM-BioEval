@@ -3,6 +3,7 @@
 import os
 import io
 import json
+import csv
 import threading
 import time
 import math
@@ -198,6 +199,38 @@ DATASET_SPECIES_FILE_MAP = {
 # Cached knowledge accuracy snapshots (per dataset)
 _knowledge_accuracy_cache = {}
 _knowledge_accuracy_cache_lock = threading.Lock()
+
+# Cached model performance by year snapshots (per dataset)
+_model_performance_year_cache = {}
+_model_performance_year_cache_lock = threading.Lock()
+
+# Cached model metadata index derived from year_size.tsv
+_model_metadata_index = None
+_model_metadata_index_lock = threading.Lock()
+
+_MODEL_METADATA_ALIAS_MAP = {
+    'anthropicclaude3opus': 'claude3opus',
+    'anthropicclaude3sonnet': 'claude3sonnet',
+    'anthropicclaude3haiku': 'claude3haiku',
+    'openaigpt4': 'gpt4',
+    'openaigpt4o': 'gpt4o',
+    'openaigpt4omini': 'gpt4omini',
+    'openaigpt45': 'gpt45',
+    'openaigpt5': 'gpt5',
+    'googlegemini15pro': 'gemini15pro',
+    'googlegemini15flash': 'gemini15flash',
+    'metallamallama370b': 'llama370b',
+    'metallamallama38b': 'llama38b',
+    'metallamallama3340b': 'llama3340b',
+    'metallamallama312b': 'llama312b',
+    'mistralaimistral7b': 'mistral7b',
+    'mistralaimixtral8x7b': 'mixtral8x7b',
+    'coherecommandrplus': 'commandrplus',
+    'coherecommandr': 'commandr',
+    'xaigrok15': 'grok15'
+}
+
+AVERAGE_SAMPLE_SIZE_THRESHOLD = 100
 
 CACHE_DURATION = 300  # 5 minutes in seconds
 
@@ -2918,6 +2951,127 @@ def _get_species_file_for_dataset(dataset_name):
     return 'wa_with_gcount.txt'
 
 
+def _normalize_model_key(name):
+    if not name:
+        return ''
+    return re.sub(r'[^a-z0-9]', '', str(name).lower())
+
+
+def _load_model_metadata_index():
+    global _model_metadata_index
+
+    with _model_metadata_index_lock:
+        if _model_metadata_index is not None:
+            return _model_metadata_index
+
+        metadata_path = Path(__file__).resolve().parent / 'static' / 'data' / 'year_size.tsv'
+        index = {}
+
+        if metadata_path.exists():
+            try:
+                with metadata_path.open('r', encoding='utf-8') as handle:
+                    reader = csv.DictReader(handle, delimiter='\t')
+                    for row in reader:
+                        model_name = (row.get('Model') or '').strip()
+                        if not model_name:
+                            continue
+
+                        entry = {
+                            'model': model_name,
+                            'organization': (row.get('Organization') or '').strip() or None,
+                            'publication_date': (row.get('Publication date') or '').strip() or None,
+                            'parameters': (row.get('Parameters') or '').strip() or None,
+                            'reference': (row.get('Reference') or '').strip() or None,
+                            'raw': row
+                        }
+
+                        keys = set()
+                        keys.add(_normalize_model_key(model_name))
+                        for part in re.split(r'[\s/]+', model_name):
+                            normalized_part = _normalize_model_key(part)
+                            if normalized_part:
+                                keys.add(normalized_part)
+
+                        for key in keys:
+                            if key and key not in index:
+                                index[key] = entry
+
+            except Exception as exc:  # pragma: no cover - debug logging
+                print(f"[DEBUG] Failed to parse year_size.tsv metadata: {exc}")
+
+        _model_metadata_index = index
+        return _model_metadata_index
+
+
+def _normalize_publication_date(value):
+    if not value:
+        return None
+
+    try:
+        timestamp = pd.to_datetime(value, errors='coerce')
+    except Exception:
+        return None
+
+    if pd.isna(timestamp):
+        return None
+
+    if hasattr(timestamp, 'to_pydatetime'):
+        timestamp = timestamp.to_pydatetime()
+
+    return timestamp.date().isoformat() if hasattr(timestamp, 'date') else None
+
+
+def _match_model_metadata(model_name):
+    if not model_name:
+        return None
+
+    metadata_index = _load_model_metadata_index()
+    if not metadata_index:
+        return None
+
+    normalized_full = _normalize_model_key(model_name)
+    prefixes = (
+        'anthropic', 'openai', 'google', 'gemini', 'metaai', 'metallama',
+        'mistralai', 'cohere', 'xai', 'ai21', 'amazon', 'baidu', 'together'
+    )
+
+    candidates = []
+    seen = set()
+
+    def add_candidate(key):
+        if key and key not in seen:
+            seen.add(key)
+            candidates.append(key)
+
+    add_candidate(normalized_full)
+
+    if '/' in model_name:
+        add_candidate(_normalize_model_key(model_name.split('/')[-1]))
+
+    for part in re.split(r'[-_\s/]+', model_name):
+        add_candidate(_normalize_model_key(part))
+
+    for key in list(candidates):
+        alias = _MODEL_METADATA_ALIAS_MAP.get(key)
+        if alias:
+            add_candidate(alias)
+
+    for key in list(candidates):
+        for prefix in prefixes:
+            if key.startswith(prefix) and len(key) > len(prefix) + 2:
+                add_candidate(key[len(prefix):])
+
+    for key in candidates:
+        if key and key in metadata_index:
+            return metadata_index[key]
+
+    for key, entry in metadata_index.items():
+        if key and (key in normalized_full or normalized_full in key):
+            return entry
+
+    return None
+
+
 def _load_persistent_model_accuracy(dataset_name):
     create_ground_truth_tables()
     conn = sqlite3.connect(db_path)
@@ -2989,6 +3143,82 @@ def _clear_persistent_model_accuracy(dataset_name=None):
         )
     else:
         cursor.execute("DELETE FROM model_accuracy_cache")
+
+    conn.commit()
+    conn.close()
+
+
+def _load_persistent_performance_year(dataset_name):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT payload, import_timestamp, computed_at
+            FROM model_performance_year_cache
+            WHERE dataset_name = ?
+            """,
+            (dataset_name,)
+        )
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    payload_json, import_timestamp, computed_at = row
+    if not payload_json:
+        return None
+
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return None
+
+    return {
+        'data': payload,
+        'import_timestamp': float(import_timestamp or 0),
+        'computed_at': float(computed_at or 0)
+    }
+
+
+def _save_persistent_performance_year(dataset_name, data, import_timestamp, computed_at):
+    create_ground_truth_tables()
+    snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO model_performance_year_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(dataset_name) DO UPDATE SET
+            payload = excluded.payload,
+            import_timestamp = excluded.import_timestamp,
+            computed_at = excluded.computed_at,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def _clear_persistent_performance_year(dataset_name=None):
+    create_ground_truth_tables()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    if dataset_name:
+        cursor.execute(
+            "DELETE FROM model_performance_year_cache WHERE dataset_name = ?",
+            (dataset_name,)
+        )
+    else:
+        cursor.execute("DELETE FROM model_performance_year_cache")
 
     conn.commit()
     conn.close()
@@ -3580,6 +3810,240 @@ def _invalidate_model_accuracy_cache(dataset_name=None):
             _model_accuracy_cache.clear()
 
     _clear_persistent_model_accuracy(dataset_name)
+
+
+def _get_performance_year_cache_entry(dataset_name):
+    with _model_performance_year_cache_lock:
+        entry = _model_performance_year_cache.get(dataset_name)
+        if entry:
+            return {
+                'data': entry['data'],
+                'computed_at': entry.get('computed_at', 0),
+                'import_timestamp': entry.get('import_timestamp', 0)
+            }
+
+    persistent_entry = _load_persistent_performance_year(dataset_name)
+    if persistent_entry:
+        with _model_performance_year_cache_lock:
+            _model_performance_year_cache[dataset_name] = {
+                'data': persistent_entry['data'],
+                'computed_at': persistent_entry.get('computed_at', 0),
+                'import_timestamp': persistent_entry.get('import_timestamp', 0)
+            }
+        return persistent_entry
+
+    return None
+
+
+def _update_performance_year_cache(dataset_name, data, import_timestamp, computed_at=None):
+    timestamp = time.time() if computed_at is None else computed_at
+    normalized_json = json.dumps(data, ensure_ascii=False, default=str)
+    normalized_data = json.loads(normalized_json)
+
+    with _model_performance_year_cache_lock:
+        _model_performance_year_cache[dataset_name] = {
+            'data': normalized_data,
+            'computed_at': float(timestamp),
+            'import_timestamp': float(import_timestamp or 0)
+        }
+
+    _save_persistent_performance_year(
+        dataset_name,
+        normalized_data,
+        float(import_timestamp or 0),
+        float(timestamp)
+    )
+
+
+def _invalidate_performance_year_cache(dataset_name=None):
+    with _model_performance_year_cache_lock:
+        if dataset_name:
+            _model_performance_year_cache.pop(dataset_name, None)
+        else:
+            _model_performance_year_cache.clear()
+
+    _clear_persistent_performance_year(dataset_name)
+
+
+def _calculate_performance_by_year_metrics(dataset_name, metadata=None):
+    if not dataset_name:
+        raise ValueError('Dataset name is required')
+
+    metadata = metadata or _get_ground_truth_dataset_import_metadata(dataset_name)
+    import_timestamp = float((metadata or {}).get('import_timestamp') or 0)
+
+    accuracy_entry = _get_model_accuracy_cache_entry(dataset_name)
+    accuracy_data = None
+
+    if accuracy_entry and import_timestamp <= accuracy_entry.get('import_timestamp', 0):
+        accuracy_data = accuracy_entry['data']
+    else:
+        computed_at = time.time()
+        accuracy_data = _calculate_model_accuracy_metrics(dataset_name, metadata=metadata)
+        _update_model_accuracy_cache(
+            dataset_name,
+            accuracy_data,
+            float(accuracy_data.get('metadata', {}).get('import_timestamp', 0)),
+            computed_at=computed_at
+        )
+
+    metrics_list = accuracy_data.get('metrics') or []
+    if not metrics_list:
+        return {
+            'dataset_name': dataset_name,
+            'phenotypes': [],
+            'metric_names': ['balanced_accuracy', 'precision', 'recall', 'f1'],
+            'models': [],
+            'summary': {
+                'total_models': 0,
+                'models_with_metadata': 0,
+                'models_without_metadata': [],
+                'metadata_source': 'static/data/year_size.tsv',
+                'average_sample_threshold': AVERAGE_SAMPLE_SIZE_THRESHOLD
+            },
+            'metadata': {
+                'import_date': (metadata or {}).get('import_date'),
+                'import_timestamp': import_timestamp,
+                'reported_species_count': (metadata or {}).get('reported_species_count'),
+                'species_file': accuracy_data.get('species_file')
+            }
+        }
+
+    def safe_float(value):
+        if value in (None, ''):
+            return None
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+
+    def safe_round(value):
+        clean = safe_float(value)
+        if clean is None:
+            return None
+        return round(clean, 4)
+
+    phenotype_metrics = {}
+    for entry in metrics_list:
+        model = entry.get('model')
+        phenotype = entry.get('phenotype')
+        if not model or not phenotype:
+            continue
+
+        stats = phenotype_metrics.setdefault(model, {})
+        stats[phenotype] = {
+            'balanced_accuracy': safe_float(entry.get('balancedAcc')),
+            'precision': safe_float(entry.get('precision')),
+            'recall': safe_float(entry.get('recall')),
+            'f1': safe_float(entry.get('f1')),
+            'sample_size': int(entry.get('sampleSize') or 0)
+        }
+
+    metric_names = ['balanced_accuracy', 'precision', 'recall', 'f1']
+    phenotypes = sorted({p for stats in phenotype_metrics.values() for p in stats.keys()})
+
+    models_payload = []
+    models_with_metadata = 0
+    models_without_metadata = []
+
+    for model_name, phenotype_values in phenotype_metrics.items():
+        metrics_payload = {}
+        average_sums = {metric: 0.0 for metric in metric_names}
+        average_counts = {metric: 0 for metric in metric_names}
+        included_phenotypes = []
+        average_sample_sum = 0
+
+        for phenotype, stats in phenotype_values.items():
+            metric_entry = {
+                'balanced_accuracy': safe_round(stats.get('balanced_accuracy')),
+                'precision': safe_round(stats.get('precision')),
+                'recall': safe_round(stats.get('recall')),
+                'f1': safe_round(stats.get('f1')),
+                'sample_size': int(stats.get('sample_size') or 0),
+                'phenotype_count': 1
+            }
+            metrics_payload[phenotype] = metric_entry
+
+            if metric_entry['sample_size'] >= AVERAGE_SAMPLE_SIZE_THRESHOLD:
+                contributed = False
+                for metric in metric_names:
+                    value = stats.get(metric)
+                    if value is None:
+                        continue
+                    average_sums[metric] += value
+                    average_counts[metric] += 1
+                    contributed = True
+                if contributed:
+                    included_phenotypes.append(phenotype)
+                    average_sample_sum += metric_entry['sample_size']
+
+        if included_phenotypes:
+            average_entry = {
+                metric: safe_round(average_sums[metric] / average_counts[metric])
+                if average_counts[metric] else None
+                for metric in metric_names
+            }
+            average_entry['phenotype_count'] = len(included_phenotypes)
+            average_entry['sample_size'] = average_sample_sum
+            metrics_payload['average'] = average_entry
+
+        metadata_entry = _match_model_metadata(model_name)
+        publication_date = _normalize_publication_date(metadata_entry.get('publication_date')) if metadata_entry else None
+        organization = (metadata_entry or {}).get('organization')
+        parameters = (metadata_entry or {}).get('parameters')
+        display_name = (metadata_entry or {}).get('model') or model_name
+
+        if publication_date:
+            models_with_metadata += 1
+        else:
+            models_without_metadata.append(model_name)
+
+        if not organization and '/' in model_name:
+            organization = model_name.split('/')[0].replace('-', ' ').title()
+
+        models_payload.append({
+            'model': model_name,
+            'display_name': display_name,
+            'organization': organization or 'Unknown',
+            'publication_date': publication_date,
+            'parameters': parameters,
+            'metrics': metrics_payload
+        })
+
+    result_metadata = {
+        'import_date': (metadata or {}).get('import_date'),
+        'import_timestamp': import_timestamp,
+        'reported_species_count': (metadata or {}).get('reported_species_count'),
+        'species_file': accuracy_data.get('species_file'),
+        'accuracy_calculated_at': accuracy_data.get('metadata', {}).get('calculated_at')
+    }
+
+    if result_metadata['reported_species_count'] is not None:
+        try:
+            result_metadata['reported_species_count'] = int(result_metadata['reported_species_count'])
+        except (TypeError, ValueError):
+            result_metadata['reported_species_count'] = None
+
+    ordered_phenotypes = ['average'] if any('average' in m['metrics'] for m in models_payload) else []
+    ordered_phenotypes.extend([p for p in phenotypes if p])
+
+    return {
+        'dataset_name': dataset_name,
+        'phenotypes': ordered_phenotypes,
+        'metric_names': metric_names,
+        'models': models_payload,
+        'summary': {
+            'total_models': len(models_payload),
+            'models_with_metadata': models_with_metadata,
+            'models_without_metadata': sorted(models_without_metadata),
+            'metadata_source': 'static/data/year_size.tsv',
+            'average_sample_threshold': AVERAGE_SAMPLE_SIZE_THRESHOLD
+        },
+        'metadata': result_metadata
+    }
 
 
 def _normalize_knowledge_value(phenotype, value):
@@ -5918,6 +6382,7 @@ def api_import_ground_truth():
             _invalidate_ground_truth_stats_cache(dataset_name)
             _invalidate_model_accuracy_cache(dataset_name)
             _invalidate_knowledge_accuracy_cache(dataset_name)
+            _invalidate_performance_year_cache(dataset_name)
 
         return jsonify(result)
     except Exception as e:
@@ -6322,6 +6787,7 @@ def api_delete_ground_truth_dataset(dataset_name):
             _invalidate_ground_truth_stats_cache(dataset_name)
             _invalidate_model_accuracy_cache(dataset_name)
             _invalidate_knowledge_accuracy_cache(dataset_name)
+            _invalidate_performance_year_cache(dataset_name)
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -6571,5 +7037,61 @@ def api_get_knowledge_accuracy_cached():
     except Exception as e:
         import traceback
         print(f"[DEBUG] Error in cached knowledge accuracy API: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/performance_by_year_cached', methods=['GET'])
+def api_get_performance_by_year_cached():
+    """Return cached model performance vs publication year data."""
+    dataset_name = request.args.get('dataset_name')
+    refresh_requested = request.args.get('refresh', 'false').lower() in ('1', 'true', 'yes', 'force', 'refresh')
+
+    if not dataset_name:
+        return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
+
+    try:
+        current_metadata = _get_ground_truth_dataset_import_metadata(dataset_name)
+
+        if not refresh_requested:
+            cached_entry = _get_performance_year_cache_entry(dataset_name)
+            if (cached_entry and
+                current_metadata['import_timestamp'] <= cached_entry.get('import_timestamp', 0)):
+                normalized = json.loads(json.dumps(cached_entry['data'], ensure_ascii=False, default=str))
+                computed_at_ts = cached_entry.get('computed_at', 0)
+                computed_iso = datetime.utcfromtimestamp(computed_at_ts).isoformat() + 'Z' if computed_at_ts else None
+                normalized['success'] = True
+                normalized['cache_info'] = {
+                    'cached': True,
+                    'computed_at': computed_iso,
+                    'age_seconds': max(0, time.time() - computed_at_ts) if computed_at_ts else None,
+                    'source': 'cache'
+                }
+                return jsonify(normalized)
+
+        computed_at = time.time()
+        result = _calculate_performance_by_year_metrics(dataset_name, metadata=current_metadata)
+        _update_performance_year_cache(
+            dataset_name,
+            result,
+            float(result.get('metadata', {}).get('import_timestamp', 0)),
+            computed_at=computed_at
+        )
+
+        computed_iso = datetime.utcfromtimestamp(computed_at).isoformat() + 'Z'
+        payload = json.loads(json.dumps(result, ensure_ascii=False, default=str))
+        payload['success'] = True
+        payload['cache_info'] = {
+            'cached': False,
+            'computed_at': computed_iso,
+            'age_seconds': 0,
+            'source': 'fresh'
+        }
+
+        return jsonify(payload)
+
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error in cached performance-by-year API: {e}")
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500

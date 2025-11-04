@@ -1,0 +1,758 @@
+<!-- Model Performance by Publication Year (Cached) -->
+<style>
+  .performance-year-container {
+    padding: var(--spacing-component) 0;
+  }
+
+  .chart-controls {
+    display: flex;
+    gap: var(--spacing-element);
+    margin-bottom: var(--spacing-element);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .chart-controls .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chart-controls label {
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  .chart-controls select {
+    padding: 6px 12px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .refresh-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    background: #22c55e;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .refresh-button:hover {
+    background: #16a34a;
+    box-shadow: 0 8px 14px rgba(34, 197, 94, 0.2);
+  }
+
+  .refresh-button:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .year-chart-wrapper {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: var(--spacing-element);
+    margin-bottom: var(--spacing-component);
+    height: 500px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chart-canvas-container {
+    position: relative;
+    height: 450px;
+    width: 100%;
+  }
+
+  #yearPerformanceChart {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 450px !important;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px;
+  }
+
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #22c55e;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    font-size: 16px;
+    color: #374151;
+    font-weight: 600;
+  }
+
+  .loading-subtext {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 6px;
+  }
+
+  .cache-meta {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 12px;
+  }
+
+  .chart-legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: var(--spacing-element);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #374151;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .metadata-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-element);
+    margin-top: var(--spacing-component);
+  }
+
+  .stat-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .stat-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .stat-description {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .no-data-msg {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .chart-controls {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .refresh-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+
+<div class="performance-year-container">
+  <div class="chart-controls">
+    <div class="control-group">
+      <label for="datasetSelectYear">Dataset:</label>
+      <select id="datasetSelectYear">
+        <option value="">Loading datasets...</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="phenotypeSelect">Phenotype:</label>
+      <select id="phenotypeSelect">
+        <option value="average">Loading...</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="metricSelect">Metric:</label>
+      <select id="metricSelect">
+        <option value="balanced_accuracy" selected>Balanced Accuracy</option>
+        <option value="precision">Precision</option>
+        <option value="recall">Recall</option>
+        <option value="f1">F1 Score</option>
+      </select>
+    </div>
+    <button id="refreshPerformanceSnapshot" class="refresh-button" type="button">
+      <i class="fas fa-sync-alt" aria-hidden="true"></i>
+      <span>Refresh Snapshot</span>
+    </button>
+  </div>
+
+  <div class="cache-meta" id="performanceCacheMeta">Select a dataset to load cached metrics.</div>
+
+  <div class="year-chart-wrapper">
+    <div class="loading-overlay" id="performanceLoading" style="display:none;">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="performanceLoadingText">Loading snapshot...</div>
+      <div class="loading-subtext" id="performanceLoadingSubtext">Preparing cached visualization</div>
+    </div>
+    <div class="chart-canvas-container">
+      <canvas id="yearPerformanceChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-legend" id="chartLegend"></div>
+
+  <div class="metadata-stats">
+    <div class="stat-card">
+      <h4>Models with Metadata</h4>
+      <div class="stat-value" id="modelsWithMeta">0</div>
+      <div class="stat-description" id="modelsWithMetaDesc">Awaiting snapshot</div>
+    </div>
+    <div class="stat-card">
+      <h4>Date Range</h4>
+      <div class="stat-value" id="dateRange">-</div>
+      <div class="stat-description">Publication coverage</div>
+    </div>
+    <div class="stat-card">
+      <h4>Performance Correlation</h4>
+      <div class="stat-value" id="correlation">-</div>
+      <div class="stat-description" id="correlationDesc">Performance vs. Year</div>
+    </div>
+    <div class="stat-card">
+      <h4>Top Recent Model</h4>
+      <div class="stat-value" id="bestRecent">-</div>
+      <div class="stat-description">Best performer in last 6 months</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let cachedPerformance = null;
+  let performanceChart = null;
+  const datasetSelect = document.getElementById('datasetSelectYear');
+  const phenotypeSelect = document.getElementById('phenotypeSelect');
+  const metricSelect = document.getElementById('metricSelect');
+  const refreshButton = document.getElementById('refreshPerformanceSnapshot');
+  const cacheMeta = document.getElementById('performanceCacheMeta');
+  const loadingOverlay = document.getElementById('performanceLoading');
+  const loadingText = document.getElementById('performanceLoadingText');
+  const loadingSubtext = document.getElementById('performanceLoadingSubtext');
+
+  function showLoading(message, subtext) {
+    if (!loadingOverlay) return;
+    loadingOverlay.style.display = 'flex';
+    if (loadingText && message) loadingText.textContent = message;
+    if (loadingSubtext) loadingSubtext.textContent = subtext || 'Preparing cached visualization';
+  }
+
+  function hideLoading() {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+  }
+
+  function updateCacheMeta(cacheInfo, summary) {
+    if (!cacheMeta) return;
+    if (!cacheInfo) {
+      cacheMeta.textContent = 'Snapshot metadata unavailable.';
+      return;
+    }
+
+    const status = cacheInfo.cached ? 'Loaded cached snapshot' : 'Snapshot recomputed';
+    let computedAt = 'unknown time';
+    if (cacheInfo.computed_at) {
+      const parsed = new Date(cacheInfo.computed_at);
+      if (!Number.isNaN(parsed.getTime())) {
+        computedAt = parsed.toLocaleString();
+      }
+    }
+
+    const modelsWithMeta = summary?.models_with_metadata ?? 0;
+    const totalModels = summary?.total_models ?? 0;
+    const threshold = summary?.average_sample_threshold ?? 0;
+
+    const metaParts = [
+      `${status} at ${computedAt}`,
+      `${modelsWithMeta}/${totalModels} models with publication metadata`,
+      `Average metric threshold ≥ ${threshold} samples`
+    ];
+
+    if (summary?.models_without_metadata?.length) {
+      metaParts.push(`Metadata missing for ${summary.models_without_metadata.length} models`);
+    }
+
+    cacheMeta.textContent = metaParts.join(' · ');
+  }
+
+  function populatePhenotypes(phenotypes) {
+    if (!phenotypeSelect) return;
+    const options = Array.isArray(phenotypes) && phenotypes.length ? phenotypes : ['average'];
+    const currentValue = phenotypeSelect.value;
+    phenotypeSelect.innerHTML = '';
+    options.forEach((phenotype, index) => {
+      const option = document.createElement('option');
+      option.value = phenotype;
+      option.textContent = phenotype === 'average'
+        ? 'Average across phenotypes'
+        : phenotype.replace(/_/g, ' ');
+      if (index === 0 || phenotype === currentValue) {
+        option.selected = true;
+      }
+      phenotypeSelect.appendChild(option);
+    });
+  }
+
+  async function populateDatasets() {
+    try {
+      const response = await fetch('/api/ground_truth/datasets');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const json = await response.json();
+      const datasets = Array.isArray(json.datasets) ? json.datasets : [];
+
+      datasetSelect.innerHTML = '';
+      if (!datasets.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No datasets available';
+        datasetSelect.appendChild(option);
+        datasetSelect.disabled = true;
+        cacheMeta.textContent = 'No ground truth datasets found.';
+        return;
+      }
+
+      datasets.forEach((dataset, index) => {
+        const option = document.createElement('option');
+        option.value = dataset.dataset_name;
+        option.textContent = dataset.display_name || dataset.dataset_name;
+        if (index === 0) option.selected = true;
+        datasetSelect.appendChild(option);
+      });
+
+      datasetSelect.disabled = false;
+      loadCachedPerformanceData({ forceRefresh: false });
+    } catch (error) {
+      console.error('[PerformanceYearFast] Failed to load datasets:', error);
+      datasetSelect.innerHTML = '<option value="">Failed to load datasets</option>';
+      datasetSelect.disabled = true;
+      cacheMeta.textContent = `Failed to load datasets: ${error.message}`;
+    }
+  }
+
+  async function loadCachedPerformanceData({ forceRefresh }) {
+    const datasetName = datasetSelect.value;
+    if (!datasetName) {
+      cacheMeta.textContent = 'Select a dataset to load cached metrics.';
+      return;
+    }
+
+    showLoading(forceRefresh ? 'Refreshing snapshot...' : 'Loading snapshot...', forceRefresh ? 'Recomputing cached metrics' : 'Fetching cached metrics');
+    refreshButton.disabled = true;
+
+    try {
+      const url = new URL('/api/performance_by_year_cached', window.location.origin);
+      url.searchParams.set('dataset_name', datasetName);
+      if (forceRefresh) {
+        url.searchParams.set('refresh', 'true');
+      }
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || 'Failed to load cached metrics');
+
+      cachedPerformance = json;
+      populatePhenotypes(json.phenotypes);
+      updateCacheMeta(json.cache_info, json.summary);
+      updateChart();
+    } catch (error) {
+      console.error('[PerformanceYearFast] Failed to load cached performance data:', error);
+      cacheMeta.textContent = `Failed to load snapshot: ${error.message}`;
+      clearChart();
+    } finally {
+      hideLoading();
+      refreshButton.disabled = false;
+    }
+  }
+
+  function clearChart() {
+    if (performanceChart) {
+      performanceChart.destroy();
+      performanceChart = null;
+    }
+    const canvas = document.getElementById('yearPerformanceChart');
+    if (canvas) {
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) {
+        existingChart.destroy();
+      }
+    }
+    const wrapper = document.querySelector('.year-chart-wrapper');
+    if (wrapper) {
+      const existingMsg = wrapper.querySelector('.no-data-msg');
+      if (!existingMsg) {
+        const msg = document.createElement('div');
+        msg.className = 'no-data-msg';
+        msg.textContent = 'No data available for visualization.';
+        wrapper.appendChild(msg);
+      }
+    }
+  }
+
+  function updateChart() {
+    if (!cachedPerformance) {
+      clearChart();
+      return;
+    }
+
+    const metric = metricSelect.value;
+    const phenotype = phenotypeSelect.value;
+    const models = Array.isArray(cachedPerformance.models) ? cachedPerformance.models : [];
+    const chartData = [];
+
+    models.forEach(model => {
+      const metrics = model.metrics || {};
+      const phenotypeMetrics = metrics[phenotype];
+      if (!phenotypeMetrics) return;
+      const metricValue = phenotypeMetrics[metric];
+      if (metricValue == null) return;
+      const publicationDate = model.publication_date;
+      if (!publicationDate) return;
+      const parsedDate = new Date(publicationDate);
+      if (Number.isNaN(parsedDate.getTime())) return;
+
+      chartData.push({
+        x: parsedDate,
+        y: Number(metricValue),
+        model: model.display_name || model.model,
+        organization: model.organization || 'Unknown',
+        parameters: model.parameters || 'Unknown',
+        phenotype_count: phenotypeMetrics.phenotype_count || 0
+      });
+    });
+
+    chartData.sort((a, b) => a.x - b.x);
+    const frontier = calculateFrontier(chartData);
+    const summary = cachedPerformance.summary || {};
+    updateStatistics(chartData, metric, summary.models_with_metadata || 0, summary.total_models || models.length);
+    createScatterChart(chartData, metric, frontier);
+  }
+
+  function calculateFrontier(chartData) {
+    if (!chartData.length) return [];
+
+    const frontier = [];
+    let currentBest = chartData[0].y;
+    frontier.push({ x: chartData[0].x, y: chartData[0].y, model: chartData[0].model });
+
+    for (let i = 1; i < chartData.length; i++) {
+      const point = chartData[i];
+      if (point.y > currentBest) {
+        frontier.push({ x: point.x, y: currentBest, model: frontier[frontier.length - 1].model });
+        frontier.push({ x: point.x, y: point.y, model: point.model });
+        currentBest = point.y;
+      }
+    }
+
+    if (frontier.length) {
+      const today = new Date();
+      const lastPoint = frontier[frontier.length - 1];
+      if (lastPoint.x < today) {
+        frontier.push({ x: today, y: lastPoint.y, model: lastPoint.model });
+      }
+    }
+
+    return frontier;
+  }
+
+  function updateStatistics(chartData, metric, modelsWithMeta, totalModels) {
+    const modelsWithMetaEl = document.getElementById('modelsWithMeta');
+    const modelsWithMetaDescEl = document.getElementById('modelsWithMetaDesc');
+    const dateRangeEl = document.getElementById('dateRange');
+    const correlationEl = document.getElementById('correlation');
+    const correlationDescEl = document.getElementById('correlationDesc');
+    const bestRecentEl = document.getElementById('bestRecent');
+
+    if (modelsWithMetaEl) {
+      modelsWithMetaEl.textContent = modelsWithMeta;
+    }
+    if (modelsWithMetaDescEl) {
+      modelsWithMetaDescEl.textContent = totalModels ? `out of ${totalModels} total models` : 'Awaiting snapshot';
+    }
+
+    if (chartData.length) {
+      const minDate = new Date(Math.min(...chartData.map(d => d.x)));
+      const maxDate = new Date(Math.max(...chartData.map(d => d.x)));
+      if (dateRangeEl) {
+        const range = `${minDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${maxDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+        dateRangeEl.textContent = range;
+      }
+
+      const correlation = calculateCorrelation(chartData);
+      if (correlationEl) correlationEl.textContent = correlation.toFixed(3);
+      if (correlationDescEl) {
+        correlationDescEl.textContent = correlation > 0.3 ? 'Positive trend'
+          : correlation < -0.3 ? 'Negative trend'
+          : 'No clear trend';
+      }
+
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const recentModels = chartData.filter(d => d.x >= sixMonthsAgo);
+      if (bestRecentEl) {
+        if (recentModels.length) {
+          const bestRecent = recentModels.reduce((best, current) => current.y > best.y ? current : best);
+          bestRecentEl.textContent = bestRecent.model;
+        } else {
+          bestRecentEl.textContent = 'None';
+        }
+      }
+    } else {
+      if (dateRangeEl) dateRangeEl.textContent = '-';
+      if (correlationEl) correlationEl.textContent = '-';
+      if (correlationDescEl) correlationDescEl.textContent = 'Performance vs. Year';
+      if (bestRecentEl) bestRecentEl.textContent = '-';
+    }
+  }
+
+  function calculateCorrelation(data) {
+    if (data.length < 2) return 0;
+
+    const minDate = Math.min(...data.map(d => d.x.getTime()));
+    const xValues = data.map(d => (d.x.getTime() - minDate) / (1000 * 60 * 60 * 24));
+    const yValues = data.map(d => d.y);
+
+    const n = xValues.length;
+    const sumX = xValues.reduce((a, b) => a + b, 0);
+    const sumY = yValues.reduce((a, b) => a + b, 0);
+    const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+    const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+    const sumY2 = yValues.reduce((sum, y) => sum + y * y, 0);
+
+    const numerator = (n * sumXY) - (sumX * sumY);
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+
+    const correlation = denominator === 0 ? 0 : numerator / denominator;
+    return Number.isNaN(correlation) ? 0 : correlation;
+  }
+
+  function createScatterChart(data, metric, frontierData) {
+    const canvas = document.getElementById('yearPerformanceChart');
+    if (!canvas) {
+      console.error('[PerformanceYearFast] Canvas element not found');
+      return;
+    }
+
+    const wrapper = document.querySelector('.year-chart-wrapper');
+    const existingMsg = wrapper?.querySelector('.no-data-msg');
+    if (existingMsg) existingMsg.remove();
+
+    if (performanceChart) {
+      performanceChart.destroy();
+      performanceChart = null;
+    }
+
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+
+    if (!data.length) {
+      if (wrapper) {
+        const msg = document.createElement('div');
+        msg.className = 'no-data-msg';
+        msg.textContent = 'No data available for chart visualization.';
+        wrapper.appendChild(msg);
+      }
+      return;
+    }
+
+    const yValues = data.map(d => d.y);
+    const minY = Math.min(...yValues);
+    const maxY = Math.max(...yValues);
+    const padding = (maxY - minY) * 0.1;
+    const yMin = Math.max(0, minY - padding);
+    const yMax = Math.min(1, maxY + padding);
+
+    const ctx = canvas.getContext('2d');
+    const organizations = [...new Set(data.map(d => d.organization))];
+    const colors = [
+      '#2563eb', '#dc2626', '#16a34a', '#7c3aed', '#d97706', '#0ea5e9', '#be123c', '#059669'
+    ];
+    const colorMap = {};
+    organizations.forEach((org, index) => {
+      colorMap[org] = colors[index % colors.length];
+    });
+
+    const datasets = [{
+      label: metric.replace('_', ' '),
+      data,
+      pointRadius: 6,
+      pointBackgroundColor: data.map(point => colorMap[point.organization] || '#2563eb'),
+      pointBorderWidth: 1,
+      pointHoverRadius: 8
+    }];
+
+    if (frontierData && frontierData.length) {
+      datasets.push({
+        label: 'Performance frontier',
+        data: frontierData,
+        type: 'line',
+        borderColor: 'rgba(239, 68, 68, 0.7)',
+        borderDash: [6, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: false
+      });
+    }
+
+    performanceChart = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const point = context.raw;
+                return [
+                  `Model: ${point.model}`,
+                  `${metric.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${point.y.toFixed(3)}`,
+                  `Date: ${point.x.toLocaleDateString()}`,
+                  `Organization: ${point.organization}`,
+                  point.phenotype_count ? `Phenotypes included: ${point.phenotype_count}` : null
+                ].filter(Boolean);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'month',
+              displayFormats: { month: 'MMM yyyy' }
+            },
+            title: { display: true, text: 'Publication Date' },
+            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+          },
+          y: {
+            min: yMin,
+            max: yMax,
+            title: {
+              display: true,
+              text: metric.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
+            },
+            ticks: {
+              callback: value => Number(value).toFixed(2)
+            },
+            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+          }
+        }
+      }
+    });
+
+    updateLegend(organizations, colorMap);
+  }
+
+  function updateLegend(organizations, colorMap) {
+    const legendContainer = document.getElementById('chartLegend');
+    if (!legendContainer) return;
+    legendContainer.innerHTML = '';
+
+    const frontierItem = document.createElement('div');
+    frontierItem.className = 'legend-item';
+    frontierItem.innerHTML = '<div style="width: 20px; height: 2px; background: rgba(239, 68, 68, 0.7); border-top: 2px dashed rgba(239, 68, 68, 0.7);"></div><span style="font-weight:600;">Performance Frontier</span>';
+    legendContainer.appendChild(frontierItem);
+
+    organizations.slice(0, 8).forEach(org => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<div class="legend-dot" style="background: ${colorMap[org]}"></div><span>${org}</span>`;
+      legendContainer.appendChild(item);
+    });
+
+    if (organizations.length > 8) {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.textContent = `... and ${organizations.length - 8} more`;
+      legendContainer.appendChild(item);
+    }
+  }
+
+  function registerEventListeners() {
+    if (datasetSelect) {
+      datasetSelect.addEventListener('change', () => {
+        loadCachedPerformanceData({ forceRefresh: false });
+      });
+    }
+
+    if (metricSelect) {
+      metricSelect.addEventListener('change', updateChart);
+    }
+
+    if (phenotypeSelect) {
+      phenotypeSelect.addEventListener('change', updateChart);
+    }
+
+    if (refreshButton) {
+      refreshButton.addEventListener('click', () => {
+        loadCachedPerformanceData({ forceRefresh: true });
+      });
+    }
+  }
+
+  function init() {
+    registerEventListeners();
+    populateDatasets();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

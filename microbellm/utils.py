@@ -1007,6 +1007,17 @@ def create_ground_truth_tables():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Cached model performance by publication year snapshots
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS model_performance_year_cache (
+            dataset_name TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            import_timestamp REAL DEFAULT 0,
+            computed_at REAL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     conn.commit()
     conn.close()

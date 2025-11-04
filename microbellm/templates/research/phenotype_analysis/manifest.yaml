@@ -28,6 +28,12 @@ sections:
     parent_type: "article"
     close_article: true
     
+  # Transition from applications to phenotype categories
+  - id: "applications_to_categories_intro"
+    type: "article_content"
+    file: "sections/02a_applications_to_categories_transition.html"
+    parent_type: "article"
+    
   # Key Phenotype Categories - Full Width Callout
   - id: "key_phenotype_categories"
     type: "section_callout"
@@ -74,6 +80,11 @@ sections:
     title: "Species Popularity Analysis"
     text: "Interactive visualization of search frequency distribution across bacterial species."
     
+  - id: "search_count_transition"
+    type: "article_content"
+    file: "sections/06a_search_count_transition.html"
+    parent_type: "article"
+    
   # Search Count by Knowledge Group - Full Width Callout
   - id: "search_count_by_knowledge"
     type: "section_callout"
@@ -81,9 +92,9 @@ sections:
     
   # Dynamic stats callout
   - id: "dynamic_stats"
-    type: "callout_inline"
+    disabled: true
+    type: "article_content"
     file: "sections/03a_dynamic_stats.html"
-    callout_type: "phenotype"
     parent_type: "article"
     dynamic: true
     
@@ -110,19 +121,12 @@ sections:
 
   # Model Phenotype Predictions - Dynamic Full Width
   - id: "model_predictions"
+    disabled: true
     type: "section_callout_dynamic"
     file: "sections/07_model_predictions.html"
     container_id: "phenotypeContent"
     title: "Model Phenotype Predictions"
     text: "Comprehensive analysis of how different language models predict bacterial phenotypes, revealing patterns in biological knowledge representation."
-    
-  # Model Prediction Distributions - Dynamic Full Width
-  - id: "prediction_distributions"
-    type: "section_callout_dynamic"
-    file: "sections/07a_prediction_distributions.html"
-    container_id: "phenotypeDistributionsContent"
-    title: "Model Prediction Distributions by Phenotype"
-    text: "Visual breakdown of how each model predicts different phenotype values, showing distribution patterns and confidence levels across bacterial characteristics."
     
   # Model Accuracy Snapshot (cached)
   - id: "model_accuracy"
@@ -132,20 +136,23 @@ sections:
     title: "Model Accuracy Snapshot (Cached)"
     text: "Instant view of precomputed accuracy metrics. Refresh the snapshot after updating ground truth datasets or importing new model predictions."
     
-  # Model Performance Overview - New section
-  - id: "model_performance_overview"
-    type: "article"
-    file: "sections/07d_model_performance_overview.html"
-    title: "Model Performance Overview"
-    include_sidebar: false
-
+  - id: "model_accuracy_context"
+    type: "article_content"
+    file: "sections/07c_model_accuracy_context.html"
+    parent_type: "article"
+    
   # Model Performance by Publication Year
   - id: "performance_by_year"
     type: "section_callout_dynamic"
-    file: "sections/07k_performance_by_year.html"
+    file: "sections/07k_performance_by_year_fast.html"
     container_id: "performanceByYearContent"
     title: "Model Performance vs. Publication Year"
-    text: "Analysis of how model performance correlates with publication date, using metadata from recent model releases to identify trends in phenotype prediction accuracy over time."
+    text: "Cached analysis of how model performance correlates with publication date, using metadata from recent model releases to identify trends in phenotype prediction accuracy over time."
+
+  - id: "performance_by_year_context"
+    type: "article_content"
+    file: "sections/07k_performance_by_year_context.html"
+    parent_type: "article"
 
   # Model Parameters vs Accuracy
   - id: "parameters_vs_accuracy"
@@ -155,8 +162,14 @@ sections:
     title: "Model Size vs. Performance"
     text: "Exploring the relationship between model parameters and phenotype prediction accuracy, revealing efficiency trends and the performance-size trade-off in biological knowledge tasks."
 
+  - id: "parameters_vs_accuracy_context"
+    type: "article_content"
+    file: "sections/07l_parameters_vs_accuracy_context.html"
+    parent_type: "article"
+
   # Organization-Specific Model Performance
   - id: "organization_models"
+    disabled: true
     type: "section_callout_dynamic"
     file: "sections/07m_organization_models.html"
     container_id: "organizationModelsContent"
@@ -170,6 +183,11 @@ sections:
     container_id: "modelRangesContent"
     title: "Model Performance Ranges (Cached)"
     text: "Precomputed accuracy ranges loaded instantly. Refresh the snapshot after updating ground truth datasets or predictions."
+
+  - id: "model_ranges_context"
+    type: "article_content"
+    file: "sections/07e_model_ranges_context.html"
+    parent_type: "article"
     
   # Overall Model Ranking (cached)
   - id: "model_ranking"
@@ -178,6 +196,11 @@ sections:
     container_id: "modelRankingContent"
     title: "Overall Performance Ranking (Cached)"
     text: "Instant overview of precomputed balanced accuracy and precision rankings. Refresh the snapshot after dataset or prediction updates."
+
+  - id: "model_ranking_context"
+    type: "article_content"
+    file: "sections/07f_model_ranking_context.html"
+    parent_type: "article"
     
   # Best Models Per Phenotype (cached)
   - id: "best_models"
@@ -186,6 +209,11 @@ sections:
     container_id: "bestModelsContent"
     title: "Best Models Per Phenotype (Cached)"
     text: "Instant access to the top-performing model per phenotype using the shared accuracy snapshot. Refresh after updates to ground truth or predictions."
+
+  - id: "best_models_context"
+    type: "article_content"
+    file: "sections/07g_best_models_context.html"
+    parent_type: "article"
     
   # Model Accuracy by Knowledge Group (cached)
   - id: "accuracy_by_knowledge"
@@ -194,6 +222,11 @@ sections:
     container_id: "accuracyByKnowledgeContent"
     title: "Accuracy by Knowledge Group (Cached)"
     text: "Instant knowledge-stratified accuracy view derived from the shared cache. Refresh after updating ground truth datasets or predictions."
+
+  - id: "accuracy_by_knowledge_context"
+    type: "article_content"
+    file: "sections/07h_accuracy_by_knowledge_context.html"
+    parent_type: "article"
     
   # Knowledge Accuracy Visualization (cached)
   - id: "knowledge_accuracy_viz"
@@ -203,6 +236,11 @@ sections:
     title: "Phenotype Accuracy Across Knowledge Groups (Cached)"
     text: "Fast-loading snapshot of cached knowledge-stratified phenotype accuracy with dataset, model, and sampling controls. Refresh after updating ground truth or model predictions."
 
+  - id: "knowledge_accuracy_viz_context"
+    type: "article_content"
+    file: "sections/07i_knowledge_accuracy_viz_context.html"
+    parent_type: "article"
+
   # Knowledge Accuracy Trends (cached)
   - id: "knowledge_accuracy_trends"
     type: "section_callout_dynamic"
@@ -211,8 +249,14 @@ sections:
     title: "Knowledge Accuracy Trends (Cached)"
     text: "Precomputed knowledge-trend visualization with cached weighted accuracy metrics and instant toggles. Refresh after updating ground truth or cached snapshots."
 
+  - id: "knowledge_accuracy_trends_context"
+    type: "article_content"
+    file: "sections/07j_knowledge_accuracy_trends_context.html"
+    parent_type: "article"
+
   # Radar Plot Visualization
   - id: "radar_plot"
+    disabled: true
     type: "section_callout_dynamic"
     file: "sections/12_radar_plot.html"
     container_id: "radarPlotContent"
@@ -226,6 +270,11 @@ sections:
     container_id: "datasetExpansionContent"
     title: "Dataset Expansion Analysis"
     text: "Comparison of LLM-generated annotations versus ground truth data, showing how language models expand the available phenotype annotations."
+
+  - id: "dataset_expansion_context"
+    type: "article_content"
+    file: "sections/10_dataset_expansion_context.html"
+    parent_type: "article"
     
   # LLM Additions Raw Count
   - id: "llm_additions"
@@ -234,33 +283,11 @@ sections:
     container_id: "llmAdditionsContent"
     title: "LLM-Added Predictions"
     text: "Raw counts of new phenotype annotations added by language models, ranked by contribution volume."
-    
-  # Placeholder text section 2
-  - id: "placeholder_text_2"
-    type: "article"
-    file: "sections/08_placeholder_text_2.html"
-    include_sidebar: false
-    
-  # Hidden phenotypes section
-  - id: "hidden_phenotypes"
+
+  - id: "llm_additions_context"
     type: "article_content"
-    file: "sections/09_hidden_phenotypes.html"
+    file: "sections/11_llm_additions_context.html"
     parent_type: "article"
-    dynamic: true
-    
-  # End placeholder text 2
-  - id: "placeholder_text_2_end"
-    type: "article_content"
-    file: "sections/08a_placeholder_text_2_end.html"
-    parent_type: "article"
-    close_article: true
-    
-  # Admin Interface Figure
-  - id: "admin_interface_figure"
-    type: "raw"
-    file: "../../components/admin_interface_figure.html"
-    title: "Admin Interface Figure"
-    dynamic: false
     
   # Scripts (should be last)
   - id: "scripts"

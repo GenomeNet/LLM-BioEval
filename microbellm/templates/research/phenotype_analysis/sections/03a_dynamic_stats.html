@@ -56,6 +56,7 @@
     display: inline-block;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-weight: 600;
+    font-style: italic;
     background: rgba(34, 197, 94, 0.1);
     color: #059669;
     padding: 2px 6px;
@@ -67,6 +68,7 @@
     display: inline-block;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-weight: 600;
+    font-style: italic;
     background: rgba(239, 68, 68, 0.1);
     color: #dc2626;
     padding: 2px 6px;
@@ -100,18 +102,20 @@
             return;
         }
         
-        const mockStatsText = 
-            'We analyzed <span class="stat-value">31</span> language models across ' +
-            '<span class="stat-value">13</span> bacterial phenotype categories for ' +
-            '<span class="stat-value">3,884</span> species, ' +
-            'generating <span class="stat-value">50,492</span> prediction opportunities per model. ' +
-            'The models varied in their response patterns, with an average NA rate of <span class="stat-value">12.8%</span> ' +
-            'across all phenotype predictions. ' +
-            '<span class="model-highlight">Claude 3 Opus</span> provided predictions for <span class="stat-value">92.8%</span> of queries ' +
-            '(NA rate: <span class="stat-value">7.2%</span>), ' +
-            'while <span class="model-highlight">Mistral 7B</span> provided predictions for <span class="stat-value">81.5%</span> of queries ' +
-            '(NA rate: <span class="stat-value">18.5%</span>).';
-        container.innerHTML = mockStatsText;
+        const mockStatsText = `
+            We analyzed <span class="stat-value">31</span> language models across
+            <span class="stat-value">13</span> bacterial phenotype categories covering
+            <span class="stat-value">3,884</span> species, generating about
+            <span class="stat-value">50,492</span> prediction opportunities per model.
+            The models varied in their response patterns, with an average NA rate of
+            <span class="stat-value">12.8%</span> across all phenotype predictions.
+            <span class="model-highlight">Claude 3 Opus</span> provided predictions for
+            <span class="stat-value">92.8%</span> of queries (NA rate:
+            <span class="stat-value">7.2%</span>), while <span class="model-lowlight">Mistral 7B</span>
+            responded to <span class="stat-value">81.5%</span> of queries (NA rate:
+            <span class="stat-value">18.5%</span>).
+        `;
+        container.innerHTML = mockStatsText.trim();
     }
     
     // Load and process data
@@ -140,40 +144,43 @@
                 return;
             }
             
-            if (!data.files || data.files.length === 0) {
-                console.error('[PhenotypeDynamicStats] No files in response');
+            const records = Object.values(data.data || {}).reduce((acc, items) => {
+                if (Array.isArray(items)) {
+                    return acc.concat(items);
+                }
+                return acc;
+            }, []);
+
+            if (records.length === 0) {
+                console.error('[PhenotypeDynamicStats] No phenotype records available');
                 container.innerHTML = '<div class="error-message">No phenotype prediction data found</div>';
                 return;
             }
-            
-            // Process the first file by default
-            const firstFile = data.files[0];
-            const fileData = data.data[firstFile];
-            
-            if (!fileData) {
-                console.error('[PhenotypeDynamicStats] No data for file:', firstFile);
-                container.innerHTML = '<div class="error-message">No data available for analysis</div>';
-                return;
-            }
-            
+
+            console.log('[PhenotypeDynamicStats] Aggregated records:', records.length);
+
             // Generate the dynamic stats text
-            generatePhenotypeDynamicStats(fileData, container);
+            generatePhenotypeDynamicStats(records, container);
             
         } catch (error) {
             console.error('[PhenotypeDynamicStats] Failed to load data:', error);
             // Use mock data in component viewer context
             if (window.location.pathname.includes('/components/')) {
                 console.log('[PhenotypeDynamicStats] Using mock data for component viewer');
-                const mockStatsText = 
-                    'We analyzed <span class="stat-value">25</span> language models across ' +
-                    '<span class="stat-value">13</span> bacterial phenotype categories, ' +
-                    'generating an average of <span class="stat-value">500</span> predictions per model. ' +
-                    'The models showed varying levels of confidence in their predictions, with an average NA rate of <span class="stat-value">15.2%</span>. ' +
-                    '<span class="model-highlight">GPT-4</span> demonstrated the highest confidence ' +
-                    'with only <span class="stat-value">8.5%</span> NA responses, ' +
-                    'while <span class="model-lowlight">Llama-2</span> ' +
-                    'was more conservative with <span class="stat-value">22.3%</span> NA responses.';
-                container.innerHTML = mockStatsText;
+                const mockStatsText = `
+                    We analyzed <span class="stat-value">25</span> language models across
+                    <span class="stat-value">13</span> bacterial phenotype categories, covering
+                    <span class="stat-value">2,500</span> species and generating about
+                    <span class="stat-value">32,500</span> prediction opportunities per model.
+                    The models showed varying levels of confidence, with an average NA rate of
+                    <span class="stat-value">15.2%</span> across all phenotype predictions.
+                    <span class="model-highlight">GPT-4</span> provided predictions for
+                    <span class="stat-value">91.5%</span> of queries (NA rate:
+                    <span class="stat-value">8.5%</span>), while <span class="model-lowlight">Llama-2</span>
+                    responded to <span class="stat-value">77.7%</span> of queries (NA rate:
+                    <span class="stat-value">22.3%</span>).
+                `;
+                container.innerHTML = mockStatsText.trim();
             } else {
                 container.innerHTML = '<div class="error-message">Failed to load statistics. Please try again later.</div>';
             }
@@ -182,82 +189,91 @@
     
     // Generate dynamic stats text from phenotype data
     function generatePhenotypeDynamicStats(fileData, container) {
-        // Calculate statistics
-        const modelStats = {};
         const phenotypes = [
-            'gram_staining', 'motility', 'aerophilicity', 
-            'extreme_environment_tolerance', 'biofilm_formation', 
+            'gram_staining', 'motility', 'aerophilicity',
+            'extreme_environment_tolerance', 'biofilm_formation',
             'animal_pathogenicity', 'biosafety_level', 'health_association',
             'host_association', 'plant_pathogenicity', 'spore_formation',
             'hemolysis', 'cell_shape'
         ];
-        
-        // Group data by model and species
-        const modelData = {};
+
+        if (!Array.isArray(fileData) || fileData.length === 0) {
+            container.innerHTML = '<div class="error-message">No data available for analysis</div>';
+            return;
+        }
+
+        const modelStats = {};
+        const overallSpecies = new Set();
+
         fileData.forEach(item => {
-            const model = item.model;
-            if (!modelData[model]) {
-                modelData[model] = [];
+            if (!item || !item.model) {
+                return;
             }
-            modelData[model].push(item);
-        });
-        
-        // Calculate statistics per model
-        Object.keys(modelData).forEach(model => {
-            modelStats[model] = {
-                totalSpecies: modelData[model].length,
-                totalPossiblePredictions: modelData[model].length * phenotypes.length,
-                naCount: 0,
-                filledCount: 0
-            };
-            
-            // Count NA and filled responses
-            modelData[model].forEach(item => {
-                phenotypes.forEach(field => {
-                    const value = item[field];
-                    if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
-                        modelStats[model].naCount++;
-                    } else {
-                        modelStats[model].filledCount++;
-                    }
-                });
+
+            overallSpecies.add(item.binomial_name);
+
+            if (!modelStats[item.model]) {
+                modelStats[item.model] = {
+                    speciesSet: new Set(),
+                    naCount: 0,
+                    filledCount: 0
+                };
+            }
+
+            const stats = modelStats[item.model];
+            stats.speciesSet.add(item.binomial_name);
+
+            phenotypes.forEach(field => {
+                const value = item[field];
+                if (value === null || value === undefined || value === 'NA' || value === 'N/A' || value === '') {
+                    stats.naCount++;
+                } else {
+                    stats.filledCount++;
+                }
             });
         });
-        
-        // Calculate metrics
-        const modelResults = Object.entries(modelStats).map(([modelName, stats]) => ({
-            modelName,
-            totalSpecies: stats.totalSpecies,
-            naCount: stats.naCount,
-            filledCount: stats.filledCount,
-            naPercentage: (stats.naCount / stats.totalPossiblePredictions) * 100,
-            fillRate: (stats.filledCount / stats.totalPossiblePredictions) * 100
-        }));
-        
+
+        const modelResults = Object.entries(modelStats).map(([modelName, stats]) => {
+            const totalSpecies = stats.speciesSet.size;
+            const totalPredictions = totalSpecies * phenotypes.length;
+            const naPercentage = totalPredictions ? (stats.naCount / totalPredictions) * 100 : 0;
+            const fillRate = totalPredictions ? (stats.filledCount / totalPredictions) * 100 : 0;
+
+            return {
+                modelName,
+                totalSpecies,
+                totalPredictions,
+                naCount: stats.naCount,
+                filledCount: stats.filledCount,
+                naPercentage,
+                fillRate
+            };
+        }).filter(result => result.totalPredictions > 0);
+
         const totalModels = modelResults.length;
+        if (totalModels === 0) {
+            container.innerHTML = '<div class="error-message">No phenotype prediction data available for analysis</div>';
+            return;
+        }
+
         const avgNAPercentage = modelResults.reduce((sum, m) => sum + m.naPercentage, 0) / totalModels;
-        const totalSpecies = modelResults[0]?.totalSpecies || 0;  // All models should have same number of species
-        
-        // Find best and worst performers
-        let bestModel = null;
-        let bestNARate = 100;
-        let worstModel = null;
-        let worstNARate = 0;
-        
-        modelResults.forEach(model => {
-            if (model.naPercentage < bestNARate) {
-                bestNARate = model.naPercentage;
-                bestModel = model.modelName;
+        const avgOpportunitiesPerModel = modelResults.reduce((sum, m) => sum + m.totalPredictions, 0) / totalModels;
+        const uniqueSpeciesCount = overallSpecies.size;
+
+        let bestModelResult = null;
+        let worstModelResult = null;
+
+        modelResults.forEach(result => {
+            if (!bestModelResult || result.naPercentage < bestModelResult.naPercentage) {
+                bestModelResult = result;
             }
-            if (model.naPercentage > worstNARate) {
-                worstNARate = model.naPercentage;
-                worstModel = model.modelName;
+            if (!worstModelResult || result.naPercentage > worstModelResult.naPercentage) {
+                worstModelResult = result;
             }
         });
-        
-        // Format model names
+
         const formatModelName = (modelName) => {
-            if (!modelName.includes('/')) return modelName;
+            if (!modelName || !modelName.includes('/')) return modelName;
             const [provider, model] = modelName.split('/');
             const providerMap = {
                 'anthropic': 'Anthropic',
@@ -271,23 +287,46 @@
             const displayProvider = providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
             return `${displayProvider} ${model}`;
         };
-        
-        // Generate the dynamic statistics text
-        const dynamicStatsText =
-            `We analyzed <span class="stat-value">${totalModels}</span> language models across ` +
-            `<span class="stat-value">${phenotypes.length}</span> bacterial phenotype categories for ` +
-            `<span class="stat-value">${totalSpecies}</span> species, ` +
-            `generating <span class="stat-value">${totalSpecies * phenotypes.length}</span> prediction opportunities per model. ` +
-            `The models varied in their response patterns, with an average NA rate of <span class="stat-value">${avgNAPercentage.toFixed(1)}%</span> ` +
-            `across all phenotype predictions. ` +
-            (bestModel ? `<span class="model-highlight">${formatModelName(bestModel)}</span> provided predictions for ` +
-                `<span class="stat-value">${(100 - bestNARate).toFixed(1)}%</span> of queries ` +
-                `(NA rate: <span class="stat-value">${bestNARate.toFixed(1)}%</span>), ` : '') +
-            (worstModel && worstModel !== bestModel ? `while <span class="model-highlight">${formatModelName(worstModel)}</span> ` +
-                `provided predictions for <span class="stat-value">${(100 - worstNARate).toFixed(1)}%</span> of queries ` +
-                `(NA rate: <span class="stat-value">${worstNARate.toFixed(1)}%</span>).` : '');
-        
-        container.innerHTML = dynamicStatsText;
+
+        const formatCount = (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : '0';
+        const formatPercentage = (value) => Number.isFinite(value) ? value.toFixed(1) : '0.0';
+
+        const bestModelName = bestModelResult ? bestModelResult.modelName : null;
+        const worstModelName = worstModelResult ? worstModelResult.modelName : null;
+        const bestModelFillRate = bestModelResult ? formatPercentage(100 - bestModelResult.naPercentage) : null;
+        const bestModelNARate = bestModelResult ? formatPercentage(bestModelResult.naPercentage) : null;
+        const worstModelFillRate = worstModelResult ? formatPercentage(100 - worstModelResult.naPercentage) : null;
+        const worstModelNARate = worstModelResult ? formatPercentage(worstModelResult.naPercentage) : null;
+
+        const overview =
+            `We analyzed <span class="stat-value">${formatCount(totalModels)}</span> language models across ` +
+            `<span class="stat-value">${phenotypes.length}</span> bacterial phenotype categories covering ` +
+            `<span class="stat-value">${formatCount(uniqueSpeciesCount)}</span> species, generating about ` +
+            `<span class="stat-value">${formatCount(avgOpportunitiesPerModel)}</span> prediction opportunities per model.`;
+
+        const variation =
+            `The models varied in their response patterns, with an average NA rate of ` +
+            `<span class="stat-value">${formatPercentage(avgNAPercentage)}%</span> across all phenotype predictions.`;
+
+        const paragraphs = [`<p>${overview} ${variation}</p>`];
+
+        if (bestModelName) {
+            paragraphs.push(
+                `<p><span class="model-highlight">${formatModelName(bestModelName)}</span> provided predictions for ` +
+                `<span class="stat-value">${bestModelFillRate}%</span> of queries ` +
+                `(NA rate: <span class="stat-value">${bestModelNARate}%</span>).</p>`
+            );
+        }
+
+        if (worstModelName && worstModelName !== bestModelName) {
+            paragraphs.push(
+                `<p><span class="model-lowlight">${formatModelName(worstModelName)}</span> responded to ` +
+                `<span class="stat-value">${worstModelFillRate}%</span> of queries ` +
+                `(NA rate: <span class="stat-value">${worstModelNARate}%</span>).</p>`
+            );
+        }
+
+        container.innerHTML = paragraphs.join('');
     }
 })();
 </script>
