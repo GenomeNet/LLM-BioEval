@@ -265,6 +265,7 @@ sections:
     
   # Dataset Expansion Visualization
   - id: "dataset_expansion"
+    disabled: true
     type: "section_callout_dynamic"
     file: "sections/10_dataset_expansion.html"
     container_id: "datasetExpansionContent"
@@ -272,12 +273,14 @@ sections:
     text: "Comparison of LLM-generated annotations versus ground truth data, showing how language models expand the available phenotype annotations."
 
   - id: "dataset_expansion_context"
+    disabled: true
     type: "article_content"
     file: "sections/10_dataset_expansion_context.html"
     parent_type: "article"
     
   # LLM Additions Raw Count
   - id: "llm_additions"
+    disabled: true
     type: "section_callout_dynamic"
     file: "sections/11_llm_additions.html"
     container_id: "llmAdditionsContent"
@@ -285,6 +288,7 @@ sections:
     text: "Raw counts of new phenotype annotations added by language models, ranked by contribution volume."
 
   - id: "llm_additions_context"
+    disabled: true
     type: "article_content"
     file: "sections/11_llm_additions_context.html"
     parent_type: "article"

@@ -313,15 +313,20 @@
 <script>
 // Initialize animations for each project
 document.addEventListener('DOMContentLoaded', function() {
-    {% for project in projects %}
-    // Initialize {{ project.id }} animation using {{ project.animation_type }} type
-    const canvasId = '{{ project.id }}-canvas';
-    const animationType = '{{ project.animation_type }}';
-    
+    const animations = [
+        {% for project in projects %}
+        {
+            canvasId: '{{ project.id }}-canvas',
+            animationType: '{{ project.animation_type }}'
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
     if (window.initAnimation) {
-        window.initAnimation(canvasId, animationType);
+        animations.forEach(({ canvasId, animationType }) => {
+            window.initAnimation(canvasId, animationType);
+        });
     }
-    {% endfor %}
 });
 </script>
 {% endblock %}
