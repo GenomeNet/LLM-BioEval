@@ -888,7 +888,7 @@
             _paq.push(['setSiteId', '1']);
             var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
             g.async = true;
-            g.src = 'https://cdn.matomo.cloud/helmholtzhzi.matomo.cloud/matomo.js';
+            g.src = "{{ url_for('static', filename='js/vendor/matomo.js') }}";
             s.parentNode.insertBefore(g, s);
         })();
     </script>

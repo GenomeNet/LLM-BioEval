@@ -14,13 +14,11 @@
                 <option value="all">All Species (3,884)</option>
                 <option value="top100">Top 100 Most Searched</option>
                 <option value="top500">Top 500 Most Searched</option>
-                <option value="withAccuracy">Species with Accuracy Data</option>
             </select>
         </div>
         
         <div class="control-group">
-            <label for="highlightSpecies">Highlight Species:</label>
-            <input type="text" id="highlightSpecies" class="control-input" placeholder="e.g., Escherichia coli">
+            <input type="text" id="highlightSpecies" class="control-input" placeholder="Highlight species e.g., Escherichia coli" aria-label="Highlight species">
         </div>
     </div>
     
@@ -130,8 +128,6 @@
             filteredData = filteredData.sort((a, b) => b.search_count - a.search_count).slice(0, 100);
         } else if (dataFilter === 'top500') {
             filteredData = filteredData.sort((a, b) => b.search_count - a.search_count).slice(0, 500);
-        } else if (dataFilter === 'withAccuracy') {
-            filteredData = filteredData.filter(s => accuracyData[s.binomial_name]);
         }
         
         // Prepare chart data

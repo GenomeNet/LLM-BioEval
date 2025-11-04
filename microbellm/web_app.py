@@ -2877,6 +2877,21 @@ def _invalidate_all_caches():
     _invalidate_search_correlation_cache()
     _invalidate_knowledge_analysis_cache()
 
+
+def _handle_persistence_readonly(exc: Exception, context: str) -> bool:
+    """Handle read-only database errors for cache persistence operations."""
+    global _ground_truth_persistence_available
+
+    message = str(exc).lower()
+    if 'readonly' not in message:
+        return False
+
+    if _ground_truth_persistence_available is not False:
+        logger.warning("Disabling cache persistence (%s): database is read-only.", context)
+    _ground_truth_persistence_available = False
+    return True
+
+
 def _ensure_ground_truth_persistence() -> bool:
     """Ensure ground-truth cache tables are available; degrade gracefully if read-only."""
     global _ground_truth_persistence_available
@@ -2889,15 +2904,14 @@ def _ensure_ground_truth_persistence() -> bool:
     try:
         create_ground_truth_tables()
     except sqlite3.OperationalError as exc:
-        message = str(exc).lower()
-        if 'readonly' in message:
-            logger.warning("Ground truth cache persistence disabled: database is read-only.")
-            _ground_truth_persistence_available = False
+        if _handle_persistence_readonly(exc, "create-ground-truth-tables"):
             return False
         logger.exception("Failed to ensure ground truth tables exist")
         _ground_truth_persistence_available = False
         return False
-    except sqlite3.DatabaseError:
+    except sqlite3.DatabaseError as exc:
+        if _handle_persistence_readonly(exc, "create-ground-truth-tables"):
+            return False
         logger.exception("Failed to ensure ground truth tables exist")
         _ground_truth_persistence_available = False
         return False
@@ -2954,42 +2968,54 @@ def _save_persistent_ground_truth_stats(dataset_name, data, import_timestamp, co
         logger.debug("Skipping save of ground truth stats for %s; persistence unavailable", dataset_name)
         return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO ground_truth_statistics_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(dataset_name) DO UPDATE SET
-            payload = excluded.payload,
-            import_timestamp = excluded.import_timestamp,
-            computed_at = excluded.computed_at,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
-    )
-
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO ground_truth_statistics_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(dataset_name) DO UPDATE SET
+                payload = excluded.payload,
+                import_timestamp = excluded.import_timestamp,
+                computed_at = excluded.computed_at,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+        )
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "save-ground-truth-stats"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _clear_persistent_ground_truth_stats(dataset_name=None):
     if not _ensure_ground_truth_persistence():
         return
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    if dataset_name:
-        cursor.execute(
-            "DELETE FROM ground_truth_statistics_cache WHERE dataset_name = ?",
-            (dataset_name,)
-        )
-    else:
-        cursor.execute("DELETE FROM ground_truth_statistics_cache")
+        if dataset_name:
+            cursor.execute(
+                "DELETE FROM ground_truth_statistics_cache WHERE dataset_name = ?",
+                (dataset_name,)
+            )
+        else:
+            cursor.execute("DELETE FROM ground_truth_statistics_cache")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "clear-ground-truth-stats"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _get_species_file_for_dataset(dataset_name):
@@ -3173,42 +3199,54 @@ def _save_persistent_model_accuracy(dataset_name, data, import_timestamp, comput
         logger.debug("Skipping save of model accuracy cache for %s; persistence unavailable", dataset_name)
         return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO model_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(dataset_name) DO UPDATE SET
-            payload = excluded.payload,
-            import_timestamp = excluded.import_timestamp,
-            computed_at = excluded.computed_at,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
-    )
-
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO model_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(dataset_name) DO UPDATE SET
+                payload = excluded.payload,
+                import_timestamp = excluded.import_timestamp,
+                computed_at = excluded.computed_at,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+        )
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "save-model-accuracy"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _clear_persistent_model_accuracy(dataset_name=None):
     if not _ensure_ground_truth_persistence():
         return
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    if dataset_name:
-        cursor.execute(
-            "DELETE FROM model_accuracy_cache WHERE dataset_name = ?",
-            (dataset_name,)
-        )
-    else:
-        cursor.execute("DELETE FROM model_accuracy_cache")
+        if dataset_name:
+            cursor.execute(
+                "DELETE FROM model_accuracy_cache WHERE dataset_name = ?",
+                (dataset_name,)
+            )
+        else:
+            cursor.execute("DELETE FROM model_accuracy_cache")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "clear-model-accuracy"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _load_persistent_performance_year(dataset_name):
@@ -3253,42 +3291,54 @@ def _save_persistent_performance_year(dataset_name, data, import_timestamp, comp
         logger.debug("Skipping save of performance-by-year cache for %s; persistence unavailable", dataset_name)
         return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO model_performance_year_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(dataset_name) DO UPDATE SET
-            payload = excluded.payload,
-            import_timestamp = excluded.import_timestamp,
-            computed_at = excluded.computed_at,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
-    )
-
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO model_performance_year_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(dataset_name) DO UPDATE SET
+                payload = excluded.payload,
+                import_timestamp = excluded.import_timestamp,
+                computed_at = excluded.computed_at,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+        )
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "save-performance-year"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _clear_persistent_performance_year(dataset_name=None):
     if not _ensure_ground_truth_persistence():
         return
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    if dataset_name:
-        cursor.execute(
-            "DELETE FROM model_performance_year_cache WHERE dataset_name = ?",
-            (dataset_name,)
-        )
-    else:
-        cursor.execute("DELETE FROM model_performance_year_cache")
+        if dataset_name:
+            cursor.execute(
+                "DELETE FROM model_performance_year_cache WHERE dataset_name = ?",
+                (dataset_name,)
+            )
+        else:
+            cursor.execute("DELETE FROM model_performance_year_cache")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "clear-performance-year"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _load_persistent_knowledge_accuracy(dataset_name):
@@ -3333,42 +3383,54 @@ def _save_persistent_knowledge_accuracy(dataset_name, data, import_timestamp, co
         logger.debug("Skipping save of knowledge accuracy cache for %s; persistence unavailable", dataset_name)
         return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO knowledge_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(dataset_name) DO UPDATE SET
-            payload = excluded.payload,
-            import_timestamp = excluded.import_timestamp,
-            computed_at = excluded.computed_at,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
-    )
-
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO knowledge_accuracy_cache (dataset_name, payload, import_timestamp, computed_at, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(dataset_name) DO UPDATE SET
+                payload = excluded.payload,
+                import_timestamp = excluded.import_timestamp,
+                computed_at = excluded.computed_at,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset_name, snapshot_json, float(import_timestamp or 0), float(computed_at or time.time()))
+        )
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "save-knowledge-accuracy"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _clear_persistent_knowledge_accuracy(dataset_name=None):
     if not _ensure_ground_truth_persistence():
         return
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    if dataset_name:
-        cursor.execute(
-            "DELETE FROM knowledge_accuracy_cache WHERE dataset_name = ?",
-            (dataset_name,)
-        )
-    else:
-        cursor.execute("DELETE FROM knowledge_accuracy_cache")
+        if dataset_name:
+            cursor.execute(
+                "DELETE FROM knowledge_accuracy_cache WHERE dataset_name = ?",
+                (dataset_name,)
+            )
+        else:
+            cursor.execute("DELETE FROM knowledge_accuracy_cache")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        if not _handle_persistence_readonly(exc, "clear-knowledge-accuracy"):
+            raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def _coerce_timestamp(value):
