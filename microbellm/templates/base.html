@@ -756,63 +756,9 @@
             color: var(--gray-900);
         }
 
-        .cookie-consent-banner {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            max-width: 360px;
-            width: calc(100% - 48px);
-            background: var(--bg-primary);
-            border: 1px solid var(--gray-200);
-            border-radius: 16px;
-            box-shadow: var(--shadow-lg);
-            padding: 20px 24px;
-            display: none;
-            z-index: 2000;
-        }
-
-        .cookie-consent-banner.show {
-            display: block;
-        }
-
-        .cookie-consent-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--gray-900);
-            margin-bottom: 8px;
-        }
-
-        .cookie-consent-text {
-            margin: 0;
-            color: var(--gray-600);
-            font-size: 14px;
-        }
-
-        .cookie-consent-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 16px;
-        }
-
-        .cookie-consent-actions .btn {
-            flex: 1 1 auto;
-            justify-content: center;
-        }
-
-        @media (max-width: 480px) {
-            .cookie-consent-banner {
-                right: 16px;
-                left: 16px;
-                bottom: 16px;
-                width: auto;
-            }
-
-            .cookie-consent-actions {
-                flex-direction: column;
-            }
-        }
     </style>
+    <script defer type="text/javascript" src="{{ url_for('static', filename='js/vendor/config.js') }}"></script>
+    <script defer type="text/javascript" src="{{ url_for('static', filename='js/vendor/klaro.js') }}"></script>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -863,19 +809,6 @@
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
-    
-    <div class="cookie-consent-banner" id="cookie-consent-banner" role="dialog" aria-live="polite" aria-label="Analytics consent notice" aria-hidden="true">
-        <div class="cookie-consent-title">We use Matomo Analytics</div>
-        <p class="cookie-consent-text">
-            We rely on Matomo to understand how the site is used. Analytics cookies are set only after you give consent.
-        </p>
-        <div class="cookie-consent-actions">
-            <button type="button" class="btn btn-primary" id="cookie-consent-accept">Allow analytics</button>
-            <button type="button" class="btn btn-secondary" id="cookie-consent-decline">Decline</button>
-            <a class="btn btn-ghost" href="/privacy">Privacy details</a>
-        </div>
-    </div>
-    
     <!-- Matomo -->
     <script>
         var _paq = window._paq = window._paq || [];
@@ -883,7 +816,7 @@
         _paq.push(['trackPageView']);
         _paq.push(['enableLinkTracking']);
         (function() {
-            var u = 'https://helmholtzhzi.matomo.cloud/';
+            var u = 'https://sarscoverage.matomo.cloud/';
             _paq.push(['setTrackerUrl', u + 'matomo.php']);
             _paq.push(['setSiteId', '1']);
             var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
@@ -902,76 +835,16 @@
             }
         });
     </script>
-    <script>
-        (function () {
-            const banner = document.getElementById('cookie-consent-banner');
-            if (!banner) {
-                return;
-            }
-
-            const acceptButton = document.getElementById('cookie-consent-accept');
-            const declineButton = document.getElementById('cookie-consent-decline');
-
-            const hideBanner = () => {
-                banner.classList.remove('show');
-                banner.setAttribute('aria-hidden', 'true');
-            };
-
-            const showBanner = () => {
-                banner.classList.add('show');
-                banner.setAttribute('aria-hidden', 'false');
-            };
-
-            window.Microbellm = window.Microbellm || {};
-            window.Microbellm.showAnalyticsConsent = () => {
-                localStorage.removeItem('analyticsConsent');
-                if (typeof _paq !== 'undefined') {
-                    _paq.push(['forgetConsentGiven']);
-                }
-                showBanner();
-            };
-
-            const setAccepted = () => {
-                localStorage.setItem('analyticsConsent', 'accepted');
-                if (typeof _paq !== 'undefined') {
-                    _paq.push(['setConsentGiven']);
-                    _paq.push(['rememberConsentGiven']);
-                }
-                hideBanner();
-            };
-
-            const setDeclined = () => {
-                localStorage.setItem('analyticsConsent', 'declined');
-                if (typeof _paq !== 'undefined') {
-                    _paq.push(['forgetConsentGiven']);
-                }
-                hideBanner();
-            };
-
-            const existing = localStorage.getItem('analyticsConsent');
-            if (existing === 'accepted') {
-                setAccepted();
-                return;
-            }
-
-            if (existing === 'declined') {
-                setDeclined();
-                return;
-            }
-
-            showBanner();
-
-            if (acceptButton) {
-                acceptButton.addEventListener('click', setAccepted);
-            }
-
-            if (declineButton) {
-                declineButton.addEventListener('click', setDeclined);
-            }
-        })();
-    </script>
     <!-- Socket.IO for real-time updates -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        window.Microbellm = window.Microbellm || {};
+        window.Microbellm.showAnalyticsConsent = function () {
+            if (window.klaro && typeof window.klaro.show === 'function') {
+                window.klaro.show();
+            }
+        };
+    </script>
     {% block scripts %}{% endblock %}
     {% block extra_scripts %}{% endblock %}
 </body>
