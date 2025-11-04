@@ -10,6 +10,7 @@ import math
 import re
 import secrets
 import logging
+from typing import Optional
 from collections import defaultdict
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
@@ -226,6 +227,9 @@ _model_performance_year_cache_lock = threading.Lock()
 _model_metadata_index = None
 _model_metadata_index_lock = threading.Lock()
 
+# Track whether persistence tables are writable in this environment
+_ground_truth_persistence_available: Optional[bool] = None
+
 _MODEL_METADATA_ALIAS_MAP = {
     'anthropicclaude3opus': 'claude3opus',
     'anthropicclaude3sonnet': 'claude3sonnet',
@@ -263,9 +267,14 @@ def reset_running_jobs_on_startup():
     
     if running_jobs:
         logger.info("Found %d jobs with 'running' status on startup. Setting to 'interrupted'.", len(running_jobs))
-        # Update their status to 'interrupted'
-        cursor.execute("UPDATE combinations SET status = 'interrupted' WHERE status = 'running'")
-        conn.commit()
+        try:
+            cursor.execute("UPDATE combinations SET status = 'interrupted' WHERE status = 'running'")
+            conn.commit()
+        except sqlite3.OperationalError as exc:
+            if 'readonly' in str(exc).lower():
+                logger.warning("Database is read-only; skipping job reset on startup.")
+            else:
+                raise
         
     conn.close()
 
@@ -2868,6 +2877,34 @@ def _invalidate_all_caches():
     _invalidate_search_correlation_cache()
     _invalidate_knowledge_analysis_cache()
 
+def _ensure_ground_truth_persistence() -> bool:
+    """Ensure ground-truth cache tables are available; degrade gracefully if read-only."""
+    global _ground_truth_persistence_available
+
+    if _ground_truth_persistence_available is True:
+        return True
+    if _ground_truth_persistence_available is False:
+        return False
+
+    try:
+        create_ground_truth_tables()
+    except sqlite3.OperationalError as exc:
+        message = str(exc).lower()
+        if 'readonly' in message:
+            logger.warning("Ground truth cache persistence disabled: database is read-only.")
+            _ground_truth_persistence_available = False
+            return False
+        logger.exception("Failed to ensure ground truth tables exist")
+        _ground_truth_persistence_available = False
+        return False
+    except sqlite3.DatabaseError:
+        logger.exception("Failed to ensure ground truth tables exist")
+        _ground_truth_persistence_available = False
+        return False
+
+    _ground_truth_persistence_available = True
+    return True
+
 def _update_knowledge_analysis_cache(data, timestamp):
     """Update the global knowledge analysis cache"""
     global _knowledge_analysis_cache, _knowledge_analysis_cache_timestamp
@@ -2876,7 +2913,8 @@ def _update_knowledge_analysis_cache(data, timestamp):
 
 
 def _load_persistent_ground_truth_stats(dataset_name):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
@@ -2912,7 +2950,9 @@ def _load_persistent_ground_truth_stats(dataset_name):
 
 
 def _save_persistent_ground_truth_stats(dataset_name, data, import_timestamp, computed_at):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        logger.debug("Skipping save of ground truth stats for %s; persistence unavailable", dataset_name)
+        return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -2935,7 +2975,8 @@ def _save_persistent_ground_truth_stats(dataset_name, data, import_timestamp, co
 
 
 def _clear_persistent_ground_truth_stats(dataset_name=None):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -3091,7 +3132,8 @@ def _match_model_metadata(model_name):
 
 
 def _load_persistent_model_accuracy(dataset_name):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
@@ -3127,7 +3169,9 @@ def _load_persistent_model_accuracy(dataset_name):
 
 
 def _save_persistent_model_accuracy(dataset_name, data, import_timestamp, computed_at):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        logger.debug("Skipping save of model accuracy cache for %s; persistence unavailable", dataset_name)
+        return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -3150,7 +3194,8 @@ def _save_persistent_model_accuracy(dataset_name, data, import_timestamp, comput
 
 
 def _clear_persistent_model_accuracy(dataset_name=None):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -3167,7 +3212,8 @@ def _clear_persistent_model_accuracy(dataset_name=None):
 
 
 def _load_persistent_performance_year(dataset_name):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
@@ -3203,7 +3249,9 @@ def _load_persistent_performance_year(dataset_name):
 
 
 def _save_persistent_performance_year(dataset_name, data, import_timestamp, computed_at):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        logger.debug("Skipping save of performance-by-year cache for %s; persistence unavailable", dataset_name)
+        return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -3226,7 +3274,8 @@ def _save_persistent_performance_year(dataset_name, data, import_timestamp, comp
 
 
 def _clear_persistent_performance_year(dataset_name=None):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -3243,7 +3292,8 @@ def _clear_persistent_performance_year(dataset_name=None):
 
 
 def _load_persistent_knowledge_accuracy(dataset_name):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
@@ -3279,7 +3329,9 @@ def _load_persistent_knowledge_accuracy(dataset_name):
 
 
 def _save_persistent_knowledge_accuracy(dataset_name, data, import_timestamp, computed_at):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        logger.debug("Skipping save of knowledge accuracy cache for %s; persistence unavailable", dataset_name)
+        return
     snapshot_json = json.dumps(data, ensure_ascii=False, default=str)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -3302,7 +3354,8 @@ def _save_persistent_knowledge_accuracy(dataset_name, data, import_timestamp, co
 
 
 def _clear_persistent_knowledge_accuracy(dataset_name=None):
-    create_ground_truth_tables()
+    if not _ensure_ground_truth_persistence():
+        return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
