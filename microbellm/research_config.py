@@ -5,6 +5,7 @@ This centralizes all research project metadata to avoid duplication.
 
 from typing import List, Optional
 from dataclasses import dataclass
+import re
 
 @dataclass
 class ResearchProject:
@@ -23,7 +24,9 @@ class ResearchProject:
     link_text: str  # Text for the link button
     date_text: str  # "Updated regularly", "In development", etc.
     order: int  # Display order
-    
+    paper_title: Optional[str] = None
+    paper_authors: Optional[str] = None
+
     @property
     def card_type(self) -> str:
         """Get the card type label based on the project."""
@@ -43,11 +46,35 @@ class ResearchProject:
             'development': 'yellow'
         }
         return status_map.get(self.status, 'blue')
-    
+
     @property
     def is_available(self) -> bool:
         """Check if the project page is available."""
         return self.route is not None
+
+    @property
+    def paper_title_display(self) -> str:
+        """Return the preferred paper title for presentation."""
+        return self.paper_title or self.title
+
+    @property
+    def paper_authors_display(self) -> str:
+        """Return a cleaned author list without affiliation markers."""
+        authors = self.paper_authors or self.authors
+        if not authors:
+            return ''
+
+        cleaned_tokens = []
+        for part in authors.split(','):
+            stripped = part.strip()
+            if not stripped:
+                continue
+            stripped = re.sub(r'\d+', '', stripped)
+            stripped = stripped.replace('*', '').strip()
+            if stripped:
+                cleaned_tokens.append(stripped)
+
+        return ', '.join(cleaned_tokens)
 
 
 # Define all research projects
@@ -66,7 +93,9 @@ RESEARCH_PROJECTS = [
         animation_type='bacteria',
         link_text='Explore Analysis',
         date_text='Updated regularly',
-        order=1
+        order=1,
+        paper_title='Comparative Assessment of Large Language Models for Microbial Phenotype Annotation',
+        paper_authors='Philipp C. Münch1,2,5,6,7,*, Nasim Safaei1,2, René Mreches1,2,7, Martin Binder3,4, Yichen Han1,2,3, Gary Robertson1,2, Eric A. Franzosa5, Curtis Huttenhower5, Alice C. McHardy1,2,6,7,*'
     ),
     ResearchProject(
         id='knowledge_calibration',
@@ -82,7 +111,9 @@ RESEARCH_PROJECTS = [
         animation_type='dna',
         link_text='View Results',
         date_text='Updated regularly',
-        order=2
+        order=2,
+        paper_title='Comparative Assessment of Large Language Models for Microbial Phenotype Annotation',
+        paper_authors='Philipp C. Münch1,2,5,6,7,*, Nasim Safaei1,2, René Mreches1,2,7, Martin Binder3,4, Yichen Han1,2,3, Gary Robertson1,2, Eric A. Franzosa5, Curtis Huttenhower5, Alice C. McHardy1,2,6,7,*'
     ),
     ResearchProject(
         id='growth_conditions',

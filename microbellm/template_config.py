@@ -10,6 +10,9 @@ import json
 import re
 from pathlib import Path
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TemplateValidator:
     """Validator class that loads configuration from JSON files"""
@@ -24,7 +27,7 @@ class TemplateValidator:
             with open(self.config_file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error loading template config from {self.config_file_path}: {e}")
+            logger.warning("Error loading template config from %s: %s", self.config_file_path, e)
             return None
     
     def validate_response(self, response_data):

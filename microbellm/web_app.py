@@ -9,6 +9,7 @@ import time
 import math
 import re
 import secrets
+import logging
 from collections import defaultdict
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
@@ -60,11 +61,28 @@ def _load_env_file(name: str) -> None:
 
             os.environ.setdefault(key, value)
     except OSError as exc:
-        print(f"Warning: unable to load environment variables from {env_path}: {exc}")
+        logging.getLogger(__name__).warning("Unable to load environment variables from %s: %s", env_path, exc)
 
 
 if not os.getenv('MICROBELLM_SECRET_KEY'):
     _load_env_file('.env.local')
+
+
+def _configure_logging() -> logging.Logger:
+    """Configure application logging with an overridable log level."""
+    level_name = os.getenv('MICROBELLM_LOG_LEVEL', 'INFO').upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    )
+    # Reduce noisy Flask/Werkzeug request logs unless explicitly enabled
+    if level > logging.DEBUG:
+        logging.getLogger('werkzeug').setLevel(logging.WARNING)
+    return logging.getLogger(__name__)
+
+
+logger = _configure_logging()
 
 
 def _resolve_secret_key() -> str:
@@ -75,11 +93,11 @@ def _resolve_secret_key() -> str:
 
     fallback = os.getenv('FLASK_SECRET_KEY')
     if fallback:
-        print("Warning: using FLASK_SECRET_KEY fallback; set MICROBELLM_SECRET_KEY for consistency.")
+        logger.warning("Using FLASK_SECRET_KEY fallback; set MICROBELLM_SECRET_KEY for consistency.")
         return fallback
 
     ephemeral = secrets.token_urlsafe(32)
-    print("Warning: MICROBELLM_SECRET_KEY not set. Generated ephemeral secret key; sessions reset on restart.")
+    logger.warning("MICROBELLM_SECRET_KEY not set. Generated ephemeral secret key; sessions reset on restart.")
     return ephemeral
 
 
@@ -244,7 +262,7 @@ def reset_running_jobs_on_startup():
     running_jobs = cursor.fetchall()
     
     if running_jobs:
-        print(f"Found {len(running_jobs)} jobs with 'running' status on startup. Setting to 'interrupted'.")
+        logger.info("Found %d jobs with 'running' status on startup. Setting to 'interrupted'.", len(running_jobs))
         # Update their status to 'interrupted'
         cursor.execute("UPDATE combinations SET status = 'interrupted' WHERE status = 'running'")
         conn.commit()
@@ -370,7 +388,7 @@ class ProcessingManager:
         
         if 'template_type' not in columns:
             cursor.execute("ALTER TABLE template_metadata ADD COLUMN template_type TEXT DEFAULT 'phenotype'")
-            print("Added column template_type to template_metadata table")
+            logger.info("Added column template_type to template_metadata table")
 
         # Migration: Add phenotype columns if they don't exist
         cursor.execute("PRAGMA table_info(results)")
@@ -396,7 +414,7 @@ class ProcessingManager:
         for column_name, column_type in phenotype_columns:
             if column_name not in columns:
                 cursor.execute(f'ALTER TABLE results ADD COLUMN {column_name} {column_type}')
-                print(f"Added column {column_name} to results table")
+                logger.info("Added column %s to results table", column_name)
         
         # Migration: Add new progress tracking columns if they don't exist
         cursor.execute("PRAGMA table_info(combinations)")
@@ -413,7 +431,7 @@ class ProcessingManager:
         for column_name, column_type in progress_columns:
             if column_name not in columns:
                 cursor.execute(f'ALTER TABLE combinations ADD COLUMN {column_name} {column_type}')
-                print(f"Added column {column_name} to combinations table")
+                logger.info("Added column %s to combinations table", column_name)
         
         conn.commit()
         conn.close()
@@ -472,19 +490,19 @@ class ProcessingManager:
                 species = filter_species_list(lines)
                 return species
         except Exception as e:
-            print(f"Error reading species file {file_path}: {e}")
+            logger.error("Error reading species file %s: %s", file_path, e)
             return []
     
     def start_combination(self, combination_id):
         """Start processing a combination."""
-        print(f"[DEBUG] start_combination called for ID {combination_id}")
+        logger.debug("start_combination called for ID %s", combination_id)
         
         # Check if API key is configured before starting
         api_key = os.getenv('OPENROUTER_API_KEY')
-        print(f"[DEBUG] API key status: {'SET' if api_key else 'NOT SET'}")
+        logger.debug("API key status: %s", 'SET' if api_key else 'NOT SET')
         
         if not api_key:
-            print(f"[ERROR] No API key found for combination {combination_id}")
+            logger.error("No API key found for combination %s", combination_id)
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("UPDATE combinations SET status = 'failed' WHERE id = ?", (combination_id,))
@@ -501,15 +519,15 @@ class ProcessingManager:
         cursor.execute("SELECT status FROM combinations WHERE id = ?", (combination_id,))
         result = cursor.fetchone()
         if not result:
-            print(f"[ERROR] Combination {combination_id} not found in database")
+            logger.error("Combination %s not found in database", combination_id)
             conn.close()
             return False
             
         current_status = result[0]
-        print(f"[DEBUG] Current status for combination {combination_id}: {current_status}")
+        logger.debug("Current status for combination %s: %s", combination_id, current_status)
         
         if current_status not in ['pending', 'interrupted']:
-            print(f"[WARNING] Cannot start combination {combination_id} - status is {current_status}, not pending/interrupted")
+            logger.warning("Cannot start combination %s - status is %s, not pending/interrupted", combination_id, current_status)
             conn.close()
             return False
         
@@ -519,31 +537,31 @@ class ProcessingManager:
         
         # Check if we can start immediately or need to queue
         can_start = self.can_start_new_job()
-        print(f"[DEBUG] Can start new job: {can_start}")
+        logger.debug("Can start new job: %s", can_start)
         
         if not can_start:
             if combination_id not in self.job_queue:
                 self.job_queue.append(combination_id)
-                print(f"[INFO] Job {combination_id} queued - position: {len(self.job_queue)}")
+                logger.info("Job %s queued - position: %d", combination_id, len(self.job_queue))
                 self._emit_log(combination_id, f"Job queued - waiting for slot. Queue position: {len(self.job_queue)}")
                 socketio.emit('job_update', {'combination_id': combination_id, 'status': 'queued'})
             return True
-        
+
         # Get combination details
         cursor.execute('''
             SELECT species_file, model, system_template, user_template 
             FROM combinations WHERE id = ?
         ''', (combination_id,))
-        
+
         result = cursor.fetchone()
         if not result:
-            print(f"[ERROR] Could not retrieve combination details for {combination_id}")
+            logger.error("Could not retrieve combination details for %s", combination_id)
             conn.close()
             return False
         
         species_file, model, system_template, user_template = result
-        print(f"[DEBUG] Starting combination {combination_id}: {species_file} + {model}")
-        print(f"[DEBUG] Templates: {system_template} + {user_template}")
+        logger.debug("Starting combination %s: %s + %s", combination_id, species_file, model)
+        logger.debug("Templates for combination %s: %s + %s", combination_id, system_template, user_template)
         
         # Update status to running
         cursor.execute('''
@@ -551,8 +569,8 @@ class ProcessingManager:
         ''', ('running', datetime.now(), combination_id))
         conn.commit()
         conn.close()
-        
-        print(f"[INFO] Starting processing thread for combination {combination_id}")
+
+        logger.info("Starting processing thread for combination %s", combination_id)
         
         # Start processing in a separate thread
         thread = threading.Thread(target=self._process_combination, 
@@ -568,7 +586,7 @@ class ProcessingManager:
             'status': 'running'
         }
         
-        print(f"[SUCCESS] Combination {combination_id} started successfully")
+        logger.info("Combination %s started successfully", combination_id)
         return True
 
     def pause_combination(self, combination_id):
@@ -623,7 +641,7 @@ class ProcessingManager:
     def _process_combination(self, combination_id, species_file, model, system_template, user_template):
         """The actual processing logic for a combination with parallel processing."""
         
-        print(f"[DEBUG] _process_combination started for {combination_id}")
+        logger.debug("_process_combination started for %s", combination_id)
         self._emit_log(combination_id, f"Starting processing for {species_file} with model {model}")
         
         try:
@@ -842,8 +860,8 @@ class ProcessingManager:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log_message = f"[{timestamp}] {message}"
         
-        # Print to console for debugging
-        print(f"[COMBO-{combination_id}] {log_message}")
+        # Server-side log for troubleshooting (debug by default)
+        logger.debug("[COMBO-%s] %s", combination_id, log_message)
         
         # Emit to web client
         socketio.emit('log_message', {
@@ -1056,8 +1074,8 @@ class ProcessingManager:
             return
         
         successful_species, total_species = progress[3], progress[0]
-        print(f"[DEBUG] _finalize_combination for {combination_id}: successful={successful_species}, total={total_species}")
-        print(f"[DEBUG] Full progress: {progress}")
+        logger.debug("_finalize_combination for %s: successful=%s, total=%s", combination_id, successful_species, total_species)
+        logger.debug("Full progress snapshot for %s: %s", combination_id, progress)
         
         if combination_id in self.paused_combinations:
             final_status = 'interrupted'
@@ -1503,7 +1521,7 @@ class ProcessingManager:
     def set_rate_limit(self, requests_per_second):
         """Set the rate limit for API requests"""
         self.requests_per_second = max(0.1, min(100.0, requests_per_second))  # Clamp between 0.1 and 100 RPS
-        print(f"Rate limit set to {self.requests_per_second} requests per second")
+        logger.info("Rate limit set to %.2f requests per second", self.requests_per_second)
     
     def get_already_processed_species(self, species_file, model, system_template, user_template):
         """Get list of species already successfully processed for this combination"""
@@ -2033,14 +2051,14 @@ def get_table_data(table_name):
 def delete_combination_api(combination_id):
     """API endpoint to delete a combination and its results."""
     try:
-        print(f"DEBUG: Deleting combination/job: {combination_id}")
+        logger.debug("Deleting combination/job: %s", combination_id)
         
         # Check if job exists first
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
         count_before = cursor.fetchone()[0]
-        print(f"DEBUG: Found {count_before} entries for job {combination_id}")
+        logger.debug("Found %d entries for job %s", count_before, combination_id)
         conn.close()
         
         # Use unified database to delete the job
@@ -2055,7 +2073,7 @@ def delete_combination_api(combination_id):
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM processing_results WHERE job_id = ?", (combination_id,))
         count_after = cursor.fetchone()[0]
-        print(f"DEBUG: After deletion, found {count_after} entries for job {combination_id}")
+        logger.debug("After deletion, found %d entries for job %s", count_after, combination_id)
         
         # Also clean up from legacy tables if they exist
         cursor.execute("DELETE FROM combinations WHERE id = ?", (combination_id,))
@@ -2067,7 +2085,7 @@ def delete_combination_api(combination_id):
         socketio.emit('job_update', {'combination_id': combination_id, 'status': 'deleted'})
         return jsonify({'success': True, 'message': f'Job {combination_id} deleted. Removed {count_before} entries.'})
     except Exception as e:
-        print(f"DEBUG: Error deleting job: {e}")
+        logger.exception("Error deleting job %s", combination_id)
         return jsonify({'success': False, 'message': f'Error deleting job: {e}'}), 500
 
 @app.route('/export')
@@ -2141,7 +2159,7 @@ def research_dynamic_page(page):
                                         'example': example
                                     }
         except Exception as e:
-            print(f"Error reading annotation file: {e}")
+            logger.exception("Error reading annotation file: %s", e)
     
     return render_template('research_dynamic.html',
                          project=project,
@@ -2319,7 +2337,7 @@ def templates_page():
                         }
                     }
             except Exception as e:
-                print(f"Could not load validation config for {template_name}: {e}")
+                logger.warning("Could not load validation config for %s: %s", template_name, e)
             
             # Get display info
             display_info = get_template_display_info(paths['system'], paths['user'])
@@ -2394,7 +2412,7 @@ def get_template_validation_info_api():
                         'quality_indicators': template_info.get('quality_indicators', {})
                     }
             except Exception as e:
-                print(f"Could not load validation config for {template_name}: {e}")
+                logger.warning("Could not load validation config for %s: %s", template_name, e)
                 validation_info[template_name] = {
                     'type': 'unknown',
                     'description': 'Template for model evaluation',
@@ -2650,7 +2668,7 @@ def get_search_count_correlation():
                                             pass
                         
             except Exception as e:
-                print(f"Error reading species file {species_file}: {e}")
+                logger.warning("Error reading species file %s: %s", species_file, e)
             
             # Cache the result using normalized key
             search_count_cache[cache_key] = search_count_mapping
@@ -2997,7 +3015,7 @@ def _load_model_metadata_index():
                                 index[key] = entry
 
             except Exception as exc:  # pragma: no cover - debug logging
-                print(f"[DEBUG] Failed to parse year_size.tsv metadata: {exc}")
+                logger.debug("Failed to parse year_size.tsv metadata: %s", exc)
 
         _model_metadata_index = index
         return _model_metadata_index
@@ -4498,7 +4516,7 @@ def get_knowledge_analysis_data():
                         type_mapping[species] = file_label
                         
             except Exception as e:
-                print(f"Error reading species file {species_file}: {e}")
+                logger.warning("Error reading species file %s: %s", species_file, e)
                 # Default to filename
                 pass
             
@@ -4913,7 +4931,7 @@ def get_search_count_by_knowledge():
         })
         
     except Exception as e:
-        logger.error(f"Error fetching search count by knowledge: {e}")
+        logger.exception("Error fetching search count by knowledge")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/available_phenotype_templates')
@@ -4944,7 +4962,7 @@ def get_available_phenotype_templates():
                         with open(config_path, 'r', encoding='utf-8') as f:
                             validation_content = f.read()
                 except Exception as e:
-                    print(f"Could not load validation config for {template_name}: {e}")
+                    logger.warning("Could not load validation config for %s: %s", template_name, e)
                 
                 phenotype_templates[template_name] = {
                     'name': template_name,
@@ -4998,7 +5016,7 @@ def get_available_knowledge_templates():
                         with open(config_path, 'r', encoding='utf-8') as f:
                             validation_content = f.read()
                 except Exception as e:
-                    print(f"Could not load validation config for {template_name}: {e}")
+                    logger.warning("Could not load validation config for %s: %s", template_name, e)
                 
                 knowledge_templates[template_name] = {
                     'name': template_name,
@@ -5478,15 +5496,16 @@ def create_combination_api():
         model = data.get('model')
         system_template = data.get('system_template')
         user_template = data.get('user_template')
-        
-        print(f"[DEBUG] create_combination_api called with:")
-        print(f"  species_file: {species_file}")
-        print(f"  model: {model}")
-        print(f"  system_template: {system_template}")
-        print(f"  user_template: {user_template}")
+        logger.debug(
+            "create_combination_api payload: species_file=%s, model=%s, system_template=%s, user_template=%s",
+            species_file,
+            model,
+            system_template,
+            user_template
+        )
         
         if not all([species_file, model, system_template, user_template]):
-            print(f"[ERROR] Missing required parameters")
+            logger.error("Missing required parameters when creating combination")
             return jsonify({'error': 'Missing required parameters'}), 400
         
         # Create the combination using existing logic
@@ -5497,9 +5516,9 @@ def create_combination_api():
             }
         }
         
-        print(f"[DEBUG] Creating combinations...")
+        logger.debug("Creating combinations")
         created_combinations = processing_manager.create_combinations(species_file, [model], template_pairs)
-        print(f"[DEBUG] Created combinations: {created_combinations}")
+        logger.debug("Created combinations: %s", created_combinations)
         
         if created_combinations:
             # Get the created combination ID
@@ -5514,27 +5533,28 @@ def create_combination_api():
             
             if result:
                 combination_id = result[0]
-                print(f"[DEBUG] Found combination ID: {combination_id}")
+                logger.debug("Found combination ID: %s", combination_id)
                 
                 # Start the combination immediately
-                print(f"[DEBUG] Attempting to start combination {combination_id}")
+                logger.debug("Attempting to start combination %s", combination_id)
                 start_result = processing_manager.start_combination(combination_id)
-                print(f"[DEBUG] Start result: {start_result}")
+                logger.debug("Start result for combination %s: %s", combination_id, start_result)
                 
                 if start_result:
-                    print(f"[SUCCESS] Combination {combination_id} started successfully")
+                    logger.info("Combination %s started successfully via API", combination_id)
                     return jsonify({'success': True, 'combination_id': combination_id})
                 else:
-                    print(f"[WARNING] Combination {combination_id} created but could not start")
+                    logger.warning("Combination %s created but could not start", combination_id)
                     return jsonify({'success': True, 'combination_id': combination_id, 'note': 'Created but could not start immediately'})
             else:
-                print(f"[ERROR] Could not retrieve combination ID")
+                logger.error("Combination created but could not retrieve ID")
                 return jsonify({'error': 'Combination created but could not retrieve ID'}), 500
         else:
-            print(f"[ERROR] Failed to create combination")
+            logger.error("Failed to create combination - may already exist")
             return jsonify({'error': 'Failed to create combination - may already exist'}), 400
             
     except Exception as e:
+        logger.exception("Unexpected error creating combination")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/add_model', methods=['POST'])
@@ -5978,11 +5998,11 @@ def view_template(template_type, template_name):
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    print('Client connected')
+    logger.debug('Client connected')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected')
+    logger.debug('Client disconnected')
 
 def main():
     """Main entry point for the web application"""
@@ -5998,7 +6018,7 @@ def main():
     # Load .env file if it exists
     env_file_path = os.path.join(os.getcwd(), '.env')
     if os.path.exists(env_file_path):
-        print("Loading environment variables from .env file...")
+        logger.info("Loading environment variables from .env file...")
         with open(env_file_path, 'r') as f:
             for line in f:
                 line = line.strip()
@@ -6015,16 +6035,14 @@ def main():
     
     # Check environment
     if not os.getenv('OPENROUTER_API_KEY'):
-        print("Warning: OPENROUTER_API_KEY not set")
-        print("Set it with: export OPENROUTER_API_KEY='your-api-key'")
-        print("Or create a .env file with: OPENROUTER_API_KEY=your-api-key")
+        logger.warning("OPENROUTER_API_KEY not set. Set it with environment variable or .env entry OPENROUTER_API_KEY=your-api-key")
     
     # Initialize the processing manager after loading environment
     global processing_manager
     reset_running_jobs_on_startup()
     processing_manager = ProcessingManager()
     
-    print(f"Starting MicrobeBench Web Interface on http://{args.host}:{args.port}")
+    logger.info("Starting MicrobeBench Web Interface on http://%s:%s", args.host, args.port)
     socketio.run(app, host=args.host, port=args.port, debug=args.debug, allow_unsafe_werkzeug=True)
 
 if __name__ == '__main__':
@@ -6156,7 +6174,7 @@ def reparse_phenotype_data_api(combination_id):
                     # Check if there were any invalid fields
                     if 'invalid_fields' in parsed_result:
                         invalid_count += 1
-                        print(f"Warning: {binomial_name} has invalid fields: {parsed_result['invalid_fields']}")
+                        logger.warning("%s has invalid fields: %s", binomial_name, parsed_result['invalid_fields'])
                     
                     # Handle aerophilicity as array - convert to string for database storage
                     aerophilicity = parsed_result.get('aerophilicity')
@@ -6202,7 +6220,7 @@ def reparse_phenotype_data_api(combination_id):
                 else:
                     failed_count += 1
             except Exception as e:
-                print(f"Error re-parsing result for {binomial_name}: {e}")
+                logger.exception("Error re-parsing result for %s", binomial_name)
                 failed_count += 1
         
         conn.commit()
@@ -6800,7 +6818,7 @@ def api_get_ground_truth_distribution():
         return jsonify({'success': False, 'error': 'Dataset name is required'}), 400
 
     try:
-        print(f"[DEBUG] Distribution API called for dataset: {dataset_name}")
+        logger.debug("Distribution API called for dataset: %s", dataset_name)
         
         conn = sqlite3.connect(db_path)
         
@@ -6808,7 +6826,7 @@ def api_get_ground_truth_distribution():
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ground_truth'")
         if not cursor.fetchone():
-            print("[DEBUG] Ground truth table does not exist")
+            logger.debug("Ground truth table does not exist")
             conn.close()
             return jsonify({'success': True, 'distribution': {}})
 
@@ -6822,10 +6840,10 @@ def api_get_ground_truth_distribution():
 
         # Use pandas to read data and get value counts
         query = f"SELECT {', '.join(phenotype_columns)} FROM ground_truth WHERE dataset_name = ?"
-        print(f"[DEBUG] Executing query: {query} with params: {dataset_name}")
+        logger.debug("Executing distribution query: %s with params: %s", query, dataset_name)
         
         df = pd.read_sql_query(query, conn, params=(dataset_name,))
-        print(f"[DEBUG] DataFrame shape: {df.shape}, empty: {df.empty}")
+        logger.debug("Distribution DataFrame shape: %s, empty: %s", df.shape, df.empty)
         
         distribution = {}
         if not df.empty:
@@ -6835,20 +6853,18 @@ def api_get_ground_truth_distribution():
                     counts = df[col].fillna('NA').value_counts().to_dict()
                     # Convert numpy types to native python types
                     distribution[col] = {str(k): int(v) for k, v in counts.items()}
-                    print(f"[DEBUG] {col}: {len(counts)} unique values")
+                    logger.debug("%s: %d unique values", col, len(counts))
             
-            print(f"[DEBUG] Distribution created with {len(distribution)} phenotypes")
+            logger.debug("Distribution created with %d phenotypes", len(distribution))
         else:
-            print("[DEBUG] DataFrame is empty - no data found for this dataset")
+            logger.debug("Distribution DataFrame is empty - no data found for dataset %s", dataset_name)
 
         conn.close()
         
         return jsonify({'success': True, 'distribution': distribution})
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in distribution API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in distribution API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/ground_truth/phenotype_statistics', methods=['GET'])
@@ -6867,9 +6883,7 @@ def api_get_ground_truth_phenotype_statistics():
         })
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in phenotype statistics API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in phenotype statistics API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -6923,9 +6937,7 @@ def api_get_ground_truth_phenotype_statistics_cached():
         return jsonify(payload)
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in cached phenotype statistics API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in cached phenotype statistics API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -6979,9 +6991,7 @@ def api_get_model_accuracy_cached():
         return jsonify(payload)
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in cached model accuracy API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in cached model accuracy API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -7035,9 +7045,7 @@ def api_get_knowledge_accuracy_cached():
         return jsonify(payload)
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in cached knowledge accuracy API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in cached knowledge accuracy API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -7091,7 +7099,5 @@ def api_get_performance_by_year_cached():
         return jsonify(payload)
 
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Error in cached performance-by-year API: {e}")
-        traceback.print_exc()
+        logger.exception("Error in cached performance-by-year API for dataset %s", dataset_name)
         return jsonify({'success': False, 'error': str(e)}), 500

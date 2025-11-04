@@ -370,8 +370,8 @@ html, body {
                 <div class="paper-info-card">
                     <h3>Paper Info</h3>
                     <ul class="paper-info-list">
-                        <li><strong>Title:</strong> {{ project.title }}</li>
-                        <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
+                        <li><strong>Title:</strong> {{ project.paper_title_display }}</li>
+                        <li><strong>Author:</strong> {{ project.paper_authors_display | replace('by ', '') }}</li>
                         {% if project.doi %}
                         <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
                         {% else %}

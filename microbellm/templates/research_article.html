@@ -55,15 +55,15 @@
         {% if section.include_sidebar %}
             {% set sidebar_html %}
             <!-- Paper Info Card -->
-            <div class="paper-info-card">
-                <h3>Paper Info</h3>
-                <ul class="paper-info-list">
-                    <li><strong>Title:</strong> {{ project.title }}</li>
-                    <li><strong>Author:</strong> {{ project.authors | replace('by ', '') }}</li>
-                    {% if project.doi %}
-                    <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
-                    {% else %}
-                    <li><strong>Status:</strong> Manuscript in preparation</li>
+                <div class="paper-info-card">
+                    <h3>Paper Info</h3>
+                    <ul class="paper-info-list">
+                        <li><strong>Title:</strong> {{ project.paper_title_display }}</li>
+                        <li><strong>Author:</strong> {{ project.paper_authors_display | replace('by ', '') }}</li>
+                        {% if project.doi %}
+                        <li><strong>DOI:</strong> <a href="https://doi.org/{{ project.doi }}" target="_blank">{{ project.doi }}</a></li>
+                        {% else %}
+                        <li><strong>Status:</strong> Manuscript in preparation</li>
                     {% endif %}
                 </ul>
             </div>
