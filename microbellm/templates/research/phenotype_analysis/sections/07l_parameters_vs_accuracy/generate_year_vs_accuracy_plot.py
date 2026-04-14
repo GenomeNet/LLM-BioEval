@@ -226,6 +226,25 @@ def ensure_output_directory(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def normalize_organization(org: str | None) -> str:
+    """Collapse Epoch.ai's inconsistent Google labels to a single canonical name.
+
+    Epoch.ai tags most Gemini/Gemma models as "Google DeepMind", a handful of
+    older releases as "Google", and a couple of rows as "Google DeepMind,Google".
+    Supplementary Dataset 8 uses "Google" as the canonical label, so we
+    standardize on that here.
+    """
+    if not org:
+        return ""
+    stripped = org.strip()
+    parts = {p.strip() for p in stripped.split(",") if p.strip()}
+    if parts and parts.issubset({"Google", "Google DeepMind"}):
+        return "Google"
+    if stripped == "Google DeepMind":
+        return "Google"
+    return stripped
+
+
 def plot_scatter(points: List[dict], output_path: Path) -> None:
     if not points:
         raise RuntimeError("No data points available for plotting.")
@@ -397,7 +416,7 @@ def main() -> None:
 
             meta = metadata.get(model) or metadata.get(model.lower()) or metadata.get(model.split('/')[-1])
             pub_date = parse_publication_date(meta.get("Publication date") if meta else None)
-            organization = meta.get("Organization", "Unknown") if meta else "Unknown"
+            organization = normalize_organization(meta.get("Organization", "Unknown")) if meta else "Unknown"
             if pub_date is None:
                 continue
 

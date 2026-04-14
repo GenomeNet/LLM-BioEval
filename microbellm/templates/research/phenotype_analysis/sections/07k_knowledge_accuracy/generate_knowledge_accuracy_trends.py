@@ -142,10 +142,29 @@ def load_model_metadata(path: Path) -> Dict[str, Dict[str, str]]:
     return metadata
 
 
+def normalize_organization(org: str | None) -> str:
+    """Collapse Epoch.ai's inconsistent Google labels to a single canonical name.
+
+    Epoch.ai tags most Gemini/Gemma models as "Google DeepMind", a handful of
+    older releases as "Google", and a couple of rows as "Google DeepMind,Google".
+    Supplementary Dataset 8 uses "Google" as the canonical label, so we
+    standardize on that here.
+    """
+    if not org:
+        return ""
+    stripped = org.strip()
+    parts = {p.strip() for p in stripped.split(",") if p.strip()}
+    if parts and parts.issubset({"Google", "Google DeepMind"}):
+        return "Google"
+    if stripped == "Google DeepMind":
+        return "Google"
+    return stripped
+
+
 def map_organization(model: str, metadata: Dict[str, Dict[str, str]]) -> str:
     meta = metadata.get(model) or metadata.get(model.lower()) or metadata.get(model.split("/")[-1])
     if meta and meta.get("Organization") not in (None, "", "Unknown"):
-        org = meta["Organization"]
+        org = normalize_organization(meta["Organization"])
     else:
         lower = model.lower()
         if "gemini" in lower:

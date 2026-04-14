@@ -226,6 +226,27 @@ def load_model_metadata(path: Path) -> Dict[str, dict]:
     return metadata
 
 
+def normalize_organization(org: str | None) -> str:
+    """Collapse Epoch.ai's inconsistent Google labels to a single canonical name.
+
+    The Epoch.ai metadata tags most Gemini/Gemma models as "Google DeepMind"
+    while a handful of older releases (palm-2, Gemma-7B-it, Gemma-3n) use just
+    "Google", and a couple of rows use the comma-joined form
+    "Google DeepMind,Google". Supplementary Dataset 8 uses "Google" as the
+    canonical label, so we standardize on that here.
+    """
+    if not org:
+        return ""
+    stripped = org.strip()
+    # Comma-joined forms from Epoch (order-independent)
+    parts = {p.strip() for p in stripped.split(",") if p.strip()}
+    if parts and parts.issubset({"Google", "Google DeepMind"}):
+        return "Google"
+    if stripped == "Google DeepMind":
+        return "Google"
+    return stripped
+
+
 def map_color(org: str) -> str:
     for key, color in PALETTE.items():
         if key.lower() in org.lower():
@@ -346,8 +367,8 @@ def main() -> None:
                 continue
             avg_accuracy = float(np.mean([score for score, _ in valid]))
             meta = metadata.get(model) or metadata.get(model.lower()) or metadata.get(model.split('/')[-1])
-            org = meta.get("Organization", "Unknown") if meta else "Unknown"
-            if org == "Unknown":
+            org = normalize_organization(meta.get("Organization", "Unknown")) if meta else "Unknown"
+            if not org or org == "Unknown":
                 model_lower = model.lower()
                 if 'gemini' in model_lower:
                     org = 'Google'
