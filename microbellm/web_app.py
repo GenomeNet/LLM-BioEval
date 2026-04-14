@@ -2788,41 +2788,65 @@ def get_search_count_correlation():
         
         # Calculate correlations for each model (optimized)
         def calculate_correlation(data_points):
-            """Calculate Pearson correlation coefficient - optimized version"""
+            """Calculate Spearman rank correlation coefficient.
+
+            Knowledge levels are ordinal categories without equal intervals,
+            so Spearman is more appropriate than Pearson. Ranks are invariant
+            to monotonic transforms, so no log10 on search_count is needed.
+            Ties are resolved by assigning the average rank (standard
+            Spearman convention).
+            """
             if len(data_points) < 2:
                 return 0, 0  # correlation, p_value placeholder
-            
+
             n = len(data_points)
-            
-            # Pre-calculate log values
-            x_log = [math.log10(point['search_count']) if point['search_count'] > 0 else 0 for point in data_points]
+
+            x_values = [point['search_count'] for point in data_points]
             y_values = [point['knowledge_score'] for point in data_points]
-            
-            # Calculate means
-            x_mean = sum(x_log) / n
-            y_mean = sum(y_values) / n
-            
-            # Calculate correlation coefficient in one pass
+
+            def average_ranks(values):
+                sorted_idx = sorted(range(len(values)), key=lambda i: values[i])
+                ranks = [0.0] * len(values)
+                i = 0
+                while i < len(values):
+                    j = i
+                    while (j + 1 < len(values)
+                           and values[sorted_idx[j + 1]] == values[sorted_idx[i]]):
+                        j += 1
+                    # 1-based average rank for the tie group [i..j]
+                    avg_rank = (i + j) / 2.0 + 1
+                    for k in range(i, j + 1):
+                        ranks[sorted_idx[k]] = avg_rank
+                    i = j + 1
+                return ranks
+
+            x_ranks = average_ranks(x_values)
+            y_ranks = average_ranks(y_values)
+
+            # Pearson on ranks == Spearman rho
+            x_mean = sum(x_ranks) / n
+            y_mean = sum(y_ranks) / n
+
             numerator = 0
             x_variance = 0
             y_variance = 0
-            
+
             for i in range(n):
-                x_diff = x_log[i] - x_mean
-                y_diff = y_values[i] - y_mean
+                x_diff = x_ranks[i] - x_mean
+                y_diff = y_ranks[i] - y_mean
                 numerator += x_diff * y_diff
                 x_variance += x_diff * x_diff
                 y_variance += y_diff * y_diff
-            
+
             if x_variance == 0 or y_variance == 0:
                 return 0, 0
-            
+
             correlation = numerator / (math.sqrt(x_variance) * math.sqrt(y_variance))
-            
+
             # Simple p-value approximation (for display purposes)
             t_stat = correlation * math.sqrt((n - 2) / (1 - correlation ** 2)) if abs(correlation) < 1 else 0
             p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
-            
+
             return correlation, p_value
         
         # Calculate correlations and update data efficiently

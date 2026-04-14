@@ -7,33 +7,33 @@ Statistics for Manuscript
 OVERALL STATISTICS:
 ----------------------------------------
 Total models evaluated: 22
-Total data points analyzed: 72,442
-Mean correlation coefficient: 0.610
-Median correlation coefficient: 0.649
-Standard deviation: 0.130
-Correlation range: 0.250 to 0.756
+Total data points analyzed: 74,761
+Mean correlation coefficient: 0.576
+Median correlation coefficient: 0.600
+Standard deviation: 0.111
+Correlation range: 0.332 to 0.744
 
 ================================================================================
 TOP PERFORMING MODELS (Highest Knowledge-Web Alignment):
 --------------------------------------------------------------------------------
 Rank   Model                               Avg Correlation    Data Points
 --------------------------------------------------------------------------------
-1      gpt-4                                         0.756            2305
-2      gpt-5-nano                                    0.740            2140
-3      gpt-4.1                                       0.725            3873
-4      o4-mini                                       0.724            3471
-5      gpt-4o                                        0.714            3791
+1      gpt-5                                         0.744            3217
+2      gpt-5-nano                                    0.712            2140
+3      gpt-4                                         0.704            2305
+4      o4-mini                                       0.677            3471
+5      gpt-4.1                                       0.647            3873
 
 ================================================================================
 WORST PERFORMING MODELS (Lowest Knowledge-Web Alignment):
 --------------------------------------------------------------------------------
 Rank   Model                               Avg Correlation    Data Points
 --------------------------------------------------------------------------------
-18     gemini-2.5-pro                                0.250             898
-19     gpt-4o-mini                                   0.376            3818
-20     mistral-nemo                                  0.402            3820
-21     gemma-3-27b-it                                0.470            3882
-22     claude-3-sonnet                               0.498            3875
+18     mistral-nemo                                  0.332            3820
+19     gpt-4o-mini                                   0.362            3818
+20     gemma-3-27b-it                                0.385            3882
+21     claude-3-sonnet                               0.438            3875
+22     llama-3.3-70b-instruct                        0.476            3568
 
 ================================================================================
 DATASETS ANALYZED:
@@ -47,27 +47,27 @@ SUGGESTED MANUSCRIPT TEXT:
 
 To assess the alignment between model knowledge and real-world microbial prevalence,
 we analyzed the correlation between assigned knowledge levels and web search frequencies
-for 72,442 species-model pairs across 22 models.
+for 74,761 species-model pairs across 22 models.
 
 The analysis revealed substantial variation in knowledge-web alignment, with correlation
-coefficients ranging from 0.250 to 0.756 
-(mean = 0.610 ± 0.130). This indicates
+coefficients ranging from 0.332 to 0.744 
+(mean = 0.576 ± 0.111). This indicates
 that models differ significantly in their ability to appropriately calibrate their knowledge
 confidence with real-world species prevalence.
 
-The top-performing model, gpt-4, achieved an average correlation of
-0.756 between its knowledge assessments and web presence metrics,
+The top-performing model, gpt-5, achieved an average correlation of
+0.744 between its knowledge assessments and web presence metrics,
 suggesting strong alignment with real-world information availability.
  Other high-performing models
-included gpt-5-nano (r = 0.740) and
-gpt-4.1 (r = 0.725).
+included gpt-5-nano (r = 0.712) and
+gpt-4 (r = 0.704).
 
 In contrast, the poorest-performing models showed weak or negative correlations,
-with gemini-2.5-pro achieving only r = 0.250,
+with mistral-nemo achieving only r = 0.332,
 indicating a misalignment between model confidence and actual species prevalence
 in scientific literature and web resources.
 
-This represents a 3.0-fold difference in alignment quality between
+This represents a 2.2-fold difference in alignment quality between
 the best and worst performers, highlighting the importance of model selection
 for applications requiring accurate assessment of species prevalence and importance.
 
