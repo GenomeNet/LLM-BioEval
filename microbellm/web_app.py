@@ -2293,6 +2293,11 @@ def admin_interface_figure():
     """Display the admin interface figure for the manuscript"""
     return render_template('components/admin_interface_figure.html')
 
+@app.route('/components/admin_interface_figure2')
+def admin_interface_figure2():
+    """Second mock of the admin interface focused on phenotype prediction jobs"""
+    return render_template('components/admin_interface_figure2.html')
+
 @app.route('/settings')
 def settings_page():
     """Settings page for API key and configuration management"""

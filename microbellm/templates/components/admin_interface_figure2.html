@@ -1,0 +1,979 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Phenotype Prediction Jobs Snapshot - MicrobeLLM Admin{% endblock %}
+
+{% block body_class %}page-dashboard figure-demo{% endblock %}
+
+{% block content %}
+<div class="figure-container">
+    <div class="figure-caption-top">
+        <strong>Figure: Admin Interface Overview.</strong> The pipeline provides a web-based administrative interface for orchestrating large-scale phenotype prediction experiments. The interface enables systematic evaluation of multiple LLM models across diverse species cohorts, with real-time progress monitoring and automated job scheduling. Users can dynamically expand the model selection via OpenRouter integration (dropdown shown), track prediction status for each species-model combination, and access detailed extraction statistics including species processed, success rates, and failure counts for individual jobs.
+    </div>
+<div class="figure-dashboard">
+    <div class="panel-label">A. Processing Dashboard</div>
+    <div class="page-header">
+        <h1 class="page-title">Phenotype Prediction Jobs</h1>
+        <p class="page-subtitle">Species × model combinations currently monitored in the admin panel</p>
+    </div>
+
+    <div class="template-section">
+        <div class="template-header">
+            <h3 class="template-title">Template v07 · Phenotype baseline prompt</h3>
+            <p class="template-description">Tracks trait predictions per species file against the current model roster.</p>
+        </div>
+
+        <div class="matrix-focus-layout">
+            <div class="matrix-column">
+                <div class="matrix-container">
+                    <div class="matrix-scroll">
+                <table class="processing-matrix">
+                    <thead>
+                        <tr>
+                            <th class="species-header">Species Files</th>
+                            <th class="model-header">
+                                <div class="model-name">gpt-4o-mini</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove model">×</button>
+                            </th>
+                            <th class="model-header">
+                                <div class="model-name">llama-3.1-70b</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove model">×</button>
+                            </th>
+                            <th class="model-header">
+                                <div class="model-name">gemma-2-27b</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove model">×</button>
+                            </th>
+                            <th class="add-column">
+                                <div class="add-column-wrapper">
+                                    <button class="btn btn-accent btn-sm" type="button" title="Add model">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+
+                                    <!-- Model Selector Dropdown -->
+                                    <div class="model-dropdown">
+                                        <div class="model-dropdown-header">
+                                            <span>Add Model from OpenRouter</span>
+                                        </div>
+                                        <div class="model-dropdown-search">
+                                            <input type="text" class="model-dropdown-input" placeholder="Search..." value="llama">
+                                        </div>
+                                        <div class="model-dropdown-list">
+                                            <div class="model-dropdown-item model-dropdown-item-selected">
+                                                <div class="model-dropdown-name">llama-3.1-8b</div>
+                                            </div>
+                                            <div class="model-dropdown-item">
+                                                <div class="model-dropdown-name">llama-3.3-70b</div>
+                                            </div>
+                                            <div class="model-dropdown-item">
+                                                <div class="model-dropdown-name">llama-3-70b</div>
+                                            </div>
+                                        </div>
+                                        <div class="model-dropdown-footer">
+                                            <button class="model-dropdown-btn">Add Selected</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="species-name">
+                                <div>species_WA.txt</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove species file">×</button>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-completed">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success" title="3,876 successful">✓3,876</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Complete</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-running figure-focus">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main progress-running">3,872/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,871</span>
+                                            <span class="stat-failed">✗1</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 99%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Running…</span>
+                                        <button class="action-btn start-btn" type="button">Retry</button>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-pending">
+                                    <div class="progress-info">
+                                        <span class="progress-main">Queued</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-timeout">⌛ 3,876 prompts</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="add-cell"></td>
+                        </tr>
+                        <tr>
+                            <td class="species-name">
+                                <div>species_LA.txt</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove species file">×</button>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-failed">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,873</span>
+                                            <span class="stat-failed">✗3</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <button class="action-btn start-btn" type="button">Retry</button>
+                                        <span class="status-label">Failed</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-completed">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,876</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Complete</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-running">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main progress-running">3,120/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,118</span>
+                                            <span class="stat-failed">✗2</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 80%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Running…</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="add-cell"></td>
+                        </tr>
+                        <tr>
+                            <td class="species-name">
+                                <div>marine_bacteria.txt</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove species file">×</button>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-completed historical" title="Historical result">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,876</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Historical</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-empty">
+                                    <button class="action-btn" type="button">Create</button>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-completed">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,876</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Complete</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="add-cell"></td>
+                        </tr>
+                        <tr>
+                            <td class="species-name">
+                                <div>soil_microbes.txt</div>
+                                <button class="btn btn-ghost btn-sm" type="button" title="Remove species file">×</button>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-completed">
+                                    <button class="delete-btn" type="button" title="Delete combination">&times;</button>
+                                    <div class="progress-info">
+                                        <span class="progress-main">3,876/3,876</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-success">✓3,876</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="cell-actions">
+                                        <span class="status-label">Complete</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-pending">
+                                    <div class="progress-info">
+                                        <span class="progress-main">Queued</span>
+                                        <div class="progress-stats">
+                                            <span class="stat-timeout">⌛ 3,876 prompts</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="matrix-cell">
+                                <div class="status-cell status-empty">
+                                    <button class="action-btn" type="button">Create</button>
+                                </div>
+                            </td>
+                            <td class="add-cell"></td>
+                        </tr>
+                        <tr class="add-row">
+                            <td>
+                                <button class="btn btn-accent btn-sm" type="button">
+                                    <i class="fas fa-plus"></i> Add File
+                                </button>
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                    </div>
+                </div>
+            </div>
+            <aside class="job-focus-card">
+                <div class="job-focus-header">
+                    <div>
+                        <p class="job-focus-eyebrow">Selected combination</p>
+                        <h3>species_WA.txt × llama-3.1-70b</h3>
+                    </div>
+                    <span class="job-focus-pill"><i class="fas fa-circle"></i> Running</span>
+                </div>
+
+                <div class="results-summary">
+                    <div class="summary-stat">
+                        <span class="summary-number">3,871</span>
+                        <span class="summary-label">Species processed</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-number">13</span>
+                        <span class="summary-label">Phenotypes per species</span>
+                    </div>
+                </div>
+
+                <div class="species-results">
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                            <span>Bacillus subtilis</span>
+                        </div>
+                        <span class="phenotype-count">13 phenotypes</span>
+                    </div>
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                            <span>Escherichia coli</span>
+                        </div>
+                        <span class="phenotype-count">13 phenotypes</span>
+                    </div>
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                            <span>Staphylococcus aureus</span>
+                        </div>
+                        <span class="phenotype-count">13 phenotypes</span>
+                    </div>
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-spinner fa-pulse" style="color: #3b82f6;"></i>
+                            <span>Pseudomonas aeruginosa</span>
+                        </div>
+                        <span class="phenotype-count">Processing...</span>
+                    </div>
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-clock" style="color: #9ca3af;"></i>
+                            <span>Salmonella enterica</span>
+                        </div>
+                        <span class="phenotype-count">Pending</span>
+                    </div>
+                    <div class="species-result-item">
+                        <div class="species-name-result">
+                            <i class="fas fa-clock" style="color: #9ca3af;"></i>
+                            <span>Mycobacterium tuberculosis</span>
+                        </div>
+                        <span class="phenotype-count">Pending</span>
+                    </div>
+                </div>
+
+                <p class="job-focus-note text-muted">Progress: 3,872 / 3,876 · 1 failed · Last update 10:12 UTC</p>
+            </aside>
+        </div>
+    </div>
+</div>
+</div>
+
+<style>
+    :root {
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+    }
+
+    .figure-container {
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 0 24px;
+    }
+
+    .figure-caption-top {
+        background: #f9fafb;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    .figure-caption-top strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .panel-label {
+        display: inline-block;
+        background: var(--admin-primary);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+    }
+
+    .figure-dashboard {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .figure-dashboard .page-header {
+        margin-bottom: 24px;
+    }
+
+    .figure-dashboard .page-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 4px 0;
+    }
+
+    .figure-dashboard .page-subtitle {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .figure-dashboard .template-section {
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--white);
+        padding: 20px;
+    }
+
+    .figure-dashboard .template-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+    }
+
+    .figure-dashboard .template-title {
+        margin: 0 0 6px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .figure-dashboard .template-description {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .figure-dashboard .matrix-container {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--white);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .figure-dashboard .matrix-scroll {
+        overflow: auto;
+        position: relative;
+    }
+
+    .figure-dashboard .processing-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .figure-dashboard .processing-matrix th,
+    .figure-dashboard .processing-matrix td {
+        border-bottom: 1px solid var(--border-color);
+        border-right: 1px solid var(--border-color);
+        padding: 12px;
+        background: var(--white);
+    }
+
+    .figure-dashboard .processing-matrix th:last-child,
+    .figure-dashboard .processing-matrix td:last-child {
+        border-right: none;
+    }
+
+    .figure-dashboard .species-header,
+    .figure-dashboard .species-name {
+        position: sticky;
+        left: 0;
+        background: var(--bg-secondary);
+        font-weight: 600;
+        width: 190px;
+        min-width: 190px;
+        max-width: 190px;
+    }
+
+    .figure-dashboard .species-header {
+        z-index: 5;
+    }
+
+    .figure-dashboard .species-name {
+        z-index: 3;
+    }
+
+    .figure-dashboard .species-name > div,
+    .figure-dashboard .species-name > button {
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .figure-dashboard .species-name > div {
+        max-width: calc(100% - 30px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .figure-dashboard .model-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg-secondary);
+        z-index: 2;
+        text-align: left;
+    }
+
+    .figure-dashboard .model-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .figure-dashboard .matrix-cell {
+        min-width: 150px;
+        vertical-align: top;
+    }
+
+    .figure-dashboard .status-cell {
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        text-align: center;
+        min-height: 90px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        position: relative;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        cursor: default;
+    }
+
+    .figure-dashboard .status-completed { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+    .figure-dashboard .status-running { background: #cce5ff; border-color: #b8daff; color: #004085; }
+    .figure-dashboard .status-failed { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+    .figure-dashboard .status-pending { background: #fff3cd; border-color: #ffe8a1; color: #765400; }
+    .figure-dashboard .status-empty { background: #f8f9fa; border: 2px dashed #dee2e6; color: #6c757d; box-shadow: none; }
+
+    .figure-dashboard .status-cell.historical {
+        background: #e8f4f8;
+        border: 2px dashed #b0d4e3;
+        box-shadow: none;
+    }
+
+    .figure-dashboard .progress-info {
+        font-size: 12px;
+        line-height: 1.3;
+    }
+
+    .figure-dashboard .progress-main {
+        font-weight: 700;
+    }
+
+    .figure-dashboard .progress-stats {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        font-size: 11px;
+        margin-top: 4px;
+    }
+
+    .figure-dashboard .progress-running {
+        animation: figure-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes figure-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    .figure-dashboard .stat-success { color: #1f9d55; }
+    .figure-dashboard .stat-failed { color: #c53030; }
+    .figure-dashboard .stat-timeout { color: #b7791f; }
+
+    .figure-dashboard .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .figure-dashboard .progress-fill {
+        height: 100%;
+        background: currentColor;
+        opacity: 0.6;
+    }
+
+    .figure-dashboard .delete-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.8);
+        color: #c53030;
+        font-weight: 700;
+        cursor: pointer;
+        opacity: 0;
+    }
+
+    .figure-dashboard .status-cell:hover .delete-btn,
+    .figure-dashboard .figure-focus .delete-btn {
+        opacity: 1;
+    }
+
+    .figure-dashboard .cell-actions {
+        display: none;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .figure-dashboard .status-cell:hover .cell-actions,
+    .figure-dashboard .figure-focus .cell-actions {
+        display: flex;
+    }
+
+    .figure-dashboard .action-btn {
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: none;
+        background: var(--admin-primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .figure-dashboard .action-btn.start-btn {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .figure-dashboard .status-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+    }
+
+    .figure-dashboard .figure-focus {
+        border-color: var(--admin-primary);
+        box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
+    }
+
+    .figure-dashboard .add-column,
+    .figure-dashboard .add-cell {
+        background: var(--bg-secondary);
+        text-align: center;
+        position: sticky;
+        right: 0;
+        z-index: 100;
+    }
+
+    .add-column-wrapper {
+        position: relative;
+        z-index: 200;
+    }
+
+    .matrix-focus-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 24px;
+        align-items: stretch;
+        margin-top: 16px;
+    }
+
+    .matrix-column {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .matrix-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .job-focus-card {
+        max-width: 360px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        padding: 16px;
+        border-radius: 12px;
+        height: 100%;
+    }
+
+    .job-focus-card h3 {
+        margin: 4px 0 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .job-focus-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .job-focus-eyebrow {
+        margin: 0 0 4px 0;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .job-focus-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #cce5ff;
+        color: #004085;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .job-focus-pill i {
+        font-size: 8px;
+    }
+
+    .results-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .summary-stat {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .summary-number {
+        display: block;
+        font-size: 20px;
+        font-weight: 700;
+        color: #0369a1;
+        margin-bottom: 4px;
+    }
+
+    .summary-label {
+        display: block;
+        font-size: 10px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .species-results {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .species-result-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    .species-name-result {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-style: italic;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .species-name-result i {
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .phenotype-count {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .job-focus-note {
+        margin-top: 0;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-color);
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .figure-dashboard .btn-accent {
+        background: var(--status-success);
+        color: white;
+        border: none;
+    }
+
+    .figure-dashboard .btn-accent:hover {
+        background: #0f9d75;
+    }
+
+    @media (max-width: 900px) {
+        .figure-dashboard {
+            padding: 24px;
+        }
+
+        .figure-context {
+            flex-direction: column;
+        }
+
+        .figure-dashboard .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .matrix-focus-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .job-focus-card {
+            position: static;
+        }
+    }
+
+    /* Model Dropdown Styles */
+    .model-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 8px;
+        width: 280px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .model-dropdown-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-secondary);
+        border-radius: 8px 8px 0 0;
+    }
+
+    .model-dropdown-search {
+        padding: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .model-dropdown-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 12px;
+        font-family: inherit;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .model-dropdown-input:focus {
+        outline: none;
+        border-color: var(--admin-primary);
+    }
+
+    .model-dropdown-list {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 6px;
+    }
+
+    .model-dropdown-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+        gap: 8px;
+    }
+
+    .model-dropdown-item:hover {
+        background: #f3f4f6;
+    }
+
+    .model-dropdown-item-selected {
+        background: #eef2ff;
+        border: 1px solid var(--admin-primary);
+    }
+
+    .model-dropdown-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .model-dropdown-footer {
+        padding: 10px;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        border-radius: 0 0 8px 8px;
+    }
+
+    .model-dropdown-btn {
+        width: 100%;
+        padding: 6px 12px;
+        background: var(--admin-primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .model-dropdown-btn:hover {
+        background: #4338ca;
+    }
+</style>
+{% endblock %}
