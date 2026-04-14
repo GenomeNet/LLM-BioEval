@@ -670,9 +670,9 @@ def build_overview_figure(
 
     override_colors = {
         "OpenAI": "#939497",
-        "Anthropic": "#DC88B9",
+        "Anthropic": "#D97757",
         "DeepSeek": "#217AB7",
-        "xAI": "#DC88B9",
+        "xAI": "#000000",
         "Google": "#F5812A",
     }
 

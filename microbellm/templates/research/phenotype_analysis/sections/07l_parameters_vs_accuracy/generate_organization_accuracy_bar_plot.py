@@ -59,9 +59,9 @@ PALETTE = {
     'Perplexity': '#BCBD21',
     'Tsinghua University': '#15BECF',
     'Zhipu AI': '#15BECF',
-    'x-ai': '#E377C2',
-    'xAI': '#E377C2',
-    'Anthropic': '#E377C2',
+    'x-ai': '#000000',
+    'xAI': '#000000',
+    'Anthropic': '#D97757',
     'Alibaba': '#D62728',
     'Nous Research': '#17BECF',
     'Moonshot': '#F7B6D2',
@@ -300,18 +300,6 @@ def plot_range(points: List[dict], output_path: Path) -> None:
             zorder=3,
         )
 
-        ax.text(
-            0.91,
-            y,
-            f"{best['label']} ({best['accuracy']:.3f}) – n={count}",
-            va='center',
-            ha='left',
-            fontsize=7,
-            fontweight='bold',
-            color=color,
-            transform=ax.get_yaxis_transform(),
-        )
-
     ax.set_xlabel("Balanced Accuracy", fontsize=9)
     ax.set_title("Organization Performance Overview", fontsize=10)
     ax.set_xlim(0.45, 0.9)
@@ -319,6 +307,8 @@ def plot_range(points: List[dict], output_path: Path) -> None:
     ax.set_yticklabels(organizations, fontsize=8)
     ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{x:.2f}"))
     ax.tick_params(axis='x', labelsize=8)
+    ax.grid(True, which="major", axis="both", linestyle="-", linewidth=0.4, color="#E5E5E5", zorder=0)
+    ax.set_axisbelow(True)
     ax.set_facecolor('none')
     fig.patch.set_facecolor('none')
     for spine in ax.spines.values():

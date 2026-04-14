@@ -322,9 +322,9 @@ def plot_scatter(points: List[dict], output_path: Path) -> None:
         'Perplexity': '#BCBD21',
         'Tsinghua University': '#15BECF',
         'Zhipu AI': '#15BECF',
-        'x-ai': '#E377C2',
-        'xAI': '#E377C2',
-        'Anthropic': '#E377C2',
+        'x-ai': '#000000',
+        'xAI': '#000000',
+        'Anthropic': '#D97757',
         'Alibaba': '#D62728',
         'Nous Research': '#17BECF',
         'Moonshot': '#F7B6D2',
@@ -370,8 +370,9 @@ def plot_scatter(points: List[dict], output_path: Path) -> None:
     ax.set_yscale("log")
 
     ax.tick_params(axis="both", length=0, labelsize=7)
-    ax.grid(False, which="both")
+    ax.grid(True, which="major", axis="both", linestyle="-", linewidth=0.4, color="#E5E5E5", zorder=0)
     ax.grid(False, which="minor")
+    ax.set_axisbelow(True)
 
     ax.set_facecolor('none')
     fig.patch.set_facecolor('none')
