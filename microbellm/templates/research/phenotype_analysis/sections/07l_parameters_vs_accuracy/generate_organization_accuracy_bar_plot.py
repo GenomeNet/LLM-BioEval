@@ -264,7 +264,10 @@ def plot_range(points: List[dict], output_path: Path) -> None:
 
     ensure_output_directory(output_path)
 
-    order = np.argsort([p["avg_accuracy"] for p in points])
+    # Order by each organization's best model rather than its mean, because
+    # organizations contribute different numbers of models and the mean is
+    # dragged down by the number of weaker releases.
+    order = np.argsort([p["max_accuracy"] for p in points])
     points = [points[i] for i in order]
 
     organizations = [p["organization"] for p in points]
