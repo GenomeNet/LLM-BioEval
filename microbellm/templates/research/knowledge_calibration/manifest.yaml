@@ -257,7 +257,7 @@ sections:
     type: "section_callout_dynamic"
     file: "sections/28_correlation_visualization.html"
     title: "Correlation Visualization: Google Search vs. Knowledge Level"
-    text: "This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts for bacterial species. Each point represents a species, with the x-axis showing log10 of Google search results and the y-axis showing the knowledge level (1=Limited, 2=Moderate, 3=Extensive)."
+    text: "This scatter plot visualizes how model-reported knowledge levels correlate with Google search counts for bacterial species. Each point represents a species, with the x-axis showing Google search results on a log10 scale (used for readability only) and the y-axis showing the ordinal knowledge level (1=Limited, 2=Moderate, 3=Extensive). Reported per-model correlations use Spearman's rank coefficient (&rho;), which is appropriate for ordinal categories without equal intervals."
     
   # Final conclusion text
   - id: "final_conclusion"

@@ -376,7 +376,7 @@
         let html = '<div class="method-description">';
         html += '<h4>Search Count Correlation Analysis</h4>';
         html += '<p><strong>Purpose:</strong> Analyze the relationship between Google search result counts and LLM knowledge level predictions.</p>';
-        html += '<p><strong>Methodology:</strong> Correlation coefficients are calculated between log-transformed search counts and numerical knowledge scores (Limited=1, Moderate=2, Extensive=3). Higher positive correlations suggest the model\'s confidence aligns with publicly available information.</p>';
+        html += '<p><strong>Methodology:</strong> Spearman\'s rank correlation coefficients (&rho;) are calculated between Google search counts and ordinal knowledge levels (Limited=1, Moderate=2, Extensive=3). Spearman is used because knowledge levels are ordinal categories without equal intervals; ranks are invariant to monotonic transforms, so no log transformation is applied to search counts for the correlation itself (log-scaled axes are used only for visualization). Higher positive &rho; suggests the model\'s confidence aligns with publicly available information.</p>';
         html += '<p><strong>Interpretation:</strong> Models with higher positive correlations are better calibrated to real-world knowledge availability. Models with negative correlations may be contrarian or poorly calibrated.</p>';
         html += '</div>';
         

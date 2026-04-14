@@ -2423,7 +2423,7 @@
         
         let html = '<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 20px;">';
         html += '<h4 style="margin-top: 0; color: #495057;">Dataset: ' + selectedDataset.replace(/\.(txt|csv)$/i, '') + '</h4>';
-        html += '<p>Correlation between log-transformed search counts and knowledge levels (Limited=1, Moderate=2, Extensive=3).</p>';
+        html += '<p>Spearman\'s rank correlation (&rho;) between Google search counts and ordinal knowledge levels (Limited=1, Moderate=2, Extensive=3).</p>';
         html += '</div>';
         
         // Collect and sort model data
