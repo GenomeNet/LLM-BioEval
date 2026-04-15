@@ -280,7 +280,7 @@ def plot_range(points: List[dict], output_path: Path) -> None:
 
     y_positions = np.arange(len(organizations))
 
-    fig, ax = plt.subplots(figsize=(6, 1.95))
+    fig, ax = plt.subplots(figsize=(2.4, 1.95))
 
     for y, org, mn, mx, avg, models_list, best, count in zip(
         y_positions, organizations, mins, maxs, averages, models, best_models, counts
