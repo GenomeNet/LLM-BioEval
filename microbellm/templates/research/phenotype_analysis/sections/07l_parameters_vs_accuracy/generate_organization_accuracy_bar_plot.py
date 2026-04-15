@@ -61,8 +61,8 @@ PALETTE = {
     'Zhipu AI': '#15BECF',
     'x-ai': '#000000',
     'xAI': '#000000',
-    'Anthropic': '#D97757',
-    'Alibaba': '#D62728',
+    'Anthropic': '#D62728',
+    'Alibaba': '#E377C2',
     'Nous Research': '#17BECF',
     'Moonshot': '#F7B6D2',
 }
@@ -302,7 +302,7 @@ def plot_range(points: List[dict], output_path: Path) -> None:
 
     ax.set_xlabel("Balanced Accuracy", fontsize=9)
     ax.set_title("Organization Performance Overview", fontsize=10)
-    ax.set_xlim(0.45, 0.9)
+    ax.set_xlim(0.5, 0.8)
     ax.set_yticks(y_positions)
     ax.set_yticklabels(organizations, fontsize=8)
     ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{x:.2f}"))

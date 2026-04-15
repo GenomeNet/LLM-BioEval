@@ -324,8 +324,8 @@ def plot_scatter(points: List[dict], output_path: Path) -> None:
         'Zhipu AI': '#15BECF',
         'x-ai': '#000000',
         'xAI': '#000000',
-        'Anthropic': '#D97757',
-        'Alibaba': '#D62728',
+        'Anthropic': '#D62728',
+        'Alibaba': '#E377C2',
         'Nous Research': '#17BECF',
         'Moonshot': '#F7B6D2',
     }
