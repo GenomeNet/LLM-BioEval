@@ -1,0 +1,32 @@
+model	category	accessibility_raw	organization	avg_balanced_accuracy
+anthropic/claude-3-haiku:beta	closed	API access	Anthropic	0.7239
+anthropic/claude-3.5-sonnet	closed	API access	Anthropic	0.7634
+anthropic/claude-sonnet-4	closed	API access	Anthropic	0.7481
+google/gemini-2.0-flash-lite-001	closed	API access	Google DeepMind	0.7441
+google/gemini-2.5-flash-lite	closed	API access	Google DeepMind	0.7064
+google/gemini-2.5-pro	closed	API access	Google DeepMind	0.7655
+google/gemini-flash-1.5	closed	API access	Google DeepMind	0.7241
+google/gemini-pro-1.5	closed	API access	Google DeepMind	0.7527
+google/palm-2-chat-bison-32k	closed	API access	Google	0.6965
+openai/gpt-3.5-turbo-0125	closed	API access	OpenAI	0.6973
+openai/gpt-4	closed	API access	OpenAI	0.7430
+openai/gpt-4.1-nano	closed	API access	OpenAI	0.7431
+openai/gpt-4o	closed	API access	OpenAI	0.7593
+openai/o1-mini	closed	API access	OpenAI	0.7484
+perplexity/llama-3-sonar-small-32k-chat	closed	API access	Perplexity	0.6167
+x-ai/grok-3-mini	closed	Hosted access (no API)	xAI	0.7632
+deepseek/deepseek-chat-v3-0324	open	Open weights (restricted use)	DeepSeek	0.7402
+deepseek/deepseek-r1	open	Open weights (unrestricted)	DeepSeek	0.7642
+google/gemma-7b-it	open	Open weights (restricted use)	Google	0.5377
+meta-llama/llama-3-70b-instruct:nitro	open	Open weights (restricted use)	Meta AI	0.7264
+meta-llama/llama-3-8b-instruct:nitro	open	Open weights (restricted use)	Meta AI	0.6318
+microsoft/phi-3-mini-128k-instruct	open	Open weights (unrestricted)	Microsoft	0.5986
+microsoft/wizardlm-2-8x22b	open	Open weights (unrestricted)	Microsoft	0.7239
+mistralai/mistral-7b-instruct	open	Open weights (unrestricted)	Mistral AI	0.6499
+mistralai/mixtral-8x7b-instruct:nitro	open	Open weights (unrestricted)	Mistral AI	0.6575
+openai/gpt-oss-120b	open	Open weights (unrestricted)	OpenAI	0.7519
+openai/gpt-oss-20b	open	Open weights (unrestricted)	OpenAI	0.7390
+openchat/openchat-7b	open	Open weights (unrestricted)	Tsinghua University	0.6386
+google/gemini-pro	excluded	no metadata		
+openai/gpt-5	excluded	no metadata	OpenAI	
+openai/gpt-5-nano	excluded	no metadata	OpenAI	
