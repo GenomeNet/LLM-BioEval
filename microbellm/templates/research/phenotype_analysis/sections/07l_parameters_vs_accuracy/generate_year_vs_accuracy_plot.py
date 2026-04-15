@@ -334,7 +334,7 @@ def plot_scatter(points: List[dict], output_path: Path) -> None:
     max_date = max(dates)
     pad = timedelta(days=180)
     ax.set_xlim(min_date - pad, max_date + pad)
-    ax.set_ylim(0.45, 0.9)
+    ax.set_ylim(0.5, 0.8)
 
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))

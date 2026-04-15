@@ -366,7 +366,7 @@ def plot_scatter(points: List[dict], output_path: Path) -> None:
     ax.set_xlabel("Balanced Accuracy (All Phenotypes Average)", fontsize=8)
     ax.set_ylabel("Model Parameters", fontsize=8)
     ax.set_title("Model Size vs. Average Phenotype Performance", fontsize=9)
-    ax.set_xlim(0.0, 1.0)
+    ax.set_xlim(0.5, 0.8)
     ax.set_yscale("log")
 
     ax.tick_params(axis="both", length=0, labelsize=7)
