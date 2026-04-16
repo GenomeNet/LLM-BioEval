@@ -70,26 +70,29 @@ MIN_SAMPLES_PER_FIELD = 30
 MIN_SAMPLES_PER_GROUP = 250
 MISSING_TOKENS = {"n/a", "na", "null", "none", "nan", "undefined", "-", "unknown", "missing", ""}
 
+# Canonical organization palette — kept in sync with
+# 07l_parameters_vs_accuracy/generate_organization_accuracy_bar_plot.py so all
+# organization-coloured figures across the manuscript share a single scheme.
 PALETTE = {
-    "DeepSeek": "#1B9E77",
-    "DeepSeek AI": "#1B9E77",
-    "Google": "#D95F02",
-    "google": "#D95F02",
-    "Meta AI": "#7570B3",
-    "Meta": "#7570B3",
-    "Microsoft": "#E7298A",
-    "Mistral": "#66A61E",
-    "Mistral AI": "#66A61E",
-    "OpenAI": "#E6AB02",
-    "Perplexity": "#A6761D",
-    "Tsinghua University": "#1F78B4",
-    "Zhipu AI": "#1F78B4",
-    "x-ai": "#B2DF8A",
-    "xAI": "#B2DF8A",
-    "Anthropic": "#CAB2D6",
-    "Alibaba": "#FB9A99",
-    "Nous Research": "#FDBF6F",
-    "Moonshot": "#FF7F00",
+    "DeepSeek": "#1F77B4",
+    "DeepSeek AI": "#1F77B4",
+    "Google": "#FF7F0F",
+    "google": "#FF7F0F",
+    "Meta AI": "#2BA02B",
+    "Meta": "#2BA02B",
+    "Microsoft": "#9467BD",
+    "Mistral": "#8C564C",
+    "Mistral AI": "#8C564C",
+    "OpenAI": "#7F7F7F",
+    "Perplexity": "#BCBD21",
+    "Tsinghua University": "#15BECF",
+    "Zhipu AI": "#15BECF",
+    "x-ai": "#000000",
+    "xAI": "#000000",
+    "Anthropic": "#D62728",
+    "Alibaba": "#E377C2",
+    "Nous Research": "#17BECF",
+    "Moonshot": "#F7B6D2",
 }
 
 
@@ -664,24 +667,71 @@ def build_overview_figure(
     points: List[KnowledgePoint],
     title: str,
     overall_stats: JonckheereTerpstraResult | None = None,
+    panel_label: str = "A",
 ) -> matplotlib.figure.Figure:
-    fig, ax = plt.subplots(figsize=(7.0, 5.0))
+    fig, ax = plt.subplots(figsize=(7.2, 8.4))
     x_positions = np.arange(len(KNOWLEDGE_GROUPS))
 
-    override_colors = {
-        "OpenAI": "#939497",
-        "Anthropic": "#D62728",
-        "DeepSeek": "#217AB7",
-        "xAI": "#000000",
-        "Google": "#F5812A",
+    # Models to highlight. All others are greyed out.
+    # Colours match the canonical ORG_COLORS palette defined in
+    # 07l_parameters_vs_accuracy/generate_organization_accuracy_bar_plot.py.
+    HIGHLIGHT = {
+        "claude-sonnet-4": {
+            "color": "#D62728",  # Anthropic red
+            "label": "Anthropic claude-sonnet-4",
+            "anchor_group": "extensive",
+            "text_offset": (8, 6),
+            "ha": "right",
+        },
+        "grok-3-mini": {
+            "color": "#000000",  # xAI black
+            "label": "xAI grok-3-mini",
+            "anchor_group": "extensive",
+            "text_offset": (-8, -2),
+            "ha": "right",
+        },
+        "deepseek-chat-v3-0324": {
+            "color": "#1F77B4",  # DeepSeek blue
+            "label": "DeepSeek deepseek-chat-v3-0324",
+            "anchor_group": "moderate",
+            "text_offset": (10, 10),
+            "ha": "left",
+        },
+        "gpt-4o": {
+            "color": "#7F7F7F",  # OpenAI grey
+            "label": "OpenAI gpt-4o",
+            "anchor_group": "extensive",
+            "text_offset": (-8, -4),
+            "ha": "right",
+        },
+        "gemini-2.5-flash-lite": {
+            "color": "#FF7F0F",  # Google orange
+            "label": "Google gemini-2.5-flash-lite",
+            "anchor_group": "moderate",
+            "text_offset": (10, -10),
+            "ha": "left",
+        },
     }
+    GREY_COLOR = "#B8B8B8"
 
-    global_x: List[float] = []
-    global_y: List[float] = []
+    def match_highlight(model_str: str):
+        lower = model_str.lower()
+        for key, meta in HIGHLIGHT.items():
+            if key in lower:
+                return key, meta
+        return None, None
+
+    # Separate into highlighted and non-highlighted so we can draw grey underneath
+    non_highlighted: List[tuple] = []
+    highlighted: List[tuple] = []
 
     for point in points:
-        y_values = []
-        x_vals = []
+        key, meta = match_highlight(point.model)
+        if meta is None:
+            key, meta = match_highlight(point.display_name)
+
+        y_values: List[float] = []
+        x_vals: List[float] = []
         for idx, group in enumerate(KNOWLEDGE_GROUPS):
             accuracy = point.accuracy.get(group, float("nan"))
             if np.isfinite(accuracy):
@@ -689,106 +739,103 @@ def build_overview_figure(
                 y_values.append(accuracy)
         if not x_vals:
             continue
-        global_x.extend(x_vals)
-        global_y.extend(y_values)
-        color = override_colors.get(point.organization, point.color)
-        corr_value = float("nan")
-        if len(x_vals) >= 2:
-            x_arr = np.array(x_vals, dtype=float)
-            y_arr = np.array(y_values, dtype=float)
-            if y_arr.std(ddof=0) > 0:
-                corr_value = float(np.corrcoef(x_arr, y_arr)[0, 1])
+
+        if meta is None:
+            non_highlighted.append((point, x_vals, y_values))
+        else:
+            highlighted.append((point, key, meta, x_vals, y_values))
+
+    # Draw non-highlighted (grey) first
+    for point, x_vals, y_values in non_highlighted:
         ax.plot(
-            x_vals,
-            y_values,
-            color=color,
-            linewidth=0.8,
-            alpha=0.45,
-            zorder=2,
+            x_vals, y_values,
+            color=GREY_COLOR, linewidth=1.0, alpha=0.7, zorder=2,
         )
         ax.scatter(
-            x_vals,
-            y_values,
-            s=36,
-            color=color,
-            edgecolors="k",
-            linewidths=0.35,
-            alpha=0.9,
-            label=f"{point.display_name} ({point.organization})",
-            zorder=3,
+            x_vals, y_values,
+            s=44, color=GREY_COLOR, edgecolors="k", linewidths=0.35,
+            alpha=0.85, zorder=3,
         )
 
-        # Annotate extensive group point outside the plot area
-        extensive_val = point.accuracy.get("extensive", float("nan"))
-        if np.isfinite(extensive_val):
-            if np.isfinite(corr_value):
-                annotation = f"{point.display_name} (r={corr_value:.2f})"
-            else:
-                annotation = point.display_name
-            ax.annotate(
-                annotation,
-                (x_positions[-1], extensive_val),
-                textcoords="offset points",
-                xytext=(18, 0),
-                ha="left",
-                va="center",
-                fontsize=7,
-                color=color,
-                clip_on=False,
-            )
+    # Draw highlighted lines/points on top
+    for point, key, meta, x_vals, y_values in highlighted:
+        color = meta["color"]
+        ax.plot(
+            x_vals, y_values,
+            color=color, linewidth=1.6, alpha=0.9, zorder=4,
+        )
+        ax.scatter(
+            x_vals, y_values,
+            s=54, color=color, edgecolors="k", linewidths=0.4,
+            alpha=1.0, zorder=5,
+        )
 
+    # Average dashed line
     avg_scores: Dict[str, float] = {}
     for group in KNOWLEDGE_GROUPS:
         group_scores = [
-            point.accuracy.get(group, float("nan"))
-            for point in points
-            if np.isfinite(point.accuracy.get(group, float("nan")))
+            p.accuracy.get(group, float("nan"))
+            for p in points
+            if np.isfinite(p.accuracy.get(group, float("nan")))
         ]
         if group_scores:
             avg_scores[group] = float(np.mean(group_scores))
 
-    overall_corr = float("nan")
-    if len(global_x) >= 2:
-        x_arr = np.array(global_x, dtype=float)
-        y_arr = np.array(global_y, dtype=float)
-        if y_arr.std(ddof=0) > 0:
-            overall_corr = float(np.corrcoef(x_arr, y_arr)[0, 1])
-
     if avg_scores:
         avg_line = [avg_scores.get(g, np.nan) for g in KNOWLEDGE_GROUPS]
         ax.plot(
-            x_positions,
-            avg_line,
-            color="#222222",
-            linewidth=2.2,
-            linestyle="--",
-            label="Average",
+            x_positions, avg_line,
+            color="#222222", linewidth=2.4, linestyle="--", zorder=6,
+        )
+
+    # Place labels for highlighted models at their anchor group
+    group_to_idx = {g: i for i, g in enumerate(KNOWLEDGE_GROUPS)}
+    for point, key, meta, x_vals, y_values in highlighted:
+        anchor_group = meta.get("anchor_group", "extensive")
+        anchor_idx = group_to_idx[anchor_group]
+        # Find the y value at the anchor x
+        anchor_y = None
+        for xv, yv in zip(x_vals, y_values):
+            if int(round(xv)) == anchor_idx:
+                anchor_y = yv
+                break
+        if anchor_y is None:
+            # Fall back to max
+            anchor_y = max(y_values)
+            anchor_idx = x_vals[int(np.argmax(y_values))]
+
+        ax.annotate(
+            meta["label"],
+            (anchor_idx, anchor_y),
+            textcoords="offset points",
+            xytext=meta.get("text_offset", (10, 4)),
+            ha=meta.get("ha", "left"),
+            va="center",
+            fontsize=10,
+            color=meta["color"],
+            clip_on=False,
+            zorder=7,
         )
 
     ax.set_xticks(x_positions)
-    ax.set_xticklabels([grp.capitalize() for grp in KNOWLEDGE_GROUPS], fontsize=10)
-    ax.set_ylabel("Balanced Accuracy (%)", fontsize=10)
+    ax.set_xticklabels([grp.capitalize() for grp in KNOWLEDGE_GROUPS], fontsize=12)
+    ax.set_ylabel("Balanced Accuracy (%)", fontsize=12, fontweight="bold")
     ax.set_ylim(65, 85)
-    ax.grid(axis="y", linestyle=":", linewidth=0.7, alpha=0.7)
-    ax.set_title(title, fontsize=14)
+    ax.set_xlim(-0.25, len(KNOWLEDGE_GROUPS) - 0.75)
+    ax.grid(axis="y", linestyle="-", linewidth=0.6, alpha=0.5, color="#CCCCCC")
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="y", labelsize=11)
+    ax.set_title(title, fontsize=14, fontweight="bold", color="#3A3A4A", pad=12)
 
-    text_lines = []
-    if np.isfinite(overall_corr):
-        text_lines.append(f"Overall r = {overall_corr:.2f}")
-    if overall_stats and np.isfinite(overall_stats.p_value):
-        text_lines.append(f"JT p = {overall_stats.p_value:.3g}")
-    if text_lines:
-        ax.text(
-            0.02,
-            0.95,
-            " | ".join(text_lines),
-            transform=ax.transAxes,
-            fontsize=9,
-            color="#222222",
-            ha="left",
+    # Panel label
+    if panel_label:
+        fig.text(
+            0.02, 0.975, panel_label,
+            fontsize=22, fontweight="bold",
+            ha="left", va="top",
         )
 
-    fig.tight_layout(rect=(0, 0, 0.8, 1))
+    fig.tight_layout(rect=(0.02, 0, 1, 0.97))
     return fig
 
 
