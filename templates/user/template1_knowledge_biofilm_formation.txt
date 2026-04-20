@@ -1,0 +1,5 @@
+Respond with a JSON object for {binomial_name} indicating your level of species-specific scientific knowledge about its biofilm formation phenotype, in lowercase, in this format:
+
+{
+    "knowledge_group": "<limited|moderate|extensive|NA>"
+}

@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the motility phenotype of the given binomial species name, based on the depth of species-specific literature describing whether the organism is motile, its motility mechanisms (flagella, pili, gliding, swarming, etc.), and any regulatory or environmental context for motility:
+
+- limited: Little or no species-specific literature about this organism's motility. You cannot confidently state whether it is motile or non-motile except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on motility is available, including documented observations of the motility phenotype, basic mechanistic notes (e.g., flagellation pattern), or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on motility, including repeated experimental observations, mechanistic studies (flagellar genetics, chemotaxis, regulation, swarming behaviour), and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its motility from a generic taxonomic assumption, respond with NA.

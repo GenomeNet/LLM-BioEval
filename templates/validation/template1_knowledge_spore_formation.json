@@ -1,0 +1,113 @@
+{
+  "template_info": {
+    "name": "template1_knowledge_spore_formation",
+    "type": "knowledge",
+    "description": "Trait-specific knowledge-level assessment template (spore formation).",
+    "version": "1.0",
+    "purpose": "Member of the trait-audit battery generated for the reviewer rebuttal: asks the model, for a single phenotype, how much species-specific knowledge it holds. Used alongside the species-level knowledge-rating template to test whether species-level confidence approximates the aggregate of trait-specific confidences across all 13 phenotypes.",
+    "usage_context": {
+      "when_to_use": "Run together with the other 12 trait-specific knowledge templates and the species-level knowledge-rating template on a shared species sample; compare the species-level rating to aggregates (mean/max/mode) of the 13 trait-specific ratings.",
+      "typical_workflow": "(1) Pick a species sample (e.g. trait_audit_sample.txt). (2) Run species-level template3_knowlege. (3) Run all 13 trait-specific template1_knowledge_* templates on the same sample + model. (4) Aggregate the 13 trait ratings per species and correlate with the species-level rating."
+    },
+    "interpretation_guide": {
+      "limited": "Only generic, taxonomy-derived expectation about spore formation; no species-specific literature recalled.",
+      "moderate": "Some species-specific spore formation observations or mechanistic notes recalled.",
+      "extensive": "Rich species-specific spore formation literature recalled, including mechanistic, regulatory, and phenotypic detail.",
+      "NA": "Cannot place the species in any of the above tiers (unrecognised name, or no meaningful trait-specific signal beyond taxonomic inference)."
+    },
+    "quality_indicators": {
+      "high_quality_response": "Clear categorisation that is coherent with other trait-specific ratings for the same species.",
+      "low_quality_response": "Categorisation appears to mirror taxonomic family-level guesses rather than species-specific recall."
+    }
+  },
+  "expected_response": {
+    "format": "json",
+    "required_fields": [
+      "knowledge_group"
+    ],
+    "optional_fields": []
+  },
+  "field_definitions": {
+    "knowledge_group": {
+      "type": "string",
+      "required": true,
+      "description": "Trait-specific knowledge level for spore formation of the given organism.",
+      "allowed_values": [
+        "limited",
+        "moderate",
+        "extensive",
+        "NA"
+      ],
+      "validation_rules": {
+        "case_sensitive": false,
+        "trim_whitespace": true,
+        "normalize_mapping": {
+          "limited": [
+            "limited",
+            "minimal",
+            "basic",
+            "low",
+            "little",
+            "poor"
+          ],
+          "moderate": [
+            "moderate",
+            "medium",
+            "intermediate",
+            "fair",
+            "some"
+          ],
+          "extensive": [
+            "extensive",
+            "comprehensive",
+            "detailed",
+            "high",
+            "full",
+            "complete",
+            "thorough"
+          ],
+          "NA": [
+            "na",
+            "n/a",
+            "none",
+            "unknown",
+            "not applicable"
+          ]
+        }
+      },
+      "validation_error_messages": {
+        "missing": "Required field 'knowledge_group' is missing from response",
+        "invalid_value": "Invalid knowledge level. Expected one of: limited, moderate, extensive, NA",
+        "wrong_type": "Field 'knowledge_group' must be a string"
+      }
+    }
+  },
+  "parsing_instructions": {
+    "json_extraction": {
+      "method": "regex",
+      "pattern": "\\{.*\\}",
+      "flags": [
+        "DOTALL"
+      ]
+    },
+    "fallback_parsing": {
+      "enabled": true,
+      "method": "keyword_search",
+      "keywords": [
+        "knowledge_group",
+        "knowledge level",
+        "level"
+      ]
+    }
+  },
+  "success_criteria": {
+    "minimum_required_fields": 1,
+    "require_all_mandatory": true,
+    "allow_extra_fields": false
+  },
+  "error_handling": {
+    "on_parse_failure": "return_null",
+    "on_validation_failure": "return_errors",
+    "on_missing_required": "return_errors"
+  }
+}

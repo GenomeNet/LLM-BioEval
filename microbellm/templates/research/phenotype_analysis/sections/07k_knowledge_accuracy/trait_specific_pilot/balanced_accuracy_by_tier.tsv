@@ -1,0 +1,7 @@
+axis	tier	n_species	balanced_accuracy
+species_level	limited	490	0.7459
+species_level	moderate	1500	0.8531
+species_level	extensive	456	0.8688
+motility_level	limited	1145	0.8351
+motility_level	moderate	406	0.8338
+motility_level	extensive	27	0.6250

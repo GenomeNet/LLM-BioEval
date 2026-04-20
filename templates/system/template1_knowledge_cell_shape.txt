@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the cell shape phenotype of the given binomial species name, based on the depth of species-specific literature describing cellular morphology (bacillus, coccus, spirillum, other shapes) and shape-determining factors:
+
+- limited: Little or no species-specific literature about this organism's cell shape. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on cell shape is available, including basic light-microscopy descriptions, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on cell shape, including detailed shape-determinant studies (MreB/FtsZ roles, peptidoglycan architecture) and consistent microscopic/electron-microscopic characterisation, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its cell shape from a generic taxonomic assumption, respond with NA.

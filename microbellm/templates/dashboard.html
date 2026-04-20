@@ -26,6 +26,9 @@
             <button onclick="refreshDashboard(true)" class="btn btn-secondary" id="refreshBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
+            <button onclick="toggleHideEmpty()" class="btn btn-secondary" id="hideEmptyBtn" title="Collapse the matrix to only rows, columns, and sections that have at least one created combination.">
+                <i class="fas fa-filter"></i> <span id="hideEmptyBtnLabel">Hide unused</span>
+            </button>
             <button onclick="openValidationDialog()" class="btn btn-primary" id="validateBtn">
                 <i class="fas fa-check-circle"></i> Validate Predictions
             </button>
@@ -1885,6 +1888,16 @@
         margin-left: 8px;
         font-weight: bold;
     }
+
+    /* Hide-unused filter: hides cells/columns/rows/sections without any created combination. */
+    .hidden-empty {
+        display: none !important;
+    }
+    #hideEmptyBtn.active {
+        background: #2a6df4;
+        color: white;
+        border-color: #2a6df4;
+    }
 </style>
 
 <!-- Validation Dialog -->
@@ -2393,12 +2406,12 @@
             const btn = document.getElementById('refreshBtn');
             btn.classList.add('loading');
         }
-        
+
         // Save all scroll positions
         document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
             saveScrollPosition(`template-${index}`);
         });
-        
+
         fetch('/api/dashboard_data')
             .then(response => response.json())
             .then(data => {
@@ -2406,14 +2419,20 @@
                 updateDashboardData(data);
                 // Update model counts after data refresh
                 updateModelCounts();
-                
+
+                // Re-apply hide-unused filter if active (refresh may have changed cell states)
+                if (window.__hideEmptyActive) {
+                    clearHideEmpty();
+                    applyHideEmpty();
+                }
+
                 // Restore scroll positions
                 setTimeout(() => {
                     document.querySelectorAll('.matrix-scroll').forEach((container, index) => {
                         restoreScrollPosition(`template-${index}`);
                     });
                 }, 10);
-                
+
                 if (manual) {
                     const btn = document.getElementById('refreshBtn');
                     btn.classList.remove('loading');
@@ -2421,6 +2440,96 @@
                 }
             });
     }
+
+    // --------------------------------------------------------------------- //
+    // "Hide unused" filter                                                   //
+    // Collapses the processing matrix to only rows/columns/sections that     //
+    // have at least one created combination (non-empty cell). State is       //
+    // persisted across page loads via localStorage.                          //
+    // --------------------------------------------------------------------- //
+    window.__hideEmptyActive = false;
+
+    function _isEmptyCell(td) {
+        return !!td.querySelector('.status-cell.status-empty');
+    }
+
+    function applyHideEmpty() {
+        document.querySelectorAll('.template-section').forEach(section => {
+            const matrix = section.querySelector('.processing-matrix');
+            if (!matrix) return;
+
+            // 1. Hide the whole section if it has no created combinations at all.
+            const anyUsed = matrix.querySelector('.status-cell:not(.status-empty)');
+            if (!anyUsed) {
+                section.classList.add('hidden-empty');
+                return;
+            }
+
+            // 2. For each model column, flag it "used" iff any cell in that
+            //    column (within this section) is non-empty.
+            const headerCells = Array.from(matrix.querySelectorAll('thead th.model-header'));
+            const bodyRows = Array.from(matrix.querySelectorAll('tbody tr:not(.add-row)'));
+            const colUsed = new Array(headerCells.length).fill(false);
+
+            bodyRows.forEach(row => {
+                const mcells = row.querySelectorAll('td.matrix-cell');
+                mcells.forEach((td, idx) => {
+                    if (!_isEmptyCell(td)) colUsed[idx] = true;
+                });
+            });
+
+            // Hide unused column headers + their cells (every row).
+            headerCells.forEach((th, idx) => {
+                if (!colUsed[idx]) th.classList.add('hidden-empty');
+            });
+            bodyRows.forEach(row => {
+                const mcells = row.querySelectorAll('td.matrix-cell');
+                mcells.forEach((td, idx) => {
+                    if (!colUsed[idx]) td.classList.add('hidden-empty');
+                });
+            });
+
+            // 3. Hide species rows with zero non-empty cells in this section.
+            bodyRows.forEach(row => {
+                const nonEmpty = Array.from(row.querySelectorAll('td.matrix-cell'))
+                    .some(td => !_isEmptyCell(td));
+                if (!nonEmpty) row.classList.add('hidden-empty');
+            });
+        });
+    }
+
+    function clearHideEmpty() {
+        document.querySelectorAll('.hidden-empty').forEach(el => {
+            el.classList.remove('hidden-empty');
+        });
+    }
+
+    function toggleHideEmpty() {
+        window.__hideEmptyActive = !window.__hideEmptyActive;
+        const btn = document.getElementById('hideEmptyBtn');
+        const label = document.getElementById('hideEmptyBtnLabel');
+        if (window.__hideEmptyActive) {
+            applyHideEmpty();
+            btn.classList.add('active');
+            if (label) label.textContent = 'Show all';
+            try { localStorage.setItem('dashboardHideEmpty', '1'); } catch (e) {}
+        } else {
+            clearHideEmpty();
+            btn.classList.remove('active');
+            if (label) label.textContent = 'Hide unused';
+            try { localStorage.setItem('dashboardHideEmpty', '0'); } catch (e) {}
+        }
+    }
+
+    // Restore last-used filter state on page load.
+    document.addEventListener('DOMContentLoaded', () => {
+        let saved = null;
+        try { saved = localStorage.getItem('dashboardHideEmpty'); } catch (e) {}
+        if (saved === '1') {
+            // Simulate a toggle click so the button label/state stays in sync.
+            toggleHideEmpty();
+        }
+    });
     
     function updateDashboardData(data) {
         // Smart update logic - only update changed cells

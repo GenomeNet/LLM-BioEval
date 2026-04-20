@@ -1,0 +1,9 @@
+metric	value
+n_paired_any_tier	3884
+n_paired_ordinal	2110
+exact_agreement_ordinal	0.2166
+within_one_tier_agreement_ordinal	0.8592
+spearman_rho_ordinal	0.4441
+cohens_kappa_unweighted	-0.0211
+cohens_kappa_linear_weighted	0.0826
+cramers_v_including_NA	0.4081

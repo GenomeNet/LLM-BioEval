@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the biosafety level phenotype of the given binomial species name, based on the depth of species-specific literature describing biosafety classification based on risk assessment, transmissibility, and disease severity:
+
+- limited: Little or no species-specific literature about this organism's biosafety level. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on biosafety level is available, including an assigned biosafety level from a recognised authority (ABSA, WHO, national lists), or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on biosafety level, including detailed risk-group discussion including exposure routes, laboratory-acquired-infection history, and containment recommendations, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its biosafety level from a generic taxonomic assumption, respond with NA.

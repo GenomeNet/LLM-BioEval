@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the extreme-environment tolerance phenotype of the given binomial species name, based on the depth of species-specific literature describing growth and survival under extreme conditions (temperature, pH, salinity, pressure, radiation, desiccation):
+
+- limited: Little or no species-specific literature about this organism's extreme-environment tolerance. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on extreme-environment tolerance is available, including reports of survival at non-standard conditions or basic tolerance-range observations, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on extreme-environment tolerance, including mechanistic studies of stress responses (compatible solutes, heat-shock proteins, DNA-repair systems, membrane adaptations) and well-characterised tolerance boundaries, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its extreme-environment tolerance from a generic taxonomic assumption, respond with NA.

@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the gram staining phenotype of the given binomial species name, based on the depth of species-specific literature describing cell-wall architecture and how the organism behaves under Gram's staining procedure:
+
+- limited: Little or no species-specific literature about this organism's gram staining. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on gram staining is available, including basic staining observations or cell-wall composition notes, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on gram staining, including detailed cell-wall chemistry (peptidoglycan thickness, teichoic acid content), membrane architecture, and consistent microscopic characterisation, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its gram staining from a generic taxonomic assumption, respond with NA.

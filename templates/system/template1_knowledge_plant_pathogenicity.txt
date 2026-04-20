@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the plant pathogenicity phenotype of the given binomial species name, based on the depth of species-specific literature describing pathogenic potential toward plants, plant-disease manifestations, and phytopathogenic mechanisms:
+
+- limited: Little or no species-specific literature about this organism's plant pathogenicity. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on plant pathogenicity is available, including reports of plant infection or isolation from diseased plants, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on plant pathogenicity, including detailed phytopathogenic-mechanism studies (effector proteins, type III secretion, host-susceptibility determinants) and characterised plant disease cycles, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its plant pathogenicity from a generic taxonomic assumption, respond with NA.

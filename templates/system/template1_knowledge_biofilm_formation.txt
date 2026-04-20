@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the biofilm formation phenotype of the given binomial species name, based on the depth of species-specific literature describing ability to form biofilms, surface adhesion, and biofilm architecture:
+
+- limited: Little or no species-specific literature about this organism's biofilm formation. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on biofilm formation is available, including basic observations of biofilm growth or adhesion assays on standard substrates, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on biofilm formation, including mechanistic studies (quorum sensing, exopolysaccharide composition, dispersal signalling) and reproducible experimental biofilm characterisation, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its biofilm formation from a generic taxonomic assumption, respond with NA.

@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the spore formation phenotype of the given binomial species name, based on the depth of species-specific literature describing endospore formation, sporulation regulation, and spore properties:
+
+- limited: Little or no species-specific literature about this organism's spore formation. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on spore formation is available, including basic observations of spore formation under starvation conditions or morphological descriptions, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on spore formation, including detailed sporulation regulation (sigma-factor cascade, forespore/mother-cell differentiation), spore ultrastructure, and germination mechanisms, and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its spore formation from a generic taxonomic assumption, respond with NA.

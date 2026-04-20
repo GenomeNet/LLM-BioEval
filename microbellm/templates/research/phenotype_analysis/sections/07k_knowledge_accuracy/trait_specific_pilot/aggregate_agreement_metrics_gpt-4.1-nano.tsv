@@ -1,0 +1,8 @@
+metric	value	notes
+n_paired	3884	paired species with species-level + aggregate defined
+spearman_rho_continuous_primary	0.6304	PRIMARY metric; rank correlation of species-level (ordinal) with continuous aggregate mean. Unaffected by regression-to-the-mean as k grows.
+within_one_tier_categorical	0.9083	proportion of species within one tier between species-level and discretised aggregate (ordinal only).
+exact_tier_categorical_discretized	0.1944	proportion of species with exact tier match after aggregate discretisation. Suppressed by regression-to-mean; do NOT cite in place of rho.
+kappa_linear_discretized	0.0633	Cohen's linear-weighted kappa on discretised tiers (ordinal only). Same caveat.
+kappa_unweighted_discretized	-0.0641	Cohen's unweighted kappa on discretised tiers. Same caveat.
+cramers_v_4x4_discretized	0.4809	Cramer's V on 4x4 contingency including NA.

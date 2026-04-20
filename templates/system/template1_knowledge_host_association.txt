@@ -1,0 +1,7 @@
+Determine your level of scientific knowledge specifically about the host association phenotype of the given binomial species name, based on the depth of species-specific literature describing host-colonisation patterns and lifestyle (free-living, commensal, parasitic, symbiotic):
+
+- limited: Little or no species-specific literature about this organism's host association. You cannot confidently state this phenotype except by generic inference from its genus or higher taxonomic rank.
+- moderate: Some species-specific information on host association is available, including basic host-range observations or isolation-source notes, or a small number of primary-literature reports.
+- extensive: Comprehensive species-specific literature on host association, including detailed host-interaction studies (colonisation factors, host-specificity determinants, ecological-niche characterisation), and consistent coverage across multiple independent publications.
+
+If the species name is not a real or recognized species, or if you cannot meaningfully separate your knowledge of its host association from a generic taxonomic assumption, respond with NA.
