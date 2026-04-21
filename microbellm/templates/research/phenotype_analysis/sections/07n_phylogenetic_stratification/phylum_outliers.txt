@@ -1,0 +1,26 @@
+Phylogenetic stratification — outlier summary
+Overall mean balanced accuracy across phyla & phenotypes: 0.609
+
+Per-phylum mean accuracy (deviations from overall):
+  Other                      mean=0.741  Δ=+0.133 *
+  Spirochaetota              mean=0.688  Δ=+0.080 *
+  Bacillota                  mean=0.688  Δ=+0.079 *
+  Actinomycetota             mean=0.620  Δ=+0.012
+  Pseudomonadota             mean=0.617  Δ=+0.009
+  Bacteroidota               mean=0.615  Δ=+0.006
+  Euryarchaeota              mean=0.548  Δ=-0.060 *
+  Campylobacterota           mean=0.541  Δ=-0.068 *
+  Myxococcota                mean=0.419  Δ=-0.190 *
+
+Worst (phylum, phenotype) outliers (z < -1.5):
+  z=-2.01  Myxococcota             extreme_environment_tolerance   acc=0.366
+  z=-1.61  Campylobacterota        animal_pathogenicity            acc=0.458
+  z=-1.59  Campylobacterota        biosafety_level                 acc=0.496
+  z=-1.52  Myxococcota             host_association                acc=0.406
+
+Best (phylum, phenotype) outliers (z > +1.5):
+  z=+2.20  Pseudomonadota          plant_pathogenicity             acc=0.721
+  z=+1.91  Campylobacterota        gram_staining                   acc=0.924
+  z=+1.90  Bacillota               motility                        acc=0.794
+  z=+1.61  Bacillota               cell_shape                      acc=0.903
+
