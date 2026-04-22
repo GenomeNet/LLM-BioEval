@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Generate a comprehensive hallucination-rate figure covering every evaluated model.
+"""Generate the hallucination-rate figure covering every evaluated model.
 
-This is intended as a supplementary figure summarising the Template 3
-(NA-allowed) fabricated-name benchmark across all models tested. Each row
-is one model, sorted by overall hallucination rate, with stacked segments
-for correct rejection (NA / no_result / inference_failed) vs. the three
-hallucination severities (limited / moderate / extensive).
+This is the main-text figure summarising the Template 3 (NA-allowed)
+fabricated-name benchmark across all evaluated models. Each row is one
+model, sorted by overall hallucination rate. The left panel shows the
+aggregate hallucination rate; the four right panels decompose the response
+distribution separately for each of the four categories of fabricated
+binomial names (random English words, pseudo-Latin inventions, and the
+two half-real / half-invented hybrids).
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -30,6 +32,21 @@ matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 API_URL = "http://localhost:5050"
 OUTPUT_PATH = Path(__file__).parent / "all_models_hallucination.pdf"
 
+# The four artificial-name categories, in the order they appear as right-
+# side sub-panels. The labels below go on each sub-panel title.
+CATEGORY_ORDER = (
+    'random_words',
+    'latin_random_words',
+    'real_genus_latin_strain',
+    'latin_genus_real_strain',
+)
+CATEGORY_LABELS = {
+    'random_words': 'English words\n(e.g. "Amber Field")',
+    'latin_random_words': 'Pseudo-Latin\n(e.g. "Solispira lumina")',
+    'real_genus_latin_strain': 'Real genus + Latin sp.\n(e.g. "Mycobacterium ferrum")',
+    'latin_genus_real_strain': 'Latin genus + real sp.\n(e.g. "Temporibacter coli")',
+}
+
 
 def fetch_knowledge_data(api_url: str) -> Dict:
     endpoint = api_url.rstrip('/') + '/api/knowledge_analysis_data'
@@ -37,9 +54,13 @@ def fetch_knowledge_data(api_url: str) -> Dict:
         return json.loads(resp.read().decode('utf-8'))
 
 
-def aggregate_model_stats(knowledge_data: Dict) -> Dict[str, Dict[str, int]]:
-    """Aggregate Template 3 counts per model across all input types."""
-    model_stats: Dict[str, Dict[str, int]] = {}
+def aggregate_model_stats(knowledge_data: Dict) -> Dict[str, Dict[str, Dict[str, int]]]:
+    """Return {model: {category: counts}} for Template 3.
+
+    Unlike the earlier flat-aggregation, this preserves the per-category
+    split so the right panels can show one stacked bar per category.
+    """
+    model_stats: Dict[str, Dict[str, Dict[str, int]]] = {}
 
     for _file, file_data in knowledge_data.items():
         if not file_data.get('has_type_column') or not file_data.get('types'):
@@ -51,7 +72,8 @@ def aggregate_model_stats(knowledge_data: Dict) -> Dict[str, Dict[str, int]]:
                 if 'template3' not in template_name.lower():
                     continue
                 for model_name, stats in models.items():
-                    bucket = model_stats.setdefault(model_name, {
+                    by_cat = model_stats.setdefault(model_name, {})
+                    bucket = by_cat.setdefault(input_type, {
                         'na': 0, 'limited': 0, 'moderate': 0,
                         'extensive': 0, 'no_result': 0,
                         'inference_failed': 0, 'total': 0,
@@ -63,22 +85,42 @@ def aggregate_model_stats(knowledge_data: Dict) -> Dict[str, Dict[str, int]]:
     return model_stats
 
 
-def build_model_rows(model_stats: Dict[str, Dict[str, int]]) -> List[Dict]:
+def _per_cat_percentages(c: Optional[Dict[str, int]]) -> Optional[Dict[str, float]]:
+    if not c:
+        return None
+    total = c.get('total', 0)
+    if total <= 0:
+        return None
+    correct = c.get('na', 0) + c.get('no_result', 0) + c.get('inference_failed', 0)
+    return {
+        'correct_pct': 100.0 * correct / total,
+        'limited_pct': 100.0 * c.get('limited', 0) / total,
+        'moderate_pct': 100.0 * c.get('moderate', 0) / total,
+        'extensive_pct': 100.0 * c.get('extensive', 0) / total,
+    }
+
+
+def build_model_rows(model_stats: Dict[str, Dict[str, Dict[str, int]]]) -> List[Dict]:
     rows: List[Dict] = []
-    for model, s in model_stats.items():
-        total = s['total']
-        if total <= 0:
+    for model, by_cat in model_stats.items():
+        # Overall counts aggregated over all categories (drive the sort + left panel).
+        overall_total = sum(c['total'] for c in by_cat.values())
+        if overall_total <= 0:
             continue
-        correct = s['na'] + s['no_result'] + s['inference_failed']
-        hallucinations = s['limited'] + s['moderate'] + s['extensive']
+        overall_halluc = sum(
+            c.get('limited', 0) + c.get('moderate', 0) + c.get('extensive', 0)
+            for c in by_cat.values()
+        )
+
+        per_cat: Dict[str, Optional[Dict[str, float]]] = {}
+        for cat in CATEGORY_ORDER:
+            per_cat[cat] = _per_cat_percentages(by_cat.get(cat))
+
         rows.append({
             'name': model.split('/')[-1][:32],
-            'total': total,
-            'correct_pct': 100.0 * correct / total,
-            'limited_pct': 100.0 * s['limited'] / total,
-            'moderate_pct': 100.0 * s['moderate'] / total,
-            'extensive_pct': 100.0 * s['extensive'] / total,
-            'hallucination_rate': 100.0 * hallucinations / total,
+            'total': overall_total,
+            'hallucination_rate': 100.0 * overall_halluc / overall_total,
+            'per_cat': per_cat,
         })
     rows.sort(key=lambda r: r['hallucination_rate'])
     return rows
@@ -92,33 +134,31 @@ def plot_all_models(rows: List[Dict], output_path: Path) -> None:
     y = np.arange(n)
     names = [r['name'] for r in rows]
 
-    correct = np.array([r['correct_pct'] for r in rows])
-    limited = np.array([r['limited_pct'] for r in rows])
-    moderate = np.array([r['moderate_pct'] for r in rows])
-    extensive = np.array([r['extensive_pct'] for r in rows])
-
-    # Panel height scales with number of models; kept tight so the bars
-    # touch each other rather than leaving visible stripes of whitespace.
-    height = max(2.6, 0.13 * n + 0.6)
-    fig, (ax_rate, ax_stack) = plt.subplots(
-        1, 2, figsize=(8.5, height),
-        gridspec_kw={'width_ratios': [1, 2.1], 'wspace': 0.06},
+    # 5 columns: 1 aggregate rate + 4 stratified category panels.
+    # Width scales with number of panels; height scales with number of models.
+    height = max(3.0, 0.13 * n + 0.9)
+    fig, axes = plt.subplots(
+        1, 5, figsize=(13.5, height),
+        gridspec_kw={
+            'width_ratios': [1.1, 1.7, 1.7, 1.7, 1.7],
+            'wspace': 0.10,
+        },
         sharey=True,
     )
+    ax_rate = axes[0]
+    cat_axes = list(axes[1:])
 
-    # Left panel: overall hallucination rate
-    rate = limited + moderate + extensive
+    # --- Left panel: overall hallucination rate -------------------------- #
+    rate = np.array([r['hallucination_rate'] for r in rows])
     ax_rate.barh(y, rate, color='#B22222', height=1.0,
                  edgecolor='white', linewidth=0.3)
     for yi, val in zip(y, rate):
         ax_rate.text(val + 1.2, yi, f"{val:.0f}%",
                      va='center', ha='left', fontsize=6.5)
-    ax_rate.set_xlabel('Hallucination Rate (%)', fontsize=8)
+    ax_rate.set_xlabel('Overall hallucination\nrate (%)', fontsize=7.5)
     ax_rate.set_xlim(0, 105)
     ax_rate.set_yticks(y)
     ax_rate.set_yticklabels(names, fontsize=6.5)
-    # Tight y-limits (bar_height/2 + tiny margin) so the last row sits flush
-    # against the x-axis instead of leaving matplotlib's default half-unit gap.
     ax_rate.set_ylim(n - 0.5, -0.5)
     ax_rate.grid(axis='x', linestyle='-', linewidth=0.3,
                  color='#E5E5E5', zorder=0)
@@ -128,43 +168,80 @@ def plot_all_models(rows: List[Dict], output_path: Path) -> None:
     ax_rate.tick_params(axis='x', labelsize=7, length=0)
     ax_rate.tick_params(axis='y', length=0)
 
-    # Right panel: stacked breakdown
+    # --- Right panels: one stacked bar per category ---------------------- #
     colors = {
         'correct': '#9ca3af',
         'limited': '#f9be24',
         'moderate': '#517abd',
         'extensive': '#45b75f',
     }
-    ax_stack.barh(y, correct, color=colors['correct'], height=1.0,
-                  edgecolor='white', linewidth=0.3, label='Correct rejection (NA)')
-    ax_stack.barh(y, limited, left=correct, color=colors['limited'], height=1.0,
-                  edgecolor='white', linewidth=0.3, label='Limited hallucination')
-    ax_stack.barh(y, moderate, left=correct + limited, color=colors['moderate'],
-                  height=1.0, edgecolor='white', linewidth=0.3,
-                  label='Moderate hallucination')
-    ax_stack.barh(y, extensive, left=correct + limited + moderate,
-                  color=colors['extensive'], height=1.0,
-                  edgecolor='white', linewidth=0.3,
-                  label='Extensive hallucination')
+    legend_handles = []
+    legend_labels = [
+        'Correct rejection (NA)',
+        'Limited hallucination',
+        'Moderate hallucination',
+        'Extensive hallucination',
+    ]
 
-    ax_stack.set_xlim(0, 100)
-    ax_stack.set_xlabel('Response distribution on fabricated names (%)', fontsize=8)
-    ax_stack.grid(axis='x', linestyle='-', linewidth=0.3,
-                  color='#E5E5E5', zorder=0)
-    ax_stack.set_axisbelow(True)
-    for spine in ('top', 'right'):
-        ax_stack.spines[spine].set_visible(False)
-    ax_stack.tick_params(axis='x', labelsize=7, length=0)
-    ax_stack.tick_params(axis='y', length=0)
-    ax_stack.legend(
-        loc='lower center', bbox_to_anchor=(0.5, -0.14 - 0.4 / height),
-        ncol=4, frameon=False, fontsize=7, handlelength=1.2,
-        columnspacing=1.2, handletextpad=0.5,
+    for i, cat in enumerate(CATEGORY_ORDER):
+        ax = cat_axes[i]
+
+        correct = np.array([
+            (r['per_cat'].get(cat) or {}).get('correct_pct', np.nan) for r in rows
+        ])
+        limited = np.array([
+            (r['per_cat'].get(cat) or {}).get('limited_pct', 0.0) for r in rows
+        ])
+        moderate = np.array([
+            (r['per_cat'].get(cat) or {}).get('moderate_pct', 0.0) for r in rows
+        ])
+        extensive = np.array([
+            (r['per_cat'].get(cat) or {}).get('extensive_pct', 0.0) for r in rows
+        ])
+
+        mask = ~np.isnan(correct)
+        cbar = ax.barh(y[mask], correct[mask], color=colors['correct'],
+                       height=1.0, edgecolor='white', linewidth=0.3)
+        lbar = ax.barh(y[mask], limited[mask], left=correct[mask],
+                       color=colors['limited'], height=1.0,
+                       edgecolor='white', linewidth=0.3)
+        mbar = ax.barh(y[mask], moderate[mask],
+                       left=correct[mask] + limited[mask],
+                       color=colors['moderate'], height=1.0,
+                       edgecolor='white', linewidth=0.3)
+        ebar = ax.barh(y[mask], extensive[mask],
+                       left=correct[mask] + limited[mask] + moderate[mask],
+                       color=colors['extensive'], height=1.0,
+                       edgecolor='white', linewidth=0.3)
+
+        if i == 0:
+            legend_handles = [cbar, lbar, mbar, ebar]
+
+        ax.set_xlim(0, 100)
+        ax.set_xlabel('% of responses', fontsize=7.5)
+        ax.set_title(CATEGORY_LABELS[cat], fontsize=8)
+        ax.grid(axis='x', linestyle='-', linewidth=0.3,
+                color='#E5E5E5', zorder=0)
+        ax.set_axisbelow(True)
+        for spine in ('top', 'right'):
+            ax.spines[spine].set_visible(False)
+        ax.tick_params(axis='x', labelsize=7, length=0)
+        ax.tick_params(axis='y', length=0)
+
+    # Shared legend at the bottom.
+    fig.legend(
+        legend_handles, legend_labels,
+        loc='lower center',
+        bbox_to_anchor=(0.5, 0.002),
+        ncol=4, frameon=False, fontsize=7.5,
+        handlelength=1.2, columnspacing=1.6, handletextpad=0.5,
     )
 
-    fig.suptitle('Hallucination rates on fabricated names (Template 3, all models)',
-                 fontsize=10, y=0.995)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.97))
+    fig.suptitle(
+        'Hallucination rates on fabricated names, stratified by name category (Template 3)',
+        fontsize=10, y=0.995,
+    )
+    fig.tight_layout(rect=(0, 0.035, 1, 0.96))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, format='pdf', facecolor='white', edgecolor='none')
     plt.close(fig)

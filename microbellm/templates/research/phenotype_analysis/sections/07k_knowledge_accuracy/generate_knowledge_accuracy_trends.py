@@ -669,7 +669,7 @@ def build_overview_figure(
     overall_stats: JonckheereTerpstraResult | None = None,
     panel_label: str = "A",
 ) -> matplotlib.figure.Figure:
-    fig, ax = plt.subplots(figsize=(7.2, 8.4))
+    fig, ax = plt.subplots(figsize=(5.6, 7.0))
     x_positions = np.arange(len(KNOWLEDGE_GROUPS))
 
     # Models to highlight. All others are greyed out.
